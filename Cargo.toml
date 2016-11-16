@@ -1,5 +1,5 @@
 [package]
-name = "decimal"
+name = "rust_decimal"
 version = "0.1.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 build = "build.rs"

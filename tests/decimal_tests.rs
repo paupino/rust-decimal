@@ -1,8 +1,8 @@
 extern crate num;
-extern crate decimal;
+extern crate rust_decimal;
 
 use num::Zero;
-use decimal::Decimal;
+use rust_decimal::Decimal;
 use std::str::FromStr;
 
 // Parsing
