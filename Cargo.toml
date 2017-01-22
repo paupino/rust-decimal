@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 build = "build.rs"
 
@@ -12,4 +12,5 @@ num = "*"
 byteorder = "*"
 serde = "0.8"
 serde_json = "0.8"
+lazy_static = "0.1.*"
 postgres = { version = "*", optional = true }

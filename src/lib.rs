@@ -1,6 +1,7 @@
 extern crate num;
 extern crate serde;
 extern crate serde_json;
+#[macro_use] extern crate lazy_static;
 
 #[cfg(feature = "postgres")]
 mod postgres;
@@ -37,6 +38,11 @@ const MAX_PRECISION: u32 = 28;
 const MAX_BYTES: usize = 12;
 const MAX_BITS: usize = 96;
 
+lazy_static! {
+    static ref MIN: Decimal = Decimal { flags: -2147483648, lo: -1, mid: -1, hi: -1 };
+    static ref MAX: Decimal = Decimal { flags: 0, lo: -1, mid: -1, hi: -1 };
+}
+
 // Fast access for 10^n where n is 0-9
 static POWERS_10: &'static [u32; 10] = &[1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000];
 // Fast access for 10^n where n is 10-19
@@ -58,7 +64,7 @@ static BIG_POWERS_10: &'static [u64; 10] = &[10000000000,
 #[derive(Clone, Debug, Copy)]
 pub struct Decimal {
     // Bits 0-15: unused
-    // Bits 16-23: Contain "e", a value between 0-28 that indicates the scale
+    // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
     // Bits 24-30: unused
     // Bit 31: the sign of the Decimal value, 0 meaning positive and 1 meaning negative.
     flags: i32,
@@ -158,6 +164,14 @@ impl Decimal {
         self.flags >= 0
     }
 
+    pub fn min_value() -> Decimal {
+        *MIN
+    }
+
+    pub fn max_value() -> Decimal {
+        *MAX
+    }
+
     pub fn round(&self) -> Decimal {
         self.round_dp(0)
     }
@@ -185,10 +199,10 @@ impl Decimal {
             //   12250
             //   12251
             let index = dp as usize;
-            let power10 = if dp < 10 { 
-                Decimal::from_u32(POWERS_10[index]).unwrap() 
-            } else { 
-                Decimal::from_u64(BIG_POWERS_10[index - 10]).unwrap() 
+            let power10 = if dp < 10 {
+                Decimal::from_u32(POWERS_10[index]).unwrap()
+            } else {
+                Decimal::from_u64(BIG_POWERS_10[index - 10]).unwrap()
             };
             //println!("{} * {}", self.to_string(), power10.to_string());
             let mut value = self.mul(power10);
@@ -625,7 +639,7 @@ impl FromPrimitive for Decimal {
 }
 
 impl ToPrimitive for Decimal {
-    
+
     fn to_i64(&self) -> Option<i64> {
         let d = self.rescale(0);
         // Convert to biguint and use that
