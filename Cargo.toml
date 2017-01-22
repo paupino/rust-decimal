@@ -10,9 +10,9 @@ license = "MIT"
 serde_codegen = "0.8"
 
 [dependencies]
-num = "*"
-byteorder = "*"
+num = "0.1"
+byteorder = "0.5.3"
 serde = "0.8"
 serde_json = "0.8"
-lazy_static = "0.1.*"
-postgres = { version = "*", optional = true }
+lazy_static = "0.1.16"
+postgres = { version = "0.13.1", optional = true }
