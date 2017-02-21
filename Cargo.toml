@@ -2,17 +2,13 @@
 name = "rust_decimal"
 version = "0.1.1"
 authors = ["Paul Mason <paul@form1.co.nz>"]
-build = "build.rs"
 description = "A Decimal Implementation written in pure Rust suitable for financial calculations."
 license = "MIT"
-
-[build-dependencies]
-serde_codegen = "0.8"
 
 [dependencies]
 num = "0.1"
 byteorder = "0.5.3"
-serde = "0.8"
-serde_json = "0.8"
+serde = "0.9"
+serde_json = "0.9"
 lazy_static = "0.1.16"
 postgres = { version = "0.13.6", optional = true }

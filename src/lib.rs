@@ -8,6 +8,7 @@ extern crate serde_json;
 extern crate postgres as pg_crate;
 #[cfg(feature = "postgres")]
 mod postgres;
+mod serde_types;
 
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::str::FromStr;
@@ -17,8 +18,6 @@ use std::cmp::Ordering::Equal;
 
 use num::{BigInt, BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
 use num::bigint::Sign::{Minus, Plus};
-
-include!(concat!(env!("OUT_DIR"), "/serde_types.rs"));
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
