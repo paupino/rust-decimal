@@ -1,5 +1,13 @@
+use Decimal;
+
+use num::{FromPrimitive, Zero};
+use serde;
+
+use std::fmt;
+use std::str::FromStr;
+
 impl serde::Deserialize for Decimal {
-    fn deserialize<D>(deserializer: &mut D) -> Result<Decimal, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
         where D: serde::de::Deserializer {
         deserializer.deserialize(DecimalVisitor)
     }
@@ -10,34 +18,35 @@ struct DecimalVisitor;
 impl serde::de::Visitor for DecimalVisitor {
     type Value = Decimal;
 
-    fn visit_i16<E>(&mut self, value: i16) -> Result<Decimal, E>
-        where E: serde::Error {
+    fn visit_i16<E>(self, value: i16) -> Result<Decimal, E> {
         match Decimal::from_i32(value as i32) {
             Some(s) => Ok(s),
             None => Ok(Decimal::zero()),
         }
     }
 
-    fn visit_i32<E>(&mut self, value: i32) -> Result<Decimal, E>
-        where E: serde::Error {
+    fn visit_i32<E>(self, value: i32) -> Result<Decimal, E> {
         match Decimal::from_i32(value) {
             Some(s) => Ok(s),
             None => Ok(Decimal::zero()),
         }
     }
 
-    fn visit_str<E>(&mut self, value: &str) -> Result<Decimal, E>
-        where E: serde::Error {
+    fn visit_str<E>(self, value: &str) -> Result<Decimal, E> {
         match Decimal::from_str(value) {
             Ok(s) => Ok(s),
             Err(_) => Ok(Decimal::zero()),
         }
     }
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a Decimal type representing a fixed-point number")
+    }
 }
 
 impl serde::Serialize for Decimal {
-    fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: serde::Serializer {
-        serializer.serialize_str(&(self.to_string())[..])
+        serializer.serialize_str(&self.to_string())
     }
 }
