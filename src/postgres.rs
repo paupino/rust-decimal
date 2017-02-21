@@ -1,26 +1,25 @@
 extern crate byteorder;
-extern crate postgres;
 extern crate num;
 
-use self::postgres::Result as PostgresResult;
-use self::postgres::types::*;
-use self::postgres::error::Error;
+use pg_crate::types::*;
+use pg_crate::error::Error;
 
-use std::io::prelude::*;
+use std::io::Cursor;
 use std::fmt;
 use std::result::*;
 use std::error;
 
 use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use self::num::{BigUint, One, Zero};
+use self::num::{BigUint, One, Zero, ToPrimitive};
 use self::num::bigint::ToBigUint;
 
 #[cfg(test)]
-use self::postgres::{Connection, SslMode};
+use pg_crate::{Connection, TlsMode};
+#[cfg(test)]
+use std::str::FromStr;
 
 use super::Decimal;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy)]
 pub struct InvalidDecimal;
@@ -44,7 +43,7 @@ impl FromSql for Decimal {
     //  u16 numGroups
     //  i16 weightFirstGroup (10000^weight)
     //  u16 sign (0x0000 = positive, 0x4000 = negative, 0xC000 = NaN)
-    //  i16 dcsale. Number of digits (in base 10) to print after decimal separator
+    //  i16 dscale. Number of digits (in base 10) to print after decimal separator
     //
     //  Psuedo code :
     //  const Decimals [
@@ -87,12 +86,14 @@ impl FromSql for Decimal {
     // 0F 6E = 3950
     //   result = result + 3950 * 1;
     // 04 D2 = 1234
-    //   result = result + 1234 * 0.001;
+    //   result = result + 1234 * 0.0001;
     // 15 E0 = 5600
-    //   result = resNult + 5600 * 0.00000001;
+    //   result = result + 5600 * 0.00000001;
     //
 
-    fn from_sql<R: Read>(_: &Type, raw: &mut R, _: &SessionInfo) -> PostgresResult<Decimal> {
+    fn from_sql(_: &Type, raw: &[u8], _: &SessionInfo)
+        -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
+        let mut raw = Cursor::new(raw);
         let num_groups = try!(raw.read_u16::<BigEndian>());
         let weight = try!(raw.read_i16::<BigEndian>()); // 10000^weight
         // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
@@ -106,7 +107,7 @@ impl FromSql for Decimal {
         let mut val: BigUint = One::one();
         powers.push(BigUint::one());
         for _ in 1..num_groups {
-            val = val.clone() * mult.clone();
+            val = &val * &mult;
             powers.push(val.clone());
         }
         powers.reverse();
@@ -115,13 +116,11 @@ impl FromSql for Decimal {
         let mut result: BigUint = Zero::zero();
         for i in 0..num_groups {
             let group = try!(raw.read_u16::<BigEndian>());
-            let calculated = powers[i as usize].clone() * group.to_biguint().unwrap();
-            // println!("{} {}", i, calculated);
+            let calculated = &powers[i as usize] * group.to_biguint().unwrap();
             result = result + calculated;
         }
 
         // Finally, adjust for the scale
-        // println!("num_groups: {}, weight {}, result {}", num_groups, weight, result);
         let mut scale = (num_groups as i16 - weight - 1) as i32 * 4;
         // Scale could be negative
         if scale < 0 {
@@ -134,10 +133,20 @@ impl FromSql for Decimal {
 
         // Create the decimal
         let neg = sign == 0x4000;
-        match Decimal::from_biguint(result, scale as u32, neg) {
+        let mut decimal = try!(match Decimal::from_biguint(result, scale as u32, neg) {
             Ok(x) => Ok(x),
-            Err(_) => Err(Error::Conversion(Box::new(InvalidDecimal))),
+            Err(_) => Err(Box::new(Error::Conversion(Box::new(InvalidDecimal)))),
+        });
+
+        // Normalize by truncating any trailing 0's from the decimal representation
+        // This may not be the most efficient way of doing this
+        if scale > 0 {
+            let str_rep = decimal.to_string();
+            let trailing_zeros = str_rep.chars().rev().take_while(|&x| x == '0').count();
+            decimal = decimal.rescale(scale as u32 - trailing_zeros as u32);
         }
+
+        Ok(decimal)
     }
 
     fn accepts(ty: &Type) -> bool {
@@ -148,14 +157,81 @@ impl FromSql for Decimal {
     }
 }
 
+impl ToSql for Decimal {
+    fn to_sql(&self,
+              _: &Type,
+              out: &mut Vec<u8>,
+              _: &SessionInfo)
+              -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
+        let uint = self.to_biguint();
+        let sign = if self.is_negative() { 0x4000 } else { 0x0000 };
+        let scale = self.scale() as u16;
+        let mut digits = uint.to_str_radix(10);
+        let split_point = if scale as usize > digits.len() {
+            let mut new_digits = vec!['0'; scale as usize - digits.len() as usize];
+            new_digits.extend(digits.chars());
+            digits = new_digits.into_iter().collect::<String>();
+            0
+        } else {
+            digits.len() as isize - scale as isize
+        };
+        let (whole_digits, decimal_digits) = digits.split_at(split_point as usize);
+        let whole_portion = whole_digits.chars().rev().collect::<Vec<char>>().chunks(4)
+            .map(|x| {
+                let mut x = x.to_owned();
+                while x.len() < 4 { x.push('0'); }
+                x.into_iter().rev().collect::<String>()
+            })
+            .rev().collect::<Vec<String>>();
+        let decimal_portion = decimal_digits.chars().collect::<Vec<char>>().chunks(4)
+            .map(|x| {
+                let mut x = x.to_owned();
+                while x.len() < 4 { x.push('0'); }
+                x.into_iter().collect::<String>()
+            })
+            .collect::<Vec<String>>();
+        let weight = if whole_portion.is_empty() {
+            -(decimal_portion.len() as i16)
+        } else {
+            whole_portion.len() as i16 - 1
+        };
+        let all_groups = whole_portion.into_iter().chain(decimal_portion.into_iter())
+            .skip_while(|ref x| *x == "0000").collect::<Vec<String>>();
+        let num_groups = all_groups.len() as u16;
+
+        // Number of groups
+        try!(out.write_u16::<BigEndian>(num_groups));
+        // Weight of first group
+        try!(out.write_i16::<BigEndian>(weight));
+        // Sign
+        try!(out.write_u16::<BigEndian>(sign));
+        // DScale
+        try!(out.write_u16::<BigEndian>(scale));
+        // Now process the number
+        for chunk in all_groups {
+            let calculated = chunk.parse::<u16>().unwrap();
+            try!(out.write_u16::<BigEndian>(calculated.to_u16().unwrap()));
+        }
+        Ok(IsNull::No)
+    }
+
+    fn accepts(ty: &Type) -> bool {
+        match *ty {
+            Type::Numeric => true,
+            _ => false,
+        }
+    }
+
+    to_sql_checked!();
+}
+
 #[cfg(test)]
-fn test_type(sql_type: &str, checks: &[&'static str]) {
-    let conn = match Connection::connect("postgres://paulmason@localhost", &SslMode::None) {
+fn test_read_type(sql_type: &str, checks: &[&'static str]) {
+    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
         Ok(x) => x,
         Err(err) => panic!("{:#?}", err),
     };
     for &val in checks.iter() {
-        // println!("{}", val);
         let stmt = match conn.prepare(&*format!("SELECT {}::{}", val, sql_type)) {
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
@@ -165,22 +241,38 @@ fn test_type(sql_type: &str, checks: &[&'static str]) {
             Err(err) => panic!("{:#?}", err),
         };
         assert_eq!(val, result.to_string());
-        //
-        // let stmt = match conn.prepare(&*format!("SELECT $1::{}", sql_type)) {
-        // Ok(x) => x,
-        // Err(err) => panic!("{:#?}", err)
-        // };
-        // let number = Decimal::from_str(val).unwrap();
-        // let result : Decimal = match stmt.query(&[&number]) {
-        // Ok(x) => x.iter().next().unwrap().get(0),
-        // Err(err) => panic!("{:#?}", err)
-        // };
-        // assert_eq!(val, result.to_string());
-        //
     }
+}
 
-    // Also test NULL
-    let stmt = match conn.prepare(&*format!("SELECT NULL::{}", sql_type)) {
+#[cfg(test)]
+fn test_write_type(sql_type: &str, checks: &[&'static str]) {
+    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+        Ok(x) => x,
+        Err(err) => panic!("{:#?}", err),
+    };
+    for &val in checks.iter() {
+        let stmt = match conn.prepare(&*format!("SELECT $1::{}", sql_type)) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err)
+        };
+        let number = Decimal::from_str(val).unwrap();
+        let result: Decimal = match stmt.query(&[&number]) {
+            Ok(x) => x.iter().next().unwrap().get(0),
+            Err(err) => panic!("{:#?}", err)
+        };
+        assert_eq!(val, result.to_string());
+    }
+}
+
+#[test]
+fn test_null() {
+    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+        Ok(x) => x,
+        Err(err) => panic!("{:#?}", err),
+    };
+
+    // Test NULL
+    let stmt = match conn.prepare(&"SELECT NULL::numeric") {
         Ok(x) => x,
         Err(err) => panic!("{:#?}", err),
     };
@@ -193,6 +285,14 @@ fn test_type(sql_type: &str, checks: &[&'static str]) {
 
 #[test]
 fn it_can_read_numeric_type() {
-    test_type("NUMERIC(26,6)",
-              &["3950.123456", "3950", "0.000001", "-100", "-123.4560", "119996.2500", "1000000"]);
+    test_read_type("NUMERIC(26,6)",
+              &["3950.123456", "3950", "0.1", "0.01", "0.001", "0.0001", "0.00001", "0.000001",
+                  "1", "-100", "-123.456", "119996.25", "1000000", "9999999.99999"]);
+}
+
+#[test]
+fn it_can_write_numeric_type() {
+    test_write_type("NUMERIC(26,6)",
+              &["3950.123456", "3950", "0.1", "0.01", "0.001", "0.0001", "0.00001", "0.000001",
+                  "1", "-100", "-123.456", "119996.25", "1000000", "9999999.99999"]);
 }

@@ -3,6 +3,9 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate lazy_static;
 
+#[macro_use]
+#[cfg(feature = "postgres")]
+extern crate postgres as pg_crate;
 #[cfg(feature = "postgres")]
 mod postgres;
 
@@ -255,7 +258,7 @@ impl Decimal {
         if exp > MAX_PRECISION {
             panic!("Cannot have an exponent greater than {}", MAX_PRECISION);
         }
-        let diff = exp as i32 - ((self.flags & SCALE_MASK) >> SCALE_SHIFT);
+        let diff = exp as i32 - self.scale() as i32;
         if diff == 0 {
             // Since it's a copy type we can just return the self
             return *self;
