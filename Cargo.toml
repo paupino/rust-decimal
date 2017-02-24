@@ -7,8 +7,8 @@ license = "MIT"
 
 [dependencies]
 num = "0.1"
-byteorder = "0.5.3"
+byteorder = "1.0"
 serde = "0.9"
 serde_json = "0.9"
-lazy_static = "0.1.16"
-postgres = { version = "0.13.6", optional = true }
+lazy_static = "0.2"
+postgres = { version = "0.14", optional = true }
