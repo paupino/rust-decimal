@@ -91,7 +91,7 @@ impl FromSql for Decimal {
     //   result = result + 5600 * 0.00000001;
     //
 
-    fn from_sql(_: &Type, raw: &[u8], _: &SessionInfo)
+    fn from_sql(_: &Type, raw: &[u8])
         -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
         let mut raw = Cursor::new(raw);
         let num_groups = try!(raw.read_u16::<BigEndian>());
@@ -160,8 +160,7 @@ impl FromSql for Decimal {
 impl ToSql for Decimal {
     fn to_sql(&self,
               _: &Type,
-              out: &mut Vec<u8>,
-              _: &SessionInfo)
+              out: &mut Vec<u8>)
               -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
         let uint = self.to_biguint();
         let sign = if self.is_negative() { 0x4000 } else { 0x0000 };
