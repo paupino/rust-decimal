@@ -896,7 +896,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
 
         // This is slightly too agressive. But it is just being safe. We need to check against Decimal::MAX
         while !rem.is_zero() && fractional.len() + length < MAX_PRECISION as usize {
-            let rem_carried = ten.clone() * rem;
+            let rem_carried = &ten * rem;
             let (frac, r) = rem_carried.div_rem(&right);
             fractional.push(frac.to_u8().unwrap());
             rem = r;
@@ -905,7 +905,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         // Add on the fractional part
         let scale = fractional.len();
         for f in fractional {
-            integral = integral * ten.clone() + BigUint::from_u8(f).unwrap();
+            integral = integral * &ten + BigUint::from_u8(f).unwrap();
         }
 
         let bytes = integral.to_bytes_le();
