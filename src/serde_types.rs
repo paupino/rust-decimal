@@ -6,16 +6,16 @@ use serde;
 use std::fmt;
 use std::str::FromStr;
 
-impl serde::Deserialize for Decimal {
+impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
-        where D: serde::de::Deserializer {
-        deserializer.deserialize(DecimalVisitor)
+        where D: serde::de::Deserializer<'de> {
+        deserializer.deserialize_any(DecimalVisitor)
     }
 }
 
 struct DecimalVisitor;
 
-impl serde::de::Visitor for DecimalVisitor {
+impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     type Value = Decimal;
 
     fn visit_i16<E>(self, value: i16) -> Result<Decimal, E> {
