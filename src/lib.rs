@@ -370,32 +370,27 @@ impl Decimal {
     }
 }
 
-pub trait ToDecimal {
-    /// Converts the value of `self` to a `Decimal`.
-    fn to_decimal(&self) -> Option<Decimal>;
-}
-
-macro_rules! impl_to_decimal {
+macro_rules! impl_from {
     ($T:ty, $from_ty:path) => {
-        impl ToDecimal for $T {
+        impl From<$T> for Decimal {
             #[inline]
-            fn to_decimal(&self) -> Option<Decimal> {
-                $from_ty(*self)
+            fn from(t: $T) -> Decimal {
+                $from_ty(t).unwrap()
             }
         }
     }
 }
 
-impl_to_decimal!(isize, FromPrimitive::from_isize);
-impl_to_decimal!(i8,    FromPrimitive::from_i8);
-impl_to_decimal!(i16,   FromPrimitive::from_i16);
-impl_to_decimal!(i32,   FromPrimitive::from_i32);
-impl_to_decimal!(i64,   FromPrimitive::from_i64);
-impl_to_decimal!(usize, FromPrimitive::from_usize);
-impl_to_decimal!(u8,    FromPrimitive::from_u8);
-impl_to_decimal!(u16,   FromPrimitive::from_u16);
-impl_to_decimal!(u32,   FromPrimitive::from_u32);
-impl_to_decimal!(u64,   FromPrimitive::from_u64);
+impl_from!(isize, FromPrimitive::from_isize);
+impl_from!(i8,    FromPrimitive::from_i8);
+impl_from!(i16,   FromPrimitive::from_i16);
+impl_from!(i32,   FromPrimitive::from_i32);
+impl_from!(i64,   FromPrimitive::from_i64);
+impl_from!(usize, FromPrimitive::from_usize);
+impl_from!(u8,    FromPrimitive::from_u8);
+impl_from!(u16,   FromPrimitive::from_u16);
+impl_from!(u32,   FromPrimitive::from_u32);
+impl_from!(u64,   FromPrimitive::from_u64);
 
 macro_rules! forward_val_val_binop {
     (impl $imp:ident for $res:ty, $method:ident) => {
@@ -1068,4 +1063,26 @@ fn it_can_round_complex_numbers() {
     let a = Decimal { flags: 1572864, hi: 107459117, lo: -2075830955, mid: 849254895 };
     let b = a.round_dp(2u32);
     assert_eq!("1982.27", b.to_string());
+}
+
+#[test]
+fn it_can_go_from_and_into() {
+    let d = Decimal::from_str("5").unwrap();
+    let di8 = 5u8.into();
+    let di32 = 5i32.into();
+    let disize = 5isize.into();
+    let di64 = 5i64.into();
+    let du8 = 5u8.into();
+    let du32 = 5u32.into();
+    let dusize = 5usize.into();
+    let du64 = 5u64.into();
+
+    assert_eq!(d, di8);
+    assert_eq!(di8, di32);
+    assert_eq!(di32, disize);
+    assert_eq!(disize, di64);
+    assert_eq!(di64, du8);
+    assert_eq!(du8, du32);
+    assert_eq!(du32, dusize);
+    assert_eq!(dusize, du64);
 }
