@@ -9,6 +9,7 @@ Currently, creating the decimal requires either specifying the scale upon creati
 ```
 let scaled = Decimal::new(202, 2); // 2.02
 let from_string = Decimal::from_str("2.02").unwrap(); // 2.02
+let my_int : Decimal = 3i32.into();
 ```
 
-Future versions will investigate the use of compiler extensions and macros to simplify this process
+Future versions will investigate the use of compiler extensions and macros to simplify this process.
