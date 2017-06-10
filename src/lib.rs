@@ -8,10 +8,12 @@ extern crate lazy_static;
 #[macro_use]
 extern crate postgres as pg_crate;
 
-mod serde_types;
 mod decimal;
+mod error;
+mod serde_types;
 
 #[cfg(feature = "postgres")]
 mod postgres;
 
 pub use decimal::Decimal;
+pub use error::Error;

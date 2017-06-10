@@ -1,3 +1,4 @@
+use Error;
 use num::{BigInt, BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
 use num::bigint::Sign::{Minus, Plus};
 use std::cmp::*;
@@ -301,13 +302,13 @@ impl Decimal {
         BigInt::from_bytes_le(sign, &bytes[..])
     }
 
-    pub(crate) fn from_biguint(res: BigUint, scale: u32, negative: bool) -> Result<Decimal, &'static str> {
+    pub(crate) fn from_biguint(res: BigUint, scale: u32, negative: bool) -> Result<Decimal, Error> {
         let bytes = res.to_bytes_le();
         if bytes.len() > MAX_BYTES {
-            return Err("Decimal Overflow");
+            return Err(Error::new("Decimal Overflow"));
         }
         if scale > MAX_PRECISION {
-            return Err("Scale exceeds maximum precision");
+            return Err(Error::new("Scale exceeds maximum precision"));
         }
 
         Ok(Decimal::from_bytes_le(bytes, scale, negative))
@@ -449,9 +450,9 @@ impl One for Decimal {
 }
 
 impl FromStr for Decimal {
-    type Err = &'static str;
+    type Err = Error;
 
-    fn from_str(value: &str) -> Result<Decimal, &'static str> {
+    fn from_str(value: &str) -> Result<Decimal, Self::Err> {
 
         let mut offset = 0;
         let mut len = value.len();
@@ -484,7 +485,7 @@ impl FromStr for Decimal {
             }
             if c == '.' {
                 if dot_offset >= 0 {
-                    return Err("Invalid decimal: two decimal points");
+                    return Err(Error::new("Invalid decimal: two decimal points"));
                 }
                 dot_offset = offset as i32;
                 offset += 1;
@@ -492,12 +493,12 @@ impl FromStr for Decimal {
                 continue;
             }
 
-            return Err("Invalid decimal: unknown character");
+            return Err(Error::new("Invalid decimal: unknown character"));
         }
 
         // here when no characters left
         if coeff.is_empty() {
-            return Err("Invalid decimal: no digits found");
+            return Err(Error::new("Invalid decimal: no digits found"));
         }
 
         // println!("coeff.len() {}, dot_offset {} cfirst {} negative {}", coeff.len(), dot_offset, cfirst, negative);
@@ -510,7 +511,7 @@ impl FromStr for Decimal {
         // Parse this into a big uint
         let res = BigUint::from_str(&coeff[..]);
         if res.is_err() {
-            return Err("Failed to parse string");
+            return Err(Error::new("Failed to parse string"));
         }
 
         Decimal::from_biguint(res.unwrap(), scale, negative)
