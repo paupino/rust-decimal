@@ -1,7 +1,8 @@
 extern crate num;
 extern crate serde;
 extern crate serde_json;
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
 
 #[macro_use]
 #[cfg(feature = "postgres")]
@@ -10,14 +11,13 @@ extern crate postgres as pg_crate;
 mod postgres;
 mod serde_types;
 
-use std::ops::{Add, Div, Mul, Rem, Sub};
-use std::str::FromStr;
-use std::iter::repeat;
-use std::cmp::*;
-use std::cmp::Ordering::Equal;
-
 use num::{BigInt, BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
 use num::bigint::Sign::{Minus, Plus};
+use std::cmp::*;
+use std::cmp::Ordering::Equal;
+use std::iter::repeat;
+use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::str::FromStr;
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
@@ -74,12 +74,11 @@ pub struct Decimal {
     // Decimal value as a 96-bit integer.
     hi: i32,
     lo: i32,
-    mid: i32
+    mid: i32,
 }
 
 #[allow(dead_code)]
 impl Decimal {
-
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
             panic!("Scale exceeds the maximum precision allowed");
@@ -87,17 +86,17 @@ impl Decimal {
         let flags: i32 = (scale as i32) << SCALE_SHIFT;
         if num < 0 {
             return Decimal {
-                flags: flags & SIGN_MASK,
-                hi: 0,
-                lo: (num & I32_MASK) as i32,
-                mid: ((num.abs() >> 32) & I32_MASK) as i32
-            };
+                       flags: flags & SIGN_MASK,
+                       hi: 0,
+                       lo: (num & I32_MASK) as i32,
+                       mid: ((num.abs() >> 32) & I32_MASK) as i32,
+                   };
         }
         Decimal {
             flags: flags,
             hi: 0,
             lo: (num & I32_MASK) as i32,
-            mid: ((num >> 32) & I32_MASK) as i32
+            mid: ((num >> 32) & I32_MASK) as i32,
         }
     }
 
@@ -154,7 +153,7 @@ impl Decimal {
             flags: (bytes[0] as i32) | (bytes[1] as i32) << 8 | (bytes[2] as i32) << 16 | (bytes[3] as i32) << 24,
             lo: (bytes[4] as i32) | (bytes[5] as i32) << 8 | (bytes[6] as i32) << 16 | (bytes[7] as i32) << 24,
             mid: (bytes[8] as i32) | (bytes[9] as i32) << 8 | (bytes[10] as i32) << 16 | (bytes[11] as i32) << 24,
-            hi: (bytes[12] as i32) | (bytes[13] as i32) << 8 | (bytes[14] as i32) << 16 | (bytes[15] as i32) << 24
+            hi: (bytes[12] as i32) | (bytes[13] as i32) << 8 | (bytes[14] as i32) << 16 | (bytes[15] as i32) << 24,
         }
     }
 
@@ -183,7 +182,8 @@ impl Decimal {
 
         let old_scale = self.scale();
 
-        if dp < old_scale && dp < 20 { // Technically, it's 28...
+        if dp < old_scale && dp < 20 {
+            // Technically, it's 28...
             // Short circuit for zero
             if self.is_zero() {
                 return self.rescale(dp);
@@ -310,11 +310,7 @@ impl Decimal {
 
     fn to_bigint(&self) -> BigInt {
         let bytes = self.unsigned_bytes_le();
-        let sign = if self.is_negative() {
-                       Minus
-                   } else {
-                       Plus
-                   };
+        let sign = if self.is_negative() { Minus } else { Plus };
         BigInt::from_bytes_le(sign, &bytes[..])
     }
 
@@ -365,7 +361,7 @@ impl Decimal {
             flags: flags,
             hi: hi,
             lo: lo,
-            mid: mid
+            mid: mid,
         }
     }
 }
@@ -382,15 +378,15 @@ macro_rules! impl_from {
 }
 
 impl_from!(isize, FromPrimitive::from_isize);
-impl_from!(i8,    FromPrimitive::from_i8);
-impl_from!(i16,   FromPrimitive::from_i16);
-impl_from!(i32,   FromPrimitive::from_i32);
-impl_from!(i64,   FromPrimitive::from_i64);
+impl_from!(i8, FromPrimitive::from_i8);
+impl_from!(i16, FromPrimitive::from_i16);
+impl_from!(i32, FromPrimitive::from_i32);
+impl_from!(i64, FromPrimitive::from_i64);
 impl_from!(usize, FromPrimitive::from_usize);
-impl_from!(u8,    FromPrimitive::from_u8);
-impl_from!(u16,   FromPrimitive::from_u16);
-impl_from!(u32,   FromPrimitive::from_u32);
-impl_from!(u64,   FromPrimitive::from_u64);
+impl_from!(u8, FromPrimitive::from_u8);
+impl_from!(u16, FromPrimitive::from_u16);
+impl_from!(u32, FromPrimitive::from_u32);
+impl_from!(u64, FromPrimitive::from_u64);
 
 macro_rules! forward_val_val_binop {
     (impl $imp:ident for $res:ty, $method:ident) => {
@@ -440,7 +436,6 @@ macro_rules! forward_all_binop {
 }
 
 impl Zero for Decimal {
-
     fn is_zero(&self) -> bool {
         self.lo.is_zero() && self.mid.is_zero() && self.hi.is_zero()
     }
@@ -450,10 +445,9 @@ impl Zero for Decimal {
             flags: 0,
             hi: 0,
             lo: 0,
-            mid: 0
+            mid: 0,
         }
     }
-
 }
 
 impl One for Decimal {
@@ -462,13 +456,12 @@ impl One for Decimal {
             flags: 0,
             hi: 0,
             lo: 1,
-            mid: 0
+            mid: 0,
         }
     }
 }
 
 impl FromStr for Decimal {
-
     type Err = &'static str;
 
     fn from_str(value: &str) -> Result<Decimal, &'static str> {
@@ -490,8 +483,8 @@ impl FromStr for Decimal {
         }
 
         // should now be at numeric part of the significand
-        let mut dot_offset: i32 = -1;  // '.' offset, -1 if none
-        let cfirst = offset;  // record start of integer
+        let mut dot_offset: i32 = -1; // '.' offset, -1 if none
+        let cfirst = offset; // record start of integer
         let mut coeff = String::new(); // integer significand array
 
         while len > 0 {
@@ -590,11 +583,11 @@ impl FromPrimitive for Decimal {
             value_copy = -n;
         }
         Some(Decimal {
-            flags: flags,
-            lo: value_copy,
-            mid: 0,
-            hi: 0
-        })
+                 flags: flags,
+                 lo: value_copy,
+                 mid: 0,
+                 hi: 0,
+             })
     }
 
     fn from_i64(n: i64) -> Option<Decimal> {
@@ -608,35 +601,33 @@ impl FromPrimitive for Decimal {
             value_copy = -n;
         }
         Some(Decimal {
-            flags: flags,
-            lo: value_copy as i32,
-            mid: (value_copy >> 32) as i32,
-            hi: 0
-        })
+                 flags: flags,
+                 lo: value_copy as i32,
+                 mid: (value_copy >> 32) as i32,
+                 hi: 0,
+             })
     }
 
     fn from_u32(n: u32) -> Option<Decimal> {
         Some(Decimal {
-            flags: 0,
-            lo: n as i32,
-            mid: 0,
-            hi: 0
-        })
+                 flags: 0,
+                 lo: n as i32,
+                 mid: 0,
+                 hi: 0,
+             })
     }
 
     fn from_u64(n: u64) -> Option<Decimal> {
         Some(Decimal {
-            flags: 0,
-            lo: n as i32,
-            mid: (n >> 32) as i32,
-            hi: 0
-        })
+                 flags: 0,
+                 lo: n as i32,
+                 mid: (n >> 32) as i32,
+                 hi: 0,
+             })
     }
-
 }
 
 impl ToPrimitive for Decimal {
-
     fn to_i64(&self) -> Option<i64> {
         let d = self.rescale(0);
         // Convert to biguint and use that
@@ -674,13 +665,9 @@ fn scaled_biguints(me: &Decimal, other: &Decimal) -> (BigUint, BigUint, u32) {
     let o_scale = other.scale();
 
     if s_scale > o_scale {
-        (me.to_biguint(),
-         other.rescale(s_scale).to_biguint(),
-         s_scale)
+        (me.to_biguint(), other.rescale(s_scale).to_biguint(), s_scale)
     } else if o_scale > s_scale {
-        (me.rescale(o_scale).to_biguint(),
-         other.to_biguint(),
-         o_scale)
+        (me.rescale(o_scale).to_biguint(), other.to_biguint(), o_scale)
     } else {
         (me.to_biguint(), other.to_biguint(), s_scale)
     }
@@ -886,7 +873,11 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         //  This would be (0, 9,999,999,999,999)
         let (i, r) = left.div_rem(&right);
         let mut integral = i;
-        let length = if integral.is_zero() { 0usize } else { integral.to_string().len() };
+        let length = if integral.is_zero() {
+            0usize
+        } else {
+            integral.to_string().len()
+        };
         rem = r;
 
         // This is slightly too agressive. But it is just being safe. We need to check against Decimal::MAX
@@ -957,7 +948,6 @@ impl PartialOrd for Decimal {
 }
 
 impl Ord for Decimal {
-
     fn cmp(&self, other: &Decimal) -> Ordering {
         // If we have 1.23 and 1.2345 then we have
         //  123 scale 2 and 12345 scale 4
@@ -1005,7 +995,10 @@ mod test {
     #[test]
     fn rescale_integer_down() {
         for scale in 1..25 {
-            let d = "1.000000000000000000000000".parse::<Decimal>().unwrap().rescale(scale);
+            let d = "1.000000000000000000000000"
+                .parse::<Decimal>()
+                .unwrap()
+                .rescale(scale);
 
             let mut s = String::from("1.");
             for _ in 0..scale {
@@ -1033,7 +1026,10 @@ mod test {
     #[test]
     fn rescale_float_down() {
         for scale in 1..24 {
-            let d = "1.000000000000000000000001".parse::<Decimal>().unwrap().rescale(scale);
+            let d = "1.000000000000000000000001"
+                .parse::<Decimal>()
+                .unwrap()
+                .rescale(scale);
 
             let mut s = String::from("1.");
             for _ in 0..(scale) {

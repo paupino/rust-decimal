@@ -419,7 +419,7 @@ fn it_can_divide_6() {
     let a = Decimal::from_str("1023427554493").unwrap();
     let b = Decimal::from_str("43432632").unwrap();
     let c = a / b;
-    assert_eq!("23563.56286427679538278960390", c.to_string());// Rounded
+    assert_eq!("23563.56286427679538278960390", c.to_string()); // Rounded
 }
 
 #[test]
@@ -471,7 +471,7 @@ fn it_can_divide_by_zero() {
 }
 
 // Modulus and Remainder are not the same thing!
-// http://math.stackexchange.com/questions/801962/difference-between-modulus-and-remainder?newreg=5c10dc7c34294664ab08fadcbb223545
+// https://math.stackexchange.com/q/801962/82277
 
 #[test]
 fn it_can_rem_1() {
@@ -623,12 +623,14 @@ fn it_can_round_simple_numbers_up() {
 
 #[test]
 fn it_can_return_the_max_value() {
-    assert_eq!("79228162514264337593543950335", Decimal::max_value().to_string());
+    assert_eq!("79228162514264337593543950335",
+               Decimal::max_value().to_string());
 }
 
 #[test]
 fn it_can_return_the_min_value() {
-    assert_eq!("-79228162514264337593543950335", Decimal::min_value().to_string());
+    assert_eq!("-79228162514264337593543950335",
+               Decimal::min_value().to_string());
 }
 
 #[test]
