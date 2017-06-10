@@ -226,7 +226,7 @@ impl ToSql for Decimal {
 
 #[cfg(test)]
 fn test_read_type(sql_type: &str, checks: &[&'static str]) {
-    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+    let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
         Ok(x) => x,
         Err(err) => panic!("{:#?}", err),
     };
@@ -245,7 +245,7 @@ fn test_read_type(sql_type: &str, checks: &[&'static str]) {
 
 #[cfg(test)]
 fn test_write_type(sql_type: &str, checks: &[&'static str]) {
-    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+    let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
         Ok(x) => x,
         Err(err) => panic!("{:#?}", err),
     };
@@ -265,7 +265,7 @@ fn test_write_type(sql_type: &str, checks: &[&'static str]) {
 
 #[test]
 fn test_null() {
-    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+    let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
         Ok(x) => x,
         Err(err) => panic!("{:#?}", err),
     };
