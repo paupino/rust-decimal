@@ -40,4 +40,4 @@ moderation team.
 ## Communication
 
 Opening tickets on the
-[paupino/rust-decimal](https://github.com/paupino/rust-decimal) project is the preferred method of communication however for in depth communications please contact Paul via email (paul@form1.co.nz). 
+[paupino/rust-decimal](https://github.com/paupino/rust-decimal) project is the preferred method of communication however for in depth communications please join the chat at [https://gitter.im/rust-decimal/Lobby](gitter.im). 
