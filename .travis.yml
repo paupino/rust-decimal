@@ -3,6 +3,8 @@ rust:
   - stable
   - beta
   - nightly
+addons:
+  postgresql: 9.6
 script:
   - cargo build --verbose --all --all-features
   - cargo test --verbose --all --all-features
