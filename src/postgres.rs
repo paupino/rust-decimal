@@ -14,11 +14,6 @@ use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use self::num::{BigUint, One, Zero, ToPrimitive};
 use self::num::bigint::ToBigUint;
 
-#[cfg(test)]
-use pg_crate::{Connection, TlsMode};
-#[cfg(test)]
-use std::str::FromStr;
-
 use super::Decimal;
 
 #[derive(Debug, Clone, Copy)]
@@ -225,73 +220,102 @@ impl ToSql for Decimal {
 }
 
 #[cfg(test)]
-fn test_read_type(sql_type: &str, checks: &[&'static str]) {
-    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
-        Ok(x) => x,
-        Err(err) => panic!("{:#?}", err),
-    };
-    for &val in checks.iter() {
-        let stmt = match conn.prepare(&*format!("SELECT {}::{}", val, sql_type)) {
+mod test {
+    use pg_crate::{Connection, TlsMode};
+    use std::str::FromStr;
+    use super::*;
+
+    fn read_type(sql_type: &str, checks: &[&'static str]) {
+        let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
         };
-        let result: Decimal = match stmt.query(&[]) {
+        for &val in checks.iter() {
+            let stmt = match conn.prepare(&*format!("SELECT {}::{}", val, sql_type)) {
+                Ok(x) => x,
+                Err(err) => panic!("{:#?}", err),
+            };
+            let result: Decimal = match stmt.query(&[]) {
+                Ok(x) => x.iter().next().unwrap().get(0),
+                Err(err) => panic!("{:#?}", err),
+            };
+            assert_eq!(val, result.to_string());
+        }
+    }
+
+    fn write_type(sql_type: &str, checks: &[&'static str]) {
+        let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+        for &val in checks.iter() {
+            let stmt = match conn.prepare(&*format!("SELECT $1::{}", sql_type)) {
+                Ok(x) => x,
+                Err(err) => panic!("{:#?}", err),
+            };
+            let number = Decimal::from_str(val).unwrap();
+            let result: Decimal = match stmt.query(&[&number]) {
+                Ok(x) => x.iter().next().unwrap().get(0),
+                Err(err) => panic!("{:#?}", err),
+            };
+            assert_eq!(val, result.to_string());
+        }
+    }
+
+    #[test]
+    fn test_null() {
+        let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+
+        // Test NULL
+        let stmt = match conn.prepare(&"SELECT NULL::numeric") {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+        let result: Option<Decimal> = match stmt.query(&[]) {
             Ok(x) => x.iter().next().unwrap().get(0),
             Err(err) => panic!("{:#?}", err),
         };
-        assert_eq!(val, result.to_string());
+        assert_eq!(None, result);
     }
-}
 
-#[cfg(test)]
-fn test_write_type(sql_type: &str, checks: &[&'static str]) {
-    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
-        Ok(x) => x,
-        Err(err) => panic!("{:#?}", err),
-    };
-    for &val in checks.iter() {
-        let stmt = match conn.prepare(&*format!("SELECT $1::{}", sql_type)) {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err)
-        };
-        let number = Decimal::from_str(val).unwrap();
-        let result: Decimal = match stmt.query(&[&number]) {
-            Ok(x) => x.iter().next().unwrap().get(0),
-            Err(err) => panic!("{:#?}", err)
-        };
-        assert_eq!(val, result.to_string());
+    #[test]
+    fn read_numeric_type() {
+        read_type("NUMERIC(26,6)",
+                       &["3950.123456",
+                         "3950",
+                         "0.1",
+                         "0.01",
+                         "0.001",
+                         "0.0001",
+                         "0.00001",
+                         "0.000001",
+                         "1",
+                         "-100",
+                         "-123.456",
+                         "119996.25",
+                         "1000000",
+                         "9999999.99999"]);
     }
-}
 
-#[test]
-fn test_null() {
-    let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
-        Ok(x) => x,
-        Err(err) => panic!("{:#?}", err),
-    };
-
-    // Test NULL
-    let stmt = match conn.prepare(&"SELECT NULL::numeric") {
-        Ok(x) => x,
-        Err(err) => panic!("{:#?}", err),
-    };
-    let result: Option<Decimal> = match stmt.query(&[]) {
-        Ok(x) => x.iter().next().unwrap().get(0),
-        Err(err) => panic!("{:#?}", err),
-    };
-    assert_eq!(None, result);
-}
-
-#[test]
-fn it_can_read_numeric_type() {
-    test_read_type("NUMERIC(26,6)",
-              &["3950.123456", "3950", "0.1", "0.01", "0.001", "0.0001", "0.00001", "0.000001",
-                  "1", "-100", "-123.456", "119996.25", "1000000", "9999999.99999"]);
-}
-
-#[test]
-fn it_can_write_numeric_type() {
-    test_write_type("NUMERIC(26,6)",
-              &["3950.123456", "3950", "0.1", "0.01", "0.001", "0.0001", "0.00001", "0.000001",
-                  "1", "-100", "-123.456", "119996.25", "1000000", "9999999.99999"]);
+    #[test]
+    fn write_numeric_type() {
+        write_type("NUMERIC(26,6)",
+                        &["3950.123456",
+                          "3950",
+                          "0.1",
+                          "0.01",
+                          "0.001",
+                          "0.0001",
+                          "0.00001",
+                          "0.000001",
+                          "1",
+                          "-100",
+                          "-123.456",
+                          "119996.25",
+                          "1000000",
+                          "9999999.99999"]);
+    }
 }
