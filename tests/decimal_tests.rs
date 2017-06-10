@@ -630,3 +630,25 @@ fn it_can_return_the_max_value() {
 fn it_can_return_the_min_value() {
     assert_eq!("-79228162514264337593543950335", Decimal::min_value().to_string());
 }
+
+#[test]
+fn it_can_go_from_and_into() {
+    let d = Decimal::from_str("5").unwrap();
+    let di8 = 5u8.into();
+    let di32 = 5i32.into();
+    let disize = 5isize.into();
+    let di64 = 5i64.into();
+    let du8 = 5u8.into();
+    let du32 = 5u32.into();
+    let dusize = 5usize.into();
+    let du64 = 5u64.into();
+
+    assert_eq!(d, di8);
+    assert_eq!(di8, di32);
+    assert_eq!(di32, disize);
+    assert_eq!(disize, di64);
+    assert_eq!(di64, du8);
+    assert_eq!(du8, du32);
+    assert_eq!(du32, dusize);
+    assert_eq!(dusize, du64);
+}

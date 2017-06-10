@@ -980,109 +980,80 @@ impl Ord for Decimal {
     }
 }
 
-// PRIVATE TESTS
 
-// Rescale
-//  nb: these choose different constants (u32, u64, calculated)
+#[cfg(test)]
+mod test {
+    // Tests on private methods.
+    //
+    // All public tests should go under `tests/`.
 
-#[test]
-fn it_rescales_integer_up_1() {
-    let a = Decimal::from_str("1").unwrap().rescale(8);
-    assert_eq!("1.00000000", a.to_string());
-}
+    use super::*;
+    #[test]
+    fn rescale_integer_up() {
+        for scale in 1..25 {
+            let d = "1".parse::<Decimal>().unwrap().rescale(scale);
 
-#[test]
-fn it_rescales_integer_up_2() {
-    let a = Decimal::from_str("1").unwrap().rescale(16);
-    assert_eq!("1.0000000000000000", a.to_string());
-}
+            let mut s = String::from("1.");
+            for _ in 0..scale {
+                s.push('0');
+            }
 
-#[test]
-fn it_rescales_integer_up_3() {
-    let a = Decimal::from_str("1").unwrap().rescale(24);
-    assert_eq!("1.000000000000000000000000", a.to_string());
-}
+            assert_eq!(d.to_string(), s);
+        }
+    }
 
-#[test]
-fn it_rescales_integer_down_1() {
-    let a = Decimal::from_str("1.00000000").unwrap().rescale(2);
-    assert_eq!("1.00", a.to_string());
-}
+    #[test]
+    fn rescale_integer_down() {
+        for scale in 1..25 {
+            let d = "1.000000000000000000000000".parse::<Decimal>().unwrap().rescale(scale);
 
-#[test]
-fn it_rescales_integer_down_2() {
-    let a = Decimal::from_str("1.0000000000000000").unwrap().rescale(2);
-    assert_eq!("1.00", a.to_string());
-}
+            let mut s = String::from("1.");
+            for _ in 0..scale {
+                s.push('0');
+            }
 
-#[test]
-fn it_rescales_integer_down_3() {
-    let a = Decimal::from_str("1.000000000000000000000000").unwrap().rescale(2);
-    assert_eq!("1.00", a.to_string());
-}
+            assert_eq!(d.to_string(), s);
+        }
+    }
 
-#[test]
-fn it_rescales_float_up_1() {
-    let a = Decimal::from_str("0.1").unwrap().rescale(8);
-    assert_eq!("0.10000000", a.to_string());
-}
+    #[test]
+    fn rescale_float_up() {
+        for scale in 1..25 {
+            let d = "1.1".parse::<Decimal>().unwrap().rescale(scale);
 
-#[test]
-fn it_rescales_float_up_2() {
-    let a = Decimal::from_str("0.1").unwrap().rescale(16);
-    assert_eq!("0.1000000000000000", a.to_string());
-}
+            let mut s = String::from("1.1");
+            for _ in 0..(scale - 1) {
+                s.push('0');
+            }
 
-#[test]
-fn it_rescales_float_up_3() {
-    let a = Decimal::from_str("0.1").unwrap().rescale(24);
-    assert_eq!("0.100000000000000000000000", a.to_string());
-}
+            assert_eq!(d.to_string(), s);
+        }
+    }
 
-#[test]
-fn it_rescales_float_down_1() {
-    let a = Decimal::from_str("1.00000001").unwrap().rescale(2);
-    assert_eq!("1.00", a.to_string());
-}
+    #[test]
+    fn rescale_float_down() {
+        for scale in 1..24 {
+            let d = "1.000000000000000000000001".parse::<Decimal>().unwrap().rescale(scale);
 
-#[test]
-fn it_rescales_float_down_2() {
-    let a = Decimal::from_str("1.0000000000000001").unwrap().rescale(2);
-    assert_eq!("1.00", a.to_string());
-}
+            let mut s = String::from("1.");
+            for _ in 0..(scale) {
+                s.push('0');
+            }
 
-#[test]
-fn it_rescales_float_down_3() {
-    let a = Decimal::from_str("1.000000000000000000000001").unwrap().rescale(2);
-    assert_eq!("1.00", a.to_string());
-}
+            assert_eq!(d.to_string(), s);
+        }
+    }
 
-#[test]
-fn it_can_round_complex_numbers() {
-    // This is 1982.2708333333333
-    let a = Decimal { flags: 1572864, hi: 107459117, lo: -2075830955, mid: 849254895 };
-    let b = a.round_dp(2u32);
-    assert_eq!("1982.27", b.to_string());
-}
-
-#[test]
-fn it_can_go_from_and_into() {
-    let d = Decimal::from_str("5").unwrap();
-    let di8 = 5u8.into();
-    let di32 = 5i32.into();
-    let disize = 5isize.into();
-    let di64 = 5i64.into();
-    let du8 = 5u8.into();
-    let du32 = 5u32.into();
-    let dusize = 5usize.into();
-    let du64 = 5u64.into();
-
-    assert_eq!(d, di8);
-    assert_eq!(di8, di32);
-    assert_eq!(di32, disize);
-    assert_eq!(disize, di64);
-    assert_eq!(di64, du8);
-    assert_eq!(du8, du32);
-    assert_eq!(du32, dusize);
-    assert_eq!(dusize, du64);
+    #[test]
+    fn round_complex_number() {
+        // This is 1982.2708333333333
+        let a = Decimal {
+            flags: 1572864,
+            hi: 107459117,
+            lo: -2075830955,
+            mid: 849254895,
+        };
+        let b = a.round_dp(2u32);
+        assert_eq!("1982.27", b.to_string());
+    }
 }
