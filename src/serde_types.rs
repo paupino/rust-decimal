@@ -1,8 +1,6 @@
 use Decimal;
-
 use num::{FromPrimitive, Zero};
 use serde;
-
 use std::fmt;
 use std::str::FromStr;
 
@@ -40,7 +38,8 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     }
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "a Decimal type representing a fixed-point number")
+        write!(formatter,
+               "a Decimal type representing a fixed-point number")
     }
 }
 

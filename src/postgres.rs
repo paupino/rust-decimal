@@ -1,20 +1,16 @@
 extern crate byteorder;
 extern crate num;
 
-use pg_crate::types::*;
-use pg_crate::error::Error;
-
-use std::io::Cursor;
-use std::fmt;
-use std::result::*;
-use std::error;
-
 use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-
 use self::num::{BigUint, One, Zero, ToPrimitive};
 use self::num::bigint::ToBigUint;
-
 use super::Decimal;
+use pg_crate::error::Error;
+use pg_crate::types::*;
+use std::error;
+use std::fmt;
+use std::io::Cursor;
+use std::result::*;
 
 #[derive(Debug, Clone, Copy)]
 pub struct InvalidDecimal;
@@ -32,7 +28,6 @@ impl error::Error for InvalidDecimal {
 }
 
 impl FromSql for Decimal {
-
     // Decimals are represented as follows:
     // Header:
     //  u16 numGroups
@@ -86,8 +81,7 @@ impl FromSql for Decimal {
     //   result = result + 5600 * 0.00000001;
     //
 
-    fn from_sql(_: &Type, raw: &[u8])
-        -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
+    fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
         let mut raw = Cursor::new(raw);
         let num_groups = try!(raw.read_u16::<BigEndian>());
         let weight = try!(raw.read_i16::<BigEndian>()); // 10000^weight
@@ -122,16 +116,20 @@ impl FromSql for Decimal {
             result = result * 10i64.pow((scale * -1) as u32).to_biguint().unwrap();
             scale = 0;
         } else if scale > fixed_scale {
-            result = result / 10i64.pow((scale - fixed_scale) as u32).to_biguint().unwrap();
+            result = result /
+                     10i64
+                         .pow((scale - fixed_scale) as u32)
+                         .to_biguint()
+                         .unwrap();
             scale = fixed_scale;
         }
 
         // Create the decimal
         let neg = sign == 0x4000;
         let mut decimal = try!(match Decimal::from_biguint(result, scale as u32, neg) {
-            Ok(x) => Ok(x),
-            Err(_) => Err(Box::new(Error::Conversion(Box::new(InvalidDecimal)))),
-        });
+                                   Ok(x) => Ok(x),
+                                   Err(_) => Err(Box::new(Error::Conversion(Box::new(InvalidDecimal)))),
+                               });
 
         // Normalize by truncating any trailing 0's from the decimal representation
         // This may not be the most efficient way of doing this
@@ -153,10 +151,7 @@ impl FromSql for Decimal {
 }
 
 impl ToSql for Decimal {
-    fn to_sql(&self,
-              _: &Type,
-              out: &mut Vec<u8>)
-              -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
+    fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
         let uint = self.to_biguint();
         let sign = if self.is_negative() { 0x4000 } else { 0x0000 };
         let scale = self.scale() as u16;
@@ -170,27 +165,42 @@ impl ToSql for Decimal {
             digits.len() as isize - scale as isize
         };
         let (whole_digits, decimal_digits) = digits.split_at(split_point as usize);
-        let whole_portion = whole_digits.chars().rev().collect::<Vec<char>>().chunks(4)
+        let whole_portion = whole_digits
+            .chars()
+            .rev()
+            .collect::<Vec<char>>()
+            .chunks(4)
             .map(|x| {
-                let mut x = x.to_owned();
-                while x.len() < 4 { x.push('0'); }
-                x.into_iter().rev().collect::<String>()
-            })
-            .rev().collect::<Vec<String>>();
-        let decimal_portion = decimal_digits.chars().collect::<Vec<char>>().chunks(4)
+                     let mut x = x.to_owned();
+                     while x.len() < 4 {
+                         x.push('0');
+                     }
+                     x.into_iter().rev().collect::<String>()
+                 })
+            .rev()
+            .collect::<Vec<String>>();
+        let decimal_portion = decimal_digits
+            .chars()
+            .collect::<Vec<char>>()
+            .chunks(4)
             .map(|x| {
-                let mut x = x.to_owned();
-                while x.len() < 4 { x.push('0'); }
-                x.into_iter().collect::<String>()
-            })
+                     let mut x = x.to_owned();
+                     while x.len() < 4 {
+                         x.push('0');
+                     }
+                     x.into_iter().collect::<String>()
+                 })
             .collect::<Vec<String>>();
         let weight = if whole_portion.is_empty() {
             -(decimal_portion.len() as i16)
         } else {
             whole_portion.len() as i16 - 1
         };
-        let all_groups = whole_portion.into_iter().chain(decimal_portion.into_iter())
-            .skip_while(|ref x| *x == "0000").collect::<Vec<String>>();
+        let all_groups = whole_portion
+            .into_iter()
+            .chain(decimal_portion.into_iter())
+            .skip_while(|ref x| *x == "0000")
+            .collect::<Vec<String>>();
         let num_groups = all_groups.len() as u16;
 
         // Number of groups
@@ -221,9 +231,9 @@ impl ToSql for Decimal {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use pg_crate::{Connection, TlsMode};
     use std::str::FromStr;
-    use super::*;
 
     fn read_type(sql_type: &str, checks: &[&'static str]) {
         let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
@@ -285,39 +295,39 @@ mod test {
     #[test]
     fn read_numeric_type() {
         read_type("NUMERIC(26,6)",
-                       &["3950.123456",
-                         "3950",
-                         "0.1",
-                         "0.01",
-                         "0.001",
-                         "0.0001",
-                         "0.00001",
-                         "0.000001",
-                         "1",
-                         "-100",
-                         "-123.456",
-                         "119996.25",
-                         "1000000",
-                         "9999999.99999"]);
+                  &["3950.123456",
+                    "3950",
+                    "0.1",
+                    "0.01",
+                    "0.001",
+                    "0.0001",
+                    "0.00001",
+                    "0.000001",
+                    "1",
+                    "-100",
+                    "-123.456",
+                    "119996.25",
+                    "1000000",
+                    "9999999.99999"]);
     }
 
 
     #[test]
     fn write_numeric_type() {
         write_type("NUMERIC(26,6)",
-                        &["3950.123456",
-                          "3950",
-                          "0.1",
-                          "0.01",
-                          "0.001",
-                          "0.0001",
-                          "0.00001",
-                          "0.000001",
-                          "1",
-                          "-100",
-                          "-123.456",
-                          "119996.25",
-                          "1000000",
-                          "9999999.99999"]);
+                   &["3950.123456",
+                     "3950",
+                     "0.1",
+                     "0.01",
+                     "0.001",
+                     "0.0001",
+                     "0.00001",
+                     "0.000001",
+                     "1",
+                     "-100",
+                     "-123.456",
+                     "119996.25",
+                     "1000000",
+                     "9999999.99999"]);
     }
 }
