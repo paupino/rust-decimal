@@ -1,5 +1,7 @@
 # Decimal &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
 
+[![Join the chat at https://gitter.im/rust-decimal/Lobby](https://badges.gitter.im/rust-decimal/Lobby.svg)](https://gitter.im/rust-decimal/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [Build Status]: https://api.travis-ci.org/paupino/rust-decimal.svg?branch=master
 [travis]: https://travis-ci.org/paupino/rust-decimal
 [Latest Version]: https://img.shields.io/crates/v/rust-decimal.svg
