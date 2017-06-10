@@ -226,7 +226,8 @@ mod test {
     use super::*;
 
     fn read_type(sql_type: &str, checks: &[&'static str]) {
-        let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
         };
@@ -244,7 +245,7 @@ mod test {
     }
 
     fn write_type(sql_type: &str, checks: &[&'static str]) {
-        let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
         };
@@ -264,7 +265,7 @@ mod test {
 
     #[test]
     fn test_null() {
-        let conn = match Connection::connect("postgres://paulmason@localhost", TlsMode::None) {
+        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
         };
@@ -299,6 +300,7 @@ mod test {
                          "1000000",
                          "9999999.99999"]);
     }
+
 
     #[test]
     fn write_numeric_type() {
