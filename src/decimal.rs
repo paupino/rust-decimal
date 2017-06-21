@@ -3,6 +3,7 @@ use num::{BigInt, BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
 use num::bigint::Sign::{Minus, Plus};
 use std::cmp::*;
 use std::cmp::Ordering::Equal;
+use std::fmt;
 use std::iter::repeat;
 use std::ops::{Add, Div, Mul, Rem, Sub};
 use std::str::FromStr;
@@ -535,47 +536,6 @@ impl FromStr for Decimal {
     }
 }
 
-impl ToString for Decimal {
-    fn to_string(&self) -> String {
-
-        // Get the scale - where we need to put the decimal point
-        let scale = self.scale();
-
-        // Get the whole number without decimal points (or signs)
-        let uint = self.to_biguint();
-
-        // Convert to a string and manipulate that (neg at front, inject decimal)
-        let mut rep = uint.to_string();
-        let len = rep.len();
-
-        // Inject the decimal point
-        if scale > 0 {
-
-            // Must be a low fractional
-            if scale > len as u32 {
-                let mut new_rep = String::new();
-                let zeros = repeat("0").take(scale as usize - len).collect::<String>();
-                new_rep.push_str("0.");
-                new_rep.push_str(&zeros[..]);
-                new_rep.push_str(&rep[..]);
-                rep = new_rep;
-            } else if scale == len as u32 {
-                rep.insert(0, '.');
-                rep.insert(0, '0');
-            } else {
-                rep.insert(len - scale as usize, '.');
-            }
-        }
-
-        // Last set the negation
-        if self.is_negative() {
-            rep.insert(0, '-');
-        }
-
-        rep
-    }
-}
-
 impl FromPrimitive for Decimal {
     fn from_i32(n: i32) -> Option<Decimal> {
         let flags: i32;
@@ -661,6 +621,45 @@ impl ToPrimitive for Decimal {
         // Convert to biguint and use that
         let bytes = d.unsigned_bytes_le();
         BigUint::from_bytes_le(&bytes[..]).to_u64()
+    }
+}
+
+impl fmt::Display for Decimal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        // Get the scale - where we need to put the decimal point
+        let scale = self.scale();
+
+        // Get the whole number without decimal points (or signs)
+        let uint = self.to_biguint();
+
+        // Convert to a string and manipulate that (neg at front, inject decimal)
+        let mut rep = uint.to_string();
+        let len = rep.len();
+
+        // Inject the decimal point
+        if scale > 0 {
+            // Must be a low fractional
+            if scale > len as u32 {
+                let mut new_rep = String::new();
+                let zeros = repeat("0").take(scale as usize - len).collect::<String>();
+                new_rep.push_str("0.");
+                new_rep.push_str(&zeros[..]);
+                new_rep.push_str(&rep[..]);
+                rep = new_rep;
+            } else if scale == len as u32 {
+                rep.insert(0, '.');
+                rep.insert(0, '0');
+            } else {
+                rep.insert(len - scale as usize, '.');
+            }
+        }
+
+        // Last set the negation
+        if self.is_negative() {
+            rep.insert(0, '-');
+        }
+
+        f.pad(&rep)
     }
 }
 
