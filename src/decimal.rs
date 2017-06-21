@@ -34,18 +34,31 @@ lazy_static! {
 }
 
 // Fast access for 10^n where n is 0-9
-static POWERS_10: &'static [u32; 10] = &[1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000];
+static POWERS_10: &'static [u32; 10] = &[
+    1,
+    10,
+    100,
+    1000,
+    10000,
+    100000,
+    1000000,
+    10000000,
+    100000000,
+    1000000000,
+];
 // Fast access for 10^n where n is 10-19
-static BIG_POWERS_10: &'static [u64; 10] = &[10000000000,
-                                             100000000000,
-                                             1000000000000,
-                                             10000000000000,
-                                             100000000000000,
-                                             1000000000000000,
-                                             10000000000000000,
-                                             100000000000000000,
-                                             1000000000000000000,
-                                             10000000000000000000];
+static BIG_POWERS_10: &'static [u64; 10] = &[
+    10000000000,
+    100000000000,
+    1000000000000,
+    10000000000000,
+    100000000000000,
+    1000000000000000,
+    10000000000000000,
+    100000000000000000,
+    1000000000000000000,
+    10000000000000000000,
+];
 
 /// 128 bit representation of a decimal
 /// The finite set of values of type Decimal are of the form m / 10^e,
@@ -74,11 +87,11 @@ impl Decimal {
         let flags: i32 = (scale as i32) << SCALE_SHIFT;
         if num < 0 {
             return Decimal {
-                       flags: flags & SIGN_MASK,
-                       hi: 0,
-                       lo: (num & I32_MASK) as i32,
-                       mid: ((num.abs() >> 32) & I32_MASK) as i32,
-                   };
+                flags: flags & SIGN_MASK,
+                hi: 0,
+                lo: (num & I32_MASK) as i32,
+                mid: ((num.abs() >> 32) & I32_MASK) as i32,
+            };
         }
         Decimal {
             flags: flags,
@@ -103,37 +116,41 @@ impl Decimal {
     }
 
     pub fn unsigned_bytes_le(&self) -> Vec<u8> {
-        return vec![(self.lo & U8_MASK) as u8,
-                    ((self.lo >> 8) & U8_MASK) as u8,
-                    ((self.lo >> 16) & U8_MASK) as u8,
-                    ((self.lo >> 24) & U8_MASK) as u8,
-                    (self.mid & U8_MASK) as u8,
-                    ((self.mid >> 8) & U8_MASK) as u8,
-                    ((self.mid >> 16) & U8_MASK) as u8,
-                    ((self.mid >> 24) & U8_MASK) as u8,
-                    (self.hi & U8_MASK) as u8,
-                    ((self.hi >> 8) & U8_MASK) as u8,
-                    ((self.hi >> 16) & U8_MASK) as u8,
-                    ((self.hi >> 24) & U8_MASK) as u8];
+        return vec![
+            (self.lo & U8_MASK) as u8,
+            ((self.lo >> 8) & U8_MASK) as u8,
+            ((self.lo >> 16) & U8_MASK) as u8,
+            ((self.lo >> 24) & U8_MASK) as u8,
+            (self.mid & U8_MASK) as u8,
+            ((self.mid >> 8) & U8_MASK) as u8,
+            ((self.mid >> 16) & U8_MASK) as u8,
+            ((self.mid >> 24) & U8_MASK) as u8,
+            (self.hi & U8_MASK) as u8,
+            ((self.hi >> 8) & U8_MASK) as u8,
+            ((self.hi >> 16) & U8_MASK) as u8,
+            ((self.hi >> 24) & U8_MASK) as u8,
+        ];
     }
 
     pub fn serialize(&self) -> [u8; 16] {
-        [(self.flags & U8_MASK) as u8,
-         ((self.flags >> 8) & U8_MASK) as u8,
-         ((self.flags >> 16) & U8_MASK) as u8,
-         ((self.flags >> 24) & U8_MASK) as u8,
-         (self.lo & U8_MASK) as u8,
-         ((self.lo >> 8) & U8_MASK) as u8,
-         ((self.lo >> 16) & U8_MASK) as u8,
-         ((self.lo >> 24) & U8_MASK) as u8,
-         (self.mid & U8_MASK) as u8,
-         ((self.mid >> 8) & U8_MASK) as u8,
-         ((self.mid >> 16) & U8_MASK) as u8,
-         ((self.mid >> 24) & U8_MASK) as u8,
-         (self.hi & U8_MASK) as u8,
-         ((self.hi >> 8) & U8_MASK) as u8,
-         ((self.hi >> 16) & U8_MASK) as u8,
-         ((self.hi >> 24) & U8_MASK) as u8]
+        [
+            (self.flags & U8_MASK) as u8,
+            ((self.flags >> 8) & U8_MASK) as u8,
+            ((self.flags >> 16) & U8_MASK) as u8,
+            ((self.flags >> 24) & U8_MASK) as u8,
+            (self.lo & U8_MASK) as u8,
+            ((self.lo >> 8) & U8_MASK) as u8,
+            ((self.lo >> 16) & U8_MASK) as u8,
+            ((self.lo >> 24) & U8_MASK) as u8,
+            (self.mid & U8_MASK) as u8,
+            ((self.mid >> 8) & U8_MASK) as u8,
+            ((self.mid >> 16) & U8_MASK) as u8,
+            ((self.mid >> 24) & U8_MASK) as u8,
+            (self.hi & U8_MASK) as u8,
+            ((self.hi >> 8) & U8_MASK) as u8,
+            ((self.hi >> 16) & U8_MASK) as u8,
+            ((self.hi >> 24) & U8_MASK) as u8,
+        ]
     }
 
     pub fn deserialize(bytes: [u8; 16]) -> Decimal {
@@ -267,7 +284,7 @@ impl Decimal {
             } else {
                 let u32_index = index - 19; // -20 + 1 for getting the right u32 index
                 let exponent = BigUint::from_u64(BIG_POWERS_10[9]).unwrap() *
-                               BigUint::from_u32(POWERS_10[u32_index]).unwrap();
+                    BigUint::from_u32(POWERS_10[u32_index]).unwrap();
                 result = unsigned * exponent;
             }
         } else {
@@ -278,7 +295,7 @@ impl Decimal {
             } else {
                 let u32_index = index - 19; // -20 + 1 for getting the right u32 index
                 let exponent = BigUint::from_u64(BIG_POWERS_10[9]).unwrap() *
-                               BigUint::from_u32(POWERS_10[u32_index]).unwrap();
+                    BigUint::from_u32(POWERS_10[u32_index]).unwrap();
                 result = unsigned / exponent;
             }
         }
@@ -571,11 +588,11 @@ impl FromPrimitive for Decimal {
             value_copy = -n;
         }
         Some(Decimal {
-                 flags: flags,
-                 lo: value_copy,
-                 mid: 0,
-                 hi: 0,
-             })
+            flags: flags,
+            lo: value_copy,
+            mid: 0,
+            hi: 0,
+        })
     }
 
     fn from_i64(n: i64) -> Option<Decimal> {
@@ -589,29 +606,29 @@ impl FromPrimitive for Decimal {
             value_copy = -n;
         }
         Some(Decimal {
-                 flags: flags,
-                 lo: value_copy as i32,
-                 mid: (value_copy >> 32) as i32,
-                 hi: 0,
-             })
+            flags: flags,
+            lo: value_copy as i32,
+            mid: (value_copy >> 32) as i32,
+            hi: 0,
+        })
     }
 
     fn from_u32(n: u32) -> Option<Decimal> {
         Some(Decimal {
-                 flags: 0,
-                 lo: n as i32,
-                 mid: 0,
-                 hi: 0,
-             })
+            flags: 0,
+            lo: n as i32,
+            mid: 0,
+            hi: 0,
+        })
     }
 
     fn from_u64(n: u64) -> Option<Decimal> {
         Some(Decimal {
-                 flags: 0,
-                 lo: n as i32,
-                 mid: (n >> 32) as i32,
-                 hi: 0,
-             })
+            flags: 0,
+            lo: n as i32,
+            mid: (n >> 32) as i32,
+            hi: 0,
+        })
     }
 }
 
@@ -653,9 +670,17 @@ fn scaled_biguints(me: &Decimal, other: &Decimal) -> (BigUint, BigUint, u32) {
     let o_scale = other.scale();
 
     if s_scale > o_scale {
-        (me.to_biguint(), other.rescale(s_scale).to_biguint(), s_scale)
+        (
+            me.to_biguint(),
+            other.rescale(s_scale).to_biguint(),
+            s_scale,
+        )
     } else if o_scale > s_scale {
-        (me.rescale(o_scale).to_biguint(), other.to_biguint(), o_scale)
+        (
+            me.rescale(o_scale).to_biguint(),
+            other.to_biguint(),
+            o_scale,
+        )
     } else {
         (me.to_biguint(), other.to_biguint(), s_scale)
     }
@@ -884,9 +909,11 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
 
         let bytes = integral.to_bytes_le();
         // Negative only if one or the other is negative
-        Decimal::from_bytes_le(bytes,
-                               scale as u32,
-                               self.is_negative() ^ other.is_negative())
+        Decimal::from_bytes_le(
+            bytes,
+            scale as u32,
+            self.is_negative() ^ other.is_negative(),
+        )
     }
 }
 

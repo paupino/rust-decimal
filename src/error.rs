@@ -2,7 +2,7 @@ use std::error;
 use std::fmt;
 
 /// Error type for the library.
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Error {
     message: String,
 }

@@ -117,19 +117,19 @@ impl FromSql for Decimal {
             scale = 0;
         } else if scale > fixed_scale {
             result = result /
-                     10i64
-                         .pow((scale - fixed_scale) as u32)
-                         .to_biguint()
-                         .unwrap();
+                10i64
+                    .pow((scale - fixed_scale) as u32)
+                    .to_biguint()
+                    .unwrap();
             scale = fixed_scale;
         }
 
         // Create the decimal
         let neg = sign == 0x4000;
         let mut decimal = try!(match Decimal::from_biguint(result, scale as u32, neg) {
-                                   Ok(x) => Ok(x),
-                                   Err(_) => Err(Box::new(Error::Conversion(Box::new(InvalidDecimal)))),
-                               });
+            Ok(x) => Ok(x),
+            Err(_) => Err(Box::new(Error::Conversion(Box::new(InvalidDecimal)))),
+        });
 
         // Normalize by truncating any trailing 0's from the decimal representation
         // This may not be the most efficient way of doing this
@@ -171,12 +171,12 @@ impl ToSql for Decimal {
             .collect::<Vec<char>>()
             .chunks(4)
             .map(|x| {
-                     let mut x = x.to_owned();
-                     while x.len() < 4 {
-                         x.push('0');
-                     }
-                     x.into_iter().rev().collect::<String>()
-                 })
+                let mut x = x.to_owned();
+                while x.len() < 4 {
+                    x.push('0');
+                }
+                x.into_iter().rev().collect::<String>()
+            })
             .rev()
             .collect::<Vec<String>>();
         let decimal_portion = decimal_digits
@@ -184,12 +184,12 @@ impl ToSql for Decimal {
             .collect::<Vec<char>>()
             .chunks(4)
             .map(|x| {
-                     let mut x = x.to_owned();
-                     while x.len() < 4 {
-                         x.push('0');
-                     }
-                     x.into_iter().collect::<String>()
-                 })
+                let mut x = x.to_owned();
+                while x.len() < 4 {
+                    x.push('0');
+                }
+                x.into_iter().collect::<String>()
+            })
             .collect::<Vec<String>>();
         let weight = if whole_portion.is_empty() {
             -(decimal_portion.len() as i16)
@@ -294,40 +294,48 @@ mod test {
 
     #[test]
     fn read_numeric_type() {
-        read_type("NUMERIC(26,6)",
-                  &["3950.123456",
-                    "3950",
-                    "0.1",
-                    "0.01",
-                    "0.001",
-                    "0.0001",
-                    "0.00001",
-                    "0.000001",
-                    "1",
-                    "-100",
-                    "-123.456",
-                    "119996.25",
-                    "1000000",
-                    "9999999.99999"]);
+        read_type(
+            "NUMERIC(26,6)",
+            &[
+                "3950.123456",
+                "3950",
+                "0.1",
+                "0.01",
+                "0.001",
+                "0.0001",
+                "0.00001",
+                "0.000001",
+                "1",
+                "-100",
+                "-123.456",
+                "119996.25",
+                "1000000",
+                "9999999.99999",
+            ],
+        );
     }
 
 
     #[test]
     fn write_numeric_type() {
-        write_type("NUMERIC(26,6)",
-                   &["3950.123456",
-                     "3950",
-                     "0.1",
-                     "0.01",
-                     "0.001",
-                     "0.0001",
-                     "0.00001",
-                     "0.000001",
-                     "1",
-                     "-100",
-                     "-123.456",
-                     "119996.25",
-                     "1000000",
-                     "9999999.99999"]);
+        write_type(
+            "NUMERIC(26,6)",
+            &[
+                "3950.123456",
+                "3950",
+                "0.1",
+                "0.01",
+                "0.001",
+                "0.0001",
+                "0.00001",
+                "0.000001",
+                "1",
+                "-100",
+                "-123.456",
+                "119996.25",
+                "1000000",
+                "9999999.99999",
+            ],
+        );
     }
 }
