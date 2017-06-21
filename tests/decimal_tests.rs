@@ -623,14 +623,18 @@ fn it_can_round_simple_numbers_up() {
 
 #[test]
 fn it_can_return_the_max_value() {
-    assert_eq!("79228162514264337593543950335",
-               Decimal::max_value().to_string());
+    assert_eq!(
+        "79228162514264337593543950335",
+        Decimal::max_value().to_string()
+    );
 }
 
 #[test]
 fn it_can_return_the_min_value() {
-    assert_eq!("-79228162514264337593543950335",
-               Decimal::min_value().to_string());
+    assert_eq!(
+        "-79228162514264337593543950335",
+        Decimal::min_value().to_string()
+    );
 }
 
 #[test]
