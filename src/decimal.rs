@@ -81,20 +81,18 @@ pub struct Decimal {
 
 #[allow(dead_code)]
 impl Decimal {
-    /// Returns a `Decimal` with the underlying integer representation and scale.
+    /// Returns a `Decimal` with a 64 bit `m` representation and corresponding `e` scale.
     ///
     /// # Arguments
     ///
-    /// * `num` - An integer that represents the raw 
-    /// * `scale` - ...
+    /// * `num` - An i64 that represents the `m` portion of the decimal number 
+    /// * `scale` - A u32 representing the `e` portion of the decimal number.
     ///
     /// # Example
     ///
     /// ```
-    /// // You can have rust code between fences inside the comments
-    /// // If you pass --test to Rustdoc, it will even test it for you!
-    /// use doc::Person;
-    /// let person = Person::new("name");
+    /// use rust_decimal::Decimal;
+    /// let pi = Decimal::new(3141i64, 3u32);
     /// ```
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
@@ -117,6 +115,7 @@ impl Decimal {
         }
     }
 
+    /// Returns the scale of the decimal number, otherwise known as `e`.
     pub fn scale(&self) -> u32 {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
     }
