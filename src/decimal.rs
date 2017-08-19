@@ -61,9 +61,9 @@ static BIG_POWERS_10: &'static [u64; 10] = &[
     10000000000000000000,
 ];
 
-/// 128 bit representation of a decimal
-/// The finite set of values of type Decimal are of the form m / 10^e,
-/// where m is an integer such that -2^96 <; m <; 2^96, and e is an integer
+/// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
+/// The finite set of values of type `Decimal` are of the form m / 10^e,
+/// where m is an integer such that -2^96 <= m <= 2^96, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Debug, Copy)]
 pub struct Decimal {
@@ -81,6 +81,21 @@ pub struct Decimal {
 
 #[allow(dead_code)]
 impl Decimal {
+    /// Returns a `Decimal` with the underlying integer representation and scale.
+    ///
+    /// # Arguments
+    ///
+    /// * `num` - An integer that represents the raw 
+    /// * `scale` - ...
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// // You can have rust code between fences inside the comments
+    /// // If you pass --test to Rustdoc, it will even test it for you!
+    /// use doc::Person;
+    /// let person = Person::new("name");
+    /// ```
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
             panic!("Scale exceeds the maximum precision allowed");
