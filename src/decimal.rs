@@ -120,6 +120,11 @@ impl Decimal {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
     }
 
+    /// An optimized method for changing the sign of a decimal number.
+    ///
+    /// # Arguments
+    /// 
+    /// * `positive`: true if the resulting decimal should be positive.
     pub fn set_sign(&mut self, positive: bool) {
         if positive {
             if self.is_negative() {
@@ -130,23 +135,13 @@ impl Decimal {
         }
     }
 
-    pub fn unsigned_bytes_le(&self) -> Vec<u8> {
-        return vec![
-            (self.lo & U8_MASK) as u8,
-            ((self.lo >> 8) & U8_MASK) as u8,
-            ((self.lo >> 16) & U8_MASK) as u8,
-            ((self.lo >> 24) & U8_MASK) as u8,
-            (self.mid & U8_MASK) as u8,
-            ((self.mid >> 8) & U8_MASK) as u8,
-            ((self.mid >> 16) & U8_MASK) as u8,
-            ((self.mid >> 24) & U8_MASK) as u8,
-            (self.hi & U8_MASK) as u8,
-            ((self.hi >> 8) & U8_MASK) as u8,
-            ((self.hi >> 16) & U8_MASK) as u8,
-            ((self.hi >> 24) & U8_MASK) as u8,
-        ];
-    }
-
+    /// Returns a serialized version of the decimal number.
+    /// The resulting byte array will have the following representation:
+    ///
+    /// * Bytes 1-4: flags
+    /// * Bytes 5-8: lo portion of `m`
+    /// * Bytes 9-12: mid portion of `m`
+    /// * Bytes 13-16: high portion of `m`
     pub fn serialize(&self) -> [u8; 16] {
         [
             (self.flags & U8_MASK) as u8,
@@ -168,6 +163,13 @@ impl Decimal {
         ]
     }
 
+    /// Deserializes the given bytes into a decimal number.
+    /// The deserialized byte representation must be 16 bytes and adhere to the followign convention:
+    ///
+    /// * Bytes 1-4: flags
+    /// * Bytes 5-8: lo portion of `m`
+    /// * Bytes 9-12: mid portion of `m`
+    /// * Bytes 13-16: high portion of `m`
     pub fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
             flags: (bytes[0] as i32) | (bytes[1] as i32) << 8 | (bytes[2] as i32) << 16 | (bytes[3] as i32) << 24,
@@ -177,27 +179,37 @@ impl Decimal {
         }
     }
 
+    /// Returns `true` if the decimal is negative.
     pub fn is_negative(&self) -> bool {
         self.flags < 0
     }
 
+    /// Returns `true` if the decimal is positive.
     pub fn is_positive(&self) -> bool {
         self.flags >= 0
     }
 
+    /// Returns the minimum possible number that `Decimal` can represent.
     pub fn min_value() -> Decimal {
         *MIN
     }
 
+    /// Returns the maximum possible number that `Decimal` can represent.
     pub fn max_value() -> Decimal {
         *MAX
     }
 
+    /// Returns a new `Decimal` number with no fractional portion (i.e. an integer).
+    /// Rounding currently follows "Bankers Rounding" rules. e.g. 6.5 -> 6, 7.5 -> 8
     pub fn round(&self) -> Decimal {
         self.round_dp(0)
     }
 
-    // We use bankers rounding! i.e. 6.5 -> 6, 7.5 -> 8
+    /// Returns a new `Decimal` number with the specified number of decimal points for fractional portion.
+    /// Rounding currently follows "Bankers Rounding" rules. e.g. 6.5 -> 6, 7.5 -> 8
+    ///
+    /// # Arguments
+    /// * `dp`: the number of decimal points to round to.
     pub fn round_dp(&self, dp: u32) -> Decimal {
 
         let old_scale = self.scale();
@@ -272,7 +284,7 @@ impl Decimal {
             *self
         }
     }
-
+    
     pub(crate) fn rescale(&self, exp: u32) -> Decimal {
         if exp > MAX_PRECISION {
             panic!("Cannot have an exponent greater than {}", MAX_PRECISION);
@@ -345,6 +357,23 @@ impl Decimal {
 
         Ok(Decimal::from_bytes_le(bytes, scale, negative))
     }
+
+    fn unsigned_bytes_le(&self) -> Vec<u8> {
+        return vec![
+            (self.lo & U8_MASK) as u8,
+            ((self.lo >> 8) & U8_MASK) as u8,
+            ((self.lo >> 16) & U8_MASK) as u8,
+            ((self.lo >> 24) & U8_MASK) as u8,
+            (self.mid & U8_MASK) as u8,
+            ((self.mid >> 8) & U8_MASK) as u8,
+            ((self.mid >> 16) & U8_MASK) as u8,
+            ((self.mid >> 24) & U8_MASK) as u8,
+            (self.hi & U8_MASK) as u8,
+            ((self.hi >> 8) & U8_MASK) as u8,
+            ((self.hi >> 16) & U8_MASK) as u8,
+            ((self.hi >> 24) & U8_MASK) as u8,
+        ];
+    }    
 
     fn from_bytes_le(bytes: Vec<u8>, scale: u32, negative: bool) -> Decimal {
         // Finally build the flags
