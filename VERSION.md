@@ -1,5 +1,9 @@
 # Version History
 
+## 0.3.1
+
+This is a documentation release that should help with discoverability and usage.
+
 ## 0.3.0
 
 ### Changed
