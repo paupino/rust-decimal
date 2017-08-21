@@ -5,7 +5,7 @@ use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use self::num::{BigUint, One, Zero, ToPrimitive};
 use self::num::bigint::ToBigUint;
 use super::Decimal;
-use pg_crate::error::Error;
+use pg_crate::error::{conversion};
 use pg_crate::types::*;
 use std::error;
 use std::fmt;
@@ -128,7 +128,7 @@ impl FromSql for Decimal {
         let neg = sign == 0x4000;
         let mut decimal = try!(match Decimal::from_biguint(result, scale as u32, neg) {
             Ok(x) => Ok(x),
-            Err(_) => Err(Box::new(Error::Conversion(Box::new(InvalidDecimal)))),
+            Err(_) => Err(conversion(Box::new(InvalidDecimal))),
         });
 
         // Normalize by truncating any trailing 0's from the decimal representation
@@ -144,7 +144,7 @@ impl FromSql for Decimal {
 
     fn accepts(ty: &Type) -> bool {
         match *ty {
-            Type::Numeric => true,
+            NUMERIC => true,
             _ => false,
         }
     }
@@ -221,7 +221,7 @@ impl ToSql for Decimal {
 
     fn accepts(ty: &Type) -> bool {
         match *ty {
-            Type::Numeric => true,
+            NUMERIC => true,
             _ => false,
         }
     }
