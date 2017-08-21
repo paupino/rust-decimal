@@ -35,7 +35,7 @@ lazy_static! {
 }
 
 // Fast access for 10^n where n is 0-9
-static POWERS_10: &'static [u32; 10] = &[
+static POWERS_10: [u32; 10] = [
     1,
     10,
     100,
@@ -48,7 +48,7 @@ static POWERS_10: &'static [u32; 10] = &[
     1000000000,
 ];
 // Fast access for 10^n where n is 10-19
-static BIG_POWERS_10: &'static [u64; 10] = &[
+static BIG_POWERS_10: [u64; 10] = [
     10000000000,
     100000000000,
     1000000000000,
