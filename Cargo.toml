@@ -22,4 +22,7 @@ byteorder = "1.0"
 serde = "1.0"
 serde_json = "1.0"
 lazy_static = "0.2"
-postgres = { version = "0.14", optional = true }
+postgres = { version = "0.15", optional = true }
+
+[profile.test]
+default = ["postgres"]
