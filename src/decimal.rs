@@ -85,7 +85,7 @@ impl Decimal {
     ///
     /// # Arguments
     ///
-    /// * `num` - An i64 that represents the `m` portion of the decimal number 
+    /// * `num` - An i64 that represents the `m` portion of the decimal number
     /// * `scale` - A u32 representing the `e` portion of the decimal number.
     ///
     /// # Example
@@ -123,7 +123,7 @@ impl Decimal {
     /// An optimized method for changing the sign of a decimal number.
     ///
     /// # Arguments
-    /// 
+    ///
     /// * `positive`: true if the resulting decimal should be positive.
     pub fn set_sign(&mut self, positive: bool) {
         if positive {
@@ -284,7 +284,7 @@ impl Decimal {
             *self
         }
     }
-    
+
     pub(crate) fn rescale(&self, exp: u32) -> Decimal {
         if exp > MAX_PRECISION {
             panic!("Cannot have an exponent greater than {}", MAX_PRECISION);
@@ -373,7 +373,7 @@ impl Decimal {
             ((self.hi >> 16) & U8_MASK) as u8,
             ((self.hi >> 24) & U8_MASK) as u8,
         ];
-    }    
+    }
 
     fn from_bytes_le(bytes: Vec<u8>, scale: u32, negative: bool) -> Decimal {
         // Finally build the flags

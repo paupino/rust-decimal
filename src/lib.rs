@@ -1,6 +1,4 @@
 extern crate num;
-extern crate serde;
-extern crate serde_json;
 #[macro_use]
 extern crate lazy_static;
 
@@ -8,12 +6,23 @@ extern crate lazy_static;
 #[macro_use]
 extern crate postgres as pg_crate;
 
+#[cfg(feature = "serde")]
+extern crate serde;
+#[cfg(feature = "serde")]
+#[cfg(test)]
+extern crate serde_json;
+#[cfg(feature = "serde")]
+#[cfg(test)]
+#[macro_use]
+extern crate serde_derive;
+
 mod decimal;
 mod error;
-mod serde_types;
 
 #[cfg(feature = "postgres")]
 mod postgres;
+#[cfg(feature = "serde")]
+mod serde_types;
 
 pub use decimal::Decimal;
 pub use error::Error;
