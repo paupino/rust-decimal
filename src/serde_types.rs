@@ -18,22 +18,21 @@ struct DecimalVisitor;
 impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     type Value = Decimal;
 
-
-    fn visit_i16<E>(self, value: i16) -> Result<Decimal, E>
+    fn visit_i64<E>(self, value: i64) -> Result<Decimal, E>
         where E: serde::de::Error
     {
-        match Decimal::from_i32(value as i32) {
+        match Decimal::from_i64(value) {
             Some(s) => Ok(s),
-            None => Err(E::invalid_value(Unexpected::Signed(value as i64), &self)),
+            None => Err(E::invalid_value(Unexpected::Signed(value), &self)),
         }
     }
 
-    fn visit_i32<E>(self, value: i32) -> Result<Decimal, E>
+    fn visit_u64<E>(self, value: u64) -> Result<Decimal, E>
         where E: serde::de::Error
     {
-        match Decimal::from_i32(value) {
+        match Decimal::from_u64(value) {
             Some(s) => Ok(s),
-            None => Err(E::invalid_value(Unexpected::Signed(value as i64), &self)),
+            None => Err(E::invalid_value(Unexpected::Unsigned(value), &self)),
         }
     }
 
@@ -75,7 +74,6 @@ mod test {
         let data = [
             ("{\"amount\":\"1.234\"}", "1.234"),
             ("{\"amount\":1234}", "1234"),
-            ("{\"amount\":1.234}", "1.234"),
         ];
         for &(serialized,value) in data.iter() {
             let record : Record = serde_json::from_str(serialized).unwrap();
