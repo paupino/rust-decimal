@@ -636,6 +636,26 @@ impl FromPrimitive for Decimal {
 }
 
 impl ToPrimitive for Decimal {
+
+    fn to_f64(&self) -> Option<f64> {
+        if self.scale() == 0 {
+            let bytes = self.unsigned_bytes_le();
+            let sign;
+            if self.is_negative() {
+                sign = Minus;
+            } else {
+                sign = Plus;
+            }
+            
+            BigInt::from_bytes_le(sign, &bytes[..]).to_f64()
+        } else {
+            match self.to_string().parse::<f64>() {
+                Ok(s) => Some(s),
+                Err(_) => None
+            }
+        }
+    }
+
     fn to_i64(&self) -> Option<i64> {
         let d = self.rescale(0);
         // Convert to biguint and use that
