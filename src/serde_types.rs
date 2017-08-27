@@ -19,11 +19,10 @@ struct DecimalVisitor;
 impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     type Value = Decimal;
 
-    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E> {
-        match Decimal::from_str(&value.to_string()) {
-            Ok(s) => Ok(s),
-            Err(_) => Ok(Decimal::zero()),
-        }
+    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E> 
+        where E: serde::de::Error
+    {
+        Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
     }
 
     fn visit_i64<E>(self, value: i64) -> Result<Decimal, E>
