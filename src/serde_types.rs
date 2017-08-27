@@ -4,6 +4,7 @@ use serde;
 use std::fmt;
 use std::str::FromStr;
 use serde::de::Unexpected;
+use num::Zero;
 
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
@@ -17,6 +18,12 @@ struct DecimalVisitor;
 
 impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     type Value = Decimal;
+
+    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E> 
+        where E: serde::de::Error
+    {
+        Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
+    }
 
     fn visit_i64<E>(self, value: i64) -> Result<Decimal, E>
         where E: serde::de::Error
