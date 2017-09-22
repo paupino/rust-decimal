@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 
 description = "A Decimal Implementation written in pure Rust suitable for financial calculations."

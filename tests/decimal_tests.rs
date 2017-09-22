@@ -9,6 +9,14 @@ use num::ToPrimitive;
 // Parsing
 
 #[test]
+fn it_creates_a_new_negative_decimal() {
+    let a = Decimal::new(-100, 2);
+    assert_eq!(a.is_negative(), true);
+    assert_eq!(a.scale(), 2);
+    assert_eq!("-1.00", a.to_string());
+}
+
+#[test]
 fn it_parses_positive_int_string() {
     let a = Decimal::from_str("233").unwrap();
     assert_eq!(a.is_negative(), false);

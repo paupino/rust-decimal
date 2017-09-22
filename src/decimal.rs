@@ -101,9 +101,9 @@ impl Decimal {
         let flags: i32 = (scale as i32) << SCALE_SHIFT;
         if num < 0 {
             return Decimal {
-                flags: flags & SIGN_MASK,
+                flags: flags | SIGN_MASK,
                 hi: 0,
-                lo: (num & I32_MASK) as i32,
+                lo: (num.abs() & I32_MASK) as i32,
                 mid: ((num.abs() >> 32) & I32_MASK) as i32,
             };
         }

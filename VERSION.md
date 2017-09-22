@@ -1,5 +1,9 @@
 # Version History
 
+## 0.4.1
+
+Minor bugfix to support creating negative numbers using the default constructor.
+
 ## 0.4.0
 
 This release is a stylistic cleanup however does include some minor changes that may break existing builds.
