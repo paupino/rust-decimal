@@ -533,6 +533,27 @@ fn it_can_rem_5() {
 }
 
 #[test]
+fn it_can_eq_1() {
+    let a = Decimal::new(1, 0);
+    let b = Decimal::new(1, 0);
+    assert_eq!(true, a.eq(&b));
+}
+
+#[test]
+fn it_can_eq_2() {
+    let a = Decimal::new(1, 0);
+    let b = Decimal::new(-1, 0);
+    assert_eq!(false, a.eq(&b));
+}
+
+#[test]
+fn it_can_eq_3() {
+    let a = Decimal::new(1, 0);
+    let b = Decimal::new(100, 2);
+    assert_eq!(true, a.eq(&b));
+}
+
+#[test]
 fn it_can_round_to_2dp() {
     let a = Decimal::from_str("6.12345").unwrap();
     let b = (Decimal::from_str("100").unwrap() * a).round() / Decimal::from_str("100").unwrap();

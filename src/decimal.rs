@@ -1041,8 +1041,8 @@ impl Ord for Decimal {
         }
 
         // Convert to big int
-        let si = self.to_biguint();
-        let oi = other.to_biguint();
+        let si = self.to_bigint();
+        let oi = other.to_bigint();
         si.cmp(&oi)
     }
 }
