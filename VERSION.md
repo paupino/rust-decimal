@@ -1,5 +1,9 @@
 # Version History
 
+## 0.4.2
+
+Fixes bug in `cmp` whereby negative's were not being compared correctly.
+
 ## 0.4.1
 
 Minor bugfix to support creating negative numbers using the default constructor.
