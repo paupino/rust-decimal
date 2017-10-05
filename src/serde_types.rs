@@ -4,13 +4,12 @@ use serde;
 use std::fmt;
 use std::str::FromStr;
 use serde::de::Unexpected;
-use num::Zero;
 
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
     where
         D: serde::de::Deserializer<'de>, {
-        deserializer.deserialize_any(DecimalVisitor)
+        deserializer.deserialize_str(DecimalVisitor)
     }
 }
 
@@ -19,7 +18,7 @@ struct DecimalVisitor;
 impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     type Value = Decimal;
 
-    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E> 
+    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
         where E: serde::de::Error
     {
         Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
@@ -83,8 +82,10 @@ mod test {
             ("{\"amount\":1234}", "1234"),
         ];
         for &(serialized,value) in data.iter() {
-            let record : Record = serde_json::from_str(serialized).unwrap();
-            assert_eq!(value, record.amount.to_string());
+            let result = serde_json::from_str(serialized);
+            assert_eq!(true, result.is_ok(), "expected successful deseralization for {}. Error: {:?}", serialized, result.err().unwrap());
+            let record : Record = result.unwrap();
+            assert_eq!(value, record.amount.to_string(), "expected: {}, actual: {}", value, record.amount.to_string());
         }
     }
 
