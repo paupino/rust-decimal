@@ -633,6 +633,15 @@ impl FromPrimitive for Decimal {
             hi: 0,
         })
     }
+
+    fn from_f64(n: f64) -> Option<Decimal> {
+        // Handle the case if it is NaN, Infinity or -Infinity
+        if !n.is_finite() {
+            return None;
+        }
+
+        None
+    }
 }
 
 impl ToPrimitive for Decimal {
@@ -646,7 +655,7 @@ impl ToPrimitive for Decimal {
             } else {
                 sign = Plus;
             }
-            
+
             BigInt::from_bytes_le(sign, &bytes[..]).to_f64()
         } else {
             match self.to_string().parse::<f64>() {
