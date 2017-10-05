@@ -91,8 +91,8 @@ fn it_can_serialize_deserialize() {
 fn it_formats() {
     let a = Decimal::from_str("233.323223").unwrap();
     assert_eq!(format!("{}", a), "233.323223");
-    assert_eq!(format!("{:.9}", a), "233.323223");
-    assert_eq!(format!("{:.0}", a), "233.");
+    assert_eq!(format!("{:.9}", a), "233.323223000");
+    assert_eq!(format!("{:.0}", a), "233");
     assert_eq!(format!("{:.2}", a), "233.32");
     assert_eq!(format!("{:010.2}", a), "0000233.32");
     assert_eq!(format!("{:0<10.2}", a), "233.320000");
@@ -101,12 +101,51 @@ fn it_formats() {
 fn it_formats_neg() {
     let a = Decimal::from_str("-233.323223").unwrap();
     assert_eq!(format!("{}", a), "-233.323223");
-    assert_eq!(format!("{:.9}", a), "-233.323223");
-    assert_eq!(format!("{:.0}", a), "-233.");
+    assert_eq!(format!("{:.9}", a), "-233.323223000");
+    assert_eq!(format!("{:.0}", a), "-233");
     assert_eq!(format!("{:.2}", a), "-233.32");
     assert_eq!(format!("{:010.2}", a), "-000233.32");
     assert_eq!(format!("{:0<10.2}", a), "-233.32000");
-
+}
+#[test]
+fn it_formats_small() {
+    let a = Decimal::from_str("0.2223").unwrap();
+    assert_eq!(format!("{}", a), "0.2223");
+    assert_eq!(format!("{:.9}", a), "0.222300000");
+    assert_eq!(format!("{:.0}", a), "0");
+    assert_eq!(format!("{:.2}", a), "0.22");
+    assert_eq!(format!("{:010.2}", a), "0000000.22");
+    assert_eq!(format!("{:0<10.2}", a), "0.22000000");
+}
+#[test]
+fn it_formats_small_neg() {
+    let a = Decimal::from_str("-0.2223").unwrap();
+    assert_eq!(format!("{}", a), "-0.2223");
+    assert_eq!(format!("{:.9}", a), "-0.222300000");
+    assert_eq!(format!("{:.0}", a), "-0");
+    assert_eq!(format!("{:.2}", a), "-0.22");
+    assert_eq!(format!("{:010.2}", a), "-000000.22");
+    assert_eq!(format!("{:0<10.2}", a), "-0.2200000");
+}
+#[test]
+fn it_formats_zero() {
+    let a = Decimal::from_str("0").unwrap();
+    assert_eq!(format!("{}", a), "0");
+    assert_eq!(format!("{:.9}", a), "0.000000000");
+    assert_eq!(format!("{:.0}", a), "0");
+    assert_eq!(format!("{:.2}", a), "0.00");
+    assert_eq!(format!("{:010.2}", a), "0000000.00");
+    assert_eq!(format!("{:0<10.2}", a), "0.00000000");
+}
+#[test]
+fn it_formats_int() {
+    let a = Decimal::from_str("5").unwrap();
+    assert_eq!(format!("{}", a), "5");
+    assert_eq!(format!("{:.9}", a), "5.000000000");
+    assert_eq!(format!("{:.0}", a), "5");
+    assert_eq!(format!("{:.2}", a), "5.00");
+    assert_eq!(format!("{:010.2}", a), "0000005.00");
+    assert_eq!(format!("{:0<10.2}", a), "5.00000000");
 }
 
 
