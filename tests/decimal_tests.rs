@@ -85,6 +85,31 @@ fn it_can_serialize_deserialize() {
     assert_eq!("12.3456789", b.to_string());
 }
 
+// Formatting
+
+#[test]
+fn it_formats() {
+    let a = Decimal::from_str("233.323223").unwrap();
+    assert_eq!(format!("{}", a), "233.323223");
+    assert_eq!(format!("{:.9}", a), "233.323223");
+    assert_eq!(format!("{:.0}", a), "233.");
+    assert_eq!(format!("{:.2}", a), "233.32");
+    assert_eq!(format!("{:010.2}", a), "0000233.32");
+    assert_eq!(format!("{:0<10.2}", a), "233.320000");
+}
+#[test]
+fn it_formats_neg() {
+    let a = Decimal::from_str("-233.323223").unwrap();
+    assert_eq!(format!("{}", a), "-233.323223");
+    assert_eq!(format!("{:.9}", a), "-233.323223");
+    assert_eq!(format!("{:.0}", a), "-233.");
+    assert_eq!(format!("{:.2}", a), "-233.32");
+    assert_eq!(format!("{:010.2}", a), "-000233.32");
+    assert_eq!(format!("{:0<10.2}", a), "-233.32000");
+
+}
+
+
 // Addition
 
 #[test]

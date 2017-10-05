@@ -699,6 +699,10 @@ impl fmt::Display for Decimal {
         let mut rep = uint.to_string();
         let len = rep.len();
 
+        if let Some(n_dp) = f.precision() {
+            rep.truncate(len - (scale as usize) + n_dp)
+        }
+
         // Inject the decimal point
         if scale > 0 {
             // Must be a low fractional
@@ -717,12 +721,7 @@ impl fmt::Display for Decimal {
             }
         }
 
-        // Last set the negation
-        if self.is_negative() {
-            rep.insert(0, '-');
-        }
-
-        f.pad(&rep)
+        f.pad_integral(self.is_positive(), "", &rep)
     }
 }
 
