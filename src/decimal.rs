@@ -699,7 +699,7 @@ impl ToPrimitive for Decimal {
 impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         // Get the scale - where we need to put the decimal point
-        let scale = self.scale();
+        let mut scale = self.scale() as usize;
 
         // Get the whole number without decimal points (or signs)
         let uint = self.to_biguint();
@@ -708,30 +708,40 @@ impl fmt::Display for Decimal {
         let mut rep = uint.to_string();
         let len = rep.len();
 
+
+        if let Some(n_dp) = f.precision() {
+            if n_dp < scale {
+                rep.truncate(len - scale + n_dp)
+            } else {
+                let zeros = repeat("0").take(n_dp - scale).collect::<String>();
+                rep.push_str(&zeros[..]);
+            }
+            scale = n_dp;
+        }
+        let len = rep.len();
+
         // Inject the decimal point
         if scale > 0 {
             // Must be a low fractional
-            if scale > len as u32 {
+            if scale > len {
                 let mut new_rep = String::new();
                 let zeros = repeat("0").take(scale as usize - len).collect::<String>();
                 new_rep.push_str("0.");
                 new_rep.push_str(&zeros[..]);
                 new_rep.push_str(&rep[..]);
                 rep = new_rep;
-            } else if scale == len as u32 {
+            } else if scale == len {
                 rep.insert(0, '.');
                 rep.insert(0, '0');
             } else {
                 rep.insert(len - scale as usize, '.');
             }
+        } else if rep.is_empty() {
+            // corner case for when we truncated everything in a low fractional
+            rep.insert(0, '0');
         }
 
-        // Last set the negation
-        if self.is_negative() {
-            rep.insert(0, '-');
-        }
-
-        f.pad(&rep)
+        f.pad_integral(self.is_positive(), "", &rep)
     }
 }
 
