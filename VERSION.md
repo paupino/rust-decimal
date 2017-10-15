@@ -1,5 +1,12 @@
 # Version History
 
+## 0.5.0
+
+* Removes postgres from default feature set.
+* `bincode` support for serde
+* Better support for format strings
+* Benchmarks added to tests
+
 ## 0.4.2
 
 Fixes bug in `cmp` whereby negative's were not being compared correctly.

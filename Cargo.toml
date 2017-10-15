@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 
 description = "A Decimal Implementation written in pure Rust suitable for financial calculations."
@@ -27,5 +27,6 @@ serde = { version = "1.0", optional = true }
 serde_json = "1.0"
 serde_derive = "1.0"
 decimal = "2.0"
+
 [features]
 default = ["serde"]
