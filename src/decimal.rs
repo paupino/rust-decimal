@@ -514,6 +514,9 @@ impl FromStr for Decimal {
     type Err = Error;
 
     fn from_str(value: &str) -> Result<Decimal, Self::Err> {
+        if value.is_empty() {
+            return Err(Error::new("Invalid decimal: empty"));
+        }
 
         let mut offset = 0;
         let mut len = value.len();

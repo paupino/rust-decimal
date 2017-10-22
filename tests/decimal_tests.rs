@@ -17,6 +17,12 @@ fn it_creates_a_new_negative_decimal() {
 }
 
 #[test]
+fn it_parses_empty_string() {
+    assert!(Decimal::from_str("").is_err());
+    assert!(Decimal::from_str(" ").is_err());
+}
+
+#[test]
 fn it_parses_positive_int_string() {
     let a = Decimal::from_str("233").unwrap();
     assert_eq!(a.is_negative(), false);
