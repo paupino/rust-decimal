@@ -1,5 +1,9 @@
 # Version History
 
+## 0.5.1
+
+* Minor bux fix update. Prevent `panic` upon parsing an empty string.
+
 ## 0.5.0
 
 * Removes postgres from default feature set.
