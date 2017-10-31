@@ -1051,12 +1051,12 @@ impl Ord for Decimal {
         let oi = other.to_bigint();
         if s > o {
             let power = Decimal::power_10((s - o) as usize).to_bigint().unwrap();
-            let d = oi * power;
-            si.cmp(&d)
+            let other_scaled = oi * power;
+            si.cmp(&other_scaled)
         } else if s < o {
             let power = Decimal::power_10((o - s) as usize).to_bigint().unwrap();
-            let d = si * power;
-            d.cmp(&oi)
+            let self_scaled = si * power;
+            self_scaled.cmp(&oi)
         } else {
             si.cmp(&oi)
         }
