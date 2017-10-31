@@ -1,6 +1,7 @@
 use Error;
 use num::{BigInt, BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
 use num::bigint::Sign::{Minus, Plus};
+use num::bigint::ToBigInt;
 use std::cmp::*;
 use std::cmp::Ordering::Equal;
 use std::fmt;
@@ -302,34 +303,28 @@ impl Decimal {
         let result: BigUint;
 
         // Figure out whether to multiply or divide
-        let index = diff.abs() as usize;
+        let power = Decimal::power_10(diff.abs() as usize);
         if diff > 0 {
-            if index < 10 {
-                result = unsigned * BigUint::from_u32(POWERS_10[index]).unwrap();
-            } else if index < 20 {
-                result = unsigned * BigUint::from_u64(BIG_POWERS_10[index - 10]).unwrap();
-            } else {
-                let u32_index = index - 19; // -20 + 1 for getting the right u32 index
-                let exponent = BigUint::from_u64(BIG_POWERS_10[9]).unwrap() *
-                    BigUint::from_u32(POWERS_10[u32_index]).unwrap();
-                result = unsigned * exponent;
-            }
+            result = unsigned * power;
         } else {
-            if index < 10 {
-                result = unsigned / BigUint::from_u32(POWERS_10[index]).unwrap();
-            } else if index < 20 {
-                result = unsigned / BigUint::from_u64(BIG_POWERS_10[index - 10]).unwrap();
-            } else {
-                let u32_index = index - 19; // -20 + 1 for getting the right u32 index
-                let exponent = BigUint::from_u64(BIG_POWERS_10[9]).unwrap() *
-                    BigUint::from_u32(POWERS_10[u32_index]).unwrap();
-                result = unsigned / exponent;
-            }
+            result = unsigned / power;
         }
 
         // Convert it back
         let bytes = result.to_bytes_le();
         Decimal::from_bytes_le(bytes, exp, self.is_negative())
+    }
+
+    fn power_10(exponent: usize) -> BigUint {
+        if exponent < 10 {
+            BigUint::from_u32(POWERS_10[exponent]).unwrap()
+        } else if exponent < 20 {
+            BigUint::from_u64(BIG_POWERS_10[exponent - 10]).unwrap()
+        } else {
+            let u32_exponent = exponent - 19; // -20 + 1 for getting the right u32 index
+            BigUint::from_u64(BIG_POWERS_10[9]).unwrap() *
+                BigUint::from_u32(POWERS_10[u32_exponent]).unwrap()
+        }
     }
 
     //
@@ -1039,24 +1034,32 @@ impl PartialOrd for Decimal {
 
 impl Ord for Decimal {
     fn cmp(&self, other: &Decimal) -> Ordering {
+        // Quick exit if major differences
+        if self.is_negative() && !other.is_negative() {
+            return Ordering::Less;
+        } else if !self.is_negative() && other.is_negative() {
+            return Ordering::Greater;
+        }
+
         // If we have 1.23 and 1.2345 then we have
         //  123 scale 2 and 12345 scale 4
         //  We need to convert the first to
         //  12300 scale 4 so we can compare equally
         let s = self.scale() as u32;
         let o = other.scale() as u32;
-        if s > o {
-            let d = other.rescale(s);
-            return self.cmp(&d);
-        } else if s < o {
-            let d = self.rescale(o);
-            return (&d).cmp(other);
-        }
-
-        // Convert to big int
         let si = self.to_bigint();
         let oi = other.to_bigint();
-        si.cmp(&oi)
+        if s > o {
+            let power = Decimal::power_10((s - o) as usize).to_bigint().unwrap();
+            let d = oi * power;
+            si.cmp(&d)
+        } else if s < o {
+            let power = Decimal::power_10((o - s) as usize).to_bigint().unwrap();
+            let d = si * power;
+            d.cmp(&oi)
+        } else {
+            si.cmp(&oi)
+        }
     }
 }
 
