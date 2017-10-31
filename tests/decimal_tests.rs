@@ -624,6 +624,25 @@ fn it_can_eq_3() {
 }
 
 #[test]
+fn test_max_compares() {
+    let x = "225.33543601344182".parse::<Decimal>().unwrap();
+    let y = Decimal::max_value();
+    assert!(x < y);
+    assert!(y > x);
+    assert!(y != x);
+
+}
+
+#[test]
+fn test_min_compares() {
+    let x = "225.33543601344182".parse::<Decimal>().unwrap();
+    let y = Decimal::min_value();
+    assert!(x > y);
+    assert!(y < x);
+    assert!(y != x);
+}
+
+#[test]
 fn it_can_round_to_2dp() {
     let a = Decimal::from_str("6.12345").unwrap();
     let b = (Decimal::from_str("100").unwrap() * a).round() / Decimal::from_str("100").unwrap();
