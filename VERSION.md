@@ -1,8 +1,12 @@
 # Version History
 
+## 0.5.2
+
+* Minor bug fix to prevent a `panic` from overflow during comparison of high significant digit decimals. 
+
 ## 0.5.1
 
-* Minor bux fix update. Prevent `panic` upon parsing an empty string.
+* Minor bux fix to prevent `panic` upon parsing an empty string.
 
 ## 0.5.0
 
@@ -17,7 +21,7 @@ Fixes bug in `cmp` whereby negative's were not being compared correctly.
 
 ## 0.4.1
 
-Minor bugfix to support creating negative numbers using the default constructor.
+Minor bug fix to support creating negative numbers using the default constructor.
 
 ## 0.4.0
 
