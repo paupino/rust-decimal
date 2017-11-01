@@ -17,6 +17,12 @@ fn it_creates_a_new_negative_decimal() {
 }
 
 #[test]
+fn it_parses_empty_string() {
+    assert!(Decimal::from_str("").is_err());
+    assert!(Decimal::from_str(" ").is_err());
+}
+
+#[test]
 fn it_parses_positive_int_string() {
     let a = Decimal::from_str("233").unwrap();
     assert_eq!(a.is_negative(), false);
@@ -615,6 +621,25 @@ fn it_can_eq_3() {
     let a = Decimal::new(1, 0);
     let b = Decimal::new(100, 2);
     assert_eq!(true, a.eq(&b));
+}
+
+#[test]
+fn test_max_compares() {
+    let x = "225.33543601344182".parse::<Decimal>().unwrap();
+    let y = Decimal::max_value();
+    assert!(x < y);
+    assert!(y > x);
+    assert!(y != x);
+
+}
+
+#[test]
+fn test_min_compares() {
+    let x = "225.33543601344182".parse::<Decimal>().unwrap();
+    let y = Decimal::min_value();
+    assert!(x > y);
+    assert!(y < x);
+    assert!(y != x);
 }
 
 #[test]

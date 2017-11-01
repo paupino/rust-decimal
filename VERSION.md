@@ -1,12 +1,27 @@
 # Version History
 
+## 0.5.2
+
+* Minor bug fix to prevent a `panic` from overflow during comparison of high significant digit decimals. 
+
+## 0.5.1
+
+* Minor bux fix to prevent `panic` upon parsing an empty string.
+
+## 0.5.0
+
+* Removes postgres from default feature set.
+* `bincode` support for serde
+* Better support for format strings
+* Benchmarks added to tests
+
 ## 0.4.2
 
 Fixes bug in `cmp` whereby negative's were not being compared correctly.
 
 ## 0.4.1
 
-Minor bugfix to support creating negative numbers using the default constructor.
+Minor bug fix to support creating negative numbers using the default constructor.
 
 ## 0.4.0
 
