@@ -638,6 +638,33 @@ impl FromPrimitive for Decimal {
             return None;
         }
 
+        // It's a shame we can't use a union for this due to it being broken up by bits
+        // i.e. 1/11/52 (sign, exponent, significand)
+        // See https://en.wikipedia.org/wiki/IEEE_754-1985
+        let raw = n.to_bits();
+        let positive = (raw >> 63) == 0;
+        let exponent = ((raw >> 52) & 0x7ff) as i64 - 1023;
+        let mantissa = raw & 0xf_ffff_ffff_ffff;
+
+        // Handle the special zero case
+        if exponent == -1023 && mantissa == 0 {
+            let mut zero = Decimal::zero();
+            if !positive {
+                zero.set_sign(false);
+            }
+            return Some(zero);
+        }
+
+        // The significand is 1 appended to the fractional part
+        let significand = mantissa | 0x10_0000_0000_0000;
+        
+        /*
+        if positive {
+            Some(Decimal::new(significand, exponent))
+        } else {
+            Some(Decimal::new(-significand, exponent))
+        }
+        */
         None
     }
 }
