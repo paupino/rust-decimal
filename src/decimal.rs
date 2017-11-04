@@ -13,26 +13,28 @@ use std::str::FromStr;
 // positive Decimal value, and a value of one in this bit indicates a
 // negative Decimal value.
 #[allow(overflowing_literals)]
-const SIGN_MASK: i32 = 0x80000000;
+const SIGN_MASK: u32 = 0x80000000;
 
 // Scale mask for the flags field. This byte in the flags field contains
 // the power of 10 to divide the Decimal value by. The scale byte must
 // contain a value between 0 and 28 inclusive.
-const SCALE_MASK: i32 = 0x00FF0000;
-const U8_MASK: i32 = 0x000000FF;
-const I32_MASK: i64 = 0xFFFFFFFF;
+const SCALE_MASK: u32 = 0x00FF0000;
+const U8_MASK: u32 = 0x000000FF;
+const I32_MASK: u64 = 0xFFFFFFFF;
 
 // Number of bits scale is shifted by.
-const SCALE_SHIFT: i32 = 16;
+const SCALE_SHIFT: u32 = 16;
 
 // The maximum supported precision
 const MAX_PRECISION: u32 = 28;
 const MAX_BYTES: usize = 12;
 const MAX_BITS: usize = 96;
 
+static ONE_INTERNAL_REPR: [u32;3] = [1,0,0];
+
 lazy_static! {
-    static ref MIN: Decimal = Decimal { flags: -2147483648, lo: -1, mid: -1, hi: -1 };
-    static ref MAX: Decimal = Decimal { flags: 0, lo: -1, mid: -1, hi: -1 };
+    static ref MIN: Decimal = Decimal { flags: 2147483648, lo: 4294967295, mid: 4294967295, hi: 4294967295 };
+    static ref MAX: Decimal = Decimal { flags: 0, lo: 4294967295, mid: 4294967295, hi: 4294967295 };
 }
 
 // Fast access for 10^n where n is 0-9
@@ -72,12 +74,12 @@ pub struct Decimal {
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
     // Bits 24-30: unused
     // Bit 31: the sign of the Decimal value, 0 meaning positive and 1 meaning negative.
-    flags: i32,
+    flags: u32,
     // The lo, mid, hi, and flags fields contain the representation of the
     // Decimal value as a 96-bit integer.
-    hi: i32,
-    lo: i32,
-    mid: i32,
+    hi: u32,
+    lo: u32,
+    mid: u32,
 }
 
 #[allow(dead_code)]
@@ -99,20 +101,20 @@ impl Decimal {
         if scale > MAX_PRECISION {
             panic!("Scale exceeds the maximum precision allowed");
         }
-        let flags: i32 = (scale as i32) << SCALE_SHIFT;
+        let flags: u32 = scale << SCALE_SHIFT;
         if num < 0 {
             return Decimal {
                 flags: flags | SIGN_MASK,
                 hi: 0,
-                lo: (num.abs() & I32_MASK) as i32,
-                mid: ((num.abs() >> 32) & I32_MASK) as i32,
+                lo: (num.abs() as u64 & I32_MASK) as u32,
+                mid: ((num.abs() as u64 >> 32) & I32_MASK) as u32,
             };
         }
         Decimal {
             flags: flags,
             hi: 0,
-            lo: (num & I32_MASK) as i32,
-            mid: ((num >> 32) & I32_MASK) as i32,
+            lo: (num as u64 & I32_MASK) as u32,
+            mid: ((num as u64 >> 32) & I32_MASK) as u32,
         }
     }
 
@@ -173,21 +175,21 @@ impl Decimal {
     /// * Bytes 13-16: high portion of `m`
     pub fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
-            flags: (bytes[0] as i32) | (bytes[1] as i32) << 8 | (bytes[2] as i32) << 16 | (bytes[3] as i32) << 24,
-            lo: (bytes[4] as i32) | (bytes[5] as i32) << 8 | (bytes[6] as i32) << 16 | (bytes[7] as i32) << 24,
-            mid: (bytes[8] as i32) | (bytes[9] as i32) << 8 | (bytes[10] as i32) << 16 | (bytes[11] as i32) << 24,
-            hi: (bytes[12] as i32) | (bytes[13] as i32) << 8 | (bytes[14] as i32) << 16 | (bytes[15] as i32) << 24,
+            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
+            lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
+            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
+            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
         }
     }
 
     /// Returns `true` if the decimal is negative.
     pub fn is_negative(&self) -> bool {
-        self.flags < 0
+        self.flags & SIGN_MASK > 0
     }
 
     /// Returns `true` if the decimal is positive.
     pub fn is_positive(&self) -> bool {
-        self.flags >= 0
+        self.flags & SIGN_MASK == 0
     }
 
     /// Returns the minimum possible number that `Decimal` can represent.
@@ -327,6 +329,84 @@ impl Decimal {
         }
     }
 
+    fn add_raw(value: &mut [u32;3], by: &[u32;3]) -> u32 {
+        let mut carry = 0;
+        let mut sum : u64;
+        for i in 0..2 {
+            sum = value[i] as u64
+                + by[i] as u64
+                + carry as u64;
+            value[i] = (sum & 0xffffffff) as u32;
+            carry = sum >> 32;
+        }
+        carry as u32
+    }
+
+    // Returns overflow
+    fn mul_by_u32(bits: &mut [u32;3], m: u32) -> u32 {
+        let mut overflow = 0;
+        for i in 0..2 {
+            let (lo, hi) = Decimal::mul_part(bits[i] as u32, m, overflow);
+            bits[i] = lo;
+            overflow = hi;
+        }
+        overflow
+    }
+
+    fn mul_part(left: u32, right: u32, high: u32) -> (u32, u32) {
+        let result = left as u64 * right as u64 + high as u64;
+        let hi = ((result >> 32) & 0xffff_ffff) as u32;
+        let lo = (result & 0xffff_ffff) as u32;
+        (lo, hi)
+    }
+
+    // Returns remainder
+    fn div_by_u32(bits: &mut [u32;3], divisor: u32) -> Option<u32> {
+        if divisor == 0 {
+            // Divide by zero
+            return None;
+        } else if divisor == 1 {
+            // dividend remains unchanged
+            return Some(0);
+        } else {
+            let mut remainder = 0u32;
+            for i in 2..0 {
+                let temp = ((remainder as u64) << 32) + bits[i] as u64;
+                remainder = (temp % divisor as u64) as u32;
+                bits[i] = (temp / divisor as u64) as u32;
+            }
+
+            Some(remainder)
+        }
+    }
+
+    fn shl_raw(bits: &mut [u32;3], shift: u32) {
+
+        let mut shift = shift;
+
+        // Whole blocks first
+        while shift >= 32 {
+            bits[2] = bits[1];
+            bits[1] = bits[0];
+            bits[0] = 0;
+            shift -= 32;
+        }
+
+        // Continue with the rest
+        if shift > 0 {
+            let mut shifted = 0;
+            for i in 0..2 {
+                let b = bits[i] >> (32 - shift);
+                bits[i] = (bits[i] << shift) | shifted;
+                shifted = b;
+            }
+        }
+    }
+
+    fn is_zero(bits: &[u32;3]) -> bool {
+        bits[0] == 0 && bits[1] == 0 && bits[2] == 0
+    }
+
     //
     // These do not address scale. If you want that, rescale to 0 first.
     //
@@ -372,13 +452,13 @@ impl Decimal {
 
     fn from_bytes_le(bytes: Vec<u8>, scale: u32, negative: bool) -> Decimal {
         // Finally build the flags
-        let mut flags = 0i32;
-        let mut lo = 0i32;
-        let mut mid = 0i32;
-        let mut hi = 0i32;
+        let mut flags = 0u32;
+        let mut lo = 0u32;
+        let mut mid = 0u32;
+        let mut hi = 0u32;
 
         if scale > 0 {
-            flags = (scale as i32) << SCALE_SHIFT;
+            flags = scale << SCALE_SHIFT;
         }
         if negative {
             flags |= SIGN_MASK;
@@ -390,11 +470,11 @@ impl Decimal {
         let mut pos = 0;
         for b in bytes {
             if pos < 4 {
-                lo |= (b as i32) << (pos * 8);
+                lo |= (b as u32) << (pos * 8);
             } else if pos < 8 {
-                mid |= (b as i32) << ((pos - 4) * 8);
+                mid |= (b as u32) << ((pos - 4) * 8);
             } else {
-                hi |= (b as i32) << ((pos - 8) * 8);
+                hi |= (b as u32) << ((pos - 8) * 8);
             }
             // Move position
             pos += 1;
@@ -579,7 +659,7 @@ impl FromStr for Decimal {
 
 impl FromPrimitive for Decimal {
     fn from_i32(n: i32) -> Option<Decimal> {
-        let flags: i32;
+        let flags: u32;
         let value_copy: i32;
         if n >= 0 {
             flags = 0;
@@ -590,14 +670,14 @@ impl FromPrimitive for Decimal {
         }
         Some(Decimal {
             flags: flags,
-            lo: value_copy,
+            lo: value_copy as u32,
             mid: 0,
             hi: 0,
         })
     }
 
     fn from_i64(n: i64) -> Option<Decimal> {
-        let flags: i32;
+        let flags: u32;
         let value_copy: i64;
         if n >= 0 {
             flags = 0;
@@ -608,8 +688,8 @@ impl FromPrimitive for Decimal {
         }
         Some(Decimal {
             flags: flags,
-            lo: value_copy as i32,
-            mid: (value_copy >> 32) as i32,
+            lo: value_copy as u32,
+            mid: (value_copy >> 32) as u32,
             hi: 0,
         })
     }
@@ -617,7 +697,7 @@ impl FromPrimitive for Decimal {
     fn from_u32(n: u32) -> Option<Decimal> {
         Some(Decimal {
             flags: 0,
-            lo: n as i32,
+            lo: n,
             mid: 0,
             hi: 0,
         })
@@ -626,8 +706,8 @@ impl FromPrimitive for Decimal {
     fn from_u64(n: u64) -> Option<Decimal> {
         Some(Decimal {
             flags: 0,
-            lo: n as i32,
-            mid: (n >> 32) as i32,
+            lo: n as u32,
+            mid: (n >> 32) as u32,
             hi: 0,
         })
     }
@@ -639,15 +719,21 @@ impl FromPrimitive for Decimal {
         }
 
         // It's a shame we can't use a union for this due to it being broken up by bits
-        // i.e. 1/11/52 (sign, exponent, significand)
+        // i.e. 1/11/52 (sign, exponent, mantissa)
         // See https://en.wikipedia.org/wiki/IEEE_754-1985
+        // n = (sign*-1) * 2^exp * mantissa
+        // Decimal of course stores this differently... 10^-exp * significand
         let raw = n.to_bits();
         let positive = (raw >> 63) == 0;
-        let exponent = ((raw >> 52) & 0x7ff) as i64 - 1023;
-        let mantissa = raw & 0xf_ffff_ffff_ffff;
+        let biased_exponent = ((raw >> 52) & 0x7ff) as i64;
+        let mut exponent2 = biased_exponent - 1023;
+        let mantissa = raw & 0x000f_ffff_ffff_ffff;
+        let mut bits = [(mantissa & 0xffff_ffff) as u32,
+                        ((mantissa >> 32) & 0xffff_ffff) as u32,
+                        0u32];
 
         // Handle the special zero case
-        if exponent == -1023 && mantissa == 0 {
+        if biased_exponent == 0 && mantissa == 0 {
             let mut zero = Decimal::zero();
             if !positive {
                 zero.set_sign(false);
@@ -655,17 +741,160 @@ impl FromPrimitive for Decimal {
             return Some(zero);
         }
 
-        // The significand is 1 appended to the fractional part
-        let significand = mantissa | 0x10_0000_0000_0000;
-        
-        /*
-        if positive {
-            Some(Decimal::new(significand, exponent))
+        if biased_exponent == 0 {
+            // Denormalized number - correct the exponent
+            exponent2 += 1;
         } else {
-            Some(Decimal::new(-significand, exponent))
+            // Add extra hidden bit to mantissa
+            bits[1] |= 0x0010_0000;
         }
-        */
-        None
+
+        // The act of copying a mantissa as integer bits is equivalent to shifting
+        // left the mantissa 52 bits. The exponent is reduced to compensate.
+        exponent2 -= 52;
+
+        // 2^exponent2 = (10^exponent2)/(5^exponent2)
+        //             = (5^-exponent2)*(10^exponent2)
+        let mut exponent5 = -exponent2;
+        let mut exponent10 = exponent2; // Ultimately, we want this for the scale
+
+        while exponent5 > 0 {
+            // Check to see if the mantissa is divisible by 2
+            if bits[0] & 0x1 == 0 {
+                exponent10 += 1;
+                exponent5 -= 1;
+
+                // We can divide by 2 without losing precision
+                let hi_carry = bits[2] & 0x1 == 0;
+                bits[2] >>= 1;
+                let mid_carry = bits[1] & 0x1 == 0;
+                bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
+                bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
+            } else {
+                // The mantissa is NOT divisible by 2. Therefore the mantissa should
+                // be multiplied by 5, unless the multiplication overflows.
+                exponent5 -= 1;
+
+                let mut temp = [bits[0],bits[1],bits[2]];
+                if Decimal::mul_by_u32(&mut temp, 5) == 0 {
+                    // Multiplication succeeded without overflow, so copy result back
+                    bits[0] = temp[0];
+                    bits[1] = temp[1];
+                    bits[2] = temp[2];
+                } else {
+                    // Multiplication by 5 overflows. The mantissa should be divided
+                    // by 2, and therefore will lose significant digits.
+                    exponent10 += 1;
+
+                    // Shift right
+                    let hi_carry = bits[2] & 0x1 == 0;
+                    bits[2] >>= 1;
+                    let mid_carry = bits[1] & 0x1 == 0;
+                    bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
+                    bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
+                }
+            }
+        }
+
+        while exponent5 < 0 {
+            // In order to divide the value by 5, it is best to multiply by 2/10.
+            // Therefore, exponent10 is decremented, and the mantissa should be multiplied by 2 */
+            if bits[2] & SIGN_MASK == 0 {
+                // The mantissa can withstand a shift-left without overflowing
+                exponent10 -= 1;
+                exponent5 += 1;
+                Decimal::shl_raw(&mut bits, 1);
+            } else {
+                // The mantissa would overflow if shifted. Therefore it should be
+                // directly divided by 5. This will lose significant digits, unless
+                // by chance the mantissa happens to be divisible by 5.
+                exponent5 += 1;
+                Decimal::div_by_u32(&mut bits, 5);
+            }
+        }
+
+        // At this point, the mantissa has assimilated the exponent5, but
+        // exponent10 might not be suitable for assignment. exponent10 must be
+        // in the range [-MAX_PRECISION..0], so the mantissa must be scaled up or
+        // down appropriately.
+        while exponent10 > 0 {
+            // In order to bring exponent10 down to 0, the mantissa should be
+            // multiplied by 10 to compensate. If the exponent10 is too big, this
+            // will cause the mantissa to overflow.
+            if Decimal::mul_by_u32(&mut bits, 10) == 0 {
+                exponent10 -= 1;
+            } else {
+                // Overflowed - return?
+                return None;
+            }
+        }
+        while exponent10 < -(MAX_PRECISION as i64) {
+            // In order to bring exponent up to -MAX_PRECISION, the mantissa should
+            // be divided by 10 to compensate. If the exponent10 is too small, this
+            // will cause the mantissa to underflow and become 0.
+            let rem10 = match Decimal::div_by_u32(&mut bits, 10) {
+                Some(x) => x,
+                None => return None
+            };
+            exponent10 += 1;
+            if Decimal::is_zero(&bits) {
+                // Underflow, unable to keep dividing
+                exponent10 = 0;
+            } else if rem10 >= 5 {
+                Decimal::add_raw(&mut bits, &ONE_INTERNAL_REPR);
+            }
+        }
+        // This step is required in order to remove excess bits of precision from the
+        // end of the bit representation, down to the precision guaranteed by the
+        // floating point number
+        while exponent10 < 0 &&
+                (bits[2] != 0 ||
+                (bits[1] & 0xFFE0_0000) != 0) {
+
+            let rem10 = match Decimal::div_by_u32(&mut bits, 10) {
+                Some(x) => x,
+                None => return None
+            };
+            exponent10 += 1;
+            if rem10 >= 5 {
+                Decimal::add_raw(&mut bits, &ONE_INTERNAL_REPR);
+            }
+        }
+
+        // Remove multiples of 10 from the representation
+        while exponent10 < 0 {
+            let mut temp = [bits[0],bits[1],bits[2]];
+            if let Some(remainder) = Decimal::div_by_u32(&mut temp, 10) {
+                if remainder == 0 {
+                    exponent10 += 1;
+                    bits[0] = temp[0];
+                    bits[1] = temp[1];
+                    bits[2] = temp[2];
+                } else {
+                    break;
+                }
+            } else {
+                return None;
+            }
+        }
+
+        println!("lo: {}", bits[0]);
+        println!("mid: {}", bits[1]);
+        println!("hi: {}", bits[2]);
+        println!("exp10: {}", exponent10);
+        println!("exp5: {}", exponent5);
+
+        // Scale assignment
+        let mut flags: u32 = (exponent10 as u32) << SCALE_SHIFT;
+        if !positive {
+            flags |= SIGN_MASK;
+        }
+        Some(Decimal {
+            lo: bits[0],
+            mid: bits[1],
+            hi: bits[2],
+            flags: flags
+        })
     }
 }
 
@@ -1175,7 +1404,7 @@ mod test {
         let a = Decimal {
             flags: 1572864,
             hi: 107459117,
-            lo: -2075830955,
+            lo: 2219136341,
             mid: 849254895,
         };
         let b = a.round_dp(2u32);
