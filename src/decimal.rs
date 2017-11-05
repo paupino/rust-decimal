@@ -1283,41 +1283,108 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn mul(self, other: &Decimal) -> Decimal {
-        // Get big uints to work with
-        let left = self.to_biguint();
-        let right = other.to_biguint();
+        let my = [self.lo, self.mid, self.hi];
+        let ot = [other.lo, other.mid, other.hi];
 
-        // Easy!
-        let mut result = left * right; // Has the potential to overflow below if > 2^96
-        let mut scale = self.scale() + other.scale();
+        // Early exit if either is zero
+        if Decimal::is_zero(&my) || Decimal::is_zero(&ot) {
+            return Decimal {
+                lo: 0,
+                mid: 0,
+                hi: 0,
+                flags: 0,
+            };
+        }
 
-        // The result may be an overflow of what we can comfortably represent in 96 bits
-        // We can only do this if we have a scale to work with
-        if result.bits() > MAX_BITS {
-            // Try to truncate until we're ok
-            let ten = BigUint::from_i32(10).unwrap();
-            while scale > 0 && result.bits() > 96 {
-                result = result / &ten;
-                scale -= 1;
+        // Start a result array
+        let mut result = [0u32, 0u32, 0u32];
+
+        // We are only resulting in a negative if we have mismatched signs
+        let negative = self.is_negative() ^ other.is_negative();
+
+        // We get the scale of the result by adding the operands. This may be too big, however
+        //  we'll correct later
+        let my_scale = self.scale();
+        let ot_scale = other.scale();
+        let mut final_scale = my_scale + ot_scale;
+
+        // Do the calculation, this first part is just trying to shortcut cycles.
+        let to = if my[2] == 0 && my[1] == 0 {
+            1
+        } else if my[2] == 0 {
+            2
+        } else {
+            3
+        };
+        // We calculate into a 256 bit number temporarily
+        let mut running : [u32;6] = [0,0,0,0,0,0];
+        let mut overflow = 0;
+        for i in 0..to {
+            for j in 0..3 {
+                let (res, of) = Decimal::mul_part(ot[j], my[i], overflow);
+                overflow = of;
+                let running_index = i + j;
+                let mut working = res;
+                loop {
+                    let added = running[running_index] as u64 + working as u64;
+                    running[running_index] = (added & 0xFFFF_FFFF) as u32;
+                    working = (added >> 32) as u32;
+                    if working == 0 {
+                        break;
+                    }
+                }
             }
         }
 
-        // Last check for overflow
-        if result.bits() > MAX_BITS {
-            panic!("Decimal overflow from multiplication");
+        // While our 256-bit(!) result is in overflow (i.e. upper portion != 0)
+        // AND it has a scale > 0 we divide by 10
+        let mut remainder = 0;
+        while final_scale > 0 && !(running[3] == 0 && running[4] == 0 && running[5] == 0) {
+            let mut rem = 0u32;
+            for i in (0..6).rev() {
+                let temp = (u64::from(rem) << 32) + u64::from(running[i]);
+                rem = (temp % 10u64) as u32;
+                running[i] = (temp / 10u64) as u32;
+            }
+            remainder = rem;
+            final_scale -= 1;
         }
 
-        if scale > MAX_PRECISION {
-            // Then what? Truncate?
-            panic!("Scale overflow; cannot represent exp {}", scale);
+        // Round up the carry if we need to
+        if remainder >= 5 {
+            for i in 0..6 {
+                let digit = running[i] as u64 + 1;
+                running[i] = (digit & 0xFFFF_FFFF) as u32;
+                if digit <= 0xFFFF_FFFF {
+                    break;
+                }
+            }
         }
-        // Negativity is based on xor. e.g.
-        // 1 * 2 = 2
-        // -1 * 2 = -2
-        // 1 * -2 = -2
-        // -1 * -2 = 2
-        let bytes = result.to_bytes_le();
-        Decimal::from_bytes_le(bytes, scale, self.is_negative() ^ other.is_negative())
+
+        // If our upper portion is not 0, we've overflowed
+        if !(running[3] == 0 && running[4] == 0 && running[5] == 0) {
+            panic!("Multiplication overflowed");
+        }
+
+        // Copy to our result
+        result[0] = running[0];
+        result[1] = running[1];
+        result[2] = running[2];
+
+        // We underflowed, we'll lose precision.
+        // For now we panic however perhaps in the future I could give the option to round
+        if final_scale > MAX_PRECISION {
+            panic!("Multiplication underflowed");
+        }
+
+        // We have our result
+        let flags = (final_scale << SCALE_SHIFT) | if negative { SIGN_MASK } else { 0 };
+        Decimal {
+            lo: result[0],
+            mid: result[1],
+            hi: result[2],
+            flags: flags
+        }
     }
 }
 

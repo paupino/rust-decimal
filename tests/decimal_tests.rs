@@ -416,7 +416,7 @@ fn it_can_multiply_5() {
     let a = Decimal::from_str("0").unwrap();
     let b = Decimal::from_str("1.001").unwrap();
     let c = a * b;
-    assert_eq!("0.000", c.to_string());
+    assert_eq!("0", c.to_string());
 }
 
 #[test]
@@ -441,6 +441,13 @@ fn it_can_multiply_8() {
     let b = Decimal::from_str("-3").unwrap();
     let c = a * b;
     assert_eq!("6", c.to_string());
+}
+
+#[test]
+#[should_panic]
+fn it_panics_when_multiply_with_underflow() {
+    let a = Decimal::from_str("2.0000000000000000000000000001").unwrap();
+    let _ = a * a;
 }
 
 #[test]
