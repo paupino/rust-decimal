@@ -3,10 +3,10 @@
 extern crate test;
 extern crate rust_decimal;
 extern crate decimal;
-use test::Bencher;
-use rust_decimal::Decimal;
 use decimal::d128;
+use rust_decimal::Decimal;
 use std::str::FromStr;
+use test::Bencher;
 
 macro_rules! bench_bin_op {
     ($name:ident, $ty:ident, $op:tt) => {
@@ -41,4 +41,3 @@ bench_bin_op!(bench_d128_mul, d128, *);
 
 bench_bin_op!(bench_decimal_div, Decimal, /);
 bench_bin_op!(bench_d128_div, d128, /);
-

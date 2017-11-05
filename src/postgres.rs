@@ -5,7 +5,7 @@ use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use self::num::{BigUint, One, Zero, ToPrimitive};
 use self::num::bigint::ToBigUint;
 use super::Decimal;
-use pg_crate::error::{conversion};
+use pg_crate::error::conversion;
 use pg_crate::types::*;
 use std::error;
 use std::fmt;

@@ -1,10 +1,10 @@
 extern crate num;
 extern crate rust_decimal;
 
+use num::ToPrimitive;
 use num::Zero;
 use rust_decimal::Decimal;
 use std::str::FromStr;
-use num::ToPrimitive;
 
 // Parsing
 
@@ -783,6 +783,90 @@ fn it_converts_to_f64() {
     assert_eq!(5f64, Decimal::from_str("5").unwrap().to_f64().unwrap());
     assert_eq!(-5f64, Decimal::from_str("-5").unwrap().to_f64().unwrap());
     assert_eq!(0.1f64, Decimal::from_str("0.1").unwrap().to_f64().unwrap());
-    assert_eq!(0.25e-11f64, Decimal::from_str("0.0000000000025").unwrap().to_f64().unwrap());
-    assert_eq!(1e6f64, Decimal::from_str("1000000.0000000000025").unwrap().to_f64().unwrap());
+    assert_eq!(
+        0.25e-11f64,
+        Decimal::from_str("0.0000000000025")
+            .unwrap()
+            .to_f64()
+            .unwrap()
+    );
+    assert_eq!(
+        1e6f64,
+        Decimal::from_str("1000000.0000000000025")
+            .unwrap()
+            .to_f64()
+            .unwrap()
+    );
+}
+
+#[test]
+fn it_converts_from_f32() {
+    fn from_f32(f: f32) -> Option<Decimal> {
+        num::FromPrimitive::from_f32(f)
+    }
+
+    assert_eq!("1", from_f32(1f32).unwrap().to_string());
+    assert_eq!("0", from_f32(0f32).unwrap().to_string());
+    assert_eq!("0.12345", from_f32(0.12345f32).unwrap().to_string());
+    assert_eq!(
+        "0.12345678",
+        from_f32(0.1234567800123456789012345678f32)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0.12345679",
+        from_f32(0.12345678901234567890123456789f32)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0",
+        from_f32(0.00000000000000000000000000001f32)
+            .unwrap()
+            .to_string()
+    );
+
+    assert!(from_f32(std::f32::NAN).is_none());
+    assert!(from_f32(std::f32::INFINITY).is_none());
+
+    // These both overflow
+    assert!(from_f32(std::f32::MAX).is_none());
+    assert!(from_f32(std::f32::MIN).is_none());
+}
+
+#[test]
+fn it_converts_from_f64() {
+    fn from_f64(f: f64) -> Option<Decimal> {
+        num::FromPrimitive::from_f64(f)
+    }
+
+    assert_eq!("1", from_f64(1f64).unwrap().to_string());
+    assert_eq!("0", from_f64(0f64).unwrap().to_string());
+    assert_eq!("0.12345", from_f64(0.12345f64).unwrap().to_string());
+    assert_eq!(
+        "0.1234567890123456",
+        from_f64(0.1234567890123456089012345678f64)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0.1234567890123457",
+        from_f64(0.12345678901234567890123456789f64)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0",
+        from_f64(0.00000000000000000000000000001f64)
+            .unwrap()
+            .to_string()
+    );
+
+    assert!(from_f64(std::f64::NAN).is_none());
+    assert!(from_f64(std::f64::INFINITY).is_none());
+
+    // These both overflow
+    assert!(from_f64(std::f64::MAX).is_none());
+    assert!(from_f64(std::f64::MIN).is_none());
 }
