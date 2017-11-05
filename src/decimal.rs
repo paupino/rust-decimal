@@ -324,7 +324,7 @@ impl Decimal {
         }
     }
 
-    fn add_raw(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
+    fn add_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
         let mut carry = 0;
         let mut sum: u64;
         for i in 0..3 {
@@ -333,6 +333,67 @@ impl Decimal {
             carry = sum >> 32;
         }
         carry as u32
+    }
+
+    fn sub_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
+        // The way this works is similar to long subtraction
+        // Let's assume we're working with bytes for simpliciy in an example:
+        //   257 - 8 = 249
+        //   0000_0001 0000_0001 - 0000_0000 0000_1000 = 0000_0000 1111_1001
+        // We start by doing the first byte...
+        //   Overflow = 0
+        //   Left = 0000_0001 (1)
+        //   Right = 0000_1000 (8)
+        // Firstly, we make sure the left and right are scaled up to twice the size
+        //   Left = 0000_0000 0000_0001
+        //   Right = 0000_0000 0000_1000
+        // We then subtract right from left
+        //   Result = Left - Right = 1111_1111 1111_1001
+        // We subtract the overflow, which in this case is 0.
+        // Because left < right (1 < 8) we invert the high part.
+        //   Lo = 1111_1001
+        //   Hi = 1111_1111 -> 0000_0001
+        // Lo is the field, hi is the overflow.
+        // We do the same for the second byte...
+        //   Overflow = 1
+        //   Left = 0000_0001
+        //   Right = 0000_0000
+        //   Result = Left - Right = 0000_0000 0000_0001
+        // We subtract the overflow...
+        //   Result = 0000_0000 0000_0001 - 1 = 0
+        // And we invert the high, just because (invert 0 = 0).
+        // So our result is:
+        //   0000_0000 1111_1001
+        let mut overflow = 0;
+        for i in 0..3 {
+            let (lo, hi) = Decimal::sub_part(value[i], by[i], overflow);
+            value[i] = lo;
+            overflow = hi;
+        }
+        overflow
+    }
+
+    fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
+        let mut invert = false;
+        let overflow = i64::from(overflow);
+        let mut part : i64 = i64::from(left) - i64::from(right);
+        if left < right {
+            invert = true;
+        }
+
+        if part > overflow {
+            part -= overflow;
+        } else {
+            part -= overflow;
+            invert = true;
+        }
+
+        let mut hi : i32 = ((part >> 32) & 0xFFFF_FFFF) as i32;
+        let lo : u32 = (part & 0xFFFF_FFFF) as u32;
+        if invert {
+            hi = -hi;
+        }
+        (lo, hi as u32)
     }
 
     // Returns overflow
@@ -373,7 +434,7 @@ impl Decimal {
         }
     }
 
-    fn shl_raw(bits: &mut [u32; 3], shift: u32) {
+    fn shl_internal(bits: &mut [u32; 3], shift: u32) {
 
         let mut shift = shift;
 
@@ -396,6 +457,22 @@ impl Decimal {
         }
     }
 
+    #[inline]
+    fn cmp_internal(left: &[u32; 3], right: &[u32; 3]) -> Ordering {
+        let left_hi : u32 = left[2];
+        let right_hi : u32 = right[2];
+        let left_lo : u64 = u64::from(left[1]) << 32 | u64::from(left[0]);
+        let right_lo : u64 = u64::from(right[1]) << 32 | u64::from(right[0]);
+        if left_hi < right_hi || (left_hi <= right_hi && left_lo < right_lo) {
+            Ordering::Less
+        } else if left_hi == right_hi && left_lo == right_lo {
+            Ordering::Equal
+        } else {
+            Ordering::Greater
+        }
+    }
+
+    #[inline]
     fn is_zero(bits: &[u32; 3]) -> bool {
         bits[0] == 0 && bits[1] == 0 && bits[2] == 0
     }
@@ -451,7 +528,7 @@ impl Decimal {
                 // No far left bit, the mantissa can withstand a shift-left without overflowing
                 exponent10 -= 1;
                 exponent5 += 1;
-                Decimal::shl_raw(bits, 1);
+                Decimal::shl_internal(bits, 1);
             } else {
                 // The mantissa would overflow if shifted. Therefore it should be
                 // directly divided by 5. This will lose significant digits, unless
@@ -490,7 +567,7 @@ impl Decimal {
                 // Underflow, unable to keep dividing
                 exponent10 = 0;
             } else if rem10 >= 5 {
-                Decimal::add_raw(bits, &ONE_INTERNAL_REPR);
+                Decimal::add_internal(bits, &ONE_INTERNAL_REPR);
             }
         }
 
@@ -507,7 +584,7 @@ impl Decimal {
                 };
                 exponent10 += 1;
                 if rem10 >= 5 {
-                    Decimal::add_raw(bits, &ONE_INTERNAL_REPR);
+                    Decimal::add_internal(bits, &ONE_INTERNAL_REPR);
                 }
             }
         } else {
@@ -522,7 +599,7 @@ impl Decimal {
                 };
                 exponent10 += 1;
                 if rem10 >= 5 {
-                    Decimal::add_raw(bits, &ONE_INTERNAL_REPR);
+                    Decimal::add_internal(bits, &ONE_INTERNAL_REPR);
                 }
             }
         }
@@ -1098,54 +1175,87 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
     #[inline]
     fn add(self, other: &Decimal) -> Decimal {
 
-        // Get big uints to work with
-        let (left, right, scale) = scaled_biguints(self, other);
-
-        // Now we have the values - do a quick add
-        let l_negative = self.is_negative();
-        let r_negative = other.is_negative();
-        let result;
-        let is_negative;
-        if l_negative && r_negative {
-            result = left + right;
-            is_negative = true;
-        } else if !l_negative && !r_negative {
-            result = left + right;
-            is_negative = false;
+        // Convert to the same scale
+        let my_scale = self.scale();
+        let other_scale = other.scale();
+        let mut flags;
+        let mut my = [self.lo, self.mid, self.hi];
+        let mut ot = [other.lo, other.mid, other.hi];
+        if my_scale > other_scale {
+            let rescaled = other.rescale(my_scale);
+            ot[0] = rescaled.lo;
+            ot[1] = rescaled.mid;
+            ot[2] = rescaled.hi;
+            flags = my_scale << SCALE_SHIFT;
+        } else if other_scale > my_scale {
+            let rescaled = self.rescale(other_scale);
+            my[0] = rescaled.lo;
+            my[1] = rescaled.mid;
+            my[2] = rescaled.hi;
+            flags = other_scale << SCALE_SHIFT;
         } else {
-            //  1 + -2 (l < r, -r => r - l, -)
-            //  2 + -1 (l > r, -r => l - r, +)
-            // -1 +  2 (l < r, -l => r - l, +)
-            // -2 +  1 (l > r, -l => l - r, -)
-            if r_negative {
-                if left < right {
-                    result = right - left;
-                    is_negative = true;
-                } else if left > right {
-                    result = left - right;
-                    is_negative = false;
-                } else {
-                    result = BigUint::zero();
-                    is_negative = false;
-                }
-            } else {
-                // l_negative
-                if left < right {
-                    result = right - left;
-                    is_negative = false;
-                } else if left > right {
-                    result = left - right;
-                    is_negative = true;
-                } else {
-                    result = BigUint::zero();
-                    is_negative = false;
-                }
-            }
+            flags = my_scale << SCALE_SHIFT;
         }
 
-        // Convert it back
-        let bytes = result.to_bytes_le();
-        Decimal::from_bytes_le(bytes, scale, is_negative)
+        // Add the items together
+        let my_negative = self.is_negative();
+        let other_negative = other.is_negative();
+        if my_negative && other_negative {
+            flags |= SIGN_MASK;
+            Decimal::add_internal(&mut my, &ot);
+        } else if my_negative && !other_negative {
+            // -x + y
+            let cmp = Decimal::cmp_internal(&my, &ot);
+            // if x > y then it's negative (i.e. -2 + 1)
+            match cmp {
+                Ordering::Less => {
+                    Decimal::sub_internal(&mut ot, &my);
+                    my[0] = ot[0];
+                    my[1] = ot[1];
+                    my[2] = ot[2];
+                }
+                Ordering::Greater => {
+                    flags |= SIGN_MASK;
+                    Decimal::sub_internal(&mut my, &ot);
+                }
+                Ordering::Equal => {
+                    // -2 + 2
+                    my[0] = 0;
+                    my[1] = 0;
+                    my[2] = 0;
+                }
+            }
+        } else if !my_negative && other_negative {
+            // x + -y
+            let cmp = Decimal::cmp_internal(&my, &ot);
+            // if x < y then it's negative (i.e. 1 + -2)
+            match cmp {
+                Ordering::Less => {
+                    flags |= SIGN_MASK;
+                    Decimal::sub_internal(&mut ot, &my);
+                    my[0] = ot[0];
+                    my[1] = ot[1];
+                    my[2] = ot[2];
+                }
+                Ordering::Greater => {
+                    Decimal::sub_internal(&mut my, &ot);
+                }
+                Ordering::Equal => {
+                    // 2 + -2
+                    my[0] = 0;
+                    my[1] = 0;
+                    my[2] = 0;
+                }
+            }
+        } else {
+            Decimal::add_internal(&mut my, &ot);
+        }
+        Decimal {
+            lo: my[0],
+            mid: my[1],
+            hi: my[2],
+            flags: flags,
+        }
     }
 }
 
@@ -1156,41 +1266,13 @@ impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn sub(self, other: &Decimal) -> Decimal {
-        // Get big uints to work with
-        let (left, right, scale) = scaled_biguints(self, other);
-
-        // Now we have the values - subtract
-        // Both Positive:
-        // 1 - 2 = -1
-        // 2 - 1 = 1
-        // Both negative:
-        // -1 - -2 = 1
-        // -2 - -1 = -1
-        // Mismatch
-        // -1 - 2 = -3
-        // -2 - 1 = -3
-        // 1 - -2 = 3
-        // 2 - -1 = 3
-        let l_negative = self.is_negative();
-        let r_negative = other.is_negative();
-        let result: BigUint;
-        let is_negative: bool;
-        if l_negative ^ r_negative {
-            result = left + right;
-            is_negative = l_negative;
-        } else {
-            if left > right {
-                result = left - right;
-                is_negative = l_negative && r_negative;
-            } else {
-                result = right - left;
-                is_negative = !l_negative && !r_negative;
-            }
-        }
-
-        // Convert it back
-        let bytes = result.to_bytes_le();
-        Decimal::from_bytes_le(bytes, scale, is_negative && !result.is_zero())
+        let negated_other = Decimal {
+            lo: other.lo,
+            mid: other.mid,
+            hi: other.hi,
+            flags: other.flags ^ SIGN_MASK,
+        };
+        self.add(negated_other)
     }
 }
 
