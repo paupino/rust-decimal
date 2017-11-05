@@ -13,14 +13,14 @@ use std::str::FromStr;
 // positive Decimal value, and a value of one in this bit indicates a
 // negative Decimal value.
 #[allow(overflowing_literals)]
-const SIGN_MASK: u32 = 0x80000000;
+const SIGN_MASK: u32 = 0x8000_0000;
 
 // Scale mask for the flags field. This byte in the flags field contains
 // the power of 10 to divide the Decimal value by. The scale byte must
 // contain a value between 0 and 28 inclusive.
-const SCALE_MASK: u32 = 0x00FF0000;
-const U8_MASK: u32 = 0x000000FF;
-const I32_MASK: u64 = 0xFFFFFFFF;
+const SCALE_MASK: u32 = 0x00FF_0000;
+const U8_MASK: u32 = 0x0000_00FF;
+const I32_MASK: u64 = 0xFFFF_FFFF;
 
 // Number of bits scale is shifted by.
 const SCALE_SHIFT: u32 = 16;
@@ -33,8 +33,8 @@ const MAX_BITS: usize = 96;
 static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
 lazy_static! {
-    static ref MIN: Decimal = Decimal { flags: 2147483648, lo: 4294967295, mid: 4294967295, hi: 4294967295 };
-    static ref MAX: Decimal = Decimal { flags: 0, lo: 4294967295, mid: 4294967295, hi: 4294967295 };
+    static ref MIN: Decimal = Decimal { flags: 2_147_483_648, lo: 4_294_967_295, mid: 4_294_967_295, hi: 4_294_967_295 };
+    static ref MAX: Decimal = Decimal { flags: 0, lo: 4_294_967_295, mid: 4_294_967_295, hi: 4_294_967_295 };
 }
 
 // Fast access for 10^n where n is 0-9
@@ -175,10 +175,10 @@ impl Decimal {
     /// * Bytes 13-16: high portion of `m`
     pub fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
-            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
-            lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
-            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
-            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
+            flags: u32::from(bytes[0]) | u32::from(bytes[1]) << 8 | u32::from(bytes[2]) << 16 | u32::from(bytes[3]) << 24,
+            lo: u32::from(bytes[4]) | u32::from(bytes[5]) << 8 | u32::from(bytes[6]) << 16 | u32::from(bytes[7]) << 24,
+            mid: u32::from(bytes[8]) | u32::from(bytes[9]) << 8 | u32::from(bytes[10]) << 16 | u32::from(bytes[11]) << 24,
+            hi: u32::from(bytes[12]) | u32::from(bytes[13]) << 8 | u32::from(bytes[14]) << 16 | u32::from(bytes[15]) << 24,
         }
     }
 
@@ -328,8 +328,8 @@ impl Decimal {
         let mut carry = 0;
         let mut sum: u64;
         for i in 0..3 {
-            sum = value[i] as u64 + by[i] as u64 + carry as u64;
-            value[i] = (sum & 0xffffffff) as u32;
+            sum = u64::from(value[i]) + u64::from(by[i]) + carry as u64;
+            value[i] = (sum & 0xFFFF_FFFF) as u32;
             carry = sum >> 32;
         }
         carry as u32
@@ -347,9 +347,9 @@ impl Decimal {
     }
 
     fn mul_part(left: u32, right: u32, high: u32) -> (u32, u32) {
-        let result = left as u64 * right as u64 + high as u64;
-        let hi = ((result >> 32) & 0xffff_ffff) as u32;
-        let lo = (result & 0xffff_ffff) as u32;
+        let result = u64::from(left) * u64::from(right) + u64::from(high);
+        let hi = ((result >> 32) & 0xFFFF_FFFF) as u32;
+        let lo = (result & 0xFFFF_FFFF) as u32;
         (lo, hi)
     }
 
@@ -357,16 +357,16 @@ impl Decimal {
     fn div_by_u32(bits: &mut [u32; 3], divisor: u32) -> Option<u32> {
         if divisor == 0 {
             // Divide by zero
-            return None;
+            None
         } else if divisor == 1 {
             // dividend remains unchanged
-            return Some(0);
+            Some(0)
         } else {
             let mut remainder = 0u32;
             for i in (0..3).rev() {
-                let temp = ((remainder as u64) << 32) + bits[i] as u64;
-                remainder = (temp % divisor as u64) as u32;
-                bits[i] = (temp / divisor as u64) as u32;
+                let temp = (u64::from(remainder) << 32) + u64::from(bits[i]);
+                remainder = (temp % u64::from(divisor)) as u32;
+                bits[i] = (temp / u64::from(divisor)) as u32;
             }
 
             Some(remainder)
@@ -486,7 +486,7 @@ impl Decimal {
                 None => return None,
             };
             exponent10 += 1;
-            if Decimal::is_zero(&bits) {
+            if Decimal::is_zero(bits) {
                 // Underflow, unable to keep dividing
                 exponent10 = 0;
             } else if rem10 >= 5 {
@@ -513,7 +513,7 @@ impl Decimal {
         } else {
             // Guaranteed to about 7 dp
             while exponent10 < 0 &&
-                (bits[2] != 0 || bits[1] != 0 || (bits[2] == 0 && bits[1] == 0 && (bits[0] & 0xFF000000) != 0))
+                (bits[2] != 0 || bits[1] != 0 || (bits[2] == 0 && bits[1] == 0 && (bits[0] & 0xFF00_0000) != 0))
             {
 
                 let rem10 = match Decimal::div_by_u32(bits, 10) {
@@ -620,11 +620,11 @@ impl Decimal {
         let mut pos = 0;
         for b in bytes {
             if pos < 4 {
-                lo |= (b as u32) << (pos * 8);
+                lo |= u32::from(b) << (pos * 8);
             } else if pos < 8 {
-                mid |= (b as u32) << ((pos - 4) * 8);
+                mid |= u32::from(b) << ((pos - 4) * 8);
             } else {
-                hi |= (b as u32) << ((pos - 8) * 8);
+                hi |= u32::from(b) << ((pos - 8) * 8);
             }
             // Move position
             pos += 1;
@@ -874,8 +874,8 @@ impl FromPrimitive for Decimal {
         // Decimal of course stores this differently... 10^-exp * significand
         let raw = n.to_bits();
         let positive = (raw >> 31) == 0;
-        let biased_exponent = ((raw >> 23) & 0xff) as i32;
-        let mantissa = raw & 0x007f_ffff;
+        let biased_exponent = ((raw >> 23) & 0xFF) as i32;
+        let mantissa = raw & 0x007F_FFFF;
 
         // Handle the special zero case
         if biased_exponent == 0 && mantissa == 0 {
@@ -918,8 +918,8 @@ impl FromPrimitive for Decimal {
         // Decimal of course stores this differently... 10^-exp * significand
         let raw = n.to_bits();
         let positive = (raw >> 63) == 0;
-        let biased_exponent = ((raw >> 52) & 0x7ff) as i32;
-        let mantissa = raw & 0x000f_ffff_ffff_ffff;
+        let biased_exponent = ((raw >> 52) & 0x7FF) as i32;
+        let mantissa = raw & 0x000F_FFFF_FFFF_FFFF;
 
         // Handle the special zero case
         if biased_exponent == 0 && mantissa == 0 {
@@ -933,8 +933,8 @@ impl FromPrimitive for Decimal {
         // Get the bits and exponent2
         let mut exponent2 = biased_exponent - 1023;
         let mut bits = [
-            (mantissa & 0xffff_ffff) as u32,
-            ((mantissa >> 32) & 0xffff_ffff) as u32,
+            (mantissa & 0xFFFF_FFFF) as u32,
+            ((mantissa >> 32) & 0xFFFF_FFFF) as u32,
             0u32,
         ];
         if biased_exponent == 0 {
