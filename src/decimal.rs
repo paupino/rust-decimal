@@ -30,7 +30,7 @@ const MAX_PRECISION: u32 = 28;
 const MAX_BYTES: usize = 12;
 const MAX_BITS: usize = 96;
 
-static ONE_INTERNAL_REPR: [u32;3] = [1,0,0];
+static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
 lazy_static! {
     static ref MIN: Decimal = Decimal { flags: 2147483648, lo: 4294967295, mid: 4294967295, hi: 4294967295 };
@@ -320,18 +320,15 @@ impl Decimal {
             BigUint::from_u64(BIG_POWERS_10[exponent - 10]).unwrap()
         } else {
             let u32_exponent = exponent - 19; // -20 + 1 for getting the right u32 index
-            BigUint::from_u64(BIG_POWERS_10[9]).unwrap() *
-                BigUint::from_u32(POWERS_10[u32_exponent]).unwrap()
+            BigUint::from_u64(BIG_POWERS_10[9]).unwrap() * BigUint::from_u32(POWERS_10[u32_exponent]).unwrap()
         }
     }
 
-    fn add_raw(value: &mut [u32;3], by: &[u32;3]) -> u32 {
+    fn add_raw(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
         let mut carry = 0;
-        let mut sum : u64;
+        let mut sum: u64;
         for i in 0..3 {
-            sum = value[i] as u64
-                + by[i] as u64
-                + carry as u64;
+            sum = value[i] as u64 + by[i] as u64 + carry as u64;
             value[i] = (sum & 0xffffffff) as u32;
             carry = sum >> 32;
         }
@@ -339,7 +336,7 @@ impl Decimal {
     }
 
     // Returns overflow
-    fn mul_by_u32(bits: &mut [u32;3], m: u32) -> u32 {
+    fn mul_by_u32(bits: &mut [u32; 3], m: u32) -> u32 {
         let mut overflow = 0;
         for i in 0..3 {
             let (lo, hi) = Decimal::mul_part(bits[i] as u32, m, overflow);
@@ -357,7 +354,7 @@ impl Decimal {
     }
 
     // Returns remainder
-    fn div_by_u32(bits: &mut [u32;3], divisor: u32) -> Option<u32> {
+    fn div_by_u32(bits: &mut [u32; 3], divisor: u32) -> Option<u32> {
         if divisor == 0 {
             // Divide by zero
             return None;
@@ -376,7 +373,7 @@ impl Decimal {
         }
     }
 
-    fn shl_raw(bits: &mut [u32;3], shift: u32) {
+    fn shl_raw(bits: &mut [u32; 3], shift: u32) {
 
         let mut shift = shift;
 
@@ -399,11 +396,11 @@ impl Decimal {
         }
     }
 
-    fn is_zero(bits: &[u32;3]) -> bool {
+    fn is_zero(bits: &[u32; 3]) -> bool {
         bits[0] == 0 && bits[1] == 0 && bits[2] == 0
     }
 
-    fn base2_to_decimal(bits: &mut [u32;3], exponent2: i32, positive: bool, is64:bool) -> Option<Self> {
+    fn base2_to_decimal(bits: &mut [u32; 3], exponent2: i32, positive: bool, is64: bool) -> Option<Self> {
         // 2^exponent2 = (10^exponent2)/(5^exponent2)
         //             = (5^-exponent2)*(10^exponent2)
         let mut exponent5 = -exponent2;
@@ -426,7 +423,7 @@ impl Decimal {
                 // be multiplied by 5, unless the multiplication overflows.
                 exponent5 -= 1;
 
-                let mut temp = [bits[0],bits[1],bits[2]];
+                let mut temp = [bits[0], bits[1], bits[2]];
                 if Decimal::mul_by_u32(&mut temp, 5) == 0 {
                     // Multiplication succeeded without overflow, so copy result back
                     bits[0] = temp[0];
@@ -486,7 +483,7 @@ impl Decimal {
         while exponent10 < -(MAX_PRECISION as i32) {
             let rem10 = match Decimal::div_by_u32(bits, 10) {
                 Some(x) => x,
-                None => return None
+                None => return None,
             };
             exponent10 += 1;
             if Decimal::is_zero(&bits) {
@@ -502,13 +499,11 @@ impl Decimal {
         // floating point number
         if is64 {
             // Guaranteed to about 16 dp
-            while exponent10 < 0 &&
-                    (bits[2] != 0 ||
-                    (bits[1] & 0xFFE0_0000) != 0) {
+            while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFE0_0000) != 0) {
 
                 let rem10 = match Decimal::div_by_u32(bits, 10) {
                     Some(x) => x,
-                    None => return None
+                    None => return None,
                 };
                 exponent10 += 1;
                 if rem10 >= 5 {
@@ -518,12 +513,12 @@ impl Decimal {
         } else {
             // Guaranteed to about 7 dp
             while exponent10 < 0 &&
-                (bits[2] != 0 || bits[1] != 0 ||
-                (bits[2] == 0 && bits[1] == 0 && (bits[0] & 0xFF000000) != 0)) {
+                (bits[2] != 0 || bits[1] != 0 || (bits[2] == 0 && bits[1] == 0 && (bits[0] & 0xFF000000) != 0))
+            {
 
                 let rem10 = match Decimal::div_by_u32(bits, 10) {
                     Some(x) => x,
-                    None => return None
+                    None => return None,
                 };
                 exponent10 += 1;
                 if rem10 >= 5 {
@@ -534,7 +529,7 @@ impl Decimal {
 
         // Remove multiples of 10 from the representation
         while exponent10 < 0 {
-            let mut temp = [bits[0],bits[1],bits[2]];
+            let mut temp = [bits[0], bits[1], bits[2]];
             if let Some(remainder) = Decimal::div_by_u32(&mut temp, 10) {
                 if remainder == 0 {
                     exponent10 += 1;
@@ -558,7 +553,7 @@ impl Decimal {
             lo: bits[0],
             mid: bits[1],
             hi: bits[2],
-            flags: flags
+            flags: flags,
         })
     }
 
@@ -893,7 +888,7 @@ impl FromPrimitive for Decimal {
 
         // Get the bits and exponent2
         let mut exponent2 = biased_exponent - 127;
-        let mut bits = [mantissa,0u32,0u32];
+        let mut bits = [mantissa, 0u32, 0u32];
         if biased_exponent == 0 {
             // Denormalized number - correct the exponent
             exponent2 += 1;
@@ -937,9 +932,11 @@ impl FromPrimitive for Decimal {
 
         // Get the bits and exponent2
         let mut exponent2 = biased_exponent - 1023;
-        let mut bits = [(mantissa & 0xffff_ffff) as u32,
-                        ((mantissa >> 32) & 0xffff_ffff) as u32,
-                        0u32];
+        let mut bits = [
+            (mantissa & 0xffff_ffff) as u32,
+            ((mantissa >> 32) & 0xffff_ffff) as u32,
+            0u32,
+        ];
         if biased_exponent == 0 {
             // Denormalized number - correct the exponent
             exponent2 += 1;
@@ -958,7 +955,6 @@ impl FromPrimitive for Decimal {
 }
 
 impl ToPrimitive for Decimal {
-
     fn to_f64(&self) -> Option<f64> {
         if self.scale() == 0 {
             let bytes = self.unsigned_bytes_le();
@@ -973,7 +969,7 @@ impl ToPrimitive for Decimal {
         } else {
             match self.to_string().parse::<f64>() {
                 Ok(s) => Some(s),
-                Err(_) => None
+                Err(_) => None,
             }
         }
     }
