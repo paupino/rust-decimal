@@ -216,7 +216,7 @@ impl Decimal {
 
         let old_scale = self.scale();
 
-        // We artificially cap at 20 because of fast power lookup. 
+        // We artificially cap at 20 because of fast power lookup.
         // We should change this as it's not necessary.
         if dp < old_scale && dp < 20 {
             // Short circuit for zero
@@ -338,7 +338,7 @@ impl Decimal {
     fn add_internal_lossy(quotient: &mut [u32; 3], quotient_scale: &mut i32, working: &mut [u32; 8], working_scale: &mut i32) -> bool {
         // Add quotient and the working
         if Decimal::is_zero(quotient) {
-println!("Quotient is zero... (first iteration)");                
+println!("Quotient is zero... (first iteration)");
             // Quotient is zero. Copy working into quotient after removing digits
             while working[3] != 0 {
                 // TODO: Work out a better way to share this code
@@ -354,7 +354,7 @@ println!("Quotient is zero... (first iteration)");
                 quotient[i] = working[i];
             }
             *quotient_scale = *working_scale;
-println!("quotient_scale {} working_scale {}", quotient_scale, working_scale);            
+println!("quotient_scale {} working_scale {}", quotient_scale, working_scale);
         } else if !(working[0] == 0 && working[1] == 0 && working[2] == 0 && working[3] == 0) {
 println!("Working first part not zero...");
             let mut temp = [0u32, 0u32, 0u32, 0u32, 0u32];
@@ -443,7 +443,7 @@ println!("Working first part not zero...");
                             *working_scale += 1;
                             copy4(&mut temp, working, false);
                         }
-                    }                        
+                    }
                 } else {
                     copy3(&mut temp, quotient, true);
                     // Multiply by 10 until scale reached or overflow
@@ -1673,12 +1673,14 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         //       b. addition in 4 fails to modify bits in quotient (i.e. due to underflow)
         let mut quotient = [0u32, 0u32, 0u32];
         let mut quotient_scale : i32 = dividend_scale as i32 - divisor_scale as i32;
+println!("qs: {} = ds {} - vs {}", quotient_scale, dividend_scale, divisor_scale);
 
         // Working is the remainder + the quotient
         // We use an aligned array since we'll be using it alot.
         let mut working = [dividend[0], dividend[1], dividend[2], 0u32, 0u32, 0u32, 0u32, 0u32];
         let mut working_scale = quotient_scale;
         let mut remainder_scale = working_scale;
+        let mut underflow = false;
 
         loop {
 println!("Before:");
@@ -1715,8 +1717,15 @@ for b in divisor.iter() {
     print!(" {:X}", b);
 }
 println!("");
-            
-            let underflow = Decimal::add_internal_lossy(&mut quotient, &mut quotient_scale, &mut working, &mut working_scale);
+
+            underflow = Decimal::add_internal_lossy(&mut quotient, &mut quotient_scale, &mut working, &mut working_scale);
+println!("working_scale now {}, quotient_scale: {}, underflow {}", working_scale, quotient_scale, underflow);
+println!("   Quotient:");
+print!("     ");
+for b in quotient.iter() {
+    print!(" {:X}", b);
+}
+println!("");
             // TODO: We could round here however I don't want it to be lossy
 
             // Multiply the remainder by 10
@@ -1733,7 +1742,7 @@ println!("");
 
             remainder_scale += 1;
             working_scale = remainder_scale;
-println!("working_scale now {}, quotient_scale: {}, underflow {}", working_scale, quotient_scale, underflow);
+println!("working_scale finally {}, quotient_scale: {}, underflow {}", working_scale, quotient_scale, underflow);
 
             if underflow || (working[4] == 0 && working[5] == 0 && working[6] == 0 && working[7] == 0) {
                 break;
@@ -1741,38 +1750,40 @@ println!("working_scale now {}, quotient_scale: {}, underflow {}", working_scale
         }
 
         // If we have a really big number try to adjust the scale to 0
-        while quotient_scale < 0 {
-            for i in 0..8 {
-                if i < 3 {
-                    working[i] = quotient[i];
+        if !underflow {
+            while quotient_scale < 0 {
+                for i in 0..8 {
+                    if i < 3 {
+                        working[i] = quotient[i];
+                    } else {
+                        working[i] = 0;
+                    }
+                }
+
+                // Mul 10
+                let mut overflow = 0;
+                for i in 0..8 {
+                    let (lo, hi) = Decimal::mul_part(working[i] as u32, 10, overflow);
+                    working[i] = lo;
+                    overflow = hi;
+                }
+                if working.iter().skip(3).take(5).all(|w| *w == 0) {
+                    quotient_scale += 1;
+                    quotient[0] = working[0];
+                    quotient[1] = working[1];
+                    quotient[2] = working[2];
                 } else {
-                    working[i] = 0;
+                    // Overflow
+                    panic!("Division overflowed");
                 }
             }
 
-            // Mul 10
-            let mut overflow = 0;
-            for i in 0..8 {
-                let (lo, hi) = Decimal::mul_part(working[i] as u32, 10, overflow);
-                working[i] = lo;
-                overflow = hi;
+            if quotient_scale > 255 {
+                quotient[0] = 0;
+                quotient[1] = 0;
+                quotient[2] = 0;
+                quotient_scale = 0;
             }
-            if working.iter().skip(3).take(5).all(|w| *w == 0) {
-                quotient_scale += 1;
-                quotient[0] = working[0];
-                quotient[1] = working[1];
-                quotient[2] = working[2];
-            } else {
-                // Overflow
-                panic!("Division overflowed");
-            }
-        }
-
-        if quotient_scale > 255 {
-            quotient[0] = 0;
-            quotient[1] = 0;
-            quotient[2] = 0;
-            quotient_scale = 0;
         }
 
         let quotient_negative = self.is_negative() ^ other.is_negative();
