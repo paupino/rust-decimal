@@ -1771,18 +1771,21 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
         if self.is_zero() {
             return Decimal::zero();
         }
-/*
-        // Make sure they're scaled
-        let (left, right, scale) = scaled_bigints(self, other);
 
-        // Since we're just getting the remainder, we simply need to do a standard mod
-        let (_, remainder) = left.div_rem(&right);
 
-        // Remainder is always positive?
-        let (sign, bytes) = remainder.to_bytes_le();
-        Decimal::from_bytes_le(bytes, scale, sign == Minus)
-*/
-        panic!("Not implemented")
+        // Working is the remainder + the quotient
+        // We use an aligned array since we'll be using it alot.
+        let mut working = [self.lo, self.mid, self.hi, 0u32, 0u32, 0u32, 0u32, 0u32];
+        let divisor = [other.lo, other.mid, other.hi];
+        Decimal::div_internal(&mut working, &divisor);
+
+        // Remainder has no scale however does have a sign (the same as self)
+        Decimal {
+            lo: working[4],
+            mid: working[5],
+            hi: working[6],
+            flags: if self.is_negative() { SIGN_MASK } else { 0 },
+        }
     }
 }
 
