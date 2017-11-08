@@ -505,7 +505,7 @@ fn it_can_divide_6() {
     let a = Decimal::from_str("1023427554493").unwrap();
     let b = Decimal::from_str("43432632").unwrap();
     let c = a / b;
-    assert_eq!("23563.56286427679538278960390", c.to_string()); // Rounded
+    assert_eq!("23563.562864276795382789603908", c.to_string()); // Rounded
 }
 
 #[test]
@@ -514,7 +514,7 @@ fn it_can_divide_7() {
     let b = Decimal::from_str("3").unwrap();
     let c = a / b;
 
-    assert_eq!("3333.333333333333333333333333", c.to_string());
+    assert_eq!("3333.3333333333333333333333333", c.to_string());
 }
 
 #[test]
@@ -522,7 +522,7 @@ fn it_can_divide_8() {
     let a = Decimal::from_str("2").unwrap();
     let b = Decimal::from_str("3").unwrap();
     let c = a / b;
-    assert_eq!("0.6666666666666666666666666666", c.to_string());
+    assert_eq!("0.66666666666666666666666666666", c.to_string());
 }
 
 #[test]
@@ -530,7 +530,7 @@ fn it_can_divide_9() {
     let a = Decimal::from_str("-2").unwrap();
     let b = Decimal::from_str("3").unwrap();
     let c = a / b;
-    assert_eq!("-0.6666666666666666666666666666", c.to_string());
+    assert_eq!("-0.66666666666666666666666666666", c.to_string());
 }
 
 #[test]
@@ -538,7 +538,7 @@ fn it_can_divide_10() {
     let a = Decimal::from_str("2").unwrap();
     let b = Decimal::from_str("-3").unwrap();
     let c = a / b;
-    assert_eq!("-0.6666666666666666666666666666", c.to_string());
+    assert_eq!("-0.66666666666666666666666666666", c.to_string());
 }
 
 #[test]
@@ -546,7 +546,7 @@ fn it_can_divide_11() {
     let a = Decimal::from_str("-2").unwrap();
     let b = Decimal::from_str("-3").unwrap();
     let c = a / b;
-    assert_eq!("0.6666666666666666666666666666", c.to_string());
+    assert_eq!("0.66666666666666666666666666666", c.to_string());
 }
 
 #[test]

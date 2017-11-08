@@ -335,11 +335,13 @@ impl Decimal {
         carry as u32
     }
 
-    fn add_internal_lossy(quotient: &mut [u32; 3], quotient_scale: &mut i32, working: &mut [u32; 8], working_scale: &mut i32) -> bool {
-        // Add quotient and the working
+    fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, working: &mut [u32; 8], working_scale: &mut i32) -> bool {
+        // Add quotient and the working (i.e. quotient = quotient + working)
+        // We only care about the first 4 words of working_quotient as we are only dealing with the quotient
         if Decimal::is_zero(quotient) {
-println!("Quotient is zero... (first iteration)");
-            // Quotient is zero. Copy working into quotient after removing digits
+            // Quotient is zero (i.e. quotient = 0 + working_quotient). 
+            // We can just copy the working quotient in directly
+            // First, make sure they are both 96 bit.
             while working[3] != 0 {
                 // TODO: Work out a better way to share this code
                 let mut remainder = 0u32;
@@ -354,9 +356,8 @@ println!("Quotient is zero... (first iteration)");
                 quotient[i] = working[i];
             }
             *quotient_scale = *working_scale;
-println!("quotient_scale {} working_scale {}", quotient_scale, working_scale);
         } else if !(working[0] == 0 && working[1] == 0 && working[2] == 0 && working[3] == 0) {
-println!("Working first part not zero...");
+            // We have ensured that working is not zero so we should do the addition
             let mut temp = [0u32, 0u32, 0u32, 0u32, 0u32];
 
             fn copy3(temp: &mut [u32; 5], other: &mut [u32; 3], into: bool) {
@@ -399,15 +400,16 @@ println!("Working first part not zero...");
                 overflow
             }
 
+            // If our two quotients are different then 
+            // try to scale down the one with the bigger scale
             if *quotient_scale != *working_scale {
-                // Try to scale down the one with the bigger scale
                 if *quotient_scale < *working_scale {
                     // divide by 10 until target scale is reached
                     copy4(&mut temp, working, true);
                     while *working_scale > *quotient_scale {
                         // TODO: Work out a better way to share this code
                         let remainder = div10(&mut temp);
-                        if remainder != 0 {
+                        if remainder == 0 {
                             *working_scale -= 1;
                             copy4(&mut temp, working, false);
                         } else {
@@ -420,7 +422,7 @@ println!("Working first part not zero...");
                     while *quotient_scale > *working_scale {
                         // TODO: Work out a better way to share this code
                         let remainder = div10(&mut temp);
-                        if remainder != 0 {
+                        if remainder == 0 {
                             *quotient_scale -= 1;
                             copy3(&mut temp, quotient, false);
                         } else {
@@ -431,8 +433,9 @@ println!("Working first part not zero...");
                 }
             }
 
+            // If our two quotients are still different then 
+            // try to scale up the smaller scale
             if *quotient_scale != *working_scale {
-                // Try to scale up the smaller scale
                 if *quotient_scale > *working_scale {
                     copy4(&mut temp, working, true);
                     // Multiply by 10 until scale reached or overflow
@@ -458,8 +461,10 @@ println!("Working first part not zero...");
                 }
             }
 
+            // If our two quotients are still different then 
+            // try to scale down the one with the bigger scale
+            // (ultimately losing significant digits)
             if *quotient_scale != *working_scale {
-                // try to scale down the one with the bigger scale (losing significant digits)
                 if *quotient_scale < *working_scale {
                     copy4(&mut temp, working, true);
                     // divide by 10 until target scale is reached
@@ -480,7 +485,7 @@ println!("Working first part not zero...");
                 }
             }
 
-            // check whether any of the operands still has significant digits
+            // If quotient or working are zero we have an underflow condition
             if Decimal::is_zero(quotient) || (working[0] == 0 && working[1] == 0 && working[2] == 0 && working[3] == 0) {
                 // Underflow
                 return true;
@@ -1673,59 +1678,17 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         //       b. addition in 4 fails to modify bits in quotient (i.e. due to underflow)
         let mut quotient = [0u32, 0u32, 0u32];
         let mut quotient_scale : i32 = dividend_scale as i32 - divisor_scale as i32;
-println!("qs: {} = ds {} - vs {}", quotient_scale, dividend_scale, divisor_scale);
 
         // Working is the remainder + the quotient
         // We use an aligned array since we'll be using it alot.
         let mut working = [dividend[0], dividend[1], dividend[2], 0u32, 0u32, 0u32, 0u32, 0u32];
         let mut working_scale = quotient_scale;
         let mut remainder_scale = working_scale;
-        let mut underflow = false;
+        let mut underflow;
 
         loop {
-println!("Before:");
-println!("   Quotient:");
-print!("     ");
-for b in quotient.iter() {
-    print!(" {:X}", b);
-}
-println!("");
-
-println!("   Working:");
-print!("     ");
-for b in working.iter() {
-    print!(" {:X}", b);
-}
-println!("");
-println!("   Divisor:");
-print!("     ");
-for b in divisor.iter() {
-    print!(" {:X}", b);
-}
-println!("");
             Decimal::div_internal(&mut working, &divisor);
-println!("After:");
-println!("   Working:");
-print!("     ");
-for b in working.iter() {
-    print!(" {:X}", b);
-}
-println!("");
-println!("   Divisor:");
-print!("     ");
-for b in divisor.iter() {
-    print!(" {:X}", b);
-}
-println!("");
-
-            underflow = Decimal::add_internal_lossy(&mut quotient, &mut quotient_scale, &mut working, &mut working_scale);
-println!("working_scale now {}, quotient_scale: {}, underflow {}", working_scale, quotient_scale, underflow);
-println!("   Quotient:");
-print!("     ");
-for b in quotient.iter() {
-    print!(" {:X}", b);
-}
-println!("");
+            underflow = Decimal::add_with_scale_internal(&mut quotient, &mut quotient_scale, &mut working, &mut working_scale);
             // TODO: We could round here however I don't want it to be lossy
 
             // Multiply the remainder by 10
@@ -1742,7 +1705,6 @@ println!("");
 
             remainder_scale += 1;
             working_scale = remainder_scale;
-println!("working_scale finally {}, quotient_scale: {}, underflow {}", working_scale, quotient_scale, underflow);
 
             if underflow || (working[4] == 0 && working[5] == 0 && working[6] == 0 && working[7] == 0) {
                 break;
