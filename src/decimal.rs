@@ -6,7 +6,7 @@ use std::cmp::*;
 use std::cmp::Ordering::Equal;
 use std::fmt;
 use std::iter::repeat;
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 use std::str::FromStr;
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
@@ -1526,6 +1526,16 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
     }
 }
 
+impl AddAssign for Decimal {
+    fn add_assign(&mut self, other: Decimal) {
+        let result = self.add(other);
+        self.lo = result.lo;
+        self.mid = result.mid;
+        self.hi = result.hi;
+        self.flags = result.flags;
+    }
+}
+
 forward_all_binop!(impl Sub for Decimal, sub);
 
 impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
@@ -1540,6 +1550,16 @@ impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
             flags: other.flags ^ SIGN_MASK,
         };
         self.add(negated_other)
+    }
+}
+
+impl SubAssign for Decimal {
+    fn sub_assign(&mut self, other: Decimal) {
+        let result = self.sub(other);
+        self.lo = result.lo;
+        self.mid = result.mid;
+        self.hi = result.hi;
+        self.flags = result.flags;
     }
 }
 
@@ -1646,6 +1666,16 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
             hi: result[2],
             flags: flags,
         }
+    }
+}
+
+impl MulAssign for Decimal {
+    fn mul_assign(&mut self, other: Decimal) {
+        let result = self.mul(other);
+        self.lo = result.lo;
+        self.mid = result.mid;
+        self.hi = result.hi;
+        self.flags = result.flags;
     }
 }
 
@@ -1775,6 +1805,16 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
     }
 }
 
+impl DivAssign for Decimal {
+    fn div_assign(&mut self, other: Decimal) {
+        let result = self.div(other);
+        self.lo = result.lo;
+        self.mid = result.mid;
+        self.hi = result.hi;
+        self.flags = result.flags;
+    }
+}
+
 forward_all_binop!(impl Rem for Decimal, rem);
 
 impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
@@ -1803,6 +1843,16 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
             hi: working[6],
             flags: if self.is_negative() { SIGN_MASK } else { 0 },
         }
+    }
+}
+
+impl RemAssign for Decimal {
+    fn rem_assign(&mut self, other: Decimal) {
+        let result = self.rem(other);
+        self.lo = result.lo;
+        self.mid = result.mid;
+        self.hi = result.hi;
+        self.flags = result.flags;
     }
 }
 

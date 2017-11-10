@@ -18,7 +18,7 @@ macro_rules! bench_bin_op {
                 for _ in 0..100 {
                     let mut x = y;
                     for _ in 0..50 {
-                        x = x $op y;
+                        x $op y;
                     }
                     test::black_box(x);
                 }
@@ -28,16 +28,16 @@ macro_rules! bench_bin_op {
     }
 }
 
-bench_bin_op!(bench_decimal_add, Decimal, +);
-bench_bin_op!(bench_d128_add, d128, +);
+bench_bin_op!(bench_decimal_add, Decimal, +=);
+bench_bin_op!(bench_d128_add, d128, +=);
 
 
-bench_bin_op!(bench_decimal_sub, Decimal, -);
-bench_bin_op!(bench_d128_sub, d128, -);
+bench_bin_op!(bench_decimal_sub, Decimal, -=);
+bench_bin_op!(bench_d128_sub, d128, -=);
 
 
-bench_bin_op!(bench_decimal_mul, Decimal, *);
-bench_bin_op!(bench_d128_mul, d128, *);
+bench_bin_op!(bench_decimal_mul, Decimal, *=);
+bench_bin_op!(bench_d128_mul, d128, *=);
 
-bench_bin_op!(bench_decimal_div, Decimal, /);
-bench_bin_op!(bench_d128_div, d128, /);
+bench_bin_op!(bench_decimal_div, Decimal, /=);
+bench_bin_op!(bench_d128_div, d128, /=);
