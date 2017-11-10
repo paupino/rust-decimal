@@ -12,7 +12,6 @@ use std::str::FromStr;
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
 // negative Decimal value.
-#[allow(overflowing_literals)]
 const SIGN_MASK: u32 = 0x8000_0000;
 
 // Scale mask for the flags field. This byte in the flags field contains
@@ -32,8 +31,18 @@ const MAX_BYTES: usize = 12;
 static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
 lazy_static! {
-    static ref MIN: Decimal = Decimal { flags: 2_147_483_648, lo: 4_294_967_295, mid: 4_294_967_295, hi: 4_294_967_295 };
-    static ref MAX: Decimal = Decimal { flags: 0, lo: 4_294_967_295, mid: 4_294_967_295, hi: 4_294_967_295 };
+    static ref MIN: Decimal = Decimal {
+        flags: 2_147_483_648,
+        lo: 4_294_967_295,
+        mid: 4_294_967_295,
+        hi: 4_294_967_295
+    };
+    static ref MAX: Decimal = Decimal {
+        flags: 0,
+        lo: 4_294_967_295,
+        mid: 4_294_967_295,
+        hi: 4_294_967_295
+    };
 }
 
 // Fast access for 10^n where n is 0-9
@@ -98,7 +107,11 @@ impl Decimal {
     /// ```
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
-            panic!("Scale exceeds the maximum precision allowed: {} > {}", scale, MAX_PRECISION);
+            panic!(
+                "Scale exceeds the maximum precision allowed: {} > {}",
+                scale,
+                MAX_PRECISION
+            );
         }
         let flags: u32 = scale << SCALE_SHIFT;
         if num < 0 {
@@ -174,10 +187,13 @@ impl Decimal {
     /// * Bytes 13-16: high portion of `m`
     pub fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
-            flags: u32::from(bytes[0]) | u32::from(bytes[1]) << 8 | u32::from(bytes[2]) << 16 | u32::from(bytes[3]) << 24,
+            flags: u32::from(bytes[0]) | u32::from(bytes[1]) << 8 | u32::from(bytes[2]) << 16 |
+                u32::from(bytes[3]) << 24,
             lo: u32::from(bytes[4]) | u32::from(bytes[5]) << 8 | u32::from(bytes[6]) << 16 | u32::from(bytes[7]) << 24,
-            mid: u32::from(bytes[8]) | u32::from(bytes[9]) << 8 | u32::from(bytes[10]) << 16 | u32::from(bytes[11]) << 24,
-            hi: u32::from(bytes[12]) | u32::from(bytes[13]) << 8 | u32::from(bytes[14]) << 16 | u32::from(bytes[15]) << 24,
+            mid: u32::from(bytes[8]) | u32::from(bytes[9]) << 8 | u32::from(bytes[10]) << 16 |
+                u32::from(bytes[11]) << 24,
+            hi: u32::from(bytes[12]) | u32::from(bytes[13]) << 8 | u32::from(bytes[14]) << 16 |
+                u32::from(bytes[15]) << 24,
         }
     }
 
@@ -515,7 +531,11 @@ impl Decimal {
             flags |= SIGN_MASK;
         }
         if bytes.len() > MAX_BYTES {
-            panic!("Decimal Overflow, too many bytes {} > MAX({})", bytes.len(), MAX_BYTES);
+            panic!(
+                "Decimal Overflow, too many bytes {} > MAX({})",
+                bytes.len(),
+                MAX_BYTES
+            );
         }
 
         let mut pos = 0;
@@ -571,7 +591,7 @@ fn copy_array_with_limit(into: &mut [u32], from: &[u32], limit: usize) {
 }
 
 fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
-    let mut carry : u64 = 0;
+    let mut carry: u64 = 0;
     let vl = value.len();
     let bl = by.len();
     if vl >= bl {
@@ -595,11 +615,16 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
     carry as u32
 }
 
-fn add_with_scale_internal(quotient: &mut [u32], quotient_scale: &mut i32, working: &mut [u32], working_scale: &mut i32) -> bool {
+fn add_with_scale_internal(
+    quotient: &mut [u32],
+    quotient_scale: &mut i32,
+    working: &mut [u32],
+    working_scale: &mut i32,
+) -> bool {
     // Add quotient and the working (i.e. quotient = quotient + working)
     // We only care about the first 4 words of working_quotient as we are only dealing with the quotient
     if is_all_zero(quotient) {
-        // Quotient is zero (i.e. quotient = 0 + working_quotient). 
+        // Quotient is zero (i.e. quotient = 0 + working_quotient).
         // We can just copy the working quotient in directly
         // First, make sure they are both 96 bit.
         while working[3] != 0 {
@@ -612,7 +637,7 @@ fn add_with_scale_internal(quotient: &mut [u32], quotient_scale: &mut i32, worki
         // We have ensured that working is not zero so we should do the addition
         let mut temp = [0u32, 0u32, 0u32, 0u32, 0u32];
 
-        // If our two quotients are different then 
+        // If our two quotients are different then
         // try to scale down the one with the bigger scale
         if *quotient_scale != *working_scale {
             if *quotient_scale < *working_scale {
@@ -645,7 +670,7 @@ fn add_with_scale_internal(quotient: &mut [u32], quotient_scale: &mut i32, worki
             }
         }
 
-        // If our two quotients are still different then 
+        // If our two quotients are still different then
         // try to scale up the smaller scale
         if *quotient_scale != *working_scale {
             if *quotient_scale > *working_scale {
@@ -673,7 +698,7 @@ fn add_with_scale_internal(quotient: &mut [u32], quotient_scale: &mut i32, worki
             }
         }
 
-        // If our two quotients are still different then 
+        // If our two quotients are still different then
         // try to scale down the one with the bigger scale
         // (ultimately losing significant digits)
         if *quotient_scale != *working_scale {
@@ -792,7 +817,7 @@ fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
 fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
     let mut invert = false;
     let overflow = i64::from(overflow);
-    let mut part : i64 = i64::from(left) - i64::from(right);
+    let mut part: i64 = i64::from(left) - i64::from(right);
     if left < right {
         invert = true;
     }
@@ -804,8 +829,8 @@ fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
         invert = true;
     }
 
-    let mut hi : i32 = ((part >> 32) & 0xFFFF_FFFF) as i32;
-    let lo : u32 = (part & 0xFFFF_FFFF) as u32;
+    let mut hi: i32 = ((part >> 32) & 0xFFFF_FFFF) as i32;
+    let lo: u32 = (part & 0xFFFF_FFFF) as u32;
     if invert {
         hi = -hi;
     }
@@ -845,14 +870,14 @@ fn div_internal(working: &mut [u32; 8], divisor: &[u32; 3]) {
         divisor[0] ^ 0xFFFF_FFFF,
         divisor[1] ^ 0xFFFF_FFFF,
         divisor[2] ^ 0xFFFF_FFFF,
-        0xFFFF_FFFF
+        0xFFFF_FFFF,
     ];
 
     // Add one onto the complement, also, make sure remainder is 0
     let mut carry = 0;
-    let one = [1u32,0u32,0u32,0u32];
+    let one = [1u32, 0u32, 0u32, 0u32];
     for i in 4..8 {
-        let sum = u64::from(sub[i]) + u64::from(one[i-4]) + carry as u64;
+        let sum = u64::from(sub[i]) + u64::from(one[i - 4]) + carry as u64;
         sub[i] = (sum & 0xFFFF_FFFF) as u32;
         carry = sum >> 32;
 
@@ -963,10 +988,10 @@ fn shl_internal(bits: &mut [u32; 3], shift: u32) {
 
 #[inline]
 fn cmp_internal(left: &[u32; 3], right: &[u32; 3]) -> Ordering {
-    let left_hi : u32 = left[2];
-    let right_hi : u32 = right[2];
-    let left_lo : u64 = u64::from(left[1]) << 32 | u64::from(left[0]);
-    let right_lo : u64 = u64::from(right[1]) << 32 | u64::from(right[0]);
+    let left_hi: u32 = left[2];
+    let right_hi: u32 = right[2];
+    let left_lo: u64 = u64::from(left[1]) << 32 | u64::from(left[0]);
+    let right_lo: u64 = u64::from(right[1]) << 32 | u64::from(right[0]);
     if left_hi < right_hi || (left_hi <= right_hi && left_lo < right_lo) {
         Ordering::Less
     } else if left_hi == right_hi && left_lo == right_lo {
@@ -1559,7 +1584,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
             3
         };
         // We calculate into a 256 bit number temporarily
-        let mut running : [u32;6] = [0,0,0,0,0,0];
+        let mut running: [u32; 6] = [0, 0, 0, 0, 0, 0];
         let mut overflow = 0;
         for i in 0..to {
             for j in 0..3 {
@@ -1619,7 +1644,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
             lo: result[0],
             mid: result[1],
             hi: result[2],
-            flags: flags
+            flags: flags,
         }
     }
 }
@@ -1655,18 +1680,32 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         //       a. the remainder is zero (i.e. 6/3 = 2) OR
         //       b. addition in 4 fails to modify bits in quotient (i.e. due to underflow)
         let mut quotient = [0u32, 0u32, 0u32];
-        let mut quotient_scale : i32 = dividend_scale as i32 - divisor_scale as i32;
+        let mut quotient_scale: i32 = dividend_scale as i32 - divisor_scale as i32;
 
         // Working is the remainder + the quotient
         // We use an aligned array since we'll be using it alot.
-        let mut working = [dividend[0], dividend[1], dividend[2], 0u32, 0u32, 0u32, 0u32, 0u32];
+        let mut working = [
+            dividend[0],
+            dividend[1],
+            dividend[2],
+            0u32,
+            0u32,
+            0u32,
+            0u32,
+            0u32,
+        ];
         let mut working_scale = quotient_scale;
         let mut remainder_scale = working_scale;
         let mut underflow;
 
         loop {
             div_internal(&mut working, &divisor);
-            underflow = add_with_scale_internal(&mut quotient, &mut quotient_scale, &mut working, &mut working_scale);
+            underflow = add_with_scale_internal(
+                &mut quotient,
+                &mut quotient_scale,
+                &mut working,
+                &mut working_scale,
+            );
             // TODO: We could round here however I don't want it to be lossy
 
             // Multiply the remainder by 10
@@ -1788,10 +1827,10 @@ impl Ord for Decimal {
         // Quick exit if major differences
         let self_negative = self.is_negative();
         let other_negative = other.is_negative();
-        if self_negative &&  !other_negative {
-                return Ordering::Less;
+        if self_negative && !other_negative {
+            return Ordering::Less;
         } else if !self_negative && other_negative {
-                return Ordering::Greater;
+            return Ordering::Greater;
         }
 
         // If we have 1.23 and 1.2345 then we have
@@ -1801,9 +1840,14 @@ impl Ord for Decimal {
         let s = self.scale() as u32;
         let o = other.scale() as u32;
 
-        if s == o { // Fast path for same scale
-            if self.hi != other.hi { return  self.hi.cmp(&other.hi); }
-            if self.mid != other.mid { return  self.mid.cmp(&other.mid); }
+        if s == o {
+            // Fast path for same scale
+            if self.hi != other.hi {
+                return self.hi.cmp(&other.hi);
+            }
+            if self.mid != other.mid {
+                return self.mid.cmp(&other.mid);
+            }
             return self.lo.cmp(&other.lo);
         }
 
