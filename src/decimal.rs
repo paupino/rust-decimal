@@ -99,7 +99,7 @@ impl Decimal {
     /// ```
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
-            panic!("Scale exceeds the maximum precision allowed");
+            panic!("Scale exceeds the maximum precision allowed: {} > {}", scale, MAX_PRECISION);
         }
         let flags: u32 = scale << SCALE_SHIFT;
         if num < 0 {
@@ -691,7 +691,7 @@ impl Decimal {
             flags |= SIGN_MASK;
         }
         if bytes.len() > MAX_BYTES {
-            panic!("Decimal Overflow");
+            panic!("Decimal Overflow, too many bytes {} > MAX({})", bytes.len(), MAX_BYTES);
         }
 
         let mut pos = 0;
@@ -1499,11 +1499,14 @@ impl PartialOrd for Decimal {
 impl Ord for Decimal {
     fn cmp(&self, other: &Decimal) -> Ordering {
         // Quick exit if major differences
-        if self.is_negative() && !other.is_negative() {
-            return Ordering::Less;
-        } else if !self.is_negative() && other.is_negative() {
-            return Ordering::Greater;
+        let self_negative = self.is_negative();
+        let other_negative = other.is_negative();
+        if self_negative &&  !other_negative {
+                return Ordering::Less;
+        } else if !self_negative && other_negative {
+                return Ordering::Greater;
         }
+
 
         // If we have 1.23 and 1.2345 then we have
         //  123 scale 2 and 12345 scale 4
@@ -1511,18 +1514,23 @@ impl Ord for Decimal {
         //  12300 scale 4 so we can compare equally
         let s = self.scale() as u32;
         let o = other.scale() as u32;
+
+        if s == o { // Fast path for same scale
+            if self.hi != other.hi { return  self.hi.cmp(&other.hi); }
+            if self.mid != other.mid { return  self.mid.cmp(&other.mid); }
+            return self.lo.cmp(&other.lo);
+        }
+
         let si = self.to_bigint();
         let oi = other.to_bigint();
         if s > o {
             let power = Decimal::power_10((s - o) as usize).to_bigint().unwrap();
             let other_scaled = oi * power;
             si.cmp(&other_scaled)
-        } else if s < o {
+        } else {
             let power = Decimal::power_10((o - s) as usize).to_bigint().unwrap();
             let self_scaled = si * power;
             self_scaled.cmp(&oi)
-        } else {
-            si.cmp(&oi)
         }
     }
 }
