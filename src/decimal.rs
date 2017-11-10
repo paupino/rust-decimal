@@ -985,9 +985,8 @@ fn is_all_zero(bits: &[u32]) -> bool {
     true
 }
 
-fn is_some_zero(bits: &[u32], start: usize, end: usize) -> bool {
-    assert!(end > start);
-    for b in bits.iter().skip(start).take(end - start) {
+fn is_some_zero(bits: &[u32], skip: usize, take: usize) -> bool {
+    for b in bits.iter().skip(skip).take(take) {
         if *b != 0 {
             return false;
         }
@@ -1582,7 +1581,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
         // While our result is in overflow (i.e. upper portion != 0)
         // AND it has a scale > 0 we divide by 10
         let mut remainder = 0;
-        while final_scale > 0 && !is_some_zero(&running, 3, 6) {
+        while final_scale > 0 && !is_some_zero(&running, 3, 3) {
             remainder = div_by_u32(&mut running, 10u32);
             final_scale -= 1;
         }
@@ -1685,7 +1684,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
             remainder_scale += 1;
             working_scale = remainder_scale;
 
-            if underflow || (working[4] == 0 && working[5] == 0 && working[6] == 0 && working[7] == 0) {
+            if underflow || is_some_zero(&working, 4, 4) {
                 break;
             }
         }
@@ -1708,7 +1707,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
                     working[i] = lo;
                     overflow = hi;
                 }
-                if working.iter().skip(3).take(5).all(|w| *w == 0) {
+                if is_some_zero(&working, 3, 5) {
                     quotient_scale += 1;
                     quotient[0] = working[0];
                     quotient[1] = working[1];
