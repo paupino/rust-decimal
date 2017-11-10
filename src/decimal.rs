@@ -552,8 +552,16 @@ fn power_10(exponent: usize) -> BigUint {
     }
 }
 
-fn copy_array(into: &mut [u32], from: &[u32], max: usize) {
-    let limit = from.len().min(max);
+fn copy_array(into: &mut [u32], from: &[u32]) {
+    copy_array_with_limit(into, from, 0);
+}
+
+fn copy_array_with_limit(into: &mut [u32], from: &[u32], limit: usize) {
+    let limit = if limit == 0 {
+        from.len()
+    } else {
+        from.len().min(limit)
+    };
     for i in 0..into.len() {
         if i >= limit {
             break;
@@ -587,7 +595,7 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
     carry as u32
 }
 
-fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, working: &mut [u32; 8], working_scale: &mut i32) -> bool {
+fn add_with_scale_internal(quotient: &mut [u32], quotient_scale: &mut i32, working: &mut [u32], working_scale: &mut i32) -> bool {
     // Add quotient and the working (i.e. quotient = quotient + working)
     // We only care about the first 4 words of working_quotient as we are only dealing with the quotient
     if is_all_zero(quotient) {
@@ -598,7 +606,7 @@ fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, wo
             div_by_u32(working, 10);
             *working_scale -= 1;
         }
-        copy_array(quotient, working, 3);
+        copy_array(quotient, working);
         *quotient_scale = *working_scale;
     } else if !is_some_zero(working, 0, 4) {
         // We have ensured that working is not zero so we should do the addition
@@ -609,26 +617,26 @@ fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, wo
         if *quotient_scale != *working_scale {
             if *quotient_scale < *working_scale {
                 // divide by 10 until target scale is reached
-                copy_array(&mut temp, working, 4);
+                copy_array_with_limit(&mut temp, working, 4);
                 while *working_scale > *quotient_scale {
                     // TODO: Work out a better way to share this code
                     let remainder = div_by_u32(&mut temp, 10);
                     if remainder == 0 {
                         *working_scale -= 1;
-                        copy_array(working, &temp, 4);
+                        copy_array_with_limit(working, &temp, 4);
                     } else {
                         break;
                     }
                 }
             } else {
-                copy_array(&mut temp, quotient, 3);
+                copy_array(&mut temp, quotient);
                 // divide by 10 until target scale is reached
                 while *quotient_scale > *working_scale {
                     // TODO: Work out a better way to share this code
                     let remainder = div_by_u32(&mut temp, 10);
                     if remainder == 0 {
                         *quotient_scale -= 1;
-                        copy_array(quotient, &temp, 3);
+                        copy_array(quotient, &temp);
                     } else {
                         break;
                     }
@@ -641,25 +649,25 @@ fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, wo
         // try to scale up the smaller scale
         if *quotient_scale != *working_scale {
             if *quotient_scale > *working_scale {
-                copy_array(&mut temp, working, 4);
+                copy_array_with_limit(&mut temp, working, 4);
                 // Multiply by 10 until scale reached or overflow
                 while *working_scale < *quotient_scale && temp[4] == 0 {
                     mul_by_u32(&mut temp, 10);
                     if temp[4] == 0 {
                         // still does not overflow
                         *working_scale += 1;
-                        copy_array(working, &temp, 4);
+                        copy_array_with_limit(working, &temp, 4);
                     }
                 }
             } else {
-                copy_array(&mut temp, quotient, 3);
+                copy_array(&mut temp, quotient);
                 // Multiply by 10 until scale reached or overflow
                 while *quotient_scale < *working_scale && temp[3] == 0 {
                     mul_by_u32(&mut temp, 10);
                     if temp[3] == 0 {
                         // still does not overflow
                         *quotient_scale += 1;
-                        copy_array(quotient, &temp, 3);
+                        copy_array(quotient, &temp);
                     }
                 }
             }
@@ -670,21 +678,21 @@ fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, wo
         // (ultimately losing significant digits)
         if *quotient_scale != *working_scale {
             if *quotient_scale < *working_scale {
-                copy_array(&mut temp, working, 4);
+                copy_array_with_limit(&mut temp, working, 4);
                 // divide by 10 until target scale is reached
                 while *working_scale > *quotient_scale {
                     div_by_u32(&mut temp, 10);
                     *working_scale -= 1;
-                    copy_array(working, &temp, 4);
+                    copy_array_with_limit(working, &temp, 4);
                 }
 
             } else {
-                copy_array(&mut temp, quotient, 3);
+                copy_array(&mut temp, quotient);
                 // divide by 10 until target scale is reached
                 while *quotient_scale > *working_scale {
                     div_by_u32(&mut temp, 10);
                     *quotient_scale -= 1;
-                    copy_array(quotient, &temp, 3);
+                    copy_array(quotient, &temp);
                 }
             }
         }
@@ -718,9 +726,7 @@ fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, wo
 
                 if temp[3] == 0 && temp[4] == 0 {
                     // addition was successful
-                    for i in 0..3 {
-                        quotient[i] = temp[i];
-                    }
+                    copy_array(quotient, &temp);
                     break;
                 } else {
                     // addition overflowed - remove significant digits and try again
@@ -740,7 +746,7 @@ fn add_with_scale_internal(quotient: &mut [u32; 3], quotient_scale: &mut i32, wo
     false
 }
 
-fn sub_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
+fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
     // The way this works is similar to long subtraction
     // Let's assume we're working with bytes for simpliciy in an example:
     //   257 - 8 = 249
@@ -770,7 +776,12 @@ fn sub_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
     // So our result is:
     //   0000_0000 1111_1001
     let mut overflow = 0;
-    for i in 0..3 {
+    let vl = value.len();
+    let bl = by.len();
+    for i in 0..vl {
+        if i >= bl {
+            break;
+        }
         let (lo, hi) = sub_part(value[i], by[i], overflow);
         value[i] = lo;
         overflow = hi;
