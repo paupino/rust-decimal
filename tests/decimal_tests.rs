@@ -265,6 +265,14 @@ fn it_adds_decimal_11() {
     assert_eq!("-1", c.to_string());
 }
 
+#[test]
+fn it_can_addassign() {
+    let mut a = Decimal::from_str("1.01").unwrap();
+    let b = Decimal::from_str("0.99").unwrap();
+    a += b;
+    assert_eq!("2.00", a.to_string());
+}
+
 // Subtraction
 
 #[test]
@@ -377,6 +385,14 @@ fn it_subs_decimal_11() {
     assert_eq!("-5", c.to_string());
 }
 
+#[test]
+fn it_can_subassign() {
+    let mut a = Decimal::from_str("1.01").unwrap();
+    let b = Decimal::from_str("0.51").unwrap();
+    a -= b;
+    assert_eq!("0.50", a.to_string());
+}
+
 // Multiplication
 
 #[test]
@@ -456,6 +472,14 @@ fn it_panics_when_multiply_with_overflow() {
     let a = Decimal::from_str("2000000000000000000001").unwrap();
     let b = Decimal::from_str("3000000000000000000001").unwrap();
     let _ = a * b;
+}
+
+#[test]
+fn it_can_mulassign() {
+    let mut a = Decimal::from_str("1.25").unwrap();
+    let b = Decimal::from_str("0.01").unwrap();
+    a *= b;
+    assert_eq!("0.0125", a.to_string());
 }
 
 // Division
@@ -556,6 +580,14 @@ fn it_can_divide_by_zero() {
     let _ = a / Decimal::zero();
 }
 
+#[test]
+fn it_can_divassign() {
+    let mut a = Decimal::from_str("1.25").unwrap();
+    let b = Decimal::from_str("0.01").unwrap();
+    a /= b;
+    assert_eq!("125", a.to_string());
+}
+
 // Modulus and Remainder are not the same thing!
 // https://math.stackexchange.com/q/801962/82277
 
@@ -607,6 +639,14 @@ fn it_can_rem_5() {
     let b = Decimal::from_str("3").unwrap();
     let c = a % b;
     assert_eq!("0", c.to_string());
+}
+
+#[test]
+fn it_can_remassign() {
+    let mut a = Decimal::from_str("5").unwrap();
+    let b = Decimal::from_str("2").unwrap();
+    a %= b;
+    assert_eq!("1", a.to_string());
 }
 
 #[test]
