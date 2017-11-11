@@ -1421,7 +1421,13 @@ impl fmt::Display for Decimal {
         let mut scale = self.scale() as usize;
 
         // Convert to a string and manipulate that (neg at front, inject decimal)
-        let mut rep = String::new();
+        let mut chars = Vec::new();
+        let mut working = [self.lo, self.mid, self.hi];
+        while !is_all_zero(&working) {
+            let remainder = div_by_u32(&mut working, 10u32);
+            chars.push(char::from(b'0' + remainder as u8));
+        }
+        let mut rep = chars.iter().rev().collect::<String>();
         let len = rep.len();
 
         if let Some(n_dp) = f.precision() {
