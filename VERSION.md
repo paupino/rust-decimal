@@ -1,5 +1,9 @@
 # Version History
 
+## 0.6.1
+
+This minor release is purely to expose `rust_decimal_macros` for use on the nightly channel. Documentation has been updated accordingly.
+
 ## 0.6.0
 
 This release has a few major changes to the internal workings of the `Decimal` implementation and consequently comes with a number of performance improvements.
