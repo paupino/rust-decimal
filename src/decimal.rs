@@ -1140,15 +1140,15 @@ impl FromStr for Decimal {
 
         let mut offset = 0;
         let mut len = value.len();
-        let chars: Vec<char> = value.chars().collect();
+        let bytes: Vec<u8> = value.bytes().collect();
         let mut negative = false; // assume positive
 
         // handle the sign
-        if chars[offset] == '-' {
+        if bytes[offset] == b'-' {
             negative = true; // leading minus means negative
             offset += 1;
             len -= 1;
-        } else if chars[offset] == '+' {
+        } else if bytes[offset] == b'+' {
             // leading + allowed
             offset += 1;
             len -= 1;
@@ -1157,27 +1157,34 @@ impl FromStr for Decimal {
         // should now be at numeric part of the significand
         let mut dot_offset: i32 = -1; // '.' offset, -1 if none
         let cfirst = offset; // record start of integer
-        let mut coeff = String::new(); // integer significand array
+        let mut coeff = Vec::new(); // integer significand array
 
         while len > 0 {
-            let c = chars[offset];
-            if c.is_digit(10) {
-                coeff.push(c);
-                offset += 1;
-                len -= 1;
-                continue;
-            }
-            if c == '.' {
-                if dot_offset >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
+            let b = bytes[offset];
+            match b {
+                b'0'...b'9' => {
+                    coeff.push((b - b'0') as u32);
+                    offset += 1;
+                    len -= 1;
                 }
-                dot_offset = offset as i32;
-                offset += 1;
-                len -= 1;
-                continue;
+                b'.' => {
+                    if dot_offset >= 0 {
+                        return Err(Error::new("Invalid decimal: two decimal points"));
+                    }
+                    dot_offset = offset as i32;
+                    offset += 1;
+                    len -= 1;
+                }
+                b'_' => {
+                    // Must start with a number...
+                    if coeff.len() == 0 {
+                        return Err(Error::new("Invalid decimal: must start lead with a number"));
+                    }
+                    offset += 1;
+                    len -= 2;
+                }
+                _ => return Err(Error::new("Invalid decimal: unknown character")),
             }
-
-            return Err(Error::new("Invalid decimal: unknown character"));
         }
 
         // here when no characters left
@@ -1185,19 +1192,29 @@ impl FromStr for Decimal {
             return Err(Error::new("Invalid decimal: no digits found"));
         }
 
-        let mut scale = 0u32;
-        if dot_offset >= 0 {
+        let scale = if dot_offset >= 0 {
             // we had a decimal place so set the scale
-            scale = (coeff.len() as u32) - (dot_offset as u32 - cfirst as u32);
+            (coeff.len() as u32) - (dot_offset as u32 - cfirst as u32)
+        } else {
+            0
+        };
+
+        // Parse this using base 10 (future allow using radix?)
+        let mut data = [0u32, 0u32, 0u32];
+        for i in coeff {
+            mul_by_u32(&mut data, 10u32);
+            let carry = add_internal(&mut data, &[i]);
+            if carry > 0 {
+                return Err(Error::new("Invalid decimal: overflow"));
+            }
         }
 
-        // Parse this into a big uint
-        let res = BigUint::from_str(&coeff[..]);
-        if res.is_err() {
-            return Err(Error::new("Failed to parse string"));
-        }
-
-        Decimal::from_biguint(res.unwrap(), scale, negative)
+        Ok(Decimal {
+            lo: data[0],
+            mid: data[1],
+            hi: data[2],
+            flags: (scale << SCALE_SHIFT) | if negative { SIGN_MASK } else { 0 },
+        })
     }
 }
 
@@ -1403,13 +1420,9 @@ impl fmt::Display for Decimal {
         // Get the scale - where we need to put the decimal point
         let mut scale = self.scale() as usize;
 
-        // Get the whole number without decimal points (or signs)
-        let uint = self.to_biguint();
-
         // Convert to a string and manipulate that (neg at front, inject decimal)
-        let mut rep = uint.to_string();
+        let mut rep = String::new();
         let len = rep.len();
-
 
         if let Some(n_dp) = f.precision() {
             if n_dp < scale {
