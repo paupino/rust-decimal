@@ -306,7 +306,7 @@ impl Decimal {
         }
     }
 
-    fn rescale(&self, exp: u32) -> Decimal {
+    pub(crate) fn rescale(&self, exp: u32) -> Decimal {
         if exp > MAX_PRECISION {
             panic!("Cannot have an exponent greater than {} ({} > {})", MAX_PRECISION, exp, MAX_PRECISION);
         }
