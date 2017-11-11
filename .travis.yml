@@ -3,7 +3,6 @@ sudo: required
 rust:
   - stable
   - beta
-  - nightly
 addons:
   postgresql: 9.4
 before_script:
@@ -15,8 +14,6 @@ matrix:
   allow_failures:
     - rust: nightly
   include:
-      - rust: stable
-      - rust: beta
       - rust: nightly
         script:
           - cargo build --verbose --all --all-features
