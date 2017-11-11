@@ -9,8 +9,15 @@ addons:
 before_script:
 - "./.travis/setup.sh"
 script:
-  - cargo build --verbose --all --all-features
-  - cargo test --verbose --all --all-features
+  - cargo build --verbose -p rust_decimal --all-features
+  - cargo test --verbose -p rust_decimal --all-features
 matrix:
   allow_failures:
     - rust: nightly
+  include:
+      - stable
+      - beta
+      - nightly
+        script:
+          - cargo build --verbose --all --all-features
+          - cargo test --verbose --all --all-features
