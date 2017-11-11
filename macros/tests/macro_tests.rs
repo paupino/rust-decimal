@@ -1,7 +1,7 @@
 extern crate rust_decimal;
-extern crate rust_decimal_macro;
+extern crate rust_decimal_macros;
 
-use rust_decimal_macro::*;
+use rust_decimal_macros::*;
 
 #[test]
 fn it_can_parse_decimal() {
