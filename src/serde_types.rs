@@ -80,6 +80,7 @@ mod test {
         let data = [
             ("{\"amount\":\"1.234\"}", "1.234"),
             ("{\"amount\":1234}", "1234"),
+            ("{\"amount\":1234.56}", "1234.56"),
         ];
         for &(serialized, value) in data.iter() {
             let result = serde_json::from_str(serialized);
