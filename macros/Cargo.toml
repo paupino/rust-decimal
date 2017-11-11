@@ -4,9 +4,9 @@ version = "0.6.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 
 description = "Shorthand macros to assist creating Decimal types."
-
+documentation = "https://docs.rs/rust_decimal/"
 repository = "https://github.com/paupino/rust-decimal"
-readme = "./README.md"
+readme = "../README.md"
 
 keywords = ["decimal","financial","fixed","precision"]
 categories = ["science","data-structures"]

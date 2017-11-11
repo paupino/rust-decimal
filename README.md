@@ -33,11 +33,11 @@ let my_int : Decimal = 3i32.into();
 
 ### Nightly
 
-With the nightly version of rust you can use a procedural macro using the `rust_decimal_macro` crate. The advantage of this method is that the decimal numbers are parsed at compile time.
+With the nightly version of rust you can use a procedural macro using the `rust_decimal_macros` crate. The advantage of this method is that the decimal numbers are parsed at compile time.
 
 ```
 // Procedural macros need importing directly
-use rust_decimal_macro::*;
+use rust_decimal_macros::*;
 
 let number = dec!(-1.23);
 ```
