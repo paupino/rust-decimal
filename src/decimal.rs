@@ -1,7 +1,5 @@
 use Error;
-use num::{BigInt, BigUint, FromPrimitive, One, ToPrimitive, Zero};
-use num::bigint::Sign::{Minus, Plus};
-use num::bigint::ToBigInt;
+use num::{FromPrimitive, One, ToPrimitive, Zero};
 use std::cmp::*;
 use std::cmp::Ordering::Equal;
 use std::fmt;
@@ -26,7 +24,6 @@ const SCALE_SHIFT: u32 = 16;
 
 // The maximum supported precision
 const MAX_PRECISION: u32 = 28;
-const MAX_BYTES: usize = 12;
 
 static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
@@ -59,6 +56,7 @@ static POWERS_10: [u32; 10] = [
     1000000000,
 ];
 // Fast access for 10^n where n is 10-19
+#[allow(dead_code)]
 static BIG_POWERS_10: [u64; 10] = [
     10000000000,
     100000000000,
@@ -103,7 +101,7 @@ impl Decimal {
     ///
     /// ```
     /// use rust_decimal::Decimal;
-    /// let pi = Decimal::new(3141i64, 3u32);
+    /// let _pi = Decimal::new(3141i64, 3u32);
     /// ```
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
@@ -148,6 +146,19 @@ impl Decimal {
         } else {
             self.flags |= SIGN_MASK;
         }
+    }
+
+    /// An optimized method for changing the scale of a decimal number.
+    ///
+    /// # Arguments
+    ///
+    /// * `scale`: the new scale of the number
+    pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
+        if scale > MAX_PRECISION {
+            return Err(Error::new("Scale exceeds maximum precision"));
+        }
+        self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
+        Ok(())
     }
 
     /// Returns a serialized version of the decimal number.
@@ -232,13 +243,12 @@ impl Decimal {
 
         let old_scale = self.scale();
 
-        // We artificially cap at 20 because of fast power lookup.
-        // We should change this as it's not necessary.
-        if dp < old_scale && dp < 20 {
+        if dp < old_scale {
             // Short circuit for zero
             if self.is_zero() {
                 return self.rescale(dp);
             }
+            let negative = self.is_negative();
 
             // Check to see if we need to add or subtract one.
             // Some expected results assuming dp = 2 and old_scale = 3:
@@ -251,50 +261,58 @@ impl Decimal {
             //   12361
             //   12250
             //   12251
-            let index = dp as usize;
-            let power10 = if dp < 10 {
-                Decimal::from_u32(POWERS_10[index]).unwrap()
-            } else {
-                Decimal::from_u64(BIG_POWERS_10[index - 10]).unwrap()
-            };
-            let mut value = self.mul(power10);
+            let mut value = [self.lo, self.mid, self.hi];
+            let mut value_scale = self.scale();
+            value_scale -= dp;
+
+            // Rescale to zero so it's easier to work with
+            while value_scale > 0 {
+                // TODO: Optimize for u64 using BIG_POWERS_10
+                if value_scale < 10 {
+                    div_by_u32(&mut value, POWERS_10[value_scale as usize]);
+                    value_scale = 0;
+                } else {
+                    div_by_u32(&mut value, POWERS_10[9]);
+                    value_scale -= 9;
+                }
+            }
 
             // Do some midpoint rounding checks
             // We're actually doing two things here.
             //  1. Figuring out midpoint rounding when we're right on the boundary. e.g. 2.50000
             //  2. Figuring out whether to add one or not e.g. 2.51
             // We only need to search back a certain number. e.g. 2.500, round(2) search 1.
-            let raw = self.to_biguint();
-
             // Get the decimal portion
             //  e.g. 2.5001, round(2) decimal portion = 01
-            let offset = self.rescale(dp).rescale(old_scale).to_biguint();
-            let decimal_portion = raw - offset;
-
-            // Rescale to zero so it's easier to work with
-            value = value.rescale(0u32);
+            let offset = self.rescale(dp).rescale(old_scale);
+            let mut decimal_portion = [self.lo, self.mid, self.hi];
+            sub_internal(&mut decimal_portion, &[offset.lo, offset.mid, offset.hi]);
 
             // If the decimal_portion is zero then we round based on the other data
-            let mut cap = BigUint::from_u32(5u32).unwrap();
+            let mut cap = [5, 0, 0];
             for _ in 0..(old_scale - dp - 1) {
-                cap = cap.mul(BigUint::from_u32(10u32).unwrap());
+                mul_by_u32(&mut cap, 10);
             }
-            if decimal_portion == cap {
-                let even_or_odd = value.rem(Decimal::from_u32(2u32).unwrap());
-                if !even_or_odd.is_zero() {
-                    value = value.add(Decimal::one());
+            let order = cmp_internal(&decimal_portion, &cap);
+            match order {
+                Ordering::Equal => {
+                    if (value[0] & 1) == 1 {
+                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    }
                 }
-            } else if decimal_portion > cap {
-                // Doesn't matter about the decimal portion
-                if self.is_negative() {
-                    value = value.sub(Decimal::one());
-                } else {
-                    value = value.add(Decimal::one());
+                Ordering::Greater => {
+                    // Doesn't matter about the decimal portion
+                    add_internal(&mut value, &ONE_INTERNAL_REPR);
                 }
+                _ => {}
             }
 
-            // Divide by the power to get back
-            value.div(power10)
+            Decimal {
+                lo: value[0],
+                mid: value[1],
+                hi: value[2],
+                flags: (dp << SCALE_SHIFT) | if negative { SIGN_MASK } else { 0 },
+            }
         } else {
             *self
         }
@@ -302,31 +320,62 @@ impl Decimal {
 
     pub(crate) fn rescale(&self, exp: u32) -> Decimal {
         if exp > MAX_PRECISION {
-            panic!("Cannot have an exponent greater than {}", MAX_PRECISION);
+            panic!(
+                "Cannot have an exponent greater than {} ({} > {})",
+                MAX_PRECISION,
+                exp,
+                MAX_PRECISION
+            );
         }
-        let diff = exp as i32 - self.scale() as i32;
-        if diff == 0 {
+        let mut scale = self.scale();
+        if exp == scale {
             // Since it's a copy type we can just return the self
             return *self;
         }
 
         // 1.23 is scale 2. If we're making it 1.2300 scale 4
-        // Raw bit manipulation is hard (going up is easy, going down is hard)
-        // Let's just use BigUint to help out
-        let unsigned = self.to_biguint();
-        let result: BigUint;
-
-        // Figure out whether to multiply or divide
-        let power = power_10(diff.abs() as usize);
-        if diff > 0 {
-            result = unsigned * power;
+        let mut raw = [self.lo, self.mid, self.hi];
+        if exp > scale {
+            // We need to scale it up
+            let mut diff = (exp as i32 - scale as i32) as u32;
+            while scale != exp {
+                // TODO: Also optimize u64 by using BIG_POWERS_10
+                if diff < 10 {
+                    mul_by_u32(&mut raw, POWERS_10[diff as usize]);
+                    scale += diff;
+                    diff = 0;
+                } else {
+                    mul_by_u32(&mut raw, POWERS_10[9]);
+                    // Only 9 as this array starts with 1
+                    scale += 9;
+                    diff -= 9;
+                }
+            }
         } else {
-            result = unsigned / power;
+            // We need to scale it down
+            let mut diff = (scale as i32 - exp as i32) as u32;
+            while scale != exp {
+                // TODO: Also optimize u64 by using BIG_POWERS_10
+                if diff < 10 {
+                    div_by_u32(&mut raw, POWERS_10[diff as usize]);
+                    scale -= diff;
+                    diff = 0;
+                } else {
+                    div_by_u32(&mut raw, POWERS_10[9]);
+                    // Only 9 as this array starts with 1
+                    scale -= 9;
+                    diff -= 9;
+                }
+            }
         }
 
         // Convert it back
-        let bytes = result.to_bytes_le();
-        Decimal::from_bytes_le(bytes, exp, self.is_negative())
+        Decimal {
+            lo: raw[0],
+            mid: raw[1],
+            hi: raw[2],
+            flags: (scale << SCALE_SHIFT) | if self.is_negative() { SIGN_MASK } else { 0 },
+        }
     }
 
     fn base2_to_decimal(bits: &mut [u32; 3], exponent2: i32, positive: bool, is64: bool) -> Option<Self> {
@@ -473,103 +522,6 @@ impl Decimal {
             flags: flags,
         })
     }
-
-    //
-    // These do not address scale. If you want that, rescale to 0 first.
-    //
-    pub(crate) fn to_biguint(&self) -> BigUint {
-        let bytes = self.unsigned_bytes_le();
-        BigUint::from_bytes_le(&bytes[..])
-    }
-
-    fn to_bigint(&self) -> BigInt {
-        let bytes = self.unsigned_bytes_le();
-        let sign = if self.is_negative() { Minus } else { Plus };
-        BigInt::from_bytes_le(sign, &bytes[..])
-    }
-
-    pub(crate) fn from_biguint(res: BigUint, scale: u32, negative: bool) -> Result<Decimal, Error> {
-        let bytes = res.to_bytes_le();
-        if bytes.len() > MAX_BYTES {
-            return Err(Error::new("Decimal Overflow"));
-        }
-        if scale > MAX_PRECISION {
-            return Err(Error::new("Scale exceeds maximum precision"));
-        }
-
-        Ok(Decimal::from_bytes_le(bytes, scale, negative))
-    }
-
-    fn unsigned_bytes_le(&self) -> Vec<u8> {
-        return vec![
-            (self.lo & U8_MASK) as u8,
-            ((self.lo >> 8) & U8_MASK) as u8,
-            ((self.lo >> 16) & U8_MASK) as u8,
-            ((self.lo >> 24) & U8_MASK) as u8,
-            (self.mid & U8_MASK) as u8,
-            ((self.mid >> 8) & U8_MASK) as u8,
-            ((self.mid >> 16) & U8_MASK) as u8,
-            ((self.mid >> 24) & U8_MASK) as u8,
-            (self.hi & U8_MASK) as u8,
-            ((self.hi >> 8) & U8_MASK) as u8,
-            ((self.hi >> 16) & U8_MASK) as u8,
-            ((self.hi >> 24) & U8_MASK) as u8,
-        ];
-    }
-
-    fn from_bytes_le(bytes: Vec<u8>, scale: u32, negative: bool) -> Decimal {
-        // Finally build the flags
-        let mut flags = 0u32;
-        let mut lo = 0u32;
-        let mut mid = 0u32;
-        let mut hi = 0u32;
-
-        if scale > 0 {
-            flags = scale << SCALE_SHIFT;
-        }
-        if negative {
-            flags |= SIGN_MASK;
-        }
-        if bytes.len() > MAX_BYTES {
-            panic!(
-                "Decimal Overflow, too many bytes {} > MAX({})",
-                bytes.len(),
-                MAX_BYTES
-            );
-        }
-
-        let mut pos = 0;
-        for b in bytes {
-            if pos < 4 {
-                lo |= u32::from(b) << (pos * 8);
-            } else if pos < 8 {
-                mid |= u32::from(b) << ((pos - 4) * 8);
-            } else {
-                hi |= u32::from(b) << ((pos - 8) * 8);
-            }
-            // Move position
-            pos += 1;
-        }
-
-        // Build up each hi/lo
-        Decimal {
-            flags: flags,
-            hi: hi,
-            lo: lo,
-            mid: mid,
-        }
-    }
-}
-
-fn power_10(exponent: usize) -> BigUint {
-    if exponent < 10 {
-        BigUint::from_u32(POWERS_10[exponent]).unwrap()
-    } else if exponent < 20 {
-        BigUint::from_u64(BIG_POWERS_10[exponent - 10]).unwrap()
-    } else {
-        let u32_exponent = exponent - 19; // -20 + 1 for getting the right u32 index
-        BigUint::from_u64(BIG_POWERS_10[9]).unwrap() * BigUint::from_u32(POWERS_10[u32_exponent]).unwrap()
-    }
 }
 
 fn copy_array(into: &mut [u32], from: &[u32]) {
@@ -602,12 +554,12 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
             carry = sum >> 32;
         }
         if vl > bl {
-            for i in bl..vl {
+            for i in value.iter_mut().take(vl).skip(bl) {
                 if carry == 0 {
                     break;
                 }
-                sum = u64::from(value[i]) + carry;
-                value[i] = (sum & 0xFFFF_FFFF) as u32;
+                sum = u64::from(*i) + carry;
+                *i = (sum & 0xFFFF_FFFF) as u32;
                 carry = sum >> 32;
             }
         }
@@ -930,7 +882,7 @@ fn div_internal(working: &mut [u32; 8], divisor: &[u32; 3]) {
         }
 
         // Was it positive?
-        if (sub[3] & 0x80000000) == 0 {
+        if (sub[3] & 0x8000_0000) == 0 {
             for j in 0..4 {
                 working[j + 4] = sub[j];
             }
@@ -1125,15 +1077,15 @@ impl FromStr for Decimal {
 
         let mut offset = 0;
         let mut len = value.len();
-        let chars: Vec<char> = value.chars().collect();
+        let bytes: Vec<u8> = value.bytes().collect();
         let mut negative = false; // assume positive
 
         // handle the sign
-        if chars[offset] == '-' {
+        if bytes[offset] == b'-' {
             negative = true; // leading minus means negative
             offset += 1;
             len -= 1;
-        } else if chars[offset] == '+' {
+        } else if bytes[offset] == b'+' {
             // leading + allowed
             offset += 1;
             len -= 1;
@@ -1142,27 +1094,34 @@ impl FromStr for Decimal {
         // should now be at numeric part of the significand
         let mut dot_offset: i32 = -1; // '.' offset, -1 if none
         let cfirst = offset; // record start of integer
-        let mut coeff = String::new(); // integer significand array
+        let mut coeff = Vec::new(); // integer significand array
 
         while len > 0 {
-            let c = chars[offset];
-            if c.is_digit(10) {
-                coeff.push(c);
-                offset += 1;
-                len -= 1;
-                continue;
-            }
-            if c == '.' {
-                if dot_offset >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
+            let b = bytes[offset];
+            match b {
+                b'0'...b'9' => {
+                    coeff.push((b - b'0') as u32);
+                    offset += 1;
+                    len -= 1;
                 }
-                dot_offset = offset as i32;
-                offset += 1;
-                len -= 1;
-                continue;
+                b'.' => {
+                    if dot_offset >= 0 {
+                        return Err(Error::new("Invalid decimal: two decimal points"));
+                    }
+                    dot_offset = offset as i32;
+                    offset += 1;
+                    len -= 1;
+                }
+                b'_' => {
+                    // Must start with a number...
+                    if coeff.len() == 0 {
+                        return Err(Error::new("Invalid decimal: must start lead with a number"));
+                    }
+                    offset += 1;
+                    len -= 2;
+                }
+                _ => return Err(Error::new("Invalid decimal: unknown character")),
             }
-
-            return Err(Error::new("Invalid decimal: unknown character"));
         }
 
         // here when no characters left
@@ -1170,19 +1129,29 @@ impl FromStr for Decimal {
             return Err(Error::new("Invalid decimal: no digits found"));
         }
 
-        let mut scale = 0u32;
-        if dot_offset >= 0 {
+        let scale = if dot_offset >= 0 {
             // we had a decimal place so set the scale
-            scale = (coeff.len() as u32) - (dot_offset as u32 - cfirst as u32);
+            (coeff.len() as u32) - (dot_offset as u32 - cfirst as u32)
+        } else {
+            0
+        };
+
+        // Parse this using base 10 (future allow using radix?)
+        let mut data = [0u32, 0u32, 0u32];
+        for i in coeff {
+            mul_by_u32(&mut data, 10u32);
+            let carry = add_internal(&mut data, &[i]);
+            if carry > 0 {
+                return Err(Error::new("Invalid decimal: overflow"));
+            }
         }
 
-        // Parse this into a big uint
-        let res = BigUint::from_str(&coeff[..]);
-        if res.is_err() {
-            return Err(Error::new("Failed to parse string"));
-        }
-
-        Decimal::from_biguint(res.unwrap(), scale, negative)
+        Ok(Decimal {
+            lo: data[0],
+            mid: data[1],
+            hi: data[2],
+            flags: (scale << SCALE_SHIFT) | if negative { SIGN_MASK } else { 0 },
+        })
     }
 }
 
@@ -1337,16 +1306,13 @@ impl FromPrimitive for Decimal {
 impl ToPrimitive for Decimal {
     fn to_f64(&self) -> Option<f64> {
         if self.scale() == 0 {
-            let bytes = self.unsigned_bytes_le();
-            let sign;
-            if self.is_negative() {
-                sign = Minus;
-            } else {
-                sign = Plus;
+            let integer = self.to_i64();
+            match integer {
+                Some(i) => Some(i as f64),
+                None => None,
             }
-
-            BigInt::from_bytes_le(sign, &bytes[..]).to_f64()
         } else {
+            // TODO: Utilize mantissa algorithm.
             match self.to_string().parse::<f64>() {
                 Ok(s) => Some(s),
                 Err(_) => None,
@@ -1356,15 +1322,18 @@ impl ToPrimitive for Decimal {
 
     fn to_i64(&self) -> Option<i64> {
         let d = self.rescale(0);
-        // Convert to biguint and use that
-        let bytes = d.unsigned_bytes_le();
-        let sign;
-        if self.is_negative() {
-            sign = Minus;
-        } else {
-            sign = Plus;
+        // Quick overflow check
+        if d.hi != 0 || (d.mid & 0x8000_0000) > 0 {
+            // Overflow
+            return None;
         }
-        BigInt::from_bytes_le(sign, &bytes[..]).to_i64()
+
+        let raw: i64 = ((d.mid as i64) << 32) | d.lo as i64;
+        if self.is_negative() {
+            Some(raw * -1)
+        } else {
+            Some(raw)
+        }
     }
 
     fn to_u64(&self) -> Option<u64> {
@@ -1379,9 +1348,7 @@ impl ToPrimitive for Decimal {
             return None;
         }
 
-        // Convert to biguint and use that
-        let bytes = d.unsigned_bytes_le();
-        BigUint::from_bytes_le(&bytes[..]).to_u64()
+        Some(((d.mid as u64) << 32) | d.lo as u64)
     }
 }
 
@@ -1390,13 +1357,15 @@ impl fmt::Display for Decimal {
         // Get the scale - where we need to put the decimal point
         let mut scale = self.scale() as usize;
 
-        // Get the whole number without decimal points (or signs)
-        let uint = self.to_biguint();
-
         // Convert to a string and manipulate that (neg at front, inject decimal)
-        let mut rep = uint.to_string();
+        let mut chars = Vec::new();
+        let mut working = [self.lo, self.mid, self.hi];
+        while !is_all_zero(&working) {
+            let remainder = div_by_u32(&mut working, 10u32);
+            chars.push(char::from(b'0' + remainder as u8));
+        }
+        let mut rep = chars.iter().rev().collect::<String>();
         let len = rep.len();
-
 
         if let Some(n_dp) = f.precision() {
             if n_dp < scale {
@@ -1887,10 +1856,10 @@ impl Ord for Decimal {
         //  123 scale 2 and 12345 scale 4
         //  We need to convert the first to
         //  12300 scale 4 so we can compare equally
-        let s = self.scale() as u32;
-        let o = other.scale() as u32;
+        let self_scale = self.scale();
+        let other_scale = other.scale();
 
-        if s == o {
+        if self_scale == other_scale {
             // Fast path for same scale
             if self.hi != other.hi {
                 return self.hi.cmp(&other.hi);
@@ -1901,16 +1870,12 @@ impl Ord for Decimal {
             return self.lo.cmp(&other.lo);
         }
 
-        let si = self.to_bigint();
-        let oi = other.to_bigint();
-        if s > o {
-            let power = power_10((s - o) as usize).to_bigint().unwrap();
-            let other_scaled = oi * power;
-            si.cmp(&other_scaled)
+        if self_scale > other_scale {
+            let c = self.rescale(other_scale);
+            cmp_internal(&[c.lo, c.mid, c.hi], &[other.lo, other.mid, other.hi])
         } else {
-            let power = power_10((o - s) as usize).to_bigint().unwrap();
-            let self_scaled = si * power;
-            self_scaled.cmp(&oi)
+            let c = other.rescale(self_scale);
+            cmp_internal(&[self.lo, self.mid, self.hi], &[c.lo, c.mid, c.hi])
         }
     }
 }
@@ -1918,6 +1883,7 @@ impl Ord for Decimal {
 
 #[cfg(test)]
 mod test {
+    extern crate time;
     // Tests on private methods.
     //
     // All public tests should go under `tests/`.
@@ -1952,6 +1918,28 @@ mod test {
 
             assert_eq!(d.to_string(), s);
         }
+    }
+
+    #[test]
+    fn time_up() {
+        let start = time::precise_time_ns();
+        for _ in 0..1000 {
+            let d = "1".parse::<Decimal>().unwrap();
+            d.rescale(25);
+        }
+        let end = time::precise_time_ns();
+        println!("Time taken: {}ns", (end - start) / 1000);
+    }
+
+    #[test]
+    fn time_down() {
+        let start = time::precise_time_ns();
+        for _ in 0..1000 {
+            let d = "1.0000000000000000000000000".parse::<Decimal>().unwrap();
+            d.rescale(0);
+        }
+        let end = time::precise_time_ns();
+        println!("Time taken: {}ns", (end - start) / 1000);
     }
 
     #[test]

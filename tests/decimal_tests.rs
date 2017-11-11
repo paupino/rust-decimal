@@ -788,6 +788,13 @@ fn it_can_round_simple_numbers_up() {
 }
 
 #[test]
+fn it_can_round_simple_numbers_with_high_precision() {
+    let a = Decimal::from_str("2.1234567890123456789012345678").unwrap();
+    let b = a.round_dp(27u32);
+    assert_eq!("2.123456789012345678901234568", b.to_string());
+}
+
+#[test]
 fn it_can_return_the_max_value() {
     assert_eq!(
         "79228162514264337593543950335",
@@ -843,6 +850,52 @@ fn it_converts_to_f64() {
             .unwrap()
             .to_f64()
             .unwrap()
+    );
+}
+
+#[test]
+fn it_converts_to_i64() {
+    assert_eq!(5i64, Decimal::from_str("5").unwrap().to_i64().unwrap());
+    assert_eq!(-5i64, Decimal::from_str("-5").unwrap().to_i64().unwrap());
+    assert_eq!(
+        5i64,
+        Decimal::from_str("5.12345").unwrap().to_i64().unwrap()
+    );
+    assert_eq!(
+        -5i64,
+        Decimal::from_str("-5.12345").unwrap().to_i64().unwrap()
+    );
+    assert_eq!(
+        0x7FFF_FFFF_FFFF_FFFF,
+        Decimal::from_str("9223372036854775807")
+            .unwrap()
+            .to_i64()
+            .unwrap()
+    );
+    assert_eq!(
+        None,
+        Decimal::from_str("92233720368547758089").unwrap().to_i64()
+    );
+}
+
+#[test]
+fn it_converts_to_u64() {
+    assert_eq!(5u64, Decimal::from_str("5").unwrap().to_u64().unwrap());
+    assert_eq!(None, Decimal::from_str("-5").unwrap().to_u64());
+    assert_eq!(
+        5u64,
+        Decimal::from_str("5.12345").unwrap().to_u64().unwrap()
+    );
+    assert_eq!(
+        0xFFFF_FFFF_FFFF_FFFF,
+        Decimal::from_str("18446744073709551615")
+            .unwrap()
+            .to_u64()
+            .unwrap()
+    );
+    assert_eq!(
+        None,
+        Decimal::from_str("18446744073709551616").unwrap().to_u64()
     );
 }
 

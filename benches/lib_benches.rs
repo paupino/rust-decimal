@@ -31,10 +31,8 @@ macro_rules! bench_bin_op {
 bench_bin_op!(bench_decimal_add, Decimal, +=);
 bench_bin_op!(bench_d128_add, d128, +=);
 
-
 bench_bin_op!(bench_decimal_sub, Decimal, -=);
 bench_bin_op!(bench_d128_sub, d128, -=);
-
 
 bench_bin_op!(bench_decimal_mul, Decimal, *=);
 bench_bin_op!(bench_d128_mul, d128, *=);

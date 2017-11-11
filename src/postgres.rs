@@ -2,10 +2,8 @@ extern crate byteorder;
 extern crate num;
 
 use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use self::num::{BigUint, One, Zero, ToPrimitive};
-use self::num::bigint::ToBigUint;
+use self::num::{One, Zero, ToPrimitive};
 use super::Decimal;
-use pg_crate::error::conversion;
 use pg_crate::types::*;
 use std::error;
 use std::fmt;
@@ -91,21 +89,20 @@ impl FromSql for Decimal {
         let fixed_scale = try!(raw.read_u16::<BigEndian>()) as i32;
 
         // Build up a list of powers that will be used
-        let mut powers = Vec::new();
-        let mult = 10000.to_biguint().unwrap();
-        let mut val: BigUint = One::one();
-        powers.push(BigUint::one());
+        let mut powers = vec![Decimal::one()];
+        let mut val = Decimal::one();
+        let mult = Decimal::new(10000, 0);
         for _ in 1..num_groups {
-            val = &val * &mult;
-            powers.push(val.clone());
+            val *= mult;
+            powers.push(val);
         }
         powers.reverse();
 
         // Now process the number
-        let mut result: BigUint = Zero::zero();
+        let mut result = Decimal::zero();
         for i in 0..num_groups {
             let group = try!(raw.read_u16::<BigEndian>());
-            let calculated = &powers[i as usize] * group.to_biguint().unwrap();
+            let calculated = &powers[i as usize] * Decimal::new(group as i64, 0);
             result = result + calculated;
         }
 
@@ -113,33 +110,29 @@ impl FromSql for Decimal {
         let mut scale = (num_groups as i16 - weight - 1) as i32 * 4;
         // Scale could be negative
         if scale < 0 {
-            result = result * 10i64.pow((scale * -1) as u32).to_biguint().unwrap();
+            result *= Decimal::new(10i64.pow((scale * -1) as u32), 0);
             scale = 0;
         } else if scale > fixed_scale {
-            result = result /
-                10i64
-                    .pow((scale - fixed_scale) as u32)
-                    .to_biguint()
-                    .unwrap();
+            result /= Decimal::new(10i64.pow((scale - fixed_scale) as u32), 0);
             scale = fixed_scale;
         }
 
         // Create the decimal
         let neg = sign == 0x4000;
-        let mut decimal = try!(match Decimal::from_biguint(result, scale as u32, neg) {
-            Ok(x) => Ok(x),
-            Err(_) => Err(conversion(Box::new(InvalidDecimal))),
-        });
+        if result.set_scale(scale as u32).is_err() {
+            return Err(Box::new(InvalidDecimal));
+        }
+        result.set_sign(!neg);
 
         // Normalize by truncating any trailing 0's from the decimal representation
         // This may not be the most efficient way of doing this
         if scale > 0 {
-            let str_rep = decimal.to_string();
+            let str_rep = result.to_string();
             let trailing_zeros = str_rep.chars().rev().take_while(|&x| x == '0').count();
-            decimal = decimal.rescale(scale as u32 - trailing_zeros as u32);
+            result = result.rescale(scale as u32 - trailing_zeros as u32);
         }
 
-        Ok(decimal)
+        Ok(result)
     }
 
     fn accepts(ty: &Type) -> bool {
@@ -152,10 +145,13 @@ impl FromSql for Decimal {
 
 impl ToSql for Decimal {
     fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
-        let uint = self.to_biguint();
         let sign = if self.is_negative() { 0x4000 } else { 0x0000 };
         let scale = self.scale() as u16;
-        let mut digits = uint.to_str_radix(10);
+
+        let mut whole = *self;
+        whole.set_scale(0).ok();
+        whole.set_sign(true);
+        let mut digits = whole.to_string();
         let split_point = if scale as usize > digits.len() {
             let mut new_digits = vec!['0'; scale as usize - digits.len() as usize];
             new_digits.extend(digits.chars());
