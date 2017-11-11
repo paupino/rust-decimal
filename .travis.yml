@@ -15,9 +15,9 @@ matrix:
   allow_failures:
     - rust: nightly
   include:
-      - stable
-      - beta
-      - nightly
+      - rust: stable
+      - rust: beta
+      - rust: nightly
         script:
           - cargo build --verbose --all --all-features
           - cargo test --verbose --all --all-features
