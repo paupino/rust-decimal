@@ -4,7 +4,7 @@ version = "0.6.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 
 description = "A Decimal Implementation written in pure Rust suitable for financial calculations."
-
+documentation = "https://docs.rs/rust_decimal/"
 repository = "https://github.com/paupino/rust-decimal"
 readme = "./README.md"
 
@@ -31,3 +31,6 @@ time = "0.1"
 
 [features]
 default = ["serde"]
+
+[workspace]
+members = [".", "./macros"]

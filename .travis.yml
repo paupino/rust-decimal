@@ -3,14 +3,18 @@ sudo: required
 rust:
   - stable
   - beta
-  - nightly
 addons:
   postgresql: 9.4
 before_script:
 - "./.travis/setup.sh"
 script:
-  - cargo build --verbose --all --all-features
-  - cargo test --verbose --all --all-features
+  - cargo build --verbose -p rust_decimal --all-features
+  - cargo test --verbose -p rust_decimal --all-features
 matrix:
   allow_failures:
     - rust: nightly
+  include:
+      - rust: nightly
+        script:
+          - cargo build --verbose --all --all-features
+          - cargo test --verbose --all --all-features
