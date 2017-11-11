@@ -1,2 +1,2 @@
 [workspace]
-members = ["decimal"]
+members = ["decimal","decimal_macro"]
