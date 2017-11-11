@@ -1,12 +1,23 @@
 # Version History
 
+## 0.6.0
+
+This release has a few major changes to the internal workings of the `Decimal` implementation and consequently comes with a number of performance improvements.
+
+* Floats can now be parsed into a `Decimal` type using `from_f32` and `from_f64`.
+* `add`, `sub`, `mul` run roughly 1500% faster than before.
+* `div` run's roughly 1000% faster than before with room for future improvement.
+* Also get significant speed improvements with `cmp`, `rescale`, `round_dp` and some string manipulations.
+* Implemented `*Assign` traits for simpler usage.
+* Removed `BigInt` and `BigUint` as being intermediary data types.
+
 ## 0.5.2
 
-* Minor bug fix to prevent a `panic` from overflow during comparison of high significant digit decimals. 
+Minor bug fix to prevent a `panic` from overflow during comparison of high significant digit decimals. 
 
 ## 0.5.1
 
-* Minor bux fix to prevent `panic` upon parsing an empty string.
+Minor bux fix to prevent `panic` upon parsing an empty string.
 
 ## 0.5.0
 
