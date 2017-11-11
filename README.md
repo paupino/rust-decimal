@@ -13,12 +13,31 @@ The binary representation consists of a 96 bit integer number, a scaling factor 
 [Documentation](https://docs.rs/rust_decimal/)
 
 ## Usage
-Currently, creating the decimal requires either specifying the scale upon creation, using a standard primitive type or parsing a string.
+
+Decimal numbers can be created in a few distinct ways, depending on the rust compiler version you're targeting.
+
+### Stable
+
+The stable version of rust requires you to create a Decimal number using one of it's convenience methods.
 
 ```
+use rust_decimal::Decimal;
+
+// Using an integer followed by the decimal points
 let scaled = Decimal::new(202, 2); // 2.02
+// From a string representation
 let from_string = Decimal::from_str("2.02").unwrap(); // 2.02
+// Using the `Into` trait
 let my_int : Decimal = 3i32.into();
 ```
 
-Future versions will investigate the use of compiler extensions and macros to simplify this process.
+### Nightly
+
+With the nightly version of rust you can use a procedural macro using the `rust_decimal_macro` crate. The advantage of this method is that the decimal numbers are parsed at compile time.
+
+```
+// Procedural macros need importing directly
+use rust_decimal_macro::*;
+
+let number = dec!(-1.23);
+```
