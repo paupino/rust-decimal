@@ -1,6 +1,5 @@
 use Error;
-use num::{BigInt, BigUint, FromPrimitive, One, ToPrimitive, Zero};
-use num::bigint::Sign::{Minus, Plus};
+use num::{BigUint, FromPrimitive, One, ToPrimitive, Zero};
 use std::cmp::*;
 use std::cmp::Ordering::Equal;
 use std::fmt;
@@ -1353,16 +1352,13 @@ impl FromPrimitive for Decimal {
 impl ToPrimitive for Decimal {
     fn to_f64(&self) -> Option<f64> {
         if self.scale() == 0 {
-            let bytes = self.unsigned_bytes_le();
-            let sign;
-            if self.is_negative() {
-                sign = Minus;
-            } else {
-                sign = Plus;
+            let integer = self.to_i64();
+            match integer {
+                Some(i) => Some(i as f64),
+                None => None,
             }
-
-            BigInt::from_bytes_le(sign, &bytes[..]).to_f64()
         } else {
+            // TODO: Utilize mantissa algorithm.
             match self.to_string().parse::<f64>() {
                 Ok(s) => Some(s),
                 Err(_) => None,
@@ -1372,15 +1368,18 @@ impl ToPrimitive for Decimal {
 
     fn to_i64(&self) -> Option<i64> {
         let d = self.rescale(0);
-        // Convert to biguint and use that
-        let bytes = d.unsigned_bytes_le();
-        let sign;
-        if self.is_negative() {
-            sign = Minus;
-        } else {
-            sign = Plus;
+        // Quick overflow check
+        if d.hi != 0 || (d.mid & 0x8000_0000) > 0 {
+            // Overflow
+            return None;
         }
-        BigInt::from_bytes_le(sign, &bytes[..]).to_i64()
+
+        let raw : i64 = ((d.mid as i64) << 32) | d.lo as i64;
+        if self.is_negative() {
+            Some(raw * -1)
+        } else {
+            Some(raw)
+        }
     }
 
     fn to_u64(&self) -> Option<u64> {
@@ -1395,9 +1394,7 @@ impl ToPrimitive for Decimal {
             return None;
         }
 
-        // Convert to biguint and use that
-        let bytes = d.unsigned_bytes_le();
-        BigUint::from_bytes_le(&bytes[..]).to_u64()
+        Some(((d.mid as u64) << 32) | d.lo as u64)
     }
 }
 
