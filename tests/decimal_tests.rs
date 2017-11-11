@@ -857,8 +857,14 @@ fn it_converts_to_f64() {
 fn it_converts_to_i64() {
     assert_eq!(5i64, Decimal::from_str("5").unwrap().to_i64().unwrap());
     assert_eq!(-5i64, Decimal::from_str("-5").unwrap().to_i64().unwrap());
-    assert_eq!(5i64, Decimal::from_str("5.12345").unwrap().to_i64().unwrap());
-    assert_eq!(-5i64, Decimal::from_str("-5.12345").unwrap().to_i64().unwrap());
+    assert_eq!(
+        5i64,
+        Decimal::from_str("5.12345").unwrap().to_i64().unwrap()
+    );
+    assert_eq!(
+        -5i64,
+        Decimal::from_str("-5.12345").unwrap().to_i64().unwrap()
+    );
     assert_eq!(
         0x7FFF_FFFF_FFFF_FFFF,
         Decimal::from_str("9223372036854775807")
@@ -868,9 +874,7 @@ fn it_converts_to_i64() {
     );
     assert_eq!(
         None,
-        Decimal::from_str("92233720368547758089")
-            .unwrap()
-            .to_i64()
+        Decimal::from_str("92233720368547758089").unwrap().to_i64()
     );
 }
 
@@ -878,7 +882,10 @@ fn it_converts_to_i64() {
 fn it_converts_to_u64() {
     assert_eq!(5u64, Decimal::from_str("5").unwrap().to_u64().unwrap());
     assert_eq!(None, Decimal::from_str("-5").unwrap().to_u64());
-    assert_eq!(5u64, Decimal::from_str("5.12345").unwrap().to_u64().unwrap());
+    assert_eq!(
+        5u64,
+        Decimal::from_str("5.12345").unwrap().to_u64().unwrap()
+    );
     assert_eq!(
         0xFFFF_FFFF_FFFF_FFFF,
         Decimal::from_str("18446744073709551615")
@@ -888,9 +895,7 @@ fn it_converts_to_u64() {
     );
     assert_eq!(
         None,
-        Decimal::from_str("18446744073709551616")
-            .unwrap()
-            .to_u64()
+        Decimal::from_str("18446744073709551616").unwrap().to_u64()
     );
 }
 
@@ -965,4 +970,3 @@ fn it_converts_from_f64() {
     assert!(from_f64(std::f64::MAX).is_none());
     assert!(from_f64(std::f64::MIN).is_none());
 }
-

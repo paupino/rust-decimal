@@ -1,5 +1,5 @@
 use Error;
-use num::{BigUint, FromPrimitive, One, ToPrimitive, Zero};
+use num::{FromPrimitive, One, ToPrimitive, Zero};
 use std::cmp::*;
 use std::cmp::Ordering::Equal;
 use std::fmt;
@@ -24,7 +24,6 @@ const SCALE_SHIFT: u32 = 16;
 
 // The maximum supported precision
 const MAX_PRECISION: u32 = 28;
-const MAX_BYTES: usize = 12;
 
 static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
@@ -149,6 +148,19 @@ impl Decimal {
         }
     }
 
+    /// An optimized method for changing the scale of a decimal number.
+    ///
+    /// # Arguments
+    ///
+    /// * `scale`: the new scale of the number
+    pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
+        if scale > MAX_PRECISION {
+            return Err(Error::new("Scale exceeds maximum precision"));
+        }
+        self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
+        Ok(())
+    }
+
     /// Returns a serialized version of the decimal number.
     /// The resulting byte array will have the following representation:
     ///
@@ -250,7 +262,7 @@ impl Decimal {
             //   12250
             //   12251
             let mut value = [self.lo, self.mid, self.hi];
-            let mut value_scale = self.scale();            
+            let mut value_scale = self.scale();
             value_scale -= dp;
 
             // Rescale to zero so it's easier to work with
@@ -265,7 +277,7 @@ impl Decimal {
                 }
             }
 
-                        // Do some midpoint rounding checks
+            // Do some midpoint rounding checks
             // We're actually doing two things here.
             //  1. Figuring out midpoint rounding when we're right on the boundary. e.g. 2.50000
             //  2. Figuring out whether to add one or not e.g. 2.51
@@ -308,7 +320,12 @@ impl Decimal {
 
     pub(crate) fn rescale(&self, exp: u32) -> Decimal {
         if exp > MAX_PRECISION {
-            panic!("Cannot have an exponent greater than {} ({} > {})", MAX_PRECISION, exp, MAX_PRECISION);
+            panic!(
+                "Cannot have an exponent greater than {} ({} > {})",
+                MAX_PRECISION,
+                exp,
+                MAX_PRECISION
+            );
         }
         let mut scale = self.scale();
         if exp == scale {
@@ -505,86 +522,6 @@ impl Decimal {
             flags: flags,
         })
     }
-
-    //
-    // These do not address scale. If you want that, rescale to 0 first.
-    //
-    pub(crate) fn to_biguint(&self) -> BigUint {
-        let bytes = self.unsigned_bytes_le();
-        BigUint::from_bytes_le(&bytes[..])
-    }
-
-    pub(crate) fn from_biguint(res: BigUint, scale: u32, negative: bool) -> Result<Decimal, Error> {
-        let bytes = res.to_bytes_le();
-        if bytes.len() > MAX_BYTES {
-            return Err(Error::new("Decimal Overflow"));
-        }
-        if scale > MAX_PRECISION {
-            return Err(Error::new("Scale exceeds maximum precision"));
-        }
-
-        Ok(Decimal::from_bytes_le(bytes, scale, negative))
-    }
-
-    fn unsigned_bytes_le(&self) -> Vec<u8> {
-        return vec![
-            (self.lo & U8_MASK) as u8,
-            ((self.lo >> 8) & U8_MASK) as u8,
-            ((self.lo >> 16) & U8_MASK) as u8,
-            ((self.lo >> 24) & U8_MASK) as u8,
-            (self.mid & U8_MASK) as u8,
-            ((self.mid >> 8) & U8_MASK) as u8,
-            ((self.mid >> 16) & U8_MASK) as u8,
-            ((self.mid >> 24) & U8_MASK) as u8,
-            (self.hi & U8_MASK) as u8,
-            ((self.hi >> 8) & U8_MASK) as u8,
-            ((self.hi >> 16) & U8_MASK) as u8,
-            ((self.hi >> 24) & U8_MASK) as u8,
-        ];
-    }
-
-    fn from_bytes_le(bytes: Vec<u8>, scale: u32, negative: bool) -> Decimal {
-        // Finally build the flags
-        let mut flags = 0u32;
-        let mut lo = 0u32;
-        let mut mid = 0u32;
-        let mut hi = 0u32;
-
-        if scale > 0 {
-            flags = scale << SCALE_SHIFT;
-        }
-        if negative {
-            flags |= SIGN_MASK;
-        }
-        if bytes.len() > MAX_BYTES {
-            panic!(
-                "Decimal Overflow, too many bytes {} > MAX({})",
-                bytes.len(),
-                MAX_BYTES
-            );
-        }
-
-        let mut pos = 0;
-        for b in bytes {
-            if pos < 4 {
-                lo |= u32::from(b) << (pos * 8);
-            } else if pos < 8 {
-                mid |= u32::from(b) << ((pos - 4) * 8);
-            } else {
-                hi |= u32::from(b) << ((pos - 8) * 8);
-            }
-            // Move position
-            pos += 1;
-        }
-
-        // Build up each hi/lo
-        Decimal {
-            flags: flags,
-            hi: hi,
-            lo: lo,
-            mid: mid,
-        }
-    }
 }
 
 fn copy_array(into: &mut [u32], from: &[u32]) {
@@ -617,12 +554,12 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
             carry = sum >> 32;
         }
         if vl > bl {
-            for i in bl..vl {
+            for i in value.iter_mut().take(vl).skip(bl) {
                 if carry == 0 {
                     break;
                 }
-                sum = u64::from(value[i]) + carry;
-                value[i] = (sum & 0xFFFF_FFFF) as u32;
+                sum = u64::from(*i) + carry;
+                *i = (sum & 0xFFFF_FFFF) as u32;
                 carry = sum >> 32;
             }
         }
@@ -945,7 +882,7 @@ fn div_internal(working: &mut [u32; 8], divisor: &[u32; 3]) {
         }
 
         // Was it positive?
-        if (sub[3] & 0x80000000) == 0 {
+        if (sub[3] & 0x8000_0000) == 0 {
             for j in 0..4 {
                 working[j + 4] = sub[j];
             }
@@ -1391,7 +1328,7 @@ impl ToPrimitive for Decimal {
             return None;
         }
 
-        let raw : i64 = ((d.mid as i64) << 32) | d.lo as i64;
+        let raw: i64 = ((d.mid as i64) << 32) | d.lo as i64;
         if self.is_negative() {
             Some(raw * -1)
         } else {
@@ -1991,7 +1928,7 @@ mod test {
             d.rescale(25);
         }
         let end = time::precise_time_ns();
-        println!("Time taken: {}ns", (end - start)/1000);
+        println!("Time taken: {}ns", (end - start) / 1000);
     }
 
     #[test]
@@ -2002,7 +1939,7 @@ mod test {
             d.rescale(0);
         }
         let end = time::precise_time_ns();
-        println!("Time taken: {}ns", (end - start)/1000);
+        println!("Time taken: {}ns", (end - start) / 1000);
     }
 
     #[test]
