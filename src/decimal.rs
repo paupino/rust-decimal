@@ -266,30 +266,34 @@ impl Decimal {
                 }
             }
 
-            // Do some midpoint rounding checks
+                        // Do some midpoint rounding checks
             // We're actually doing two things here.
             //  1. Figuring out midpoint rounding when we're right on the boundary. e.g. 2.50000
             //  2. Figuring out whether to add one or not e.g. 2.51
             // We only need to search back a certain number. e.g. 2.500, round(2) search 1.
-            let raw = self.to_biguint();
-
             // Get the decimal portion
             //  e.g. 2.5001, round(2) decimal portion = 01
-            let offset = self.rescale(dp).rescale(old_scale).to_biguint();
-            let decimal_portion = raw - offset;
+            let offset = self.rescale(dp).rescale(old_scale);
+            let mut decimal_portion = [self.lo, self.mid, self.hi];
+            sub_internal(&mut decimal_portion, &[offset.lo, offset.mid, offset.hi]);
 
             // If the decimal_portion is zero then we round based on the other data
-            let mut cap = BigUint::from_u32(5u32).unwrap();
+            let mut cap = [5, 0, 0];
             for _ in 0..(old_scale - dp - 1) {
-                cap = cap.mul(BigUint::from_u32(10u32).unwrap());
+                mul_by_u32(&mut cap, 10);
             }
-            if decimal_portion == cap {
-                if (value[0] & 1) == 1 {
+            let order = cmp_internal(&decimal_portion, &cap);
+            match order {
+                Ordering::Equal => {
+                    if (value[0] & 1) == 1 {
+                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    }
+                }
+                Ordering::Greater => {
+                    // Doesn't matter about the decimal portion
                     add_internal(&mut value, &ONE_INTERNAL_REPR);
                 }
-            } else if decimal_portion > cap {
-                // Doesn't matter about the decimal portion
-                add_internal(&mut value, &ONE_INTERNAL_REPR);
+                _ => {}
             }
 
             Decimal {
