@@ -788,6 +788,13 @@ fn it_can_round_simple_numbers_up() {
 }
 
 #[test]
+fn it_can_round_simple_numbers_with_high_precision() {
+    let a = Decimal::from_str("2.1234567890123456789012345678").unwrap();
+    let b = a.round_dp(27u32);
+    assert_eq!("2.123456789012345678901234568", b.to_string());
+}
+
+#[test]
 fn it_can_return_the_max_value() {
     assert_eq!(
         "79228162514264337593543950335",

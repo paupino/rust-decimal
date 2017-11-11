@@ -31,13 +31,24 @@ macro_rules! bench_bin_op {
 bench_bin_op!(bench_decimal_add, Decimal, +=);
 bench_bin_op!(bench_d128_add, d128, +=);
 
-
 bench_bin_op!(bench_decimal_sub, Decimal, -=);
 bench_bin_op!(bench_d128_sub, d128, -=);
-
 
 bench_bin_op!(bench_decimal_mul, Decimal, *=);
 bench_bin_op!(bench_d128_mul, d128, *=);
 
 bench_bin_op!(bench_decimal_div, Decimal, /=);
 bench_bin_op!(bench_d128_div, d128, /=);
+
+#[bench]
+fn bench_rescale(b: &mut Bencher) {
+    b.iter(|| {
+
+        let mut x = Decimal::from_str("2").unwrap();
+        for _ in 0..100 {
+            for dp in 0..25 {
+                x.bench_rescale(dp);
+            }
+        }
+    });
+}
