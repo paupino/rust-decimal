@@ -1910,7 +1910,7 @@ impl Ord for Decimal {
             return self.lo.cmp(&other.lo);
         }
 
-        if self_scale > other_scale {
+        if self_scale < other_scale {
             let c = self.rescale(other_scale);
             cmp_internal(&[c.lo, c.mid, c.hi], &[other.lo, other.mid, other.hi])
         } else {
@@ -2024,5 +2024,13 @@ mod test {
         };
         let b = a.round_dp(2u32);
         assert_eq!("1982.27", b.to_string());
+    }
+
+    #[test]
+    fn ordering() {
+        assert!(Decimal::from_str("0").unwrap() < Decimal::from_str("0.5").unwrap());
+        assert!(Decimal::from_str("0.5").unwrap() > Decimal::from_str("0").unwrap());
+        assert!(Decimal::from_str("100").unwrap() > Decimal::from_str("0.0098").unwrap());
+        assert!(Decimal::from_str("1000000000000000").unwrap() > Decimal::from_str("999000000000000.0001").unwrap());
     }
 }
