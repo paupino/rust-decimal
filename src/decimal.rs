@@ -1565,31 +1565,38 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
         let mut final_scale = my_scale + ot_scale;
 
         // Do the calculation, this first part is just trying to shortcut cycles.
-        let to = if my[2] == 0 && my[1] == 0 {
+        let to = if my[1] == 0 && my[2] == 0 {
             1
         } else if my[2] == 0 {
             2
         } else {
             3
         };
-        // We calculate into a 256 bit number temporarily
+        // We calculate into a 192 bit number temporarily
         let mut running: [u32; 6] = [0, 0, 0, 0, 0, 0];
         let mut overflow = 0;
         for i in 0..to {
+            overflow = 0;
             for j in 0..3 {
                 let (res, of) = mul_part(ot[j], my[i], overflow);
                 overflow = of;
-                let running_index = i + j;
+                let mut running_index = i + j;
                 let mut working = res;
+
                 loop {
                     let added = running[running_index] as u64 + working as u64;
                     running[running_index] = (added & 0xFFFF_FFFF) as u32;
                     working = (added >> 32) as u32;
-                    if working == 0 {
+                    running_index += 1;
+                    if working == 0 || running_index > 5 {
                         break;
                     }
                 }
             }
+        }
+        // We had overflow but it wasn't recorded so record it here
+        if overflow > 0 && running[3] == 0 {
+            running[3] = overflow;
         }
 
         // While our result is in overflow (i.e. upper portion != 0)
@@ -1602,12 +1609,14 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 
         // Round up the carry if we need to
         if remainder >= 5 {
+            remainder = 1;
             for i in 0..6 {
-                let digit = running[i] as u64 + 1;
-                running[i] = (digit & 0xFFFF_FFFF) as u32;
-                if digit <= 0xFFFF_FFFF {
+                if remainder == 0 {
                     break;
                 }
+                let digit : u64 = running[i] as u64 + 1;
+                remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
+                running[i] = (digit & 0xFFFF_FFFF) as u32;
             }
         }
 
@@ -1624,7 +1633,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
         // We underflowed, we'll lose precision.
         // For now we panic however perhaps in the future I could give the option to round
         if final_scale > MAX_PRECISION {
-            panic!("Multiplication underflowed");
+            panic!("Multiplication underflowed: {} > {}", final_scale, MAX_PRECISION);
         }
 
         // We have our result
@@ -1728,48 +1737,79 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         }
 
         // If we have a really big number try to adjust the scale to 0
-        if !underflow {
-            while quotient_scale < 0 {
-                for i in 0..8 {
-                    if i < 3 {
-                        working[i] = quotient[i];
-                    } else {
-                        working[i] = 0;
-                    }
-                }
-
-                // Mul 10
-                let mut overflow = 0;
-                for i in 0..8 {
-                    let (lo, hi) = mul_part(working[i] as u32, 10, overflow);
-                    working[i] = lo;
-                    overflow = hi;
-                }
-                if is_some_zero(&working, 3, 5) {
-                    quotient_scale += 1;
-                    quotient[0] = working[0];
-                    quotient[1] = working[1];
-                    quotient[2] = working[2];
+        while quotient_scale < 0 {
+            for i in 0..8 {
+                if i < 3 {
+                    working[i] = quotient[i];
                 } else {
-                    // Overflow
-                    panic!("Division overflowed");
+                    working[i] = 0;
                 }
             }
 
-            if quotient_scale > 255 {
-                quotient[0] = 0;
-                quotient[1] = 0;
-                quotient[2] = 0;
-                quotient_scale = 0;
+            // Mul 10
+            let mut overflow = 0;
+            for i in 0..8 {
+                let (lo, hi) = mul_part(working[i] as u32, 10, overflow);
+                working[i] = lo;
+                overflow = hi;
+            }
+            if is_some_zero(&working, 3, 5) {
+                quotient_scale += 1;
+                quotient[0] = working[0];
+                quotient[1] = working[1];
+                quotient[2] = working[2];
+            } else {
+                // Overflow
+                panic!("Division overflowed");
             }
         }
 
-        let quotient_negative = self.is_negative() ^ other.is_negative();
+        if quotient_scale > 255 {
+            quotient[0] = 0;
+            quotient[1] = 0;
+            quotient[2] = 0;
+            quotient_scale = 0;
+        }
+
+        let mut quotient_negative = self.is_negative() ^ other.is_negative();
+
+        // Check for underflow
+        let mut final_scale : u32 = quotient_scale as u32;
+        if final_scale > MAX_PRECISION {
+            let mut remainder = 0;
+
+            // Division underflowed. We must remove some significant digits over using
+            //  an invalid scale.
+            while final_scale > MAX_PRECISION && !is_all_zero(&quotient)
+            {
+                remainder = div_by_u32(&mut quotient, 10);
+                final_scale -= 1;
+            }
+            if final_scale > MAX_PRECISION
+            {
+                // Result underflowed so set to zero
+                final_scale = 0;
+                quotient_negative = false;
+            }
+            else if remainder >= 5
+            {
+                remainder = 1;
+                for i in 0..3 {
+                    if remainder == 0 {
+                        break;
+                    }
+                    let digit : u64 = u64::from(quotient[i]) + 1;
+                    remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
+                    quotient[i] = (digit & 0xFFFF_FFFF) as u32;
+                }
+            }
+        }
+
         Decimal {
             lo: quotient[0],
             mid: quotient[1],
             hi: quotient[2],
-            flags: (quotient_scale << SCALE_SHIFT) as u32 | if quotient_negative { SIGN_MASK } else { 0 },
+            flags: (final_scale << SCALE_SHIFT) as u32 | if quotient_negative { SIGN_MASK } else { 0 },
         }
     }
 }

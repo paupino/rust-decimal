@@ -463,7 +463,8 @@ fn it_can_multiply_8() {
 #[should_panic]
 fn it_panics_when_multiply_with_underflow() {
     let a = Decimal::from_str("2.0000000000000000000000000001").unwrap();
-    let _ = a * a;
+    let b = a * a;
+    println!("{}", b.to_string());
 }
 
 #[test]
@@ -546,7 +547,7 @@ fn it_can_divide_8() {
     let a = Decimal::from_str("2").unwrap();
     let b = Decimal::from_str("3").unwrap();
     let c = a / b;
-    assert_eq!("0.66666666666666666666666666666", c.to_string());
+    assert_eq!("0.6666666666666666666666666667", c.to_string());
 }
 
 #[test]
@@ -554,7 +555,7 @@ fn it_can_divide_9() {
     let a = Decimal::from_str("-2").unwrap();
     let b = Decimal::from_str("3").unwrap();
     let c = a / b;
-    assert_eq!("-0.66666666666666666666666666666", c.to_string());
+    assert_eq!("-0.6666666666666666666666666667", c.to_string());
 }
 
 #[test]
@@ -562,7 +563,7 @@ fn it_can_divide_10() {
     let a = Decimal::from_str("2").unwrap();
     let b = Decimal::from_str("-3").unwrap();
     let c = a / b;
-    assert_eq!("-0.66666666666666666666666666666", c.to_string());
+    assert_eq!("-0.6666666666666666666666666667", c.to_string());
 }
 
 #[test]
@@ -570,7 +571,7 @@ fn it_can_divide_11() {
     let a = Decimal::from_str("-2").unwrap();
     let b = Decimal::from_str("-3").unwrap();
     let c = a / b;
-    assert_eq!("0.66666666666666666666666666666", c.to_string());
+    assert_eq!("0.6666666666666666666666666667", c.to_string());
 }
 
 #[test]
@@ -795,6 +796,16 @@ fn it_can_round_simple_numbers_with_high_precision() {
 }
 
 #[test]
+fn it_can_round_complex_numbers() {
+    // Issue #71
+    let rate = Decimal::new(19, 2); // 0.19
+    let one = Decimal::new(1, 0); // 1
+    let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+    let part = part.round_dp(2); // 0.16
+    assert_eq!("0.16", part.to_string());
+}
+
+#[test]
 fn it_can_return_the_max_value() {
     assert_eq!(
         "79228162514264337593543950335",
@@ -969,4 +980,20 @@ fn it_converts_from_f64() {
     // These both overflow
     assert!(from_f64(std::f64::MAX).is_none());
     assert!(from_f64(std::f64::MIN).is_none());
+}
+
+#[test]
+fn it_handles_simple_underflow() {
+    // Issue #71
+    let rate = Decimal::new(19, 2); // 0.19
+    let one = Decimal::new(1, 0); // 1
+    let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+    let result = one * part;
+    assert_eq!("0.1596638655462184873949579832", result.to_string());
+
+    // 169 * 0.1596638655462184873949579832 = 26.983193277310924
+    let result = part * Decimal::new(169, 0);
+    assert_eq!("26.983193277310924369747899161", result.to_string());
+    let result = Decimal::new(169, 0) * part;
+    assert_eq!("26.983193277310924369747899161", result.to_string());
 }
