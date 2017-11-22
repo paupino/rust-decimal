@@ -2025,4 +2025,12 @@ mod test {
         let b = a.round_dp(2u32);
         assert_eq!("1982.27", b.to_string());
     }
+
+    #[test]
+    fn ordering() {
+        assert!(Decimal::from_str("0").unwrap() < Decimal::from_str("0.5").unwrap());
+        assert!(Decimal::from_str("0.5").unwrap() > Decimal::from_str("0").unwrap());
+        assert!(Decimal::from_str("100").unwrap() > Decimal::from_str("0.0098").unwrap());
+        assert!(Decimal::from_str("1000000000000000").unwrap() > Decimal::from_str("999000000000000.0001").unwrap());
+    }
 }
