@@ -1,5 +1,10 @@
 # Version History
 
+## 0.6.3
+
+Fixes a regression in ordering where by different scales would be rescaled towards losing precision instead of increasing precision. Have added numerous test suites to help cover more issues like this in the future.
+Also fixes an issue in parsing invalid strings whereby the precision exceeded our maximum precision. Previously, this would work with unintended results however this now returns an Error returned from `FromStr`.
+
 ## 0.6.2
 
 Fixes an issue with division of rational numbers allowing results greater than `MAX_PRECISION`. This would ultimately cause issues for future operations on this number.
