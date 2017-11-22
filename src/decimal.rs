@@ -1910,7 +1910,7 @@ impl Ord for Decimal {
             return self.lo.cmp(&other.lo);
         }
 
-        if self_scale > other_scale {
+        if self_scale < other_scale {
             let c = self.rescale(other_scale);
             cmp_internal(&[c.lo, c.mid, c.hi], &[other.lo, other.mid, other.hi])
         } else {
