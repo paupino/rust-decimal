@@ -1,5 +1,10 @@
 # Version History
 
+## 0.6.2
+
+Fixes an issue with division of rational numbers allowing results greater than `MAX_PRECISION`. This would ultimately cause issues for future operations on this number.
+In addition, in some cases transitive operations would not be equal due to overflow being lost.
+
 ## 0.6.1
 
 This minor release is purely to expose `rust_decimal_macros` for use on the nightly channel. Documentation has been updated accordingly.
