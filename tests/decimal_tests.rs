@@ -4,6 +4,8 @@ extern crate rust_decimal;
 use num::ToPrimitive;
 use num::Zero;
 use rust_decimal::Decimal;
+use std::cmp::Ordering;
+use std::cmp::Ordering::*;
 use std::str::FromStr;
 
 // Parsing
@@ -84,6 +86,12 @@ fn it_parses_big_float_string() {
 }
 
 #[test]
+fn it_errors_parsing_a_string_which_exceeds_scale() {
+    let result = Decimal::from_str("1.00000000000000000000000000000000");
+    assert!(result.is_err());
+}
+
+#[test]
 fn it_can_serialize_deserialize() {
     let a = Decimal::from_str("12.3456789").unwrap();
     let bytes = a.serialize();
@@ -158,111 +166,34 @@ fn it_formats_int() {
 // Addition
 
 #[test]
-fn it_adds_decimal_1() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a + b;
-    assert_eq!("5", c.to_string());
-}
+fn it_adds_decimals() {
+    fn add(a: &str, b: &str, c: &str) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        let result = a + b;
+        assert_eq!(c, result.to_string(), "{} + {}", a.to_string(), b.to_string());
+        let result = b + a;
+        assert_eq!(c, result.to_string(), "{} + {}", b.to_string(), a.to_string());
+    }
 
-#[test]
-fn it_adds_decimal_2() {
-    let a = Decimal::from_str("2454495034").unwrap();
-    let b = Decimal::from_str("3451204593").unwrap();
-    let c = a + b;
-    assert_eq!("5905699627", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_3() {
-    let a = Decimal::from_str("24544.95034").unwrap();
-    let b = Decimal::from_str(".3451204593").unwrap();
-    // Do some sanity checks first
-    assert_eq!(5, a.scale());
-    assert_eq!(true, a.is_positive());
-    assert_eq!(10, b.scale());
-    assert_eq!(true, b.is_positive());
-
-    // Do the add
-    let c = a + b;
-    assert_eq!(10, c.scale());
-    assert_eq!("24545.2954604593", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_4() {
-    let a = Decimal::from_str(".1").unwrap();
-    let b = Decimal::from_str(".1").unwrap();
-    let c = a + b;
-    assert_eq!("0.2", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_5() {
-    let a = Decimal::from_str(".1").unwrap();
-    let b = Decimal::from_str("-.1").unwrap();
-    let c = a + b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(1, c.scale());
-    assert_eq!("0.0", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_6() {
-    let a = Decimal::from_str("0").unwrap();
-    let b = Decimal::from_str("1.001").unwrap();
-    let c = a + b;
-    assert_eq!("1.001", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_7() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a + b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("-1", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_8() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a + b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("1", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_9() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a + b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("-5", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_10() {
-    let a = Decimal::from_str("3").unwrap();
-    let b = Decimal::from_str("-2").unwrap();
-    let c = a + b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("1", c.to_string());
-}
-
-#[test]
-fn it_adds_decimal_11() {
-    let a = Decimal::from_str("-3").unwrap();
-    let b = Decimal::from_str("2").unwrap();
-    let c = a + b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("-1", c.to_string());
+    let tests = &[
+        ("2", "3", "5"),
+        ("2454495034", "3451204593", "5905699627"),
+        ("24544.95034", ".3451204593", "24545.2954604593"),
+        (".1", ".1", "0.2"),
+        (".10", ".1", "0.20"),
+        (".1", "-.1", "0.0"),
+        ("0", "1.001", "1.001"),
+        ("2", "-3", "-1"),
+        ("-2", "3", "1"),
+        ("-2", "-3", "-5"),
+        ("3", "-2", "1"),
+        ("-3", "2", "-1"),
+        ("1.234", "2.4567", "3.6907"),
+    ];
+    for &(a, b, c) in tests {
+        add(a, b, c);
+    }
 }
 
 #[test]
@@ -276,113 +207,31 @@ fn it_can_addassign() {
 // Subtraction
 
 #[test]
-fn it_subs_decimal_1() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a - b;
-    assert_eq!("-1", c.to_string());
-}
+fn it_subtracts_decimals() {
+    fn sub(a: &str, b: &str, c: &str) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        let result = a - b;
+        assert_eq!(c, result.to_string(), "{} - {}", a.to_string(), b.to_string());
+    }
 
-#[test]
-fn it_subs_decimal_2() {
-    let a = Decimal::from_str("3451204593").unwrap();
-    let b = Decimal::from_str("2323322332").unwrap();
-    let c = a - b;
-    assert_eq!("1127882261", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_3() {
-    let a = Decimal::from_str("24544.95034").unwrap();
-    let b = Decimal::from_str(".3451204593").unwrap();
-    // Do some sanity checks first
-    assert_eq!(5, a.scale());
-    assert_eq!(true, a.is_positive());
-    assert_eq!(10, b.scale());
-    assert_eq!(true, b.is_positive());
-
-    // Do the add
-    let c = a - b;
-    assert_eq!(10, c.scale());
-    assert_eq!("24544.6052195407", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_4() {
-    let a = Decimal::from_str(".1").unwrap();
-    let b = Decimal::from_str(".1").unwrap();
-    let c = a - b;
-
-    // Keeps the precision
-    assert_eq!("0.0", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_5() {
-    let a = Decimal::from_str(".1").unwrap();
-    let b = Decimal::from_str("-.1").unwrap();
-    let c = a - b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(1, c.scale());
-    assert_eq!("0.2", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_6() {
-    let a = Decimal::from_str("1.001").unwrap();
-    let b = Decimal::from_str("0").unwrap();
-    let c = a - b;
-    assert_eq!("1.001", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_7() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a - b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("5", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_8() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a - b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("-5", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_9() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a - b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("1", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_10() {
-    let a = Decimal::from_str("3").unwrap();
-    let b = Decimal::from_str("-2").unwrap();
-    let c = a - b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("5", c.to_string());
-}
-
-#[test]
-fn it_subs_decimal_11() {
-    let a = Decimal::from_str("-3").unwrap();
-    let b = Decimal::from_str("2").unwrap();
-    let c = a - b;
-    // We keep the scale of 1 as this is the precision
-    assert_eq!(0, c.scale());
-    assert_eq!("-5", c.to_string());
+    let tests = &[
+        ("2", "3", "-1"),
+        ("3451204593", "2323322332", "1127882261"),
+        ("24544.95034", ".3451204593", "24544.6052195407"),
+        (".1", ".1", "0.0"),
+        (".1", "-.1", "0.2"),
+        ("1.001", "0", "1.001"),
+        ("2", "-3", "5"),
+        ("-2", "3", "-5"),
+        ("-2", "-3", "1"),
+        ("3", "-2", "5"),
+        ("-3", "2", "-5"),
+        ("1.234", "2.4567", "-1.2227"),
+    ];
+    for &(a, b, c) in tests {
+        sub(a, b, c);
+    }
 }
 
 #[test]
@@ -395,68 +244,33 @@ fn it_can_subassign() {
 
 // Multiplication
 
-#[test]
-fn it_can_multiply_1() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a * b;
-    assert_eq!("6", c.to_string());
-}
 
 #[test]
-fn it_can_multiply_2() {
-    let a = Decimal::from_str("2454495034").unwrap();
-    let b = Decimal::from_str("3451204593").unwrap();
-    let c = a * b;
-    assert_eq!("8470964534836491162", c.to_string());
-}
+fn it_multiplies_decimals() {
+    fn mul(a: &str, b: &str, c: &str) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        let result = a * b;
+        assert_eq!(c, result.to_string(), "{} * {}", a.to_string(), b.to_string());
+        let result = b * a;
+        assert_eq!(c, result.to_string(), "{} * {}", b.to_string(), a.to_string());
+    }
 
-#[test]
-fn it_can_multiply_3() {
-    let a = Decimal::from_str("24544.95034").unwrap();
-    let b = Decimal::from_str(".3451204593").unwrap();
-    let c = a * b;
-    assert_eq!("8470.964534836491162", c.to_string());
-}
-
-#[test]
-fn it_can_multiply_4() {
-    let a = Decimal::from_str(".1").unwrap();
-    let b = Decimal::from_str(".1").unwrap();
-    let c = a * b;
-    assert_eq!("0.01", c.to_string());
-}
-
-#[test]
-fn it_can_multiply_5() {
-    let a = Decimal::from_str("0").unwrap();
-    let b = Decimal::from_str("1.001").unwrap();
-    let c = a * b;
-    assert_eq!("0", c.to_string());
-}
-
-#[test]
-fn it_can_multiply_6() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a * b;
-    assert_eq!("-6", c.to_string());
-}
-
-#[test]
-fn it_can_multiply_7() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a * b;
-    assert_eq!("-6", c.to_string());
-}
-
-#[test]
-fn it_can_multiply_8() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a * b;
-    assert_eq!("6", c.to_string());
+    let tests = &[
+        ("2", "3", "6"),
+        ("2454495034", "3451204593", "8470964534836491162"),
+        ("24544.95034", ".3451204593", "8470.964534836491162"),
+        (".1", ".1", "0.01"),
+        ("0", "1.001", "0"),
+        ("2", "-3", "-6"),
+        ("-2", "3", "-6"),
+        ("-2", "-3", "6"),
+        ("1", "2.01", "2.01"),
+        ("1.0", "2.01", "2.010"), // Scale is always additive
+    ];
+    for &(a, b, c) in tests {
+        mul(a, b, c);
+    }
 }
 
 #[test]
@@ -486,92 +300,31 @@ fn it_can_mulassign() {
 // Division
 
 #[test]
-fn it_can_divide_1() {
-    let a = Decimal::from_str("6").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a / b;
-    assert_eq!("2", c.to_string());
-}
+fn it_divides_decimals() {
+    fn div(a: &str, b: &str, c: &str) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        let result = a / b;
+        assert_eq!(c, result.to_string(), "{} / {}", a.to_string(), b.to_string());
+    }
 
-#[test]
-fn it_can_divide_2() {
-    let a = Decimal::from_str("10").unwrap();
-    let b = Decimal::from_str("2").unwrap();
-    let c = a / b;
-    assert_eq!("5", c.to_string());
-}
-
-#[test]
-fn it_can_divide_3() {
-    let a = Decimal::from_str("2.2").unwrap();
-    let b = Decimal::from_str("1.1").unwrap();
-    let c = a / b;
-    assert_eq!("2", c.to_string());
-}
-
-#[test]
-fn it_can_divide_4() {
-    let a = Decimal::from_str("-2.2").unwrap();
-    let b = Decimal::from_str("-1.1").unwrap();
-    let c = a / b;
-    assert_eq!("2", c.to_string());
-}
-
-#[test]
-fn it_can_divide_5() {
-    let a = Decimal::from_str("12.88").unwrap();
-    let b = Decimal::from_str("5.6").unwrap();
-    let c = a / b;
-    assert_eq!("2.3", c.to_string());
-}
-
-#[test]
-fn it_can_divide_6() {
-    let a = Decimal::from_str("1023427554493").unwrap();
-    let b = Decimal::from_str("43432632").unwrap();
-    let c = a / b;
-    assert_eq!("23563.562864276795382789603908", c.to_string()); // Rounded
-}
-
-#[test]
-fn it_can_divide_7() {
-    let a = Decimal::from_str("10000").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a / b;
-
-    assert_eq!("3333.3333333333333333333333333", c.to_string());
-}
-
-#[test]
-fn it_can_divide_8() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a / b;
-    assert_eq!("0.6666666666666666666666666667", c.to_string());
-}
-
-#[test]
-fn it_can_divide_9() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a / b;
-    assert_eq!("-0.6666666666666666666666666667", c.to_string());
-}
-
-#[test]
-fn it_can_divide_10() {
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a / b;
-    assert_eq!("-0.6666666666666666666666666667", c.to_string());
-}
-
-#[test]
-fn it_can_divide_11() {
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a / b;
-    assert_eq!("0.6666666666666666666666666667", c.to_string());
+    let tests = &[
+        ("6", "3", "2"),
+        ("10", "2", "5"),
+        ("2.2", "1.1", "2"),
+        ("-2.2", "-1.1", "2"),
+        ("12.88", "5.6", "2.3"),
+        ("1023427554493", "43432632", "23563.562864276795382789603908"),
+        ("10000", "3", "3333.3333333333333333333333333"),
+        ("2", "3", "0.6666666666666666666666666667"),
+        ("1", "3", "0.3333333333333333333333333333"),
+        ("-2", "3", "-0.6666666666666666666666666667"),
+        ("2", "-3", "-0.6666666666666666666666666667"),
+        ("-2", "-3", "0.6666666666666666666666666667"),
+    ];
+    for &(a, b, c) in tests {
+        div(a, b, c);
+    }
 }
 
 #[test]
@@ -593,53 +346,25 @@ fn it_can_divassign() {
 // https://math.stackexchange.com/q/801962/82277
 
 #[test]
-fn it_can_rem_1() {
-    // a = qb + r
-    // 2 = 0*3 + 2
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a % b;
-    assert_eq!("2", c.to_string());
-}
+fn it_rems_decimals() {
+    fn rem(a: &str, b: &str, c: &str) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        // a = qb + r
+        let result = a % b;
+        assert_eq!(c, result.to_string(), "{} % {}", a.to_string(), b.to_string());
+    }
 
-#[test]
-fn it_can_rem_2() {
-    // a = qb + r
-    // -2 = 0*3 + -2
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a % b;
-    assert_eq!("-2", c.to_string());
-}
-
-#[test]
-fn it_can_rem_3() {
-    // a = qb + r
-    // 2 = 0*-3 + 2
-    let a = Decimal::from_str("2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a % b;
-    assert_eq!("2", c.to_string());
-}
-
-#[test]
-fn it_can_rem_4() {
-    // a = qb + r
-    // -2 = 0*-3 + -2
-    let a = Decimal::from_str("-2").unwrap();
-    let b = Decimal::from_str("-3").unwrap();
-    let c = a % b;
-    assert_eq!("-2", c.to_string());
-}
-
-#[test]
-fn it_can_rem_5() {
-    // a = qb + r
-    // 6 = 2*3 + 0
-    let a = Decimal::from_str("6").unwrap();
-    let b = Decimal::from_str("3").unwrap();
-    let c = a % b;
-    assert_eq!("0", c.to_string());
+    let tests = &[
+        ("2", "3", "2"),
+        ("-2", "3", "-2"),
+        ("2", "-3", "2"),
+        ("-2", "-3", "-2"),
+        ("6", "3", "0"),
+    ];
+    for &(a, b, c) in tests {
+        rem(a, b, c);
+    }
 }
 
 #[test]
@@ -651,24 +376,53 @@ fn it_can_remassign() {
 }
 
 #[test]
-fn it_can_eq_1() {
-    let a = Decimal::new(1, 0);
-    let b = Decimal::new(1, 0);
-    assert_eq!(true, a.eq(&b));
+fn it_eqs_decimals() {
+    fn eq(a: &str, b: &str, c: bool) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        assert_eq!(c, a.eq(&b), "{} == {}", a.to_string(), b.to_string());
+        assert_eq!(c, b.eq(&a), "{} == {}", b.to_string(), a.to_string());
+    }
+
+    let tests = &[
+        ("1", "1", true),
+        ("1", "-1", false),
+        ("1", "1.00", true),
+        ("1.2345000000000", "1.2345", true),
+        ("1.0000000000000000000000000000", "1.0000000000000000000000000000", true),
+        ("1.0000000000000000000000000001", "1.0000000000000000000000000000", false),
+    ];
+    for &(a, b, c) in tests {
+        eq(a, b, c);
+    }
 }
 
 #[test]
-fn it_can_eq_2() {
-    let a = Decimal::new(1, 0);
-    let b = Decimal::new(-1, 0);
-    assert_eq!(false, a.eq(&b));
-}
+fn it_cmps_decimals() {
+    fn cmp(a: &str, b: &str, c: Ordering) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        assert_eq!(c, a.cmp(&b), "{} {:?} {}", a.to_string(), c, b.to_string());
+    }
 
-#[test]
-fn it_can_eq_3() {
-    let a = Decimal::new(1, 0);
-    let b = Decimal::new(100, 2);
-    assert_eq!(true, a.eq(&b));
+    let tests = &[
+        ("1", "1", Equal),
+        ("1", "-1", Greater),
+        ("1", "1.00", Equal),
+        ("1.2345000000000", "1.2345", Equal),
+        ("1.0000000000000000000000000001", "1.0000000000000000000000000000", Greater),
+        ("1.0000000000000000000000000000", "1.0000000000000000000000000001", Less),
+        ("-1", "100", Less),
+        ("-100", "1", Less),
+        ("0", "0.5", Less),
+        ("0.5", "0", Greater),
+        ("100", "0.0098", Greater),
+        ("1000000000000000", "999000000000000.0001", Greater),
+        ("2.0001", "2.0001", Equal),
+    ];
+    for &(a, b, c) in tests {
+        cmp(a, b, c);
+    }
 }
 
 #[test]

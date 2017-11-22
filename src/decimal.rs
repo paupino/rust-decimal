@@ -1136,6 +1136,11 @@ impl FromStr for Decimal {
             0
         };
 
+        // If the scale is too big then we could round or error.
+        if scale > MAX_PRECISION {
+            return Err(Error::new("Invalid decimal: scale exceeds max precision"));
+        }
+
         // Parse this using base 10 (future allow using radix?)
         let mut data = [0u32, 0u32, 0u32];
         for i in coeff {
@@ -2024,13 +2029,5 @@ mod test {
         };
         let b = a.round_dp(2u32);
         assert_eq!("1982.27", b.to_string());
-    }
-
-    #[test]
-    fn ordering() {
-        assert!(Decimal::from_str("0").unwrap() < Decimal::from_str("0.5").unwrap());
-        assert!(Decimal::from_str("0.5").unwrap() > Decimal::from_str("0").unwrap());
-        assert!(Decimal::from_str("100").unwrap() > Decimal::from_str("0.0098").unwrap());
-        assert!(Decimal::from_str("1000000000000000").unwrap() > Decimal::from_str("999000000000000.0001").unwrap());
     }
 }
