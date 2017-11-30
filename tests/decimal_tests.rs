@@ -13,7 +13,7 @@ use std::str::FromStr;
 #[test]
 fn it_creates_a_new_negative_decimal() {
     let a = Decimal::new(-100, 2);
-    assert_eq!(a.is_negative(), true);
+    assert_eq!(a.is_sign_negative(), true);
     assert_eq!(a.scale(), 2);
     assert_eq!("-1.00", a.to_string());
 }
@@ -27,7 +27,7 @@ fn it_parses_empty_string() {
 #[test]
 fn it_parses_positive_int_string() {
     let a = Decimal::from_str("233").unwrap();
-    assert_eq!(a.is_negative(), false);
+    assert_eq!(a.is_sign_negative(), false);
     assert_eq!(a.scale(), 0);
     assert_eq!("233", a.to_string());
 }
@@ -35,7 +35,7 @@ fn it_parses_positive_int_string() {
 #[test]
 fn it_parses_negative_int_string() {
     let a = Decimal::from_str("-233").unwrap();
-    assert_eq!(a.is_negative(), true);
+    assert_eq!(a.is_sign_negative(), true);
     assert_eq!(a.scale(), 0);
     println!("to_string");
     assert_eq!("-233", a.to_string());
@@ -44,7 +44,7 @@ fn it_parses_negative_int_string() {
 #[test]
 fn it_parses_positive_float_string() {
     let a = Decimal::from_str("233.323223").unwrap();
-    assert_eq!(a.is_negative(), false);
+    assert_eq!(a.is_sign_negative(), false);
     assert_eq!(a.scale(), 6);
     assert_eq!("233.323223", a.to_string());
 }
@@ -52,7 +52,7 @@ fn it_parses_positive_float_string() {
 #[test]
 fn it_parses_negative_float_string() {
     let a = Decimal::from_str("-233.43343").unwrap();
-    assert_eq!(a.is_negative(), true);
+    assert_eq!(a.is_sign_negative(), true);
     assert_eq!(a.scale(), 5);
     assert_eq!("-233.43343", a.to_string());
 }
@@ -60,7 +60,7 @@ fn it_parses_negative_float_string() {
 #[test]
 fn it_parses_positive_tiny_float_string() {
     let a = Decimal::from_str(".000001").unwrap();
-    assert_eq!(a.is_negative(), false);
+    assert_eq!(a.is_sign_negative(), false);
     assert_eq!(a.scale(), 6);
     assert_eq!("0.000001", a.to_string());
 }
@@ -68,7 +68,7 @@ fn it_parses_positive_tiny_float_string() {
 #[test]
 fn it_parses_negative_tiny_float_string() {
     let a = Decimal::from_str("-0.000001").unwrap();
-    assert_eq!(a.is_negative(), true);
+    assert_eq!(a.is_sign_negative(), true);
     assert_eq!(a.scale(), 6);
     assert_eq!("-0.000001", a.to_string());
 }

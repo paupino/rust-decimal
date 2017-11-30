@@ -140,7 +140,7 @@ impl Decimal {
     /// * `positive`: true if the resulting decimal should be positive.
     pub fn set_sign(&mut self, positive: bool) {
         if positive {
-            if self.is_negative() {
+            if self.is_sign_negative() {
                 self.flags ^= SIGN_MASK;
             }
         } else {
@@ -209,12 +209,24 @@ impl Decimal {
     }
 
     /// Returns `true` if the decimal is negative.
+    #[deprecated(since="0.6.3", note="please use `is_sign_negative` instead")]
     pub fn is_negative(&self) -> bool {
+        self.is_sign_negative()
+    }
+
+    /// Returns `true` if the decimal is positive.
+    #[deprecated(since="0.6.3", note="please use `is_sign_positive` instead")]
+    pub fn is_positive(&self) -> bool {
+        self.is_sign_positive()
+    }
+
+    /// Returns `true` if the decimal is negative.
+    pub fn is_sign_negative(&self) -> bool {
         self.flags & SIGN_MASK > 0
     }
 
     /// Returns `true` if the decimal is positive.
-    pub fn is_positive(&self) -> bool {
+    pub fn is_sign_positive(&self) -> bool {
         self.flags & SIGN_MASK == 0
     }
 
@@ -248,7 +260,7 @@ impl Decimal {
             if self.is_zero() {
                 return self.rescale(dp);
             }
-            let negative = self.is_negative();
+            let negative = self.is_sign_negative();
 
             // Check to see if we need to add or subtract one.
             // Some expected results assuming dp = 2 and old_scale = 3:
@@ -374,7 +386,7 @@ impl Decimal {
             lo: raw[0],
             mid: raw[1],
             hi: raw[2],
-            flags: (scale << SCALE_SHIFT) | if self.is_negative() { SIGN_MASK } else { 0 },
+            flags: (scale << SCALE_SHIFT) | if self.is_sign_negative() { SIGN_MASK } else { 0 },
         }
     }
 
@@ -1334,7 +1346,7 @@ impl ToPrimitive for Decimal {
         }
 
         let raw: i64 = ((d.mid as i64) << 32) | d.lo as i64;
-        if self.is_negative() {
+        if self.is_sign_negative() {
             Some(raw * -1)
         } else {
             Some(raw)
@@ -1342,7 +1354,7 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_u64(&self) -> Option<u64> {
-        if self.is_negative() {
+        if self.is_sign_negative() {
             return None;
         }
 
@@ -1404,7 +1416,7 @@ impl fmt::Display for Decimal {
             rep.insert(0, '0');
         }
 
-        f.pad_integral(self.is_positive(), "", &rep)
+        f.pad_integral(self.is_sign_positive(), "", &rep)
     }
 }
 
@@ -1439,8 +1451,8 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         }
 
         // Add the items together
-        let my_negative = self.is_negative();
-        let other_negative = other.is_negative();
+        let my_negative = self.is_sign_negative();
+        let other_negative = other.is_sign_negative();
         if my_negative && other_negative {
             flags |= SIGN_MASK;
             add_internal(&mut my, &ot);
@@ -1561,7 +1573,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
         let mut result = [0u32, 0u32, 0u32];
 
         // We are only resulting in a negative if we have mismatched signs
-        let negative = self.is_negative() ^ other.is_negative();
+        let negative = self.is_sign_negative() ^ other.is_sign_negative();
 
         // We get the scale of the result by adding the operands. This may be too big, however
         //  we'll correct later
@@ -1776,7 +1788,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
             quotient_scale = 0;
         }
 
-        let mut quotient_negative = self.is_negative() ^ other.is_negative();
+        let mut quotient_negative = self.is_sign_negative() ^ other.is_sign_negative();
 
         // Check for underflow
         let mut final_scale : u32 = quotient_scale as u32;
@@ -1855,7 +1867,7 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
             lo: working[4],
             mid: working[5],
             hi: working[6],
-            flags: if self.is_negative() { SIGN_MASK } else { 0 },
+            flags: if self.is_sign_negative() { SIGN_MASK } else { 0 },
         }
     }
 }
@@ -1889,8 +1901,8 @@ impl PartialOrd for Decimal {
 impl Ord for Decimal {
     fn cmp(&self, other: &Decimal) -> Ordering {
         // Quick exit if major differences
-        let self_negative = self.is_negative();
-        let other_negative = other.is_negative();
+        let self_negative = self.is_sign_negative();
+        let other_negative = other.is_sign_negative();
         if self_negative && !other_negative {
             return Ordering::Less;
         } else if !self_negative && other_negative {
