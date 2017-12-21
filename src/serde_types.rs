@@ -9,7 +9,7 @@ impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
     where
         D: serde::de::Deserializer<'de>, {
-        deserializer.deserialize_str(DecimalVisitor)
+        deserializer.deserialize_any(DecimalVisitor)
     }
 }
 
