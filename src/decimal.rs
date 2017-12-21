@@ -209,13 +209,13 @@ impl Decimal {
     }
 
     /// Returns `true` if the decimal is negative.
-    #[deprecated(since="0.6.3", note="please use `is_sign_negative` instead")]
+    #[deprecated(since = "0.6.3", note = "please use `is_sign_negative` instead")]
     pub fn is_negative(&self) -> bool {
         self.is_sign_negative()
     }
 
     /// Returns `true` if the decimal is positive.
-    #[deprecated(since="0.6.3", note="please use `is_sign_positive` instead")]
+    #[deprecated(since = "0.6.3", note = "please use `is_sign_positive` instead")]
     pub fn is_positive(&self) -> bool {
         self.is_sign_positive()
     }
@@ -386,7 +386,12 @@ impl Decimal {
             lo: raw[0],
             mid: raw[1],
             hi: raw[2],
-            flags: (scale << SCALE_SHIFT) | if self.is_sign_negative() { SIGN_MASK } else { 0 },
+            flags: (scale << SCALE_SHIFT) |
+                if self.is_sign_negative() {
+                    SIGN_MASK
+                } else {
+                    0
+                },
         }
     }
 
@@ -1680,7 +1685,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
                 if remainder == 0 {
                     break;
                 }
-                let digit : u64 = running[i] as u64 + 1;
+                let digit: u64 = running[i] as u64 + 1;
                 remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
                 running[i] = (digit & 0xFFFF_FFFF) as u32;
             }
@@ -1699,7 +1704,11 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
         // We underflowed, we'll lose precision.
         // For now we panic however perhaps in the future I could give the option to round
         if final_scale > MAX_PRECISION {
-            panic!("Multiplication underflowed: {} > {}", final_scale, MAX_PRECISION);
+            panic!(
+                "Multiplication underflowed: {} > {}",
+                final_scale,
+                MAX_PRECISION
+            );
         }
 
         // We have our result
@@ -1840,31 +1849,27 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         let mut quotient_negative = self.is_sign_negative() ^ other.is_sign_negative();
 
         // Check for underflow
-        let mut final_scale : u32 = quotient_scale as u32;
+        let mut final_scale: u32 = quotient_scale as u32;
         if final_scale > MAX_PRECISION {
             let mut remainder = 0;
 
             // Division underflowed. We must remove some significant digits over using
             //  an invalid scale.
-            while final_scale > MAX_PRECISION && !is_all_zero(&quotient)
-            {
+            while final_scale > MAX_PRECISION && !is_all_zero(&quotient) {
                 remainder = div_by_u32(&mut quotient, 10);
                 final_scale -= 1;
             }
-            if final_scale > MAX_PRECISION
-            {
+            if final_scale > MAX_PRECISION {
                 // Result underflowed so set to zero
                 final_scale = 0;
                 quotient_negative = false;
-            }
-            else if remainder >= 5
-            {
+            } else if remainder >= 5 {
                 remainder = 1;
                 for i in 0..3 {
                     if remainder == 0 {
                         break;
                     }
-                    let digit : u64 = u64::from(quotient[i]) + 1;
+                    let digit: u64 = u64::from(quotient[i]) + 1;
                     remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
                     quotient[i] = (digit & 0xFFFF_FFFF) as u32;
                 }
@@ -1916,7 +1921,11 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
             lo: working[4],
             mid: working[5],
             hi: working[6],
-            flags: if self.is_sign_negative() { SIGN_MASK } else { 0 },
+            flags: if self.is_sign_negative() {
+                SIGN_MASK
+            } else {
+                0
+            },
         }
     }
 }
