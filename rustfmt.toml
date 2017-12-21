@@ -1,8 +1,1 @@
-fn_brace_style = "PreferSameLine"
-struct_trailing_comma = "Never"
-struct_lit_trailing_comma = "Never"
-struct_lit_multiline_style = "ForceMulti"
-enum_trailing_comma = false
 max_width = 120
-ideal_width = 100
-reorder_imports = true

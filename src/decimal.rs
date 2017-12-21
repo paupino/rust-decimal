@@ -603,7 +603,7 @@ fn add_with_scale_internal(
         copy_array(quotient, working);
         *quotient_scale = *working_scale;
         return false;
-    } 
+    }
 
     if is_some_zero(working, 0, 4) {
         return false;
