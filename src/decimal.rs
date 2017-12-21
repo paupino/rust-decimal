@@ -1115,6 +1115,49 @@ impl FromStr for Decimal {
                     coeff.push((b - b'0') as u32);
                     offset += 1;
                     len -= 1;
+
+                    // If the coefficient is longer than 29 then it'll affect the scale, so exit early
+                    if coeff.len() as u32 > MAX_PRECISION {
+                        // Before we exit, do some rounding if necessary
+                        if offset < bytes.len() {
+                            // We only need to look at the next significant digit
+                            let next_byte = bytes[offset];
+                            match next_byte {
+                                b'0'...b'9' => {
+                                    let digit = (next_byte - b'0') as u32;
+                                    if digit >= 5 {
+                                        let mut index = coeff.len() - 1;
+                                        loop {
+                                            let new_digit = coeff[index] + 1;
+                                            if new_digit <= 9 {
+                                                coeff[index] = new_digit;
+                                                break;
+                                            } else {
+                                                coeff[index] = 0;
+                                                if index == 0 {
+                                                    println!("dot offset was: {}", dot_offset);
+                                                    coeff.insert(0, 1u32);
+                                                    dot_offset += 1;
+                                                    coeff.pop();
+                                                    break;
+                                                }
+                                            }
+                                            index -= 1;
+                                        }
+                                    }
+                                }
+                                b'_' => {}
+                                b'.' => {
+                                    // Still an error if we have a second dp
+                                    if dot_offset >= 0 {
+                                        return Err(Error::new("Invalid decimal: two decimal points"));
+                                    }
+                                }
+                                _ => return Err(Error::new("Invalid decimal: unknown character")),
+                            }
+                        }
+                        break;
+                    }
                 }
                 b'.' => {
                     if dot_offset >= 0 {
@@ -1148,19 +1191,25 @@ impl FromStr for Decimal {
             0
         };
 
-        // If the scale is too big then we could round or error.
-        if scale > MAX_PRECISION {
-            return Err(Error::new("Invalid decimal: scale exceeds max precision"));
-        }
-
         // Parse this using base 10 (future allow using radix?)
+        let mut working = [0u32, 0u32, 0u32];
         let mut data = [0u32, 0u32, 0u32];
-        for i in coeff {
-            mul_by_u32(&mut data, 10u32);
-            let carry = add_internal(&mut data, &[i]);
-            if carry > 0 {
+        for digit in coeff {
+            // If the data is going to overflow then we should go into recovery mode
+            let overflow = mul_by_u32(&mut working, 10u32);
+            if overflow > 0 {
+                // This indicates a bug in the coeeficient rounding above
                 return Err(Error::new("Invalid decimal: overflow"));
             }
+
+            // Copy the data over and add the digit
+            copy_array(&mut data, &working);
+            let carry = add_internal(&mut data, &[digit]);
+            if carry > 0 {
+                // Highly unlikely scenario which is more indicative of a bug
+                return Err(Error::new("Invalid decimal: overflow"));
+            }
+            copy_array(&mut working, &data);
         }
 
         Ok(Decimal {
