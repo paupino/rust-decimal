@@ -1,5 +1,9 @@
 # Version History
 
+## 0.6.4
+
+Fixes silent overflow errors when parsing highly significant strings. `from_str` will now round in these scenario's, similar to oleaut32 behavior.
+
 ## 0.6.3
 
 Fixes a regression in ordering where by different scales would be rescaled towards losing precision instead of increasing precision. Have added numerous test suites to help cover more issues like this in the future.
