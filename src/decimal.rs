@@ -1198,24 +1198,19 @@ impl FromStr for Decimal {
         };
 
         // Parse this using base 10 (future allow using radix?)
-        let mut working = [0u32, 0u32, 0u32];
         let mut data = [0u32, 0u32, 0u32];
         for digit in coeff {
             // If the data is going to overflow then we should go into recovery mode
-            let overflow = mul_by_u32(&mut working, 10u32);
+            let overflow = mul_by_u32(&mut data, 10u32);
             if overflow > 0 {
                 // This indicates a bug in the coeeficient rounding above
                 return Err(Error::new("Invalid decimal: overflow"));
             }
-
-            // Copy the data over and add the digit
-            copy_array(&mut data, &working);
             let carry = add_internal(&mut data, &[digit]);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
                 return Err(Error::new("Invalid decimal: overflow"));
             }
-            copy_array(&mut working, &data);
         }
 
         Ok(Decimal {
