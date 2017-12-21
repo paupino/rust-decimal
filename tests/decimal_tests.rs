@@ -86,12 +86,6 @@ fn it_parses_big_float_string() {
 }
 
 #[test]
-fn it_errors_parsing_a_string_which_exceeds_scale() {
-    let result = Decimal::from_str("1.00000000000000000000000000000000");
-    assert!(result.is_err());
-}
-
-#[test]
 fn it_can_serialize_deserialize() {
     let a = Decimal::from_str("12.3456789").unwrap();
     let bytes = a.serialize();
@@ -171,9 +165,21 @@ fn it_adds_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a + b;
-        assert_eq!(c, result.to_string(), "{} + {}", a.to_string(), b.to_string());
+        assert_eq!(
+            c,
+            result.to_string(),
+            "{} + {}",
+            a.to_string(),
+            b.to_string()
+        );
         let result = b + a;
-        assert_eq!(c, result.to_string(), "{} + {}", b.to_string(), a.to_string());
+        assert_eq!(
+            c,
+            result.to_string(),
+            "{} + {}",
+            b.to_string(),
+            a.to_string()
+        );
     }
 
     let tests = &[
@@ -212,7 +218,13 @@ fn it_subtracts_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a - b;
-        assert_eq!(c, result.to_string(), "{} - {}", a.to_string(), b.to_string());
+        assert_eq!(
+            c,
+            result.to_string(),
+            "{} - {}",
+            a.to_string(),
+            b.to_string()
+        );
     }
 
     let tests = &[
@@ -251,9 +263,21 @@ fn it_multiplies_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a * b;
-        assert_eq!(c, result.to_string(), "{} * {}", a.to_string(), b.to_string());
+        assert_eq!(
+            c,
+            result.to_string(),
+            "{} * {}",
+            a.to_string(),
+            b.to_string()
+        );
         let result = b * a;
-        assert_eq!(c, result.to_string(), "{} * {}", b.to_string(), a.to_string());
+        assert_eq!(
+            c,
+            result.to_string(),
+            "{} * {}",
+            b.to_string(),
+            a.to_string()
+        );
     }
 
     let tests = &[
@@ -305,7 +329,13 @@ fn it_divides_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a / b;
-        assert_eq!(c, result.to_string(), "{} / {}", a.to_string(), b.to_string());
+        assert_eq!(
+            c,
+            result.to_string(),
+            "{} / {}",
+            a.to_string(),
+            b.to_string()
+        );
     }
 
     let tests = &[
@@ -314,7 +344,11 @@ fn it_divides_decimals() {
         ("2.2", "1.1", "2"),
         ("-2.2", "-1.1", "2"),
         ("12.88", "5.6", "2.3"),
-        ("1023427554493", "43432632", "23563.562864276795382789603908"),
+        (
+            "1023427554493",
+            "43432632",
+            "23563.562864276795382789603908",
+        ),
         ("10000", "3", "3333.3333333333333333333333333"),
         ("2", "3", "0.6666666666666666666666666667"),
         ("1", "3", "0.3333333333333333333333333333"),
@@ -352,7 +386,13 @@ fn it_rems_decimals() {
         let b = Decimal::from_str(b).unwrap();
         // a = qb + r
         let result = a % b;
-        assert_eq!(c, result.to_string(), "{} % {}", a.to_string(), b.to_string());
+        assert_eq!(
+            c,
+            result.to_string(),
+            "{} % {}",
+            a.to_string(),
+            b.to_string()
+        );
     }
 
     let tests = &[
@@ -389,8 +429,16 @@ fn it_eqs_decimals() {
         ("1", "-1", false),
         ("1", "1.00", true),
         ("1.2345000000000", "1.2345", true),
-        ("1.0000000000000000000000000000", "1.0000000000000000000000000000", true),
-        ("1.0000000000000000000000000001", "1.0000000000000000000000000000", false),
+        (
+            "1.0000000000000000000000000000",
+            "1.0000000000000000000000000000",
+            true,
+        ),
+        (
+            "1.0000000000000000000000000001",
+            "1.0000000000000000000000000000",
+            false,
+        ),
     ];
     for &(a, b, c) in tests {
         eq(a, b, c);
@@ -410,8 +458,16 @@ fn it_cmps_decimals() {
         ("1", "-1", Greater),
         ("1", "1.00", Equal),
         ("1.2345000000000", "1.2345", Equal),
-        ("1.0000000000000000000000000001", "1.0000000000000000000000000000", Greater),
-        ("1.0000000000000000000000000000", "1.0000000000000000000000000001", Less),
+        (
+            "1.0000000000000000000000000001",
+            "1.0000000000000000000000000000",
+            Greater,
+        ),
+        (
+            "1.0000000000000000000000000000",
+            "1.0000000000000000000000000001",
+            Less,
+        ),
         ("-1", "100", Less),
         ("-100", "1", Less),
         ("0", "0.5", Less),
@@ -750,4 +806,49 @@ fn it_handles_simple_underflow() {
     assert_eq!("26.983193277310924369747899161", result.to_string());
     let result = Decimal::new(169, 0) * part;
     assert_eq!("26.983193277310924369747899161", result.to_string());
+}
+
+#[test]
+fn it_can_parse_highly_significant_numbers() {
+    let tests = &[
+        (
+            "11.111111111111111111111111111",
+            "11.111111111111111111111111111",
+        ),
+        (
+            "11.11111111111111111111111111111",
+            "11.111111111111111111111111111",
+        ),
+        (
+            "11.1111111111111111111111111115",
+            "11.111111111111111111111111112",
+        ),
+        (
+            "115.111111111111111111111111111",
+            "115.11111111111111111111111111",
+        ),
+        (
+            "1115.11111111111111111111111111",
+            "1115.1111111111111111111111111",
+        ),
+        (
+            "11.1111111111111111111111111195",
+            "11.111111111111111111111111120",
+        ),
+        (
+            "99.9999999999999999999999999995",
+            "100.00000000000000000000000000",
+        ),
+        (
+            "-11.1111111111111111111111111195",
+            "-11.111111111111111111111111120",
+        ),
+        (
+            "-99.9999999999999999999999999995",
+            "-100.00000000000000000000000000",
+        ),
+    ];
+    for &(value, expected) in tests {
+        assert_eq!(expected, Decimal::from_str(value).unwrap().to_string());
+    }
 }
