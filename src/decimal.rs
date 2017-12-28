@@ -240,6 +240,43 @@ impl Decimal {
         *MAX
     }
 
+    /// Returns a new `Decimal` integral with no fractional portion.
+    /// This is a true truncation whereby no rounding is performed, e.g. 1.56 -> 1
+    pub fn trunc(&self) -> Decimal {
+        let mut scale = self.scale();
+        if scale == 0 {
+            // Nothing to do
+            return *self;
+        }
+        let mut working = [self.lo, self.mid, self.hi];
+        while scale > 0 {
+            // We're removing precision, so we don't care about overflow
+            if scale < 10 {
+                // TODO: Also optimize u64 by using BIG_POWERS_10
+                div_by_u32(&mut working, POWERS_10[scale as usize]);
+                break;
+            } else {
+                div_by_u32(&mut working, POWERS_10[9]);
+                // Only 9 as this array starts with 1
+                scale -= 9;
+            }
+        }
+        Decimal {
+            lo: working[0],
+            mid: working[1],
+            hi: working[2],
+            flags: flags(self.is_sign_negative(), 0),
+        }
+    }
+
+    /// Returns a new `Decimal` representing the fractional portion of the number.
+    /// e.g. 1.56 -> 0.56
+    pub fn fract(&self) -> Decimal {
+        // This is essentially the original number minus the integral.
+        // Could possibly be optimized in the future
+        *self - self.trunc()
+    }
+
     /// Returns a new `Decimal` number with no fractional portion (i.e. an integer).
     /// Rounding currently follows "Bankers Rounding" rules. e.g. 6.5 -> 6, 7.5 -> 8
     pub fn round(&self) -> Decimal {
@@ -258,23 +295,18 @@ impl Decimal {
         if dp < old_scale {
             // Short circuit for zero
             if self.is_zero() {
-                return self.rescale(dp);
+                return Decimal {
+                    lo: 0,
+                    mid: 0,
+                    hi: 0,
+                    flags: flags(self.is_sign_negative(), dp),
+                }
             }
-            let negative = self.is_sign_negative();
 
-            // Check to see if we need to add or subtract one.
-            // Some expected results assuming dp = 2 and old_scale = 3:
-            //   1.235  = 1.24
-            //   1.2361 = 1.24
-            //   1.2250 = 1.22
-            //   1.2251 = 1.23
-            // If we consider this example, we have the following number in `low`:
-            //   1235 (scale 3)
-            //   12361
-            //   12250
-            //   12251
             let mut value = [self.lo, self.mid, self.hi];
             let mut value_scale = self.scale();
+            let negative = self.is_sign_negative();
+
             value_scale -= dp;
 
             // Rescale to zero so it's easier to work with
@@ -293,12 +325,38 @@ impl Decimal {
             // We're actually doing two things here.
             //  1. Figuring out midpoint rounding when we're right on the boundary. e.g. 2.50000
             //  2. Figuring out whether to add one or not e.g. 2.51
-            // We only need to search back a certain number. e.g. 2.500, round(2) search 1.
-            // Get the decimal portion
-            //  e.g. 2.5001, round(2) decimal portion = 01
-            let offset = self.rescale(dp).rescale(old_scale);
+            // For this, we need to figure out the fractional portion that is additional to
+            // the rounded number. e.g. for 0.12345 rounding to 2dp we'd want 345.
+            // We're doing the equivalent of losing precision (e.g. to get 0.12)
+            // then increasing the precision back up to 0.12000
+            let mut offset = [self.lo, self.mid, self.hi];
+            let mut diff = old_scale - dp;
+            while diff > 0 {
+                // TODO: Also optimize u64 by using BIG_POWERS_10
+                if diff < 10 {
+                    div_by_u32(&mut offset, POWERS_10[diff as usize]);
+                    break;
+                } else {
+                    div_by_u32(&mut offset, POWERS_10[9]);
+                    // Only 9 as this array starts with 1
+                    diff -= 9;
+                }
+            }
+            let mut diff = old_scale - dp;
+            while diff > 0 {
+                // TODO: Also optimize u64 by using BIG_POWERS_10
+                if diff < 10 {
+                    mul_by_u32(&mut offset, POWERS_10[diff as usize]);
+                    break;
+                } else {
+                    mul_by_u32(&mut offset, POWERS_10[9]);
+                    // Only 9 as this array starts with 1
+                    diff -= 9;
+                }
+            }
+
             let mut decimal_portion = [self.lo, self.mid, self.hi];
-            sub_internal(&mut decimal_portion, &[offset.lo, offset.mid, offset.hi]);
+            sub_internal(&mut decimal_portion, &offset);
 
             // If the decimal_portion is zero then we round based on the other data
             let mut cap = [5, 0, 0];
@@ -323,75 +381,10 @@ impl Decimal {
                 lo: value[0],
                 mid: value[1],
                 hi: value[2],
-                flags: (dp << SCALE_SHIFT) | if negative { SIGN_MASK } else { 0 },
+                flags: flags(negative, dp),
             }
         } else {
             *self
-        }
-    }
-
-    pub(crate) fn rescale(&self, exp: u32) -> Decimal {
-        if exp > MAX_PRECISION {
-            panic!(
-                "Cannot have an exponent greater than {} ({} > {})",
-                MAX_PRECISION,
-                exp,
-                MAX_PRECISION
-            );
-        }
-        let mut scale = self.scale();
-        if exp == scale {
-            // Since it's a copy type we can just return the self
-            return *self;
-        }
-
-        // 1.23 is scale 2. If we're making it 1.2300 scale 4
-        let mut raw = [self.lo, self.mid, self.hi];
-        if exp > scale {
-            // We need to scale it up
-            let mut diff = (exp as i32 - scale as i32) as u32;
-            while scale != exp {
-                // TODO: Also optimize u64 by using BIG_POWERS_10
-                if diff < 10 {
-                    mul_by_u32(&mut raw, POWERS_10[diff as usize]);
-                    scale += diff;
-                    diff = 0;
-                } else {
-                    mul_by_u32(&mut raw, POWERS_10[9]);
-                    // Only 9 as this array starts with 1
-                    scale += 9;
-                    diff -= 9;
-                }
-            }
-        } else {
-            // We need to scale it down
-            let mut diff = (scale as i32 - exp as i32) as u32;
-            while scale != exp {
-                // TODO: Also optimize u64 by using BIG_POWERS_10
-                if diff < 10 {
-                    div_by_u32(&mut raw, POWERS_10[diff as usize]);
-                    scale -= diff;
-                    diff = 0;
-                } else {
-                    div_by_u32(&mut raw, POWERS_10[9]);
-                    // Only 9 as this array starts with 1
-                    scale -= 9;
-                    diff -= 9;
-                }
-            }
-        }
-
-        // Convert it back
-        Decimal {
-            lo: raw[0],
-            mid: raw[1],
-            hi: raw[2],
-            flags: (scale << SCALE_SHIFT) |
-                if self.is_sign_negative() {
-                    SIGN_MASK
-                } else {
-                    0
-                },
         }
     }
 
@@ -527,17 +520,100 @@ impl Decimal {
             }
         }
 
-        // Scale assignment
-        let mut flags: u32 = (-exponent10 as u32) << SCALE_SHIFT;
-        if !positive {
-            flags |= SIGN_MASK;
-        }
         Some(Decimal {
             lo: bits[0],
             mid: bits[1],
             hi: bits[2],
-            flags: flags,
+            flags: flags(!positive, -exponent10 as u32),
         })
+    }
+}
+
+#[inline]
+fn flags(neg: bool, scale: u32) -> u32 {
+    (scale << SCALE_SHIFT) | if neg { SIGN_MASK } else { 0 }
+}
+
+/// Rescales the given decimals to equivalent scales.
+/// It will firstly try to scale both the left and the right side to
+/// the maximum scale of left/right. If it is unable to do that it
+/// will try to reduce the accuracy of the other argument.
+/// e.g. with 1.23 and 2.345 it'll rescale the first arg to 1.230
+fn rescale(left: &mut [u32], left_scale: &mut u32, right: &mut [u32], right_scale: &mut u32) {
+    if left_scale == right_scale {
+        // Nothing to do
+        return;
+    }
+
+    enum Target {
+        Left,
+        Right
+    }
+
+    let target_scale;
+    let target_diff;
+    let my;
+    let other;
+    if left_scale > right_scale {
+        target_diff = *left_scale - *right_scale;
+        my = right;
+        other = left;
+        target_scale = Target::Left;
+    } else {
+        target_diff = *right_scale - *left_scale;
+        my = left;
+        other = right;
+        target_scale = Target::Right;
+    };
+
+    let mut working = [my[0], my[1], my[2]];
+    let mut diff = target_diff;
+    while diff > 0 && mul_by_u32(&mut working, 10) == 0 {
+        copy_array(my, &working);
+        diff -= 1;
+    }
+
+    if diff == 0 {
+        // We're done - same scale
+        match target_scale {
+            Target::Left => *right_scale = *left_scale,
+            Target::Right => *left_scale = *right_scale,
+        }
+        return;
+    }
+
+    // Scaling further isn't possible since we got an overflow
+    // In this case we need to reduce the accuracy of the "side to keep"
+    // First, set the scales
+    match target_scale {
+        Target::Left => {
+            *left_scale = *right_scale;
+        }
+        Target::Right => {
+            *right_scale = *left_scale;
+        }
+    }
+
+    // Now do the necessary rounding
+    let mut remainder = 0;
+    while diff > 0 {
+        diff -= 1;
+        if is_all_zero(other) {
+            break;
+        }
+
+        // Any remainder is discarded if diff > 0 still (i.e. lost precision)
+        remainder = div_by_u32(other, 10);
+    }
+    if remainder >= 5 {
+        for i in 0..3 {
+            if remainder == 0 {
+                break;
+            }
+            let digit = u64::from(other[i]) + 1u64;
+            remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
+            other[i] = (digit & 0xFFFF_FFFF) as u32;
+        }
     }
 }
 
@@ -1141,7 +1217,6 @@ impl FromStr for Decimal {
                                             } else {
                                                 coeff[index] = 0;
                                                 if index == 0 {
-                                                    println!("dot offset was: {}", dot_offset);
                                                     coeff.insert(0, 1u32);
                                                     dot_offset += 1;
                                                     coeff.pop();
@@ -1217,7 +1292,7 @@ impl FromStr for Decimal {
             lo: data[0],
             mid: data[1],
             hi: data[2],
-            flags: (scale << SCALE_SHIFT) | if negative { SIGN_MASK } else { 0 },
+            flags: flags(negative, scale),
         })
     }
 }
@@ -1388,7 +1463,7 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_i64(&self) -> Option<i64> {
-        let d = self.rescale(0);
+        let d = self.trunc();
         // Quick overflow check
         if d.hi != 0 || (d.mid & 0x8000_0000) > 0 {
             // Overflow
@@ -1408,8 +1483,7 @@ impl ToPrimitive for Decimal {
             return None;
         }
 
-        // Rescale to 0 (truncate)
-        let d = self.rescale(0);
+        let d = self.trunc();
         if d.hi != 0 {
             // Overflow
             return None;
@@ -1479,32 +1553,20 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
     fn add(self, other: &Decimal) -> Decimal {
 
         // Convert to the same scale
-        let my_scale = self.scale();
-        let other_scale = other.scale();
-        let mut flags;
         let mut my = [self.lo, self.mid, self.hi];
+        let mut my_scale = self.scale();
         let mut ot = [other.lo, other.mid, other.hi];
-        if my_scale > other_scale {
-            let rescaled = other.rescale(my_scale);
-            ot[0] = rescaled.lo;
-            ot[1] = rescaled.mid;
-            ot[2] = rescaled.hi;
-            flags = my_scale << SCALE_SHIFT;
-        } else if other_scale > my_scale {
-            let rescaled = self.rescale(other_scale);
-            my[0] = rescaled.lo;
-            my[1] = rescaled.mid;
-            my[2] = rescaled.hi;
-            flags = other_scale << SCALE_SHIFT;
-        } else {
-            flags = my_scale << SCALE_SHIFT;
-        }
+        let mut other_scale = other.scale();
+        rescale(&mut my, &mut my_scale, &mut ot, &mut other_scale);
+
+        let final_scale = my_scale.max(other_scale);
 
         // Add the items together
         let my_negative = self.is_sign_negative();
         let other_negative = other.is_sign_negative();
+        let mut negative = false;
         if my_negative && other_negative {
-            flags |= SIGN_MASK;
+            negative = true;
             add_internal(&mut my, &ot);
         } else if my_negative && !other_negative {
             // -x + y
@@ -1518,7 +1580,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
                     my[2] = ot[2];
                 }
                 Ordering::Greater => {
-                    flags |= SIGN_MASK;
+                    negative = true;
                     sub_internal(&mut my, &ot);
                 }
                 Ordering::Equal => {
@@ -1534,7 +1596,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
             // if x < y then it's negative (i.e. 1 + -2)
             match cmp {
                 Ordering::Less => {
-                    flags |= SIGN_MASK;
+                    negative = true;
                     sub_internal(&mut ot, &my);
                     my[0] = ot[0];
                     my[1] = ot[1];
@@ -1557,7 +1619,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
             lo: my[0],
             mid: my[1],
             hi: my[2],
-            flags: flags,
+            flags: flags(negative, final_scale),
         }
     }
 }
@@ -1707,13 +1769,11 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
             );
         }
 
-        // We have our result
-        let flags = (final_scale << SCALE_SHIFT) | if negative { SIGN_MASK } else { 0 };
         Decimal {
             lo: result[0],
             mid: result[1],
             hi: result[2],
-            flags: flags,
+            flags: flags(negative, final_scale),
         }
     }
 }
@@ -1876,7 +1936,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
             lo: quotient[0],
             mid: quotient[1],
             hi: quotient[2],
-            flags: (final_scale << SCALE_SHIFT) as u32 | if quotient_negative { SIGN_MASK } else { 0 },
+            flags: flags(quotient_negative, final_scale),
         }
     }
 }
@@ -1967,8 +2027,8 @@ impl Ord for Decimal {
         //  123 scale 2 and 12345 scale 4
         //  We need to convert the first to
         //  12300 scale 4 so we can compare equally
-        let self_scale = self.scale();
-        let other_scale = other.scale();
+        let mut self_scale = self.scale();
+        let mut other_scale = other.scale();
 
         if self_scale == other_scale {
             // Fast path for same scale
@@ -1981,13 +2041,11 @@ impl Ord for Decimal {
             return self.lo.cmp(&other.lo);
         }
 
-        if self_scale < other_scale {
-            let c = self.rescale(other_scale);
-            cmp_internal(&[c.lo, c.mid, c.hi], &[other.lo, other.mid, other.hi])
-        } else {
-            let c = other.rescale(self_scale);
-            cmp_internal(&[self.lo, self.mid, self.hi], &[c.lo, c.mid, c.hi])
-        }
+        // Rescale and compare
+        let mut self_raw = [self.lo, self.mid, self.hi];
+        let mut other_raw = [other.lo, other.mid, other.hi];
+        rescale(&mut self_raw, &mut self_scale, &mut other_raw, &mut other_scale);
+        cmp_internal(&self_raw, &other_raw)
     }
 }
 
@@ -2000,100 +2058,46 @@ mod test {
     // All public tests should go under `tests/`.
 
     use super::*;
+
     #[test]
-    fn rescale_integer_up() {
-        for scale in 1..25 {
-            let d = "1".parse::<Decimal>().unwrap().rescale(scale);
-
-            let mut s = String::from("1.");
-            for _ in 0..scale {
-                s.push('0');
-            }
-
-            assert_eq!(d.to_string(), s);
+    fn it_can_rescale() {
+        fn extract(value: &str) -> ([u32;3], u32) {
+            let v = Decimal::from_str(value).unwrap();
+            ([v.lo, v.mid, v.hi], v.scale())
         }
-    }
 
-    #[test]
-    fn rescale_integer_down() {
-        for scale in 1..25 {
-            let d = "1.000000000000000000000000"
-                .parse::<Decimal>()
-                .unwrap()
-                .rescale(scale);
+        let tests = &[
+            ("1", "1", "1"),
+            ("1", "1.0", "1.0"),
+            ("1", "1.00000", "1.00000"),
+            ("1", "1.0000000000", "1.0000000000"),
+            ("1", "1.00000000000000000000", "1.00000000000000000000"),
+            ("1.1", "1.1", "1.1"),
+            ("1.1", "1.10000", "1.10000"),
+            ("1.1", "1.1000000000", "1.1000000000"),
+            ("1.1", "1.10000000000000000000", "1.10000000000000000000"),
+            ("0.6386554621848739495798319328", "11.815126050420168067226890757", "0.638655462184873949579831933"),
+        ];
 
-            let mut s = String::from("1.");
-            for _ in 0..scale {
-                s.push('0');
-            }
+        for &(left_raw, right_raw, expected_left) in tests {
+            // Left = the value to rescale
+            // Right = the new scale we're scaling to
+            // Expected = the expected left value after rescale
+            let (expected_left, _) = extract(expected_left);
+            let (expected_right, _) = extract(right_raw);
 
-            assert_eq!(d.to_string(), s);
+            let (mut left, mut left_scale) = extract(left_raw);
+            let (mut right, mut right_scale) = extract(right_raw);
+            rescale(&mut left, &mut left_scale, &mut right, &mut right_scale);
+            assert_eq!(left, expected_left);
+            assert_eq!(right, expected_right);
+
+            // Also test the transitive case
+            let (mut left, mut left_scale) = extract(left_raw);
+            let (mut right, mut right_scale) = extract(right_raw);
+            rescale(&mut right, &mut right_scale, &mut left, &mut left_scale);
+            assert_eq!(left, expected_left);
+            assert_eq!(right, expected_right);
         }
-    }
-
-    #[test]
-    fn time_up() {
-        let start = time::precise_time_ns();
-        for _ in 0..1000 {
-            let d = "1".parse::<Decimal>().unwrap();
-            d.rescale(25);
-        }
-        let end = time::precise_time_ns();
-        println!("Time taken: {}ns", (end - start) / 1000);
-    }
-
-    #[test]
-    fn time_down() {
-        let start = time::precise_time_ns();
-        for _ in 0..1000 {
-            let d = "1.0000000000000000000000000".parse::<Decimal>().unwrap();
-            d.rescale(0);
-        }
-        let end = time::precise_time_ns();
-        println!("Time taken: {}ns", (end - start) / 1000);
-    }
-
-    #[test]
-    fn rescale_float_up() {
-        for scale in 1..25 {
-            let d = "1.1".parse::<Decimal>().unwrap().rescale(scale);
-
-            let mut s = String::from("1.1");
-            for _ in 0..(scale - 1) {
-                s.push('0');
-            }
-
-            assert_eq!(d.to_string(), s);
-        }
-    }
-
-    #[test]
-    fn rescale_float_down() {
-        for scale in 1..24 {
-            let d = "1.000000000000000000000001"
-                .parse::<Decimal>()
-                .unwrap()
-                .rescale(scale);
-
-            let mut s = String::from("1.");
-            for _ in 0..(scale) {
-                s.push('0');
-            }
-
-            assert_eq!(d.to_string(), s);
-        }
-    }
-
-    #[test]
-    fn round_complex_number() {
-        // This is 1982.2708333333333
-        let a = Decimal {
-            flags: 1572864,
-            hi: 107459117,
-            lo: 2219136341,
-            mid: 849254895,
-        };
-        let b = a.round_dp(2u32);
-        assert_eq!("1982.27", b.to_string());
     }
 }
