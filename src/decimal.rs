@@ -300,7 +300,7 @@ impl Decimal {
                     mid: 0,
                     hi: 0,
                     flags: flags(self.is_sign_negative(), dp),
-                }
+                };
             }
 
             let mut value = [self.lo, self.mid, self.hi];
@@ -547,7 +547,7 @@ fn rescale(left: &mut [u32], left_scale: &mut u32, right: &mut [u32], right_scal
 
     enum Target {
         Left,
-        Right
+        Right,
     }
 
     let target_scale;
@@ -2044,7 +2044,12 @@ impl Ord for Decimal {
         // Rescale and compare
         let mut self_raw = [self.lo, self.mid, self.hi];
         let mut other_raw = [other.lo, other.mid, other.hi];
-        rescale(&mut self_raw, &mut self_scale, &mut other_raw, &mut other_scale);
+        rescale(
+            &mut self_raw,
+            &mut self_scale,
+            &mut other_raw,
+            &mut other_scale,
+        );
         cmp_internal(&self_raw, &other_raw)
     }
 }
@@ -2061,7 +2066,7 @@ mod test {
 
     #[test]
     fn it_can_rescale() {
-        fn extract(value: &str) -> ([u32;3], u32) {
+        fn extract(value: &str) -> ([u32; 3], u32) {
             let v = Decimal::from_str(value).unwrap();
             ([v.lo, v.mid, v.hi], v.scale())
         }
@@ -2076,7 +2081,11 @@ mod test {
             ("1.1", "1.10000", "1.10000"),
             ("1.1", "1.1000000000", "1.1000000000"),
             ("1.1", "1.10000000000000000000", "1.10000000000000000000"),
-            ("0.6386554621848739495798319328", "11.815126050420168067226890757", "0.638655462184873949579831933"),
+            (
+                "0.6386554621848739495798319328",
+                "11.815126050420168067226890757",
+                "0.638655462184873949579831933",
+            ),
         ];
 
         for &(left_raw, right_raw, expected_left) in tests {
