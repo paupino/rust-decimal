@@ -129,7 +129,7 @@ impl FromSql for Decimal {
         if scale > 0 {
             let str_rep = result.to_string();
             let trailing_zeros = str_rep.chars().rev().take_while(|&x| x == '0').count();
-            result = result.rescale(scale as u32 - trailing_zeros as u32);
+            result = result.round_dp(scale as u32 - trailing_zeros as u32);
         }
 
         Ok(result)
