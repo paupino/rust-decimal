@@ -1,5 +1,11 @@
 # Version History
 
+## 0.6.5
+
+Fixes issue with rescale sometimes causing a silent overflow which led to incorrect results during addition, subtraction and compare. Consequently Decimal now rounds the most significant number so that these operations work successfully.
+
+In addition, Decimal now derive's the `Hash` trait so that it can be used for indexing.
+
 ## 0.6.4
 
 Fixes silent overflow errors when parsing highly significant strings. `from_str` will now round in these scenario's, similar to oleaut32 behavior.
