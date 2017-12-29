@@ -277,6 +277,31 @@ impl Decimal {
         *self - self.trunc()
     }
 
+    /// Strips any trailing zero's from a `Decimal`. e.g. 1.10 -> 1.1
+    pub fn normalize(&self) -> Decimal {
+        let mut scale = self.scale();
+        if scale == 0 {
+            // Nothing to do
+            return *self;
+        }
+
+        let mut result = [self.lo, self.mid, self.hi];
+        let mut working = [self.lo, self.mid, self.hi];
+        while scale > 0 {
+            if div_by_u32(&mut working, 10) > 0 {
+                break;
+            }
+            scale -= 1;
+            copy_array(&mut result, &working);
+        }
+        Decimal {
+            lo: result[0],
+            mid: result[1],
+            hi: result[2],
+            flags: flags(self.is_sign_negative(), scale),
+        }
+    }
+
     /// Returns a new `Decimal` number with no fractional portion (i.e. an integer).
     /// Rounding currently follows "Bankers Rounding" rules. e.g. 6.5 -> 6, 7.5 -> 8
     pub fn round(&self) -> Decimal {
@@ -550,24 +575,23 @@ fn rescale(left: &mut [u32], left_scale: &mut u32, right: &mut [u32], right_scal
         Right,
     }
 
-    let target_scale;
-    let target_diff;
+    let target;
+    let mut diff;
     let my;
     let other;
     if left_scale > right_scale {
-        target_diff = *left_scale - *right_scale;
+        diff = *left_scale - *right_scale;
         my = right;
         other = left;
-        target_scale = Target::Left;
+        target = Target::Left;
     } else {
-        target_diff = *right_scale - *left_scale;
+        diff = *right_scale - *left_scale;
         my = left;
         other = right;
-        target_scale = Target::Right;
+        target = Target::Right;
     };
 
     let mut working = [my[0], my[1], my[2]];
-    let mut diff = target_diff;
     while diff > 0 && mul_by_u32(&mut working, 10) == 0 {
         copy_array(my, &working);
         diff -= 1;
@@ -575,7 +599,7 @@ fn rescale(left: &mut [u32], left_scale: &mut u32, right: &mut [u32], right_scal
 
     if diff == 0 {
         // We're done - same scale
-        match target_scale {
+        match target {
             Target::Left => *right_scale = *left_scale,
             Target::Right => *left_scale = *right_scale,
         }
@@ -585,7 +609,7 @@ fn rescale(left: &mut [u32], left_scale: &mut u32, right: &mut [u32], right_scal
     // Scaling further isn't possible since we got an overflow
     // In this case we need to reduce the accuracy of the "side to keep"
     // First, set the scales
-    match target_scale {
+    match target {
         Target::Left => {
             *left_scale = *right_scale;
         }
@@ -596,23 +620,20 @@ fn rescale(left: &mut [u32], left_scale: &mut u32, right: &mut [u32], right_scal
 
     // Now do the necessary rounding
     let mut remainder = 0;
-    while diff > 0 {
+    while diff > 0 && !is_all_zero(other) {
         diff -= 1;
-        if is_all_zero(other) {
-            break;
-        }
 
         // Any remainder is discarded if diff > 0 still (i.e. lost precision)
         remainder = div_by_u32(other, 10);
     }
     if remainder >= 5 {
         for i in 0..3 {
-            if remainder == 0 {
-                break;
-            }
             let digit = u64::from(other[i]) + 1u64;
             remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
             other[i] = (digit & 0xFFFF_FFFF) as u32;
+            if remainder == 0 {
+                break;
+            }
         }
     }
 }
