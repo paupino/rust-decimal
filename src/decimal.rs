@@ -128,6 +128,31 @@ impl Decimal {
         }
     }
 
+    /// Returns a `Decimal` using the instances constituent parts.
+    ///
+    /// # Arguments
+    ///
+    /// * `lo` - The low 32 bits of a 96-bit integer.
+    /// * `mid` - The middle 32 bits of a 96-bit integer.
+    /// * `hi` - The high 32 bits of a 96-bit integer.
+    /// * `negative` - `true` to indicate a negative number.
+    /// * `scale` - A power of 10 ranging from 0 to 28.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// let _pi = Decimal::from_parts(3141u32, 0u32, 0u32, false, 3u32);
+    /// ```
+    pub fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
+        Decimal {
+            lo: lo,
+            mid: mid,
+            hi: hi,
+            flags: flags(negative, scale),
+        }
+    }
+
     /// Returns the scale of the decimal number, otherwise known as `e`.
     pub fn scale(&self) -> u32 {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
