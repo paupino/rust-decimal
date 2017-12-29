@@ -74,7 +74,7 @@ static BIG_POWERS_10: [u64; 10] = [
 /// The finite set of values of type `Decimal` are of the form m / 10^e,
 /// where m is an integer such that -2^96 <= m <= 2^96, and e is an integer
 /// between 0 and 28 inclusive.
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Copy, Debug, Hash)]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
