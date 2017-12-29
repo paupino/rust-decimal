@@ -81,12 +81,12 @@ impl FromSql for Decimal {
 
     fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
         let mut raw = Cursor::new(raw);
-        let num_groups = try!(raw.read_u16::<BigEndian>());
-        let weight = try!(raw.read_i16::<BigEndian>()); // 10000^weight
+        let num_groups = raw.read_u16::<BigEndian>()?;
+        let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
         // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
-        let sign = try!(raw.read_u16::<BigEndian>());
+        let sign = raw.read_u16::<BigEndian>()?;
         // Number of digits (in base 10) to print after decimal separator
-        let fixed_scale = try!(raw.read_u16::<BigEndian>()) as i32;
+        let fixed_scale = raw.read_u16::<BigEndian>()? as i32;
 
         // Build up a list of powers that will be used
         let mut powers = vec![Decimal::one()];
@@ -101,7 +101,7 @@ impl FromSql for Decimal {
         // Now process the number
         let mut result = Decimal::zero();
         for i in 0..num_groups {
-            let group = try!(raw.read_u16::<BigEndian>());
+            let group = raw.read_u16::<BigEndian>()?;
             let calculated = &powers[i as usize] * Decimal::new(group as i64, 0);
             result = result + calculated;
         }
@@ -125,14 +125,7 @@ impl FromSql for Decimal {
         result.set_sign(!neg);
 
         // Normalize by truncating any trailing 0's from the decimal representation
-        // This may not be the most efficient way of doing this
-        if scale > 0 {
-            let str_rep = result.to_string();
-            let trailing_zeros = str_rep.chars().rev().take_while(|&x| x == '0').count();
-            result = result.round_dp(scale as u32 - trailing_zeros as u32);
-        }
-
-        Ok(result)
+        Ok(result.normalize())
     }
 
     fn accepts(ty: &Type) -> bool {
@@ -145,7 +138,7 @@ impl FromSql for Decimal {
 
 impl ToSql for Decimal {
     fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
-        let sign = if self.is_negative() { 0x4000 } else { 0x0000 };
+        let sign = if self.is_sign_negative() { 0x4000 } else { 0x0000 };
         let scale = self.scale() as u16;
 
         let mut whole = *self;
@@ -200,17 +193,17 @@ impl ToSql for Decimal {
         let num_groups = all_groups.len() as u16;
 
         // Number of groups
-        try!(out.write_u16::<BigEndian>(num_groups));
+        out.write_u16::<BigEndian>(num_groups)?;
         // Weight of first group
-        try!(out.write_i16::<BigEndian>(weight));
+        out.write_i16::<BigEndian>(weight)?;
         // Sign
-        try!(out.write_u16::<BigEndian>(sign));
+        out.write_u16::<BigEndian>(sign)?;
         // DScale
-        try!(out.write_u16::<BigEndian>(scale));
+        out.write_u16::<BigEndian>(scale)?;
         // Now process the number
         for chunk in all_groups {
             let calculated = chunk.parse::<u16>().unwrap();
-            try!(out.write_u16::<BigEndian>(calculated.to_u16().unwrap()));
+            out.write_u16::<BigEndian>(calculated.to_u16().unwrap())?;
         }
         Ok(IsNull::No)
     }

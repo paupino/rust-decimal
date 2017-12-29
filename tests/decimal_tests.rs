@@ -675,7 +675,8 @@ fn it_can_trunc() {
     for &(value, expected) in tests {
         let value = Decimal::from_str(value).unwrap();
         let expected = Decimal::from_str(expected).unwrap();
-        assert_eq!(expected, value.trunc());
+        let trunc = value.trunc();
+        assert_eq!(expected.to_string(), trunc.to_string());
     }
 }
 
@@ -689,7 +690,27 @@ fn it_can_fract() {
     for &(value, expected) in tests {
         let value = Decimal::from_str(value).unwrap();
         let expected = Decimal::from_str(expected).unwrap();
-        assert_eq!(expected, value.fract());
+        let fract = value.fract();
+        assert_eq!(expected.to_string(), fract.to_string());
+    }
+}
+
+#[test]
+fn it_can_normalize() {
+    let tests = &[
+        ("1.00000000000000000000", "1"),
+        ("1.10000000000000000000000", "1.1"),
+        ("1.00010000000000000000000", "1.0001"),
+        ("1", "1"),
+        ("1.1", "1.1"),
+        ("1.0001", "1.0001"),
+    ];
+
+    for &(value, expected) in tests {
+        let value = Decimal::from_str(value).unwrap();
+        let expected = Decimal::from_str(expected).unwrap();
+        let normalized = value.normalize();
+        assert_eq!(expected.to_string(), normalized.to_string());
     }
 }
 

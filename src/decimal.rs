@@ -277,6 +277,31 @@ impl Decimal {
         *self - self.trunc()
     }
 
+    /// Strips any trailing zero's from a `Decimal`. e.g. 1.10 -> 1.1
+    pub fn normalize(&self) -> Decimal {
+        let mut scale = self.scale();
+        if scale == 0 {
+            // Nothing to do
+            return *self;
+        }
+
+        let mut result = [self.lo, self.mid, self.hi];
+        let mut working = [self.lo, self.mid, self.hi];
+        while scale > 0 {
+            if div_by_u32(&mut working, 10) > 0 {
+                break;
+            }
+            scale -= 1;
+            copy_array(&mut result, &working);
+        }
+        Decimal {
+            lo: result[0],
+            mid: result[1],
+            hi: result[2],
+            flags: flags(self.is_sign_negative(), scale),
+        }
+    }
+
     /// Returns a new `Decimal` number with no fractional portion (i.e. an integer).
     /// Rounding currently follows "Bankers Rounding" rules. e.g. 6.5 -> 6, 7.5 -> 8
     pub fn round(&self) -> Decimal {
