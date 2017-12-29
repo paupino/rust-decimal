@@ -3,6 +3,7 @@ use num::{FromPrimitive, One, ToPrimitive, Zero};
 use std::cmp::*;
 use std::cmp::Ordering::Equal;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::iter::repeat;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
 use std::str::FromStr;
@@ -44,37 +45,37 @@ lazy_static! {
 
 // Fast access for 10^n where n is 0-9
 static POWERS_10: [u32; 10] = [
-    1,
-    10,
-    100,
-    1000,
-    10000,
-    100000,
-    1000000,
-    10000000,
-    100000000,
-    1000000000,
+                1,
+               10,
+              100,
+            1_000,
+           10_000,
+          100_000,
+        1_000_000,
+       10_000_000,
+      100_000_000,
+    1_000_000_000,
 ];
 // Fast access for 10^n where n is 10-19
 #[allow(dead_code)]
 static BIG_POWERS_10: [u64; 10] = [
-    10000000000,
-    100000000000,
-    1000000000000,
-    10000000000000,
-    100000000000000,
-    1000000000000000,
-    10000000000000000,
-    100000000000000000,
-    1000000000000000000,
-    10000000000000000000,
+                10_000_000_000,
+               100_000_000_000,
+             1_000_000_000_000,
+            10_000_000_000_000,
+           100_000_000_000_000,
+         1_000_000_000_000_000,
+        10_000_000_000_000_000,
+       100_000_000_000_000_000,
+     1_000_000_000_000_000_000,
+    10_000_000_000_000_000_000,
 ];
 
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
 /// The finite set of values of type `Decimal` are of the form m / 10^e,
 /// where m is an integer such that -2^96 <= m <= 2^96, and e is an integer
 /// between 0 and 28 inclusive.
-#[derive(Clone, Copy, Debug, Hash)]
+#[derive(Clone, Copy, Debug)]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
@@ -652,10 +653,10 @@ fn rescale(left: &mut [u32], left_scale: &mut u32, right: &mut [u32], right_scal
         remainder = div_by_u32(other, 10);
     }
     if remainder >= 5 {
-        for i in 0..3 {
-            let digit = u64::from(other[i]) + 1u64;
+        for part in other.iter_mut() {
+            let digit = u64::from(*part) + 1u64;
             remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
-            other[i] = (digit & 0xFFFF_FFFF) as u32;
+            *part = (digit & 0xFFFF_FFFF) as u32;
             if remainder == 0 {
                 break;
             }
@@ -998,17 +999,17 @@ fn div_internal(working: &mut [u32; 8], divisor: &[u32; 3]) {
     }
 
     // Let's try and do the addition...
-    let mut i = blocks_to_process << 5;
+    let mut block = blocks_to_process << 5;
     loop {
-        if i >= 128 {
+        if block >= 128 {
             break;
         }
 
         // << 1 for the entire working array
         let mut shifted = 0;
-        for i in 0..8 {
-            let b = working[i] >> 31;
-            working[i] = (working[i] << 1) | shifted;
+        for part in working.iter_mut() {
+            let b = *part >> 31;
+            *part = (*part << 1) | shifted;
             shifted = b;
         }
 
@@ -1030,7 +1031,7 @@ fn div_internal(working: &mut [u32; 8], divisor: &[u32; 3]) {
         }
 
         // Increment our pointer
-        i += 1;
+        block += 1;
     }
 }
 
@@ -1045,10 +1046,10 @@ fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
     } else {
         let mut remainder = 0u32;
         let divisor = u64::from(divisor);
-        for i in (0..bits.len()).rev() {
-            let temp = (u64::from(remainder) << 32) + u64::from(bits[i]);
+        for part in bits.iter_mut().rev() {
+            let temp = (u64::from(remainder) << 32) + u64::from(*part);
             remainder = (temp % divisor) as u32;
-            bits[i] = (temp / divisor) as u32;
+            *part = (temp / divisor) as u32;
         }
 
         remainder
@@ -1070,9 +1071,9 @@ fn shl_internal(bits: &mut [u32; 3], shift: u32) {
     // Continue with the rest
     if shift > 0 {
         let mut shifted = 0;
-        for i in 0..3 {
-            let b = bits[i] >> (32 - shift);
-            bits[i] = (bits[i] << shift) | shifted;
+        for part in bits.iter_mut() {
+            let b = *part >> (32 - shift);
+            *part = (*part << shift) | shifted;
             shifted = b;
         }
     }
@@ -1516,9 +1517,9 @@ impl ToPrimitive for Decimal {
             return None;
         }
 
-        let raw: i64 = ((d.mid as i64) << 32) | d.lo as i64;
+        let raw: i64 = (i64::from(d.mid) << 32) | i64::from(d.lo);
         if self.is_sign_negative() {
-            Some(raw * -1)
+            Some(-raw)
         } else {
             Some(raw)
         }
@@ -1785,13 +1786,13 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
         // Round up the carry if we need to
         if remainder >= 5 {
             remainder = 1;
-            for i in 0..6 {
+            for part in running.iter_mut() {
                 if remainder == 0 {
                     break;
                 }
-                let digit: u64 = u64::from(running[i]) + 1;
+                let digit: u64 = u64::from(*part) + 1;
                 remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
-                running[i] = (digit & 0xFFFF_FFFF) as u32;
+                *part = (digit & 0xFFFF_FFFF) as u32;
             }
         }
 
@@ -1895,9 +1896,9 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
 
             // Multiply the remainder by 10
             let mut overflow = 0;
-            for i in 4..8 {
-                let (lo, hi) = mul_part(working[i] as u32, 10, overflow);
-                working[i] = lo;
+            for part in working.iter_mut().skip(4) {
+                let (lo, hi) = mul_part(*part, 10, overflow);
+                *part = lo;
                 overflow = hi;
             }
             // Copy it into the quotient section
@@ -1925,9 +1926,9 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
 
             // Mul 10
             let mut overflow = 0;
-            for i in 0..8 {
-                let (lo, hi) = mul_part(working[i] as u32, 10, overflow);
-                working[i] = lo;
+            for part in &mut working {
+                let (lo, hi) = mul_part(*part, 10, overflow);
+                *part = lo;
                 overflow = hi;
             }
             if is_some_zero(&working, 3, 5) {
@@ -1966,14 +1967,13 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
                 final_scale = 0;
                 quotient_negative = false;
             } else if remainder >= 5 {
-                remainder = 1;
-                for i in 0..3 {
+                for part in &mut quotient {
                     if remainder == 0 {
                         break;
                     }
-                    let digit: u64 = u64::from(quotient[i]) + 1;
+                    let digit: u64 = u64::from(*part) + 1;
                     remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
-                    quotient[i] = (digit & 0xFFFF_FFFF) as u32;
+                    *part = (digit & 0xFFFF_FFFF) as u32;
                 }
             }
         }
@@ -2050,6 +2050,15 @@ impl PartialEq for Decimal {
 }
 
 impl Eq for Decimal {}
+
+impl Hash for Decimal {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.lo.hash(state);
+        self.mid.hash(state);
+        self.hi.hash(state);
+        self.flags.hash(state);
+    }
+}
 
 impl PartialOrd for Decimal {
     #[inline]
