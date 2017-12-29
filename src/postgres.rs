@@ -2,13 +2,36 @@ extern crate byteorder;
 extern crate num;
 
 use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use self::num::{One, Zero, ToPrimitive};
+use self::num::{Zero, ToPrimitive};
 use super::Decimal;
 use pg_crate::types::*;
 use std::error;
 use std::fmt;
 use std::io::Cursor;
 use std::result::*;
+
+lazy_static! {
+
+    // When procedural macro's are stabablized
+    //  this will look MUCH better
+    static ref DECIMALS: [Decimal; 15] = [
+        Decimal::new(1, 28),
+        Decimal::new(1, 24),
+        Decimal::new(1, 20),
+        Decimal::new(1, 16),
+        Decimal::new(1, 12),
+        Decimal::new(1, 8),
+        Decimal::new(1, 4),
+        Decimal::new(1, 0),
+        Decimal::new(10000, 0),
+        Decimal::new(100000000, 0),
+        Decimal::new(1000000000000, 0),
+        Decimal::new(10000000000000000, 0),
+        Decimal::from_parts(1661992960, 1808227885, 5, false, 0),
+        Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
+        Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
+    ];
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct InvalidDecimal;
@@ -88,22 +111,18 @@ impl FromSql for Decimal {
         // Number of digits (in base 10) to print after decimal separator
         let fixed_scale = raw.read_u16::<BigEndian>()? as i32;
 
-        // Build up a list of powers that will be used
-        let mut powers = vec![Decimal::one()];
-        let mut val = Decimal::one();
-        let mult = Decimal::new(10000, 0);
-        for _ in 1..num_groups {
-            val *= mult;
-            powers.push(val);
+        // Read all of the groups
+        let mut groups = Vec::new();
+        for _ in 0..num_groups as usize {
+            let group = raw.read_u16::<BigEndian>()?;
+            groups.push(Decimal::new(group as i64, 0));
         }
-        powers.reverse();
+        groups.reverse();
 
         // Now process the number
         let mut result = Decimal::zero();
-        for i in 0..num_groups {
-            let group = raw.read_u16::<BigEndian>()?;
-            let calculated = &powers[i as usize] * Decimal::new(group as i64, 0);
-            result = result + calculated;
+        for (index, group) in groups.iter().enumerate() {
+            result = result + (&DECIMALS[index + 7] * group);
         }
 
         // Finally, adjust for the scale
@@ -148,8 +167,8 @@ impl ToSql for Decimal {
         let scale = self.scale() as u16;
 
         let mut whole = *self;
-        whole.set_scale(0).ok();
         whole.set_sign(true);
+        whole.set_scale(0).ok();
         let mut digits = whole.to_string();
         let split_point = if scale as usize > digits.len() {
             let mut new_digits = vec!['0'; scale as usize - digits.len() as usize];
