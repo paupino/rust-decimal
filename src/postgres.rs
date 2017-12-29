@@ -138,6 +138,12 @@ impl FromSql for Decimal {
 
 impl ToSql for Decimal {
     fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
+        // If it's zero we can short cut with a u64
+        if self.is_zero() {
+            out.write_u64::<BigEndian>(0)?;
+            return Ok(IsNull::No);
+        }
+
         let sign = if self.is_sign_negative() { 0x4000 } else { 0x0000 };
         let scale = self.scale() as u16;
 
@@ -312,6 +318,7 @@ mod test {
             &[
                 "3950.123456",
                 "3950",
+                "0",
                 "0.1",
                 "0.01",
                 "0.001",
