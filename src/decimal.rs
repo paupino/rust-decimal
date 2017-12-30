@@ -18,7 +18,7 @@ const SIGN_MASK: u32 = 0x8000_0000;
 // contain a value between 0 and 28 inclusive.
 const SCALE_MASK: u32 = 0x00FF_0000;
 const U8_MASK: u32 = 0x0000_00FF;
-const I32_MASK: u64 = 0xFFFF_FFFF;
+const U32_MASK: u64 = 0xFFFF_FFFF;
 
 // Number of bits scale is shifted by.
 const SCALE_SHIFT: u32 = 16;
@@ -117,15 +117,15 @@ impl Decimal {
             return Decimal {
                 flags: flags | SIGN_MASK,
                 hi: 0,
-                lo: (num.abs() as u64 & I32_MASK) as u32,
-                mid: ((num.abs() as u64 >> 32) & I32_MASK) as u32,
+                lo: (num.abs() as u64 & U32_MASK) as u32,
+                mid: ((num.abs() as u64 >> 32) & U32_MASK) as u32,
             };
         }
         Decimal {
             flags: flags,
             hi: 0,
-            lo: (num as u64 & I32_MASK) as u32,
-            mid: ((num as u64 >> 32) & I32_MASK) as u32,
+            lo: (num as u64 & U32_MASK) as u32,
+            mid: ((num as u64 >> 32) & U32_MASK) as u32,
         }
     }
 
@@ -278,7 +278,6 @@ impl Decimal {
         while scale > 0 {
             // We're removing precision, so we don't care about overflow
             if scale < 10 {
-                // TODO: Also optimize u64 by using BIG_POWERS_10
                 div_by_u32(&mut working, POWERS_10[scale as usize]);
                 break;
             } else {
@@ -362,7 +361,6 @@ impl Decimal {
 
             // Rescale to zero so it's easier to work with
             while value_scale > 0 {
-                // TODO: Optimize for u64 using BIG_POWERS_10
                 if value_scale < 10 {
                     div_by_u32(&mut value, POWERS_10[value_scale as usize]);
                     value_scale = 0;
@@ -383,7 +381,6 @@ impl Decimal {
             let mut offset = [self.lo, self.mid, self.hi];
             let mut diff = old_scale - dp;
             while diff > 0 {
-                // TODO: Also optimize u64 by using BIG_POWERS_10
                 if diff < 10 {
                     div_by_u32(&mut offset, POWERS_10[diff as usize]);
                     break;
@@ -395,7 +392,6 @@ impl Decimal {
             }
             let mut diff = old_scale - dp;
             while diff > 0 {
-                // TODO: Also optimize u64 by using BIG_POWERS_10
                 if diff < 10 {
                     mul_by_u32(&mut offset, POWERS_10[diff as usize]);
                     break;
@@ -682,6 +678,14 @@ fn copy_array_with_limit(into: &mut [u32], from: &[u32], limit: usize) {
     }
 }
 
+#[inline]
+fn u64_to_array(value: u64) -> [u32;2] {
+    [
+        (value & U32_MASK) as u32,
+        (value >> 32 & U32_MASK) as u32,
+    ]
+}
+
 fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
     let mut carry: u64 = 0;
     let vl = value.len();
@@ -868,6 +872,15 @@ fn add_with_scale_internal(
     false
 }
 
+#[inline]
+fn add_part(left: u32, right: u32) -> (u32, u32) {
+    let added = u64::from(left) + u64::from(right);
+    (
+        (added & U32_MASK) as u32,
+        (added >> 32 & U32_MASK) as u32,
+    )
+}
+
 fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
     // The way this works is similar to long subtraction
     // Let's assume we're working with bytes for simpliciy in an example:
@@ -947,8 +960,8 @@ fn mul_by_u32(bits: &mut [u32], m: u32) -> u32 {
 
 fn mul_part(left: u32, right: u32, high: u32) -> (u32, u32) {
     let result = u64::from(left) * u64::from(right) + u64::from(high);
-    let hi = ((result >> 32) & 0xFFFF_FFFF) as u32;
-    let lo = (result & 0xFFFF_FFFF) as u32;
+    let hi = ((result >> 32) & U32_MASK) as u32;
+    let lo = (result & U32_MASK) as u32;
     (lo, hi)
 }
 
@@ -1111,7 +1124,6 @@ fn is_some_zero(bits: &[u32], skip: usize, take: usize) -> bool {
     }
     true
 }
-
 
 macro_rules! impl_from {
     ($T:ty, $from_ty:path) => {
@@ -1717,76 +1729,142 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
     fn mul(self, other: &Decimal) -> Decimal {
         // Early exit if either is zero
         if self.is_zero() || other.is_zero() {
-            return Decimal {
-                lo: 0,
-                mid: 0,
-                hi: 0,
-                flags: 0,
-            };
+            return Decimal::zero();
         }
-
-        let my = [self.lo, self.mid, self.hi];
-        let ot = [other.lo, other.mid, other.hi];
-
-        // Start a result array
-        let mut result = [0u32, 0u32, 0u32];
 
         // We are only resulting in a negative if we have mismatched signs
         let negative = self.is_sign_negative() ^ other.is_sign_negative();
 
         // We get the scale of the result by adding the operands. This may be too big, however
         //  we'll correct later
-        let my_scale = self.scale();
-        let ot_scale = other.scale();
-        let mut final_scale = my_scale + ot_scale;
+        let mut final_scale = self.scale() + other.scale();
 
-        // Do the calculation, this first part is just trying to shortcut cycles.
-        let to = if my[1] == 0 && my[2] == 0 {
-            1
-        } else if my[2] == 0 {
+        // First of all, if ONLY the lo parts of both numbers is filled
+        // then we can simply do a standard 64 bit calculation. It's a minor
+        // optimization however prevents the need for long form multiplication
+        if self.mid == 0 && self.hi == 0 &&
+           other.mid == 0 && other.hi == 0 {
+
+            // Simply multiplication
+            let mut u64_result = u64_to_array(u64::from(self.lo) * u64::from(other.lo));
+
+            // If we're above max precision then this is a very small number
+            if final_scale > MAX_PRECISION {
+                final_scale -= MAX_PRECISION;
+
+                // If the number is above 19 then this will equate to zero.
+                // This is because the max value in 64 bits is 1.84E19
+                if final_scale > 19 {
+                    return Decimal::zero();
+                }
+
+                let mut rem_lo = 0;
+                let mut power;
+                if final_scale > 9 {
+                    // Since 10^10 doesn't fit into u32, we divide by 10^10/4
+                    // and multiply the next divisor by 4.
+                    rem_lo = div_by_u32(&mut u64_result, 2500000000);
+                    power = POWERS_10[final_scale as usize - 10] << 2;
+                } else {
+                    power = POWERS_10[final_scale as usize];
+                }
+
+                // Divide fits in 32 bits
+                let rem_hi = div_by_u32(&mut u64_result, power);
+
+                // Round the result. Since the divisor is a power of 10
+                // we check to see if the remainder is >= 1/2 divisor
+                power >>= 1;
+                if rem_hi >= power && (rem_hi > power || (rem_lo | (u64_result[0] & 0x1)) != 0) {
+                    u64_result[0] += 1;
+                }
+
+                final_scale = MAX_PRECISION;
+            }
+            return Decimal {
+                lo: u64_result[0],
+                mid: u64_result[1],
+                hi: 0,
+                flags: flags(negative, final_scale),
+            };
+        }
+
+        // We're using some of the high bits, so we essentially perform
+        // long form multiplication. We compute the 9 partial products
+        // into a 192 bit result array.
+        //
+        //                     [my-h][my-m][my-l]
+        //                  x  [ot-h][ot-m][ot-l]
+        // --------------------------------------
+        // 1.                        [r-hi][r-lo] my-l * ot-l [0, 0]
+        // 2.                  [r-hi][r-lo]       my-l * ot-m [0, 1]
+        // 3.                  [r-hi][r-lo]       my-m * ot-l [1, 0]
+        // 4.            [r-hi][r-lo]             my-m * ot-m [1, 1]
+        // 5.            [r-hi][r-lo]             my-l * ot-h [0, 2]
+        // 6.            [r-hi][r-lo]             my-h * ot-l [2, 0]
+        // 7.      [r-hi][r-lo]                   my-m * ot-h [1, 2]
+        // 8.      [r-hi][r-lo]                   my-h * ot-m [2, 1]
+        // 9.[r-hi][r-lo]                         my-h * ot-h [2, 2]
+        let my = [self.lo, self.mid, self.hi];
+        let ot = [other.lo, other.mid, other.hi];
+        let mut product = [0u32, 0u32, 0u32, 0u32, 0u32, 0u32];
+
+        // We can perform a minor short circuit here. If the
+        // high portions are both 0 then we can skip portions 5-9
+        let to = if my[2] == 0 && ot[2] == 0 {
             2
         } else {
             3
         };
-        // We calculate into a 192 bit number temporarily
-        let mut running: [u32; 6] = [0, 0, 0, 0, 0, 0];
-        let mut overflow = 0;
-        for i in 0..to {
-            overflow = 0;
-            for j in 0..3 {
-                let (res, of) = mul_part(ot[j], my[i], overflow);
-                overflow = of;
-                let mut running_index = i + j;
-                let mut working = res;
 
-                loop {
-                    let added = u64::from(running[running_index]) + u64::from(working);
-                    running[running_index] = (added & 0xFFFF_FFFF) as u32;
-                    working = (added >> 32) as u32;
-                    running_index += 1;
-                    if working == 0 || running_index > 5 {
+        for my_index in 0..to {
+            for ot_index in 0..to {
+                let (mut rlo, mut rhi) = mul_part(my[my_index], ot[ot_index], 0);
+
+                // Get the index for the lo portion of the product
+                for prod in product.iter_mut().skip(my_index + ot_index) {
+                    let (res, overflow) = add_part(rlo, *prod);
+                    *prod = res;
+
+                    // If we have something in rhi from before then promote that
+                    if rhi > 0 {
+                        // If we overflowed in the last add, add that with rhi
+                        if overflow > 0 {
+                            let (nlo, nhi) = add_part(rhi, overflow);
+                            rlo = nlo;
+                            rhi = nhi;
+                        } else {
+                            rlo = rhi;
+                            rhi = 0;
+                        }
+                    } else if overflow > 0 {
+                        rlo = overflow;
+                        rhi = 0;
+                    } else {
+                        break;
+                    }
+
+                    // If nothing to do next round then break out
+                    if rlo == 0 {
                         break;
                     }
                 }
             }
         }
-        // We had overflow but it wasn't recorded so record it here
-        if overflow > 0 && running[3] == 0 {
-            running[3] = overflow;
-        }
 
-        // While our result is in overflow (i.e. upper portion != 0)
-        // AND it has a scale > 0 we divide by 10
+        // If our result has used up the high portion of the product
+        // then we either have an overflow or an underflow situation
+        // Overflow will occur if we can't scale it back, whereas underflow
+        // with kick in rounding
         let mut remainder = 0;
-        while final_scale > 0 && !is_some_zero(&running, 3, 3) {
-            remainder = div_by_u32(&mut running, 10u32);
+        while final_scale > 0 && !is_some_zero(&product, 3, 3) {
+            remainder = div_by_u32(&mut product, 10u32);
             final_scale -= 1;
         }
 
         // Round up the carry if we need to
         if remainder >= 5 {
-            remainder = 1;
-            for part in running.iter_mut() {
+            for part in product.iter_mut() {
                 if remainder == 0 {
                     break;
                 }
@@ -1796,30 +1874,31 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
             }
         }
 
-        // If our upper portion is not 0, we've overflowed
-        if !(running[3] == 0 && running[4] == 0 && running[5] == 0) {
+        // If we're still above max precision then we'll try again to
+        // reduce precision - we may be dealing with a limit of "0"
+        if final_scale > MAX_PRECISION {
+            // We're in an underflow situation
+            // The easiest way to remove precision is to divide off the result
+            while final_scale > MAX_PRECISION && !is_all_zero(&product) {
+                div_by_u32(&mut product, 10);
+                final_scale -= 1;
+            }
+            // If we're still at limit then we can't represent any
+            // siginificant decimal digits and will return an integer only
+            // Can also be invoked while representing 0.
+            if final_scale > MAX_PRECISION {
+                final_scale = 0;
+            }
+        } else if !(product[3] == 0 && product[4] == 0 && product[5] == 0) {
+            // We're in an overflow situation - we're within our precision bounds
+            // but still have bits in overflow
             panic!("Multiplication overflowed");
         }
 
-        // Copy to our result
-        result[0] = running[0];
-        result[1] = running[1];
-        result[2] = running[2];
-
-        // We underflowed, we'll lose precision.
-        // For now we panic however perhaps in the future I could give the option to round
-        if final_scale > MAX_PRECISION {
-            panic!(
-                "Multiplication underflowed: {} > {}",
-                final_scale,
-                MAX_PRECISION
-            );
-        }
-
         Decimal {
-            lo: result[0],
-            mid: result[1],
-            hi: result[2],
+            lo: product[0],
+            mid: product[1],
+            hi: product[2],
             flags: flags(negative, final_scale),
         }
     }
@@ -2112,7 +2191,6 @@ impl Ord for Decimal {
 
 #[cfg(test)]
 mod test {
-    extern crate time;
     // Tests on private methods.
     //
     // All public tests should go under `tests/`.
