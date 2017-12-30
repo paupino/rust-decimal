@@ -1313,7 +1313,7 @@ impl FromStr for Decimal {
                         return Err(Error::new("Invalid decimal: must start lead with a number"));
                     }
                     offset += 1;
-                    len -= 2;
+                    len -= 1;
                 }
                 _ => return Err(Error::new("Invalid decimal: unknown character")),
             }
