@@ -1903,7 +1903,6 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
                 &mut working_quotient,
                 &mut working_scale,
             );
-            // TODO: We could round here however I don't want it to be lossy
 
             // Multiply the remainder by 10
             let mut overflow = 0;
