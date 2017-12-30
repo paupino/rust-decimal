@@ -973,3 +973,30 @@ fn it_can_parse_highly_significant_numbers() {
         assert_eq!(expected, Decimal::from_str(value).unwrap().to_string());
     }
 }
+
+#[test]
+fn it_can_parse_alternative_formats() {
+    let tests = &[
+        ("1_000", "1000"),
+        ("1_000_000", "1000000"),
+        ("10_000_000", "10000000"),
+        ("100_000", "100000"),
+        // At the moment, we'll accept this
+        ("1_____________0", "10"),
+    ];
+    for &(value, expected) in tests {
+        assert_eq!(expected, Decimal::from_str(value).unwrap().to_string());
+    }
+}
+
+#[test]
+fn it_can_reject_invalid_formats() {
+    let tests = &[
+        "_1",
+        "1.0.0",
+        "10_00.0_00.0",
+    ];
+    for &value in tests {
+        assert!(Decimal::from_str(value).is_err(), "This succeeded unexpectedly: {}", value);
+    }
+}
