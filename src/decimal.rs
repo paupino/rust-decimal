@@ -691,24 +691,36 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
         let mut sum: u64;
         for i in 0..bl {
             sum = u64::from(value[i]) + u64::from(by[i]) + carry;
-            value[i] = (sum & 0xFFFF_FFFF) as u32;
+            value[i] = (sum & U32_MASK) as u32;
             carry = sum >> 32;
         }
-        if vl > bl {
-            for i in value.iter_mut().take(vl).skip(bl) {
+        if vl > bl && carry > 0 {
+            for i in value.iter_mut().skip(bl) {
+                sum = u64::from(*i) + carry;
+                *i = (sum & U32_MASK) as u32;
+                carry = sum >> 32;
                 if carry == 0 {
                     break;
                 }
-                sum = u64::from(*i) + carry;
-                *i = (sum & 0xFFFF_FFFF) as u32;
-                carry = sum >> 32;
             }
         }
+    } else if vl + 1 == bl {
+        // Overflow, by default, is anything in the high portion of by
+        let mut sum: u64;
+        for i in 0..vl {
+            sum = u64::from(value[i]) + u64::from(by[i]) + carry;
+            value[i] = (sum & U32_MASK) as u32;
+            carry = sum >> 32;
+        }
+        if by[vl] > 0 {
+            carry += u64::from(by[vl]);
+        }
+    } else {
+        panic!("Internal error: add using incompatible length arrays. {} <- {}", vl, bl);
     }
     carry as u32
 }
 
-// TODO: This can be optimized quite a bit
 fn add_with_scale_internal(
     quotient: &mut [u32; 3],
     quotient_scale: &mut i32,
@@ -717,8 +729,7 @@ fn add_with_scale_internal(
 ) -> bool {
     // Add quotient and the working (i.e. quotient = quotient + working)
     if is_all_zero(quotient) {
-        // Quotient is zero (i.e. quotient = 0 + working_quotient).
-        // We can just copy the working quotient in directly
+        // Quotient is zero so we can just copy the working quotient in directly
         // First, make sure they are both 96 bit.
         while working_quotient[3] != 0 {
             div_by_u32(working_quotient, 10);
@@ -734,66 +745,53 @@ fn add_with_scale_internal(
     }
 
     // We have ensured that our working is not zero so we should do the addition
-    let mut temp = [0u32, 0u32, 0u32, 0u32, 0u32];
 
     // If our two quotients are different then
     // try to scale down the one with the bigger scale
     if *quotient_scale != *working_scale {
-        if *quotient_scale < *working_scale {
+        fn div_by_10(target: &mut [u32], scale: &mut i32, target_scale: i32) {
+            // Create a temp array to work with
+            let mut temp = target.to_owned();
             // divide by 10 until target scale is reached
-            copy_array_diff_lengths(&mut temp, working_quotient);
-            while *working_scale > *quotient_scale {
-                // TODO: Work out a better way to share this code
+            while *scale > target_scale {
                 let remainder = div_by_u32(&mut temp, 10);
                 if remainder == 0 {
-                    *working_scale -= 1;
-                    copy_array_diff_lengths(working_quotient, &temp);
+                    *scale -= 1;
+                    target.copy_from_slice(&temp);
                 } else {
                     break;
                 }
             }
-        } else {
-            copy_array_diff_lengths(&mut temp, quotient);
-            // divide by 10 until target scale is reached
-            while *quotient_scale > *working_scale {
-                // TODO: Work out a better way to share this code
-                let remainder = div_by_u32(&mut temp, 10);
-                if remainder == 0 {
-                    *quotient_scale -= 1;
-                    copy_array_diff_lengths(quotient, &temp);
-                } else {
-                    break;
-                }
-            }
+        }
 
+        if *quotient_scale < *working_scale {
+            div_by_10(working_quotient, working_scale, *quotient_scale);
+        } else {
+            div_by_10(quotient, quotient_scale, *working_scale);
         }
     }
 
     // If our two quotients are still different then
     // try to scale up the smaller scale
     if *quotient_scale != *working_scale {
+        fn mul_by_10(target: &mut [u32], scale: &mut i32, target_scale: i32) {
+            let mut temp = target.to_owned();
+            let mut overflow = 0;
+            // Multiply by 10 until target scale reached or overflow
+            while *scale < target_scale && overflow == 0 {
+                overflow = mul_by_u32(&mut temp, 10);
+                if overflow == 0 {
+                    // Still no overflow
+                    *scale += 1;
+                    target.copy_from_slice(&temp);
+                }
+            }
+        }
+
         if *quotient_scale > *working_scale {
-            copy_array_diff_lengths(&mut temp, working_quotient);
-            // Multiply by 10 until scale reached or overflow
-            while *working_scale < *quotient_scale && temp[4] == 0 {
-                mul_by_u32(&mut temp, 10);
-                if temp[4] == 0 {
-                    // still does not overflow
-                    *working_scale += 1;
-                    copy_array_diff_lengths(working_quotient, &temp);
-                }
-            }
+            mul_by_10(working_quotient, working_scale, *quotient_scale);
         } else {
-            copy_array_diff_lengths(&mut temp, quotient);
-            // Multiply by 10 until scale reached or overflow
-            while *quotient_scale < *working_scale && temp[3] == 0 {
-                mul_by_u32(&mut temp, 10);
-                if temp[3] == 0 {
-                    // still does not overflow
-                    *quotient_scale += 1;
-                    copy_array_diff_lengths(quotient, &temp);
-                }
-            }
+            mul_by_10(quotient, quotient_scale, *working_scale);
         }
     }
 
@@ -801,23 +799,19 @@ fn add_with_scale_internal(
     // try to scale down the one with the bigger scale
     // (ultimately losing significant digits)
     if *quotient_scale != *working_scale {
+        fn div_by_10_lossy(target: &mut [u32], scale: &mut i32, target_scale: i32) {
+            let mut temp = target.to_owned();
+            // divide by 10 until target scale is reached
+            while *scale > target_scale {
+                div_by_u32(&mut temp, 10);
+                *scale -= 1;
+                target.copy_from_slice(&temp);
+            }
+        }
         if *quotient_scale < *working_scale {
-            copy_array_diff_lengths(&mut temp, working_quotient);
-            // divide by 10 until target scale is reached
-            while *working_scale > *quotient_scale {
-                div_by_u32(&mut temp, 10);
-                *working_scale -= 1;
-                copy_array_diff_lengths(working_quotient, &temp);
-            }
-
+            div_by_10_lossy(working_quotient, working_scale, *quotient_scale);
         } else {
-            copy_array_diff_lengths(&mut temp, quotient);
-            // divide by 10 until target scale is reached
-            while *quotient_scale > *working_scale {
-                div_by_u32(&mut temp, 10);
-                *quotient_scale -= 1;
-                copy_array_diff_lengths(quotient, &temp);
-            }
+            div_by_10_lossy(quotient, quotient_scale, *working_scale);
         }
     }
 
@@ -829,20 +823,15 @@ fn add_with_scale_internal(
         // Both numbers have the same scale and can be added.
         // We just need to know whether we can fit them in
         let mut underflow = false;
+        let mut temp = [0u32, 0u32, 0u32];
         while !underflow {
-            for i in 0..5 {
-                if i < 3 {
-                    temp[i] = quotient[i];
-                } else {
-                    temp[i] = 0;
-                }
-            }
+            temp.copy_from_slice(quotient);
 
-            add_internal(&mut temp, working_quotient);
-
-            if temp[3] == 0 && temp[4] == 0 {
+            // Add the working quotient
+            let overflow = add_internal(&mut temp, working_quotient);
+            if overflow == 0 {
                 // addition was successful
-                copy_array_diff_lengths(quotient, &temp);
+                quotient.copy_from_slice(&temp);
                 break;
             } else {
                 // addition overflowed - remove significant digits and try again
