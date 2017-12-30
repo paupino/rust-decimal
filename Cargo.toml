@@ -30,6 +30,7 @@ decimal = "2.0"
 
 [features]
 default = ["serde"]
+comparitive = []
 
 [workspace]
 members = [".", "./macros"]
