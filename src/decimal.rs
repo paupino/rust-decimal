@@ -663,15 +663,11 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
 // This method should only be used where copy from slice cannot be
 #[inline]
 fn copy_array_diff_lengths(into: &mut [u32], from: &[u32]) {
-    if into.len() == from.len() {
-        into.copy_from_slice(from);
-    } else {
-        for i in 0..into.len() {
-            if i >= from.len() {
-                break;
-            }
-            into[i] = from[i];
+    for i in 0..into.len() {
+        if i >= from.len() {
+            break;
         }
+        into[i] = from[i];
     }
 }
 
