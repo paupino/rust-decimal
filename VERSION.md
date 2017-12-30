@@ -1,5 +1,21 @@
 # Version History
 
+## 0.7.0
+
+This is a minor version bump as we slowly build our way towards 1.0. Thank you for everyone's support and help as we get there! This has a few notable changes - also introducing a few new interfaces which is the reason for the version bump:
+
+* `from_parts` function to allow effective creation of `Decimal`'s without requiring binary serialization. An example of this benefit is with the lazy static group initializers for Postgres.
+* `normalize` function to allow stripping trailing zero's easily.
+* `trunc` function allows truncation of a number without any rounding. This effectively "truncates" the fractional part of the number.
+* `fract` function returns the fractional part of the number without the integral.
+* Minor improvements in some iterator logic, utilizing the compiler for further optimizations.
+* Fixes issue in string parsing logic whereby `_` would cause numbers to be incorrectly identified.
+* Many improvements to `mul`. Numbers utilizing the `lo` portion of the decimal only will now be shortcut and bigger numbers will now correctly overflow. True overflows will still panic, however large underflows will now be rounded as necessary as opposed to panicing.
+* `Hash` was implemented by convention in `0.6.5` however is reimplemented explicitly in `0.7.0` for effectiveness.
+* PostgreSQL read performance improved by pre-caching groups and leveraging `normalize` (i.e. avoiding strings). Further optimizations can be made in write however require some `div` optimizations first.
+* Added short circuit write improvement for zero in PostgreSQL writes.
+* Benchmarks are now recorded per build so we can start tracking where slow downs have occurred. This does mean there is a performance hit on Travis builds however hopefully the pay off will make it worthwhile.
+
 ## 0.6.5
 
 Fixes issue with rescale sometimes causing a silent overflow which led to incorrect results during addition, subtraction and compare. Consequently Decimal now rounds the most significant number so that these operations work successfully.
