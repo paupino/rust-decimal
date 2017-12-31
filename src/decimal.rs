@@ -102,7 +102,9 @@ impl Decimal {
     ///
     /// ```
     /// use rust_decimal::Decimal;
-    /// let _pi = Decimal::new(3141i64, 3u32);
+    ///
+    /// let pi = Decimal::new(3141, 3);
+    /// assert_eq!(pi.to_string(), "3.141");
     /// ```
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
@@ -143,7 +145,9 @@ impl Decimal {
     ///
     /// ```
     /// use rust_decimal::Decimal;
-    /// let _pi = Decimal::from_parts(3141u32, 0u32, 0u32, false, 3u32);
+    ///
+    /// let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
+    /// assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
     /// ```
     pub fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
         Decimal {
@@ -155,6 +159,15 @@ impl Decimal {
     }
 
     /// Returns the scale of the decimal number, otherwise known as `e`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let num = Decimal::new(1234, 3);
+    /// assert_eq!(num.scale(), 3u32);
+    /// ```
     pub fn scale(&self) -> u32 {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
     }
@@ -164,6 +177,16 @@ impl Decimal {
     /// # Arguments
     ///
     /// * `positive`: true if the resulting decimal should be positive.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let mut one = Decimal::new(1, 0);
+    /// one.set_sign(false);
+    /// assert_eq!(one.to_string(), "-1");
+    /// ```
     pub fn set_sign(&mut self, positive: bool) {
         if positive {
             if self.is_sign_negative() {
@@ -179,6 +202,16 @@ impl Decimal {
     /// # Arguments
     ///
     /// * `scale`: the new scale of the number
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let mut one = Decimal::new(1, 0);
+    /// one.set_scale(5);
+    /// assert_eq!(one.to_string(), "0.00001");
+    /// ```
     pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
         if scale > MAX_PRECISION {
             return Err(Error::new("Scale exceeds maximum precision"));
@@ -267,7 +300,18 @@ impl Decimal {
     }
 
     /// Returns a new `Decimal` integral with no fractional portion.
-    /// This is a true truncation whereby no rounding is performed, e.g. 1.56 -> 1
+    /// This is a true truncation whereby no rounding is performed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let pi = Decimal::new(3141, 3);
+    /// let trunc = Decimal::new(3, 0);
+    /// // note that it returns a decimal
+    /// assert_eq!(pi.trunc(), trunc);
+    /// ```
     pub fn trunc(&self) -> Decimal {
         let mut scale = self.scale();
         if scale == 0 {
@@ -295,14 +339,86 @@ impl Decimal {
     }
 
     /// Returns a new `Decimal` representing the fractional portion of the number.
-    /// e.g. 1.56 -> 0.56
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let pi = Decimal::new(3141, 3);
+    /// let fract = Decimal::new(141, 3);
+    /// // note that it returns a decimal
+    /// assert_eq!(pi.fract(), fract);
+    /// ```
     pub fn fract(&self) -> Decimal {
         // This is essentially the original number minus the integral.
         // Could possibly be optimized in the future
         *self - self.trunc()
     }
 
-    /// Strips any trailing zero's from a `Decimal`. e.g. 1.10 -> 1.1
+    /// Computes the absolute value of `self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let num = Decimal::new(-3141, 3);
+    /// assert_eq!(num.abs().to_string(), "3.141");
+    /// ```
+    pub fn abs(&self) -> Decimal {
+        let mut me = *self;
+        me.set_sign(true);
+        me
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let num = Decimal::new(3641, 3);
+    /// assert_eq!(num.floor().to_string(), "3");
+    /// ```
+    pub fn floor(&self) -> Decimal {
+        // Opportunity for optimization here
+        self.trunc()
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let num = Decimal::new(3141, 3);
+    /// assert_eq!(num.ceil().to_string(), "4");
+    /// let num = Decimal::new(3, 0);
+    /// assert_eq!(num.ceil().to_string(), "3");
+    /// ```
+    pub fn ceil(&self) -> Decimal {
+        // Opportunity for optimization here
+        if self.fract().is_zero() {
+            *self
+        } else {
+            self.trunc() + Decimal::one()
+        }
+    }
+
+    /// Strips any trailing zero's from a `Decimal`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let number = Decimal::new(3100, 3);
+    /// // note that it returns a decimal, without the extra scale
+    /// assert_eq!(number.normalize().to_string(), "3.1");
+    /// ```
     pub fn normalize(&self) -> Decimal {
         let mut scale = self.scale();
         if scale == 0 {
@@ -329,6 +445,18 @@ impl Decimal {
 
     /// Returns a new `Decimal` number with no fractional portion (i.e. an integer).
     /// Rounding currently follows "Bankers Rounding" rules. e.g. 6.5 -> 6, 7.5 -> 8
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// // Demonstrating bankers rounding...
+    /// let number_down = Decimal::new(65, 1);
+    /// let number_up   = Decimal::new(75, 1);
+    /// assert_eq!(number_down.round().to_string(), "6");
+    /// assert_eq!(number_up.round().to_string(), "8");
+    /// ```
     pub fn round(&self) -> Decimal {
         self.round_dp(0)
     }
@@ -338,6 +466,16 @@ impl Decimal {
     ///
     /// # Arguments
     /// * `dp`: the number of decimal points to round to.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use std::str::FromStr;
+    ///
+    /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+    /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
+    /// ```
     pub fn round_dp(&self, dp: u32) -> Decimal {
 
         let old_scale = self.scale();
