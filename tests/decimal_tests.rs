@@ -973,6 +973,10 @@ fn it_can_parse_highly_significant_numbers() {
             "-99.9999999999999999999999999995",
             "-100.00000000000000000000000000",
         ),
+        (
+            "3.1415926535897932384626433832",
+            "3.1415926535897932384626433832",
+        ),
     ];
     for &(value, expected) in tests {
         assert_eq!(expected, Decimal::from_str(value).unwrap().to_string());
@@ -1004,4 +1008,10 @@ fn it_can_reject_invalid_formats() {
     for &value in tests {
         assert!(Decimal::from_str(value).is_err(), "This succeeded unexpectedly: {}", value);
     }
+}
+
+#[test]
+fn it_can_parse_individual_parts() {
+    let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
+    assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
 }
