@@ -21,9 +21,6 @@ efforts from contributors on the same issue.
   branch before submitting your pull request. If it doesn't merge cleanly with
   master you may be asked to rebase your changes.
 
-- Commits should be as small as possible, while ensuring that each commit is
-  correct independently (i.e., each commit should compile and pass tests). 
-
 - If your patch is not getting reviewed or you need a specific person to review
   it, you can @-reply a reviewer asking for a review in the pull request or inside a
   comment.
@@ -40,4 +37,4 @@ moderation team.
 ## Communication
 
 Opening tickets on the
-[paupino/rust-decimal](https://github.com/paupino/rust-decimal) project is the preferred method of communication however for in depth communications please join the chat at [https://gitter.im/rust-decimal/Lobby](gitter.im). 
+[paupino/rust-decimal](https://github.com/paupino/rust-decimal) project is the preferred method of communication. 

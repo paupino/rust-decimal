@@ -1,6 +1,5 @@
-# Decimal &emsp; [![Build Status]][travis] [![Latest Version]][crates.io] [![Join the chat at https://gitter.im/rust-decimal/Lobby](https://badges.gitter.im/rust-decimal/Lobby.svg)][gitter.im]
+# Decimal &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
 
-[gitter.im]: https://gitter.im/rust-decimal/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 [Build Status]: https://api.travis-ci.org/paupino/rust-decimal.svg?branch=master
 [travis]: https://travis-ci.org/paupino/rust-decimal
 [Latest Version]: https://img.shields.io/crates/v/rust-decimal.svg
@@ -25,10 +24,16 @@ use rust_decimal::Decimal;
 
 // Using an integer followed by the decimal points
 let scaled = Decimal::new(202, 2); // 2.02
+
 // From a string representation
 let from_string = Decimal::from_str("2.02").unwrap(); // 2.02
+
 // Using the `Into` trait
 let my_int : Decimal = 3i32.into();
+
+// Using the raw decimal representation
+// 3.1415926535897932384626433832
+let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 ```
 
 ### Nightly
