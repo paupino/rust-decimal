@@ -2231,30 +2231,40 @@ impl Ord for Decimal {
         //  123 scale 2 and 12345 scale 4
         //  We need to convert the first to
         //  12300 scale 4 so we can compare equally
-        let mut self_scale = self.scale();
-        let mut other_scale = other.scale();
+        let left : &Decimal;
+        let right : &Decimal;
+        if self_negative && other_negative {
+            // Both are negative, so reverse cmp
+            left = other;
+            right = self;
+        } else {
+            left = self;
+            right = other;
+        }
+        let mut left_scale = left.scale();
+        let mut right_scale = right.scale();
 
-        if self_scale == other_scale {
+        if left_scale == right_scale {
             // Fast path for same scale
-            if self.hi != other.hi {
-                return self.hi.cmp(&other.hi);
+            if left.hi != right.hi {
+                return left.hi.cmp(&right.hi);
             }
-            if self.mid != other.mid {
-                return self.mid.cmp(&other.mid);
+            if left.mid != right.mid {
+                return left.mid.cmp(&right.mid);
             }
-            return self.lo.cmp(&other.lo);
+            return left.lo.cmp(&right.lo);
         }
 
         // Rescale and compare
-        let mut self_raw = [self.lo, self.mid, self.hi];
-        let mut other_raw = [other.lo, other.mid, other.hi];
+        let mut left_raw = [left.lo, left.mid, left.hi];
+        let mut right_raw = [right.lo, right.mid, right.hi];
         rescale(
-            &mut self_raw,
-            &mut self_scale,
-            &mut other_raw,
-            &mut other_scale,
+            &mut left_raw,
+            &mut left_scale,
+            &mut right_raw,
+            &mut right_scale,
         );
-        cmp_internal(&self_raw, &other_raw)
+        cmp_internal(&left_raw, &right_raw)
     }
 }
 
