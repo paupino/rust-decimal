@@ -2,7 +2,10 @@
 
 ## 0.7.1
 
-Fixes bug in `cmp` whereby two negatives would return an incorrect result.
+* Fixes bug in `cmp` whereby two negatives would return an incorrect result.
+* Further documentation examples
+* Small improvements in division logic
+* New `abs`, `floor` and `ceil` functions.
 
 ## 0.7.0
 
