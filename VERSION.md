@@ -1,5 +1,9 @@
 # Version History
 
+## 0.7.1
+
+Fixes bug in `cmp` whereby two negatives would return an incorrect result.
+
 ## 0.7.0
 
 This is a minor version bump as we slowly build our way towards 1.0. Thank you for everyone's support and help as we get there! This has a few notable changes - also introducing a few new interfaces which is the reason for the version bump:
