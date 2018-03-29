@@ -126,6 +126,16 @@ fn it_formats_small() {
     assert_eq!(format!("{:0<10.2}", a), "0.22000000");
 }
 #[test]
+fn it_formats_small_leading_zeros() {
+    let a = Decimal::from_str("0.0023554701772169").unwrap();
+    assert_eq!(format!("{}", a), "0.0023554701772169");
+    assert_eq!(format!("{:.9}", a), "0.002355470");
+    assert_eq!(format!("{:.0}", a), "0");
+    assert_eq!(format!("{:.2}", a), "0.00");
+    assert_eq!(format!("{:010.2}", a), "0000000.00");
+    assert_eq!(format!("{:0<10.2}", a), "0.00000000");
+}
+#[test]
 fn it_formats_small_neg() {
     let a = Decimal::from_str("-0.2223").unwrap();
     assert_eq!(format!("{}", a), "-0.2223");

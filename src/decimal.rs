@@ -1690,6 +1690,10 @@ impl fmt::Display for Decimal {
             let remainder = div_by_u32(&mut working, 10u32);
             chars.push(char::from(b'0' + remainder as u8));
         }
+        while scale > chars.len() {
+            chars.push('0');
+        }
+
         let mut rep = chars.iter().rev().collect::<String>();
         let len = rep.len();
 
@@ -1707,6 +1711,7 @@ impl fmt::Display for Decimal {
         // Inject the decimal point
         if scale > 0 {
             // Must be a low fractional
+            // TODO: Remove this condition as it's no longer possible for `scale > len`
             if scale > len {
                 let mut new_rep = String::new();
                 let zeros = repeat("0").take(scale as usize - len).collect::<String>();
