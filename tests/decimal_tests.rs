@@ -1040,3 +1040,18 @@ fn it_can_parse_individual_parts() {
     let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
     assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
 }
+
+#[test]
+fn it_can_parse_scientific_notation() {
+    let tests = &[
+        ("9.7e-7", "0.00000097"),
+        ("9e-7", "0.0000009"),
+        ("1.2e10", "12000000000"),
+        ("1.2e+10", "12000000000"),
+        ("12e10", "120000000000"),
+    ];
+
+    for &(value, expected) in tests {
+        assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
+    }
+}

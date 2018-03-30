@@ -158,6 +158,46 @@ impl Decimal {
         }
     }
 
+    /// Returns a `Result` which if successful contains the `Decimal` constitution of
+    /// the scientific notation provided by `value`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The scientific notation of the `Decimal`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let value = Decimal::from_scientific("9.7e-7").unwrap();
+    /// assert_eq!(value.to_string(), "0.00000097");
+    /// ```
+    pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
+        let err = Error::new("Failed to parse");
+        let mut split = value.splitn(2, 'e');
+
+        let base = split.next().ok_or(err.clone())?;
+        let mut scale = split.next().ok_or(err.clone())?.to_string();
+
+        let mut ret = Decimal::from_str(base)?;
+
+        if scale.contains('-') {
+            scale.remove(0);
+            let scale: u32 = scale.as_str().parse().map_err(move |_| err.clone())?;
+            let current_scale = ret.scale();
+            ret.set_scale(current_scale+ scale)?;
+        } else {
+            if scale.contains('+') {
+                scale.remove(0);
+            }
+            let pow: u32 = scale.as_str().parse().map_err(move |_| err.clone())?;
+            ret *= Decimal::from_i64(10_i64.pow(pow)).unwrap();
+            ret = ret.normalize();
+        }
+        Ok(ret)
+    }
+
     /// Returns the scale of the decimal number, otherwise known as `e`.
     ///
     /// # Example
