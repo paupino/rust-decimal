@@ -158,6 +158,46 @@ impl Decimal {
         }
     }
 
+    /// Returns a `Result` which if successful contains the `Decimal` constitution of
+    /// the scientific notation provided by `value`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The scientific notation of the `Decimal`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let value = Decimal::from_scientific("9.7e-7").unwrap();
+    /// assert_eq!(value.to_string(), "0.00000097");
+    /// ```
+    pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
+        let err = Error::new("Failed to parse");
+        let mut split = value.splitn(2, 'e');
+
+        let base = split.next().ok_or(err.clone())?;
+        let mut scale = split.next().ok_or(err.clone())?.to_string();
+
+        let mut ret = Decimal::from_str(base)?;
+
+        if scale.contains('-') {
+            scale.remove(0);
+            let scale: u32 = scale.as_str().parse().map_err(move |_| err.clone())?;
+            let current_scale = ret.scale();
+            ret.set_scale(current_scale+ scale)?;
+        } else {
+            if scale.contains('+') {
+                scale.remove(0);
+            }
+            let pow: u32 = scale.as_str().parse().map_err(move |_| err.clone())?;
+            ret *= Decimal::from_i64(10_i64.pow(pow)).unwrap();
+            ret = ret.normalize();
+        }
+        Ok(ret)
+    }
+
     /// Returns the scale of the decimal number, otherwise known as `e`.
     ///
     /// # Example
@@ -735,7 +775,7 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
         Right,
     }
 
-    let target;
+    let target; // The target which we're aiming for
     let mut diff;
     let my;
     let other;
@@ -771,10 +811,10 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
     // First, set the scales
     match target {
         Target::Left => {
-            *left_scale = *right_scale;
+            *right_scale = *left_scale;
         }
         Target::Right => {
-            *right_scale = *left_scale;
+            *left_scale = *right_scale;
         }
     }
 
@@ -782,6 +822,8 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
     let mut remainder = 0;
     while diff > 0 && !is_all_zero(other) {
         diff -= 1;
+        *left_scale -= 1;
+        *right_scale -= 1;
 
         // Any remainder is discarded if diff > 0 still (i.e. lost precision)
         remainder = div_by_u32(other, 10);
@@ -1648,6 +1690,10 @@ impl fmt::Display for Decimal {
             let remainder = div_by_u32(&mut working, 10u32);
             chars.push(char::from(b'0' + remainder as u8));
         }
+        while scale > chars.len() {
+            chars.push('0');
+        }
+
         let mut rep = chars.iter().rev().collect::<String>();
         let len = rep.len();
 
@@ -1665,6 +1711,7 @@ impl fmt::Display for Decimal {
         // Inject the decimal point
         if scale > 0 {
             // Must be a low fractional
+            // TODO: Remove this condition as it's no longer possible for `scale > len`
             if scale > len {
                 let mut new_rep = String::new();
                 let zeros = repeat("0").take(scale as usize - len).collect::<String>();
@@ -1701,7 +1748,6 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         let mut ot = [other.lo, other.mid, other.hi];
         let mut other_scale = other.scale();
         rescale(&mut my, &mut my_scale, &mut ot, &mut other_scale);
-
         let final_scale = my_scale.max(other_scale);
 
         // Add the items together
@@ -2285,41 +2331,62 @@ mod test {
         }
 
         let tests = &[
-            ("1", "1", "1"),
-            ("1", "1.0", "1.0"),
-            ("1", "1.00000", "1.00000"),
-            ("1", "1.0000000000", "1.0000000000"),
-            ("1", "1.00000000000000000000", "1.00000000000000000000"),
-            ("1.1", "1.1", "1.1"),
-            ("1.1", "1.10000", "1.10000"),
-            ("1.1", "1.1000000000", "1.1000000000"),
-            ("1.1", "1.10000000000000000000", "1.10000000000000000000"),
+            ("1", "1", "1", "1"),
+            ("1", "1.0", "1.0", "1.0"),
+            ("1", "1.00000", "1.00000", "1.00000"),
+            ("1", "1.0000000000", "1.0000000000", "1.0000000000"),
+            (
+                "1",
+                "1.00000000000000000000",
+                "1.00000000000000000000",
+                "1.00000000000000000000",
+            ),
+            ("1.1", "1.1", "1.1", "1.1"),
+            ("1.1", "1.10000", "1.10000", "1.10000"),
+            ("1.1", "1.1000000000", "1.1000000000", "1.1000000000"),
+            (
+                "1.1",
+                "1.10000000000000000000",
+                "1.10000000000000000000",
+                "1.10000000000000000000",
+            ),
             (
                 "0.6386554621848739495798319328",
                 "11.815126050420168067226890757",
                 "0.638655462184873949579831933",
+                "11.815126050420168067226890757",
+            ),
+            (
+                "0.0872727272727272727272727272", // Scale 28
+                "843.65000000", // Scale 8
+                "0.0872727272727272727272727", // 25
+                "843.6500000000000000000000000", // 25
             ),
         ];
 
-        for &(left_raw, right_raw, expected_left) in tests {
+        for &(left_raw, right_raw, expected_left, expected_right) in tests {
             // Left = the value to rescale
             // Right = the new scale we're scaling to
             // Expected = the expected left value after rescale
-            let (expected_left, _) = extract(expected_left);
-            let (expected_right, _) = extract(right_raw);
+            let (expected_left, expected_lscale) = extract(expected_left);
+            let (expected_right, expected_rscale) = extract(expected_right);
 
             let (mut left, mut left_scale) = extract(left_raw);
             let (mut right, mut right_scale) = extract(right_raw);
             rescale(&mut left, &mut left_scale, &mut right, &mut right_scale);
             assert_eq!(left, expected_left);
+            assert_eq!(left_scale, expected_lscale);
             assert_eq!(right, expected_right);
+            assert_eq!(right_scale, expected_rscale);
 
             // Also test the transitive case
             let (mut left, mut left_scale) = extract(left_raw);
             let (mut right, mut right_scale) = extract(right_raw);
             rescale(&mut right, &mut right_scale, &mut left, &mut left_scale);
             assert_eq!(left, expected_left);
+            assert_eq!(left_scale, expected_lscale);
             assert_eq!(right, expected_right);
+            assert_eq!(right_scale, expected_rscale);
         }
     }
 }

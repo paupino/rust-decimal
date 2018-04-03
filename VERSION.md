@@ -1,5 +1,14 @@
 # Version History
 
+## 0.8.0
+
+* Introduces `from_scientific` allowing parsing of scientific notation into the Decimal type.
+* Fixes a bug when formatting a number with a leading zero's.
+
+## 0.7.2
+
+* Fixes bug in `rescale` whereby scaling which invoked rounding incorrectly set the new scale for the left/right sides.
+
 ## 0.7.1
 
 * Fixes bug in `cmp` whereby two negatives would return an incorrect result.

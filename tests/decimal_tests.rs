@@ -126,6 +126,16 @@ fn it_formats_small() {
     assert_eq!(format!("{:0<10.2}", a), "0.22000000");
 }
 #[test]
+fn it_formats_small_leading_zeros() {
+    let a = Decimal::from_str("0.0023554701772169").unwrap();
+    assert_eq!(format!("{}", a), "0.0023554701772169");
+    assert_eq!(format!("{:.9}", a), "0.002355470");
+    assert_eq!(format!("{:.0}", a), "0");
+    assert_eq!(format!("{:.2}", a), "0.00");
+    assert_eq!(format!("{:010.2}", a), "0000000.00");
+    assert_eq!(format!("{:0<10.2}", a), "0.00000000");
+}
+#[test]
 fn it_formats_small_neg() {
     let a = Decimal::from_str("-0.2223").unwrap();
     assert_eq!(format!("{}", a), "-0.2223");
@@ -236,6 +246,11 @@ fn it_adds_decimals() {
             "-0.4386554621848739495798319328",
             "-11815126050420168067226890757",
         ),
+        (
+            "0.0872727272727272727272727272",
+            "843.65000000",
+            "843.7372727272727272727272727",
+        ),
     ];
     for &(a, b, c) in tests {
         add(a, b, c);
@@ -280,6 +295,7 @@ fn it_subtracts_decimals() {
         ("3", "-2", "5"),
         ("-3", "2", "-5"),
         ("1.234", "2.4567", "-1.2227"),
+        ("844.13000000", "843.65000000", "0.48000000"),
     ];
     for &(a, b, c) in tests {
         sub(a, b, c);
@@ -360,6 +376,11 @@ fn it_multiplies_decimals() {
             "2.1234567890123456789012345678",
             "2.1234567890123456789012345678",
             "4.5090687348026215523554336227",
+        ),
+        (
+            "0.48000000",
+            "0.1818181818181818181818181818",
+            "0.0872727272727272727272727272",
         ),
     ];
     for &(a, b, c) in tests {
@@ -1018,4 +1039,19 @@ fn it_can_reject_invalid_formats() {
 fn it_can_parse_individual_parts() {
     let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
     assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
+}
+
+#[test]
+fn it_can_parse_scientific_notation() {
+    let tests = &[
+        ("9.7e-7", "0.00000097"),
+        ("9e-7", "0.0000009"),
+        ("1.2e10", "12000000000"),
+        ("1.2e+10", "12000000000"),
+        ("12e10", "120000000000"),
+    ];
+
+    for &(value, expected) in tests {
+        assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
+    }
 }
