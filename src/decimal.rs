@@ -72,8 +72,8 @@ static BIG_POWERS_10: [u64; 10] = [
 ];
 
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
-/// The finite set of values of type `Decimal` are of the form m / 10^e,
-/// where m is an integer such that -2^96 <= m <= 2^96, and e is an integer
+/// The finite set of values of type `Decimal` are of the form m / 10<sup>e</sup>,
+/// where m is an integer such that -2<sup>96</sup> <= m <= 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy, Debug)]
 pub struct Decimal {

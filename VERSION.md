@@ -1,5 +1,9 @@
 # Version History
 
+## 0.8.1
+
+This release updates the published documentation only and is a no-op for functionality.
+
 ## 0.8.0
 
 * Introduces `from_scientific` allowing parsing of scientific notation into the Decimal type.
