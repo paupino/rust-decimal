@@ -6,5 +6,8 @@ target/
 # More information here http://doc.crates.io/guide.html#cargotoml-vs-cargolock
 Cargo.lock
 
+# Ignore benchmark results
+.criterion
+
 # Hidden macOS files
 .DS_Store
