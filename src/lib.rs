@@ -7,7 +7,7 @@
 //! a scaling factor used to specify the decimal fraction and a 1
 //! bit sign. Because of this representation, trailing zeros are
 //! preserved and may be exposed when in string form. These can be
-//! truncated using the `round_dp` function.
+//! truncated using the `normalize` or `round_dp` functions.
 //!
 //! ## Usage
 //!
