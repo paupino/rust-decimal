@@ -33,9 +33,5 @@ interpolate_idents = "0.2"
 default = ["serde"]
 comparitive = []
 
-[profile.release]
-debug = true
-lto = false
-
 [workspace]
 members = [".", "./macros"]
