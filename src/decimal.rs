@@ -754,6 +754,7 @@ impl Decimal {
     }
 }
 
+#[inline]
 fn flags(neg: bool, scale: u32) -> u32 {
     (scale << SCALE_SHIFT) | if neg { SIGN_MASK } else { 0 }
 }
@@ -840,6 +841,7 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
 }
 
 // This method should only be used where copy from slice cannot be
+#[inline]
 fn copy_array_diff_lengths(into: &mut [u32], from: &[u32]) {
     for i in 0..into.len() {
         if i >= from.len() {
@@ -849,6 +851,7 @@ fn copy_array_diff_lengths(into: &mut [u32], from: &[u32]) {
     }
 }
 
+#[inline]
 fn u64_to_array(value: u64) -> [u32;2] {
     [
         (value & U32_MASK) as u32,
@@ -1028,6 +1031,7 @@ fn add_with_scale_internal(
     false
 }
 
+#[inline]
 fn add_part(left: u32, right: u32) -> (u32, u32) {
     let added = u64::from(left) + u64::from(right);
     (
@@ -1198,6 +1202,7 @@ fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
     }
 }
 
+#[inline]
 fn shl_internal(bits: &mut [u32], shift: u32, carry: u32) -> u32 {
 
     let mut shift = shift;
@@ -1226,6 +1231,7 @@ fn shl_internal(bits: &mut [u32], shift: u32, carry: u32) -> u32 {
     }
 }
 
+#[inline]
 fn cmp_internal(left: &[u32; 3], right: &[u32; 3]) -> Ordering {
     let left_hi: u32 = left[2];
     let right_hi: u32 = right[2];
@@ -1240,6 +1246,7 @@ fn cmp_internal(left: &[u32; 3], right: &[u32; 3]) -> Ordering {
     }
 }
 
+#[inline]
 fn is_all_zero(bits: &[u32]) -> bool {
     bits.iter().all(|b| *b == 0)
 }
@@ -2042,6 +2049,7 @@ forward_all_binop!(impl Div for Decimal, div);
 impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
+    #[inline]
     fn div(self, other: &Decimal) -> Decimal {
         if other.is_zero() {
             panic!("Division by zero");
