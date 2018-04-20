@@ -5,7 +5,7 @@ use std::cmp::Ordering::Equal;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::iter::repeat;
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign};
 use std::str::FromStr;
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
@@ -1732,6 +1732,27 @@ impl fmt::Display for Decimal {
 
         f.pad_integral(self.is_sign_positive(), "", &rep)
     }
+}
+
+impl Neg for Decimal {
+    type Output = Decimal;
+
+    fn neg(self) -> Decimal {
+        -&self
+    }
+}
+
+impl<'a> Neg for &'a Decimal {
+    type Output = Decimal;
+
+    fn neg(self) -> Decimal {
+        Decimal {
+            flags: flags(!self.is_sign_negative(), self.scale()),
+            hi: self.hi,
+            lo: self.lo,
+            mid: self.mid,
+        }
+    }            
 }
 
 forward_all_binop!(impl Add for Decimal, add);

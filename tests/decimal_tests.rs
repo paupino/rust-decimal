@@ -166,7 +166,33 @@ fn it_formats_int() {
     assert_eq!(format!("{:0<10.2}", a), "5.00000000");
 }
 
+// Negation
+#[test]
+fn it_negates_decimals() {
+    fn neg(a: &str, b: &str) {
+        let a = Decimal::from_str(a).unwrap();
+        let result = -a;
+        assert_eq!(
+            b,
+            result.to_string(),
+            "- {}",
+            a.to_string()
+        );
+    }
 
+    let tests = &[
+        ("1", "-1"),
+        ("2", "-2"),
+        ("2454495034", "-2454495034"),
+        (".1", "-0.1"),
+        ("11.815126050420168067226890757", "-11.815126050420168067226890757"),
+    ];
+
+    for &(a, b) in tests {
+        neg(a, b);
+    }
+}
+        
 // Addition
 
 #[test]
