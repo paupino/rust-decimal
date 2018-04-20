@@ -1,6 +1,4 @@
 #![feature(test)]
-#![feature(plugin)]
-#![plugin(interpolate_idents)]
 
 #[cfg(feature = "comparitive")]
 extern crate decimal;
@@ -11,38 +9,54 @@ use rust_decimal::Decimal;
 use std::str::FromStr;
 
 macro_rules! bench_decimal_op {
-    ($name:ident, $op:tt) => {
-        
-        bench_decimal_op_value!($name, one, $op, "1");
-        bench_decimal_op_value!($name, two, $op, "2");
-        bench_decimal_op_value!($name, one_hundred, $op, "100");
-        bench_decimal_op_value!($name, point_zero_one, $op, "0.01");
-        bench_decimal_op_value!($name, negative_point_five, $op, "-0.5");
-        bench_decimal_op_value!($name, pi, $op, "3.1415926535897932384626433832");
-        bench_decimal_op_value!($name, negative_pi, $op, "-3.1415926535897932384626433832");
-    }
-}
-
-macro_rules! bench_decimal_op_value {
-    ($name:ident, $value_str:ident, $op:tt, $y:expr) => {
-        interpolate_idents! {
-            #[bench]
-            fn [$name _ $value_str](b: &mut ::test::Bencher) {
-                let x = Decimal::from_str("2.01").unwrap();
-                let y = Decimal::from_str($y).unwrap();
-                b.iter(|| {
-                    let result = x $op y;
-                    ::test::black_box(result);
-                });
-            }
+    ($name:ident, $op:tt, $y:expr) => {
+        #[bench]
+        fn $name(b: &mut ::test::Bencher) {
+            let x = Decimal::from_str("2.01").unwrap();
+            let y = Decimal::from_str($y).unwrap();
+            b.iter(|| {
+                let result = x $op y;
+                ::test::black_box(result);
+            });
         }
     }
 }
 
-bench_decimal_op!(add, +);
-bench_decimal_op!(sub, -);
-bench_decimal_op!(mul, *);
-bench_decimal_op!(div, /);
+/* Add */
+bench_decimal_op!(add_one, +, "1");
+bench_decimal_op!(add_two, +, "2");
+bench_decimal_op!(add_one_hundred, +, "100");
+bench_decimal_op!(add_point_zero_one, +, "0.01");
+bench_decimal_op!(add_negative_point_five, +, "-0.5");
+bench_decimal_op!(add_pi, +, "3.1415926535897932384626433832");
+bench_decimal_op!(add_negative_pi, +, "-3.1415926535897932384626433832");
+
+/* Sub */
+bench_decimal_op!(sub_one, -, "1");
+bench_decimal_op!(sub_two, -, "2");
+bench_decimal_op!(sub_one_hundred, -, "100");
+bench_decimal_op!(sub_point_zero_one, -, "0.01");
+bench_decimal_op!(sub_negative_point_five, -, "-0.5");
+bench_decimal_op!(sub_pi, -, "3.1415926535897932384626433832");
+bench_decimal_op!(sub_negative_pi, -, "-3.1415926535897932384626433832");
+
+/* Mul */
+bench_decimal_op!(mul_one, *, "1");
+bench_decimal_op!(mul_two, *, "2");
+bench_decimal_op!(mul_one_hundred, *, "100");
+bench_decimal_op!(mul_point_zero_one, *, "0.01");
+bench_decimal_op!(mul_negative_point_five, *, "-0.5");
+bench_decimal_op!(mul_pi, *, "3.1415926535897932384626433832");
+bench_decimal_op!(mul_negative_pi, *, "-3.1415926535897932384626433832");
+
+/* Div */
+bench_decimal_op!(div_one, /, "1");
+bench_decimal_op!(div_two, /, "2");
+bench_decimal_op!(div_one_hundred, /, "100");
+bench_decimal_op!(div_point_zero_one, /, "0.01");
+bench_decimal_op!(div_negative_point_five, /, "-0.5");
+bench_decimal_op!(div_pi, /, "3.1415926535897932384626433832");
+bench_decimal_op!(div_negative_pi, /, "-3.1415926535897932384626433832");
 
 #[cfg(feature = "comparitive")]
 mod comparitive {
@@ -50,38 +64,42 @@ mod comparitive {
     use rust_decimal::Decimal;
     use std::str::FromStr;
 
-    macro_rules! bench_compare_op {
+    macro_rules! bench_dec_op {
         ($name:ident, $op:tt) => {
-            interpolate_idents! {
-                #[bench]
-                fn [$name _dec](b: &mut ::test::Bencher) {
-                    let x = Decimal::from_str("2.01").unwrap();
-                    let y = Decimal::from_str("3.1415926535897932384626433832").unwrap();
-                    b.iter(|| {
-                        let result = x $op y;
-                        ::test::black_box(result);
-                    });
-                }
-            }
-
-            interpolate_idents! {
-                #[bench]
-                fn [$name _d128](b: &mut ::test::Bencher) {
-                    let x = d128::from_str("2.01").unwrap();
-                    let y = d128::from_str("3.1415926535897932384626433832").unwrap();
-                    b.iter(|| {
-                        let result = x $op y;
-                        ::test::black_box(result);
-                    });
-                }
+            #[bench]
+            fn $name(b: &mut ::test::Bencher) {
+                let x = Decimal::from_str("2.01").unwrap();
+                let y = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+                b.iter(|| {
+                    let result = x $op y;
+                    ::test::black_box(result);
+                });
             }
         }
     }
 
-    bench_compare_op!(add, +);
-    bench_compare_op!(sub, -);
-    bench_compare_op!(mul, *);
-    bench_compare_op!(div, /);
+    macro_rules! bench_d128_op {
+        ($name:ident, $op:tt) => {
+            #[bench]
+            fn $name(b: &mut ::test::Bencher) {
+                let x = d128::from_str("2.01").unwrap();
+                let y = d128::from_str("3.1415926535897932384626433832").unwrap();
+                b.iter(|| {
+                    let result = x $op y;
+                    ::test::black_box(result);
+                });
+            }
+        }
+    }
+
+    bench_dec_op!(add_dec, +);
+    bench_d128_op!(add_d128, +);
+    bench_dec_op!(sub_dec, -);
+    bench_d128_op!(sub_d128, -);
+    bench_dec_op!(mul_dec, *);
+    bench_d128_op!(mul_d128, *);
+    bench_dec_op!(div_dec, /);
+    bench_d128_op!(div_d128, /);
 }
 #[cfg(not(feature = "comparitive"))]
 mod comparitive {
