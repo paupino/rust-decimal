@@ -1752,7 +1752,7 @@ impl<'a> Neg for &'a Decimal {
             lo: self.lo,
             mid: self.mid,
         }
-    }            
+    }
 }
 
 forward_all_binop!(impl Add for Decimal, add);
@@ -1769,15 +1769,16 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         let mut ot = [other.lo, other.mid, other.hi];
         let mut other_scale = other.scale();
         rescale(&mut my, &mut my_scale, &mut ot, &mut other_scale);
-        let final_scale = my_scale.max(other_scale);
+        let mut final_scale = my_scale.max(other_scale);
 
         // Add the items together
         let my_negative = self.is_sign_negative();
         let other_negative = other.is_sign_negative();
         let mut negative = false;
+        let carry;
         if my_negative && other_negative {
             negative = true;
-            add_internal(&mut my, &ot);
+            carry = add_internal(&mut my, &ot);
         } else if my_negative && !other_negative {
             // -x + y
             let cmp = cmp_internal(&my, &ot);
@@ -1800,6 +1801,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
                     my[2] = 0;
                 }
             }
+            carry = 0;
         } else if !my_negative && other_negative {
             // x + -y
             let cmp = cmp_internal(&my, &ot);
@@ -1822,8 +1824,34 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
                     my[2] = 0;
                 }
             }
+            carry = 0;
         } else {
-            add_internal(&mut my, &ot);
+            carry = add_internal(&mut my, &ot);
+        }
+
+        // If we have a carry we underflowed.
+        // We need to lose some significant digits (if possible)
+        if carry > 0 {
+            if final_scale == 0 {
+                panic!("Addition overflowed");
+            }
+
+            // Copy it over to a temp array for modification
+            let mut temp = [my[0], my[1], my[2], carry];
+            while final_scale > 0 && temp[3] != 0 {
+                div_by_u32(&mut temp, 10);
+                final_scale -= 1;
+            }
+
+            // If we still have a carry bit then we overflowed
+            if temp[3] > 0 {
+                panic!("Addition overflowed");
+            }
+
+            // Copy it back - we're done
+            my[0] = temp[0];
+            my[1] = temp[1];
+            my[2] = temp[2];
         }
         Decimal {
             lo: my[0],
