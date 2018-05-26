@@ -1,5 +1,10 @@
 # Version History
 
+## 0.9.0
+
+* Introduces the `Neg` trait to support the ability to use `-decimal_variable`.
+* Fixes bug with underflow on addition.
+
 ## 0.8.1
 
 This release updates the published documentation only and is a no-op for functionality.
