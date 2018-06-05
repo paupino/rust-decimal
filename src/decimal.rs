@@ -897,6 +897,19 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
     carry as u32
 }
 
+#[inline]
+fn add3_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
+    let mut carry: u64 = 0;
+    let bl = by.len();
+    let mut sum: u64;
+    for i in 0..bl {
+        sum = u64::from(value[i]) + u64::from(by[i]) + carry;
+        value[i] = (sum & U32_MASK) as u32;
+        carry = sum >> 32;
+    }
+    carry as u32
+}
+
 fn add_with_scale_internal(
     quotient: &mut [u32; 3],
     quotient_scale: &mut i32,
@@ -1778,7 +1791,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         let carry;
         if my_negative && other_negative {
             negative = true;
-            carry = add_internal(&mut my, &ot);
+            carry = add3_internal(&mut my, &ot);
         } else if my_negative && !other_negative {
             // -x + y
             let cmp = cmp_internal(&my, &ot);
@@ -1826,7 +1839,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
             }
             carry = 0;
         } else {
-            carry = add_internal(&mut my, &ot);
+            carry = add3_internal(&mut my, &ot);
         }
 
         // If we have a carry we underflowed.
