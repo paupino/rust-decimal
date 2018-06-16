@@ -208,6 +208,7 @@ impl Decimal {
     /// let num = Decimal::new(1234, 3);
     /// assert_eq!(num.scale(), 3u32);
     /// ```
+    #[inline]
     pub fn scale(&self) -> u32 {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
     }
@@ -792,7 +793,7 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
     };
 
     let mut working = [my[0], my[1], my[2]];
-    while diff > 0 && mul_by_u32(&mut working, 10) == 0 {
+    while diff > 0 && mul_by_10(&mut working) == 0 {
         my.copy_from_slice(&working);
         diff -= 1;
     }
@@ -895,6 +896,19 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
         panic!("Internal error: add using incompatible length arrays. {} <- {}", vl, bl);
     }
     carry as u32
+}
+
+#[inline]
+fn add3_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
+    let mut carry: u32 = 0;
+    let bl = by.len();
+    for i in 0..bl {
+        let res1 = value[i].overflowing_add(by[i]);
+        let res2 = res1.0.overflowing_add(carry);
+        value[i] = res2.0;
+        carry = (res1.1 | res2.1) as u32;
+    }
+    carry
 }
 
 fn add_with_scale_internal(
@@ -1105,6 +1119,22 @@ fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
     }
     (lo, hi as u32)
 }
+
+// Returns overflow
+#[inline]
+fn mul_by_10(bits: &mut [u32; 3]) -> u32 {
+    let mut overflow = 0u64;
+    for b in bits.iter_mut() {
+        let result = u64::from(*b) * 10u64 + overflow;
+        let hi = (result >> 32) & U32_MASK;
+        let lo = (result & U32_MASK) as u32;
+        *b = lo;
+        overflow = hi;
+    }
+
+    overflow as u32
+}
+
 
 // Returns overflow
 fn mul_by_u32(bits: &mut [u32], m: u32) -> u32 {
@@ -1776,9 +1806,9 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         let other_negative = other.is_sign_negative();
         let mut negative = false;
         let carry;
-        if my_negative && other_negative {
-            negative = true;
-            carry = add_internal(&mut my, &ot);
+        if !(my_negative ^ other_negative) {
+            negative = my_negative;
+            carry = add3_internal(&mut my, &ot);
         } else if my_negative && !other_negative {
             // -x + y
             let cmp = cmp_internal(&my, &ot);
@@ -1802,7 +1832,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
                 }
             }
             carry = 0;
-        } else if !my_negative && other_negative {
+        } else {
             // x + -y
             let cmp = cmp_internal(&my, &ot);
             // if x < y then it's negative (i.e. 1 + -2)
@@ -1825,8 +1855,6 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
                 }
             }
             carry = 0;
-        } else {
-            carry = add_internal(&mut my, &ot);
         }
 
         // If we have a carry we underflowed.

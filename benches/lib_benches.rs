@@ -31,6 +31,21 @@ bench_decimal_op!(add_negative_point_five, +, "-0.5");
 bench_decimal_op!(add_pi, +, "3.1415926535897932384626433832");
 bench_decimal_op!(add_negative_pi, +, "-3.1415926535897932384626433832");
 
+#[bench]
+fn bench_sum_10m(b: &mut ::test::Bencher) {
+    fn sum_10m(values: &[Decimal]) -> Decimal {
+        let mut sum: Decimal = 0.into();
+        for value in values {
+            sum = sum + value;
+        }
+        sum
+    }
+
+    let values: Vec<Decimal> = test::black_box((0..10_000_000).map(|i| i.into()).collect());
+    b.iter(|| sum_10m(&values));
+}
+
+
 /* Sub */
 bench_decimal_op!(sub_one, -, "1");
 bench_decimal_op!(sub_two, -, "2");
@@ -103,5 +118,5 @@ mod comparitive {
 }
 #[cfg(not(feature = "comparitive"))]
 mod comparitive {
-    
+
 }
