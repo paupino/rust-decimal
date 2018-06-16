@@ -899,15 +899,15 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
 
 #[inline]
 fn add3_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
-    let mut carry: u64 = 0;
+    let mut carry: u32 = 0;
     let bl = by.len();
-    let mut sum: u64;
     for i in 0..bl {
-        sum = u64::from(value[i]) + u64::from(by[i]) + carry;
-        value[i] = (sum & U32_MASK) as u32;
-        carry = sum >> 32;
+        let res1 = value[i].overflowing_add(by[i]);
+        let res2 = res1.0.overflowing_add(carry);
+        value[i] = res2.0;
+        carry = (res1.1 | res2.1) as u32;
     }
-    carry as u32
+    carry
 }
 
 fn add_with_scale_internal(
