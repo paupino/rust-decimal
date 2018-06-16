@@ -1789,8 +1789,8 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         let other_negative = other.is_sign_negative();
         let mut negative = false;
         let carry;
-        if my_negative && other_negative {
-            negative = true;
+        if !(my_negative ^ other_negative) {
+            negative = my_negative;
             carry = add3_internal(&mut my, &ot);
         } else if my_negative && !other_negative {
             // -x + y
@@ -1815,7 +1815,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
                 }
             }
             carry = 0;
-        } else if !my_negative && other_negative {
+        } else {
             // x + -y
             let cmp = cmp_internal(&my, &ot);
             // if x < y then it's negative (i.e. 1 + -2)
@@ -1838,8 +1838,6 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
                 }
             }
             carry = 0;
-        } else {
-            carry = add3_internal(&mut my, &ot);
         }
 
         // If we have a carry we underflowed.
