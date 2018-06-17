@@ -321,6 +321,7 @@ impl Decimal {
     }
 
     /// Returns `true` if the decimal is negative.
+    #[inline(always)]
     pub fn is_sign_negative(&self) -> bool {
         self.flags & SIGN_MASK > 0
     }
