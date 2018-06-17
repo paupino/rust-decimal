@@ -1054,6 +1054,18 @@ fn add_part(left: u32, right: u32) -> (u32, u32) {
     )
 }
 
+#[inline(always)]
+fn sub3_internal(value: &mut [u32; 3], by: &[u32; 3]) {
+    let mut overflow = 0;
+    let vl = value.len();
+    for i in 0..vl {
+        let part = 0x1_0000_0000u64 + u64::from(value[i]) - (u64::from(by[i]) + overflow);
+        value[i] = part as u32;
+        overflow = 1 - (part >> 32);
+    }
+}
+
+
 fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
     // The way this works is similar to long subtraction
     // Let's assume we're working with bytes for simpliciy in an example:
@@ -1097,27 +1109,33 @@ fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
     overflow
 }
 
+//#[inline]
 fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
-    let mut invert = false;
-    let overflow = i64::from(overflow);
-    let mut part: i64 = i64::from(left) - i64::from(right);
-    if left < right {
-        invert = true;
-    }
+    let part = 0x1_0000_0000u64 + u64::from(left) - (u64::from(right) + u64::from(overflow));
+    let lo = part as u32;
+    let hi = 1 - ((part >> 32) as u32);
+    (lo, hi)
 
-    if part > overflow {
-        part -= overflow;
-    } else {
-        part -= overflow;
-        invert = true;
-    }
-
-    let mut hi: i32 = ((part >> 32) & 0xFFFF_FFFF) as i32;
-    let lo: u32 = (part & 0xFFFF_FFFF) as u32;
-    if invert {
-        hi = -hi;
-    }
-    (lo, hi as u32)
+//    let mut invert = false;
+//    let overflow = i64::from(overflow);
+//    let mut part: i64 = i64::from(left) - i64::from(right);
+//    if left < right {
+//        invert = true;
+//    }
+//
+//    if part > overflow {
+//        part -= overflow;
+//    } else {
+//        part -= overflow;
+//        invert = true;
+//    }
+//
+//    let mut hi: i32 = ((part >> 32) & 0xFFFF_FFFF) as i32;
+//    let lo: u32 = (part & 0xFFFF_FFFF) as u32;
+//    if invert {
+//        hi = -hi;
+//    }
+//    (lo, hi as u32)
 }
 
 // Returns overflow
@@ -1809,46 +1827,24 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         if !(my_negative ^ other_negative) {
             negative = my_negative;
             carry = add3_internal(&mut my, &ot);
-        } else if my_negative && !other_negative {
-            // -x + y
+        } else {
             let cmp = cmp_internal(&my, &ot);
+            // -x + y
             // if x > y then it's negative (i.e. -2 + 1)
             match cmp {
                 Ordering::Less => {
-                    sub_internal(&mut ot, &my);
+                    negative = other_negative;
+                    sub3_internal(&mut ot, &my);
                     my[0] = ot[0];
                     my[1] = ot[1];
                     my[2] = ot[2];
                 }
                 Ordering::Greater => {
-                    negative = true;
-                    sub_internal(&mut my, &ot);
+                    negative = my_negative;
+                    sub3_internal(&mut my, &ot);
                 }
                 Ordering::Equal => {
                     // -2 + 2
-                    my[0] = 0;
-                    my[1] = 0;
-                    my[2] = 0;
-                }
-            }
-            carry = 0;
-        } else {
-            // x + -y
-            let cmp = cmp_internal(&my, &ot);
-            // if x < y then it's negative (i.e. 1 + -2)
-            match cmp {
-                Ordering::Less => {
-                    negative = true;
-                    sub_internal(&mut ot, &my);
-                    my[0] = ot[0];
-                    my[1] = ot[1];
-                    my[2] = ot[2];
-                }
-                Ordering::Greater => {
-                    sub_internal(&mut my, &ot);
-                }
-                Ordering::Equal => {
-                    // 2 + -2
                     my[0] = 0;
                     my[1] = 0;
                     my[2] = 0;
