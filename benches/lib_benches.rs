@@ -32,8 +32,8 @@ bench_decimal_op!(add_pi, +, "3.1415926535897932384626433832");
 bench_decimal_op!(add_negative_pi, +, "-3.1415926535897932384626433832");
 
 #[bench]
-fn bench_sum_10m(b: &mut ::test::Bencher) {
-    fn sum_10m(values: &[Decimal]) -> Decimal {
+fn bench_sum_10k(b: &mut ::test::Bencher) {
+    fn sum_10k(values: &[Decimal]) -> Decimal {
         let mut sum: Decimal = 0.into();
         for value in values {
             sum = sum + value;
@@ -41,8 +41,11 @@ fn bench_sum_10m(b: &mut ::test::Bencher) {
         sum
     }
 
-    let values: Vec<Decimal> = test::black_box((0..10_000_000).map(|i| i.into()).collect());
-    b.iter(|| sum_10m(&values));
+    let values: Vec<Decimal> = test::black_box((0..10_000).map(|i| i.into()).collect());
+    b.iter(|| {
+        let result = sum_10k(&values);
+        ::test::black_box(result);
+    });
 }
 
 
@@ -54,6 +57,23 @@ bench_decimal_op!(sub_point_zero_one, -, "0.01");
 bench_decimal_op!(sub_negative_point_five, -, "-0.5");
 bench_decimal_op!(sub_pi, -, "3.1415926535897932384626433832");
 bench_decimal_op!(sub_negative_pi, -, "-3.1415926535897932384626433832");
+
+#[bench]
+fn bench_dec_10k(b: &mut ::test::Bencher) {
+    fn dec_10k(values: &[Decimal]) -> Decimal {
+        let mut sum: Decimal = 5_000_000.into();
+        for value in values {
+            sum = sum - value;
+        }
+        sum
+    }
+
+    let values: Vec<Decimal> = test::black_box((0..10_000).map(|i| i.into()).collect());
+    b.iter(|| {
+        let result = dec_10k(&values);
+        ::test::black_box(result);
+    });
+}
 
 /* Mul */
 bench_decimal_op!(mul_one, *, "1");

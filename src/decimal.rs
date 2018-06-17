@@ -1790,7 +1790,7 @@ forward_all_binop!(impl Add for Decimal, add);
 impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
-    #[inline]
+    #[inline(always)]
     fn add(self, other: &Decimal) -> Decimal {
 
         // Convert to the same scale
@@ -1905,7 +1905,7 @@ forward_all_binop!(impl Sub for Decimal, sub);
 impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
-    #[inline]
+    #[inline(always)]
     fn sub(self, other: &Decimal) -> Decimal {
         let negated_other = Decimal {
             lo: other.lo,
