@@ -766,6 +766,7 @@ fn flags(neg: bool, scale: u32) -> u32 {
 /// the maximum scale of left/right. If it is unable to do that it
 /// will try to reduce the accuracy of the other argument.
 /// e.g. with 1.23 and 2.345 it'll rescale the first arg to 1.230
+#[inline(always)]
 fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], right_scale: &mut u32) {
     if left_scale == right_scale {
         // Nothing to do
