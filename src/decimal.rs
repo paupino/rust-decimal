@@ -800,26 +800,18 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
         diff -= 1;
     }
 
+    match target {
+        Target::Left => *right_scale = *left_scale,
+        Target::Right => *left_scale = *right_scale,
+    }
+
     if diff == 0 {
         // We're done - same scale
-        match target {
-            Target::Left => *right_scale = *left_scale,
-            Target::Right => *left_scale = *right_scale,
-        }
         return;
     }
 
     // Scaling further isn't possible since we got an overflow
     // In this case we need to reduce the accuracy of the "side to keep"
-    // First, set the scales
-    match target {
-        Target::Left => {
-            *right_scale = *left_scale;
-        }
-        Target::Right => {
-            *left_scale = *right_scale;
-        }
-    }
 
     // Now do the necessary rounding
     let mut remainder = 0;
@@ -829,7 +821,7 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
         *right_scale -= 1;
 
         // Any remainder is discarded if diff > 0 still (i.e. lost precision)
-        remainder = div_by_u32(other, 10);
+        remainder = div_by_10(other);
     }
     if remainder >= 5 {
         for part in other.iter_mut() {
@@ -1250,6 +1242,18 @@ fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
 
         remainder
     }
+}
+
+fn div_by_10(bits: &mut [u32; 3]) -> u32 {
+    let mut remainder = 0u32;
+    let divisor = 10u64;
+    for part in bits.iter_mut().rev() {
+        let temp = (u64::from(remainder) << 32) + u64::from(*part);
+        remainder = (temp % divisor) as u32;
+        *part = (temp / divisor) as u32;
+    }
+
+    remainder
 }
 
 #[inline]
