@@ -1053,7 +1053,7 @@ fn sub3_internal(value: &mut [u32; 3], by: &[u32; 3]) {
     let mut overflow = 0;
     let vl = value.len();
     for i in 0..vl {
-        let part = 0x1_0000_0000u64 + u64::from(value[i]) - (u64::from(by[i]) + overflow);
+        let part = (0x1_0000_0000u64 + u64::from(value[i])) - (u64::from(by[i]) + overflow);
         value[i] = part as u32;
         overflow = 1 - (part >> 32);
     }
