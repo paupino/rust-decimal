@@ -1,5 +1,9 @@
 # Version History
 
+## 0.9.1
+
+* Performance optimization for `add`.
+
 ## 0.9.0
 
 * Introduces the `Neg` trait to support the ability to use `-decimal_variable`.
