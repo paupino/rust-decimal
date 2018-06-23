@@ -321,6 +321,7 @@ impl Decimal {
     }
 
     /// Returns `true` if the decimal is negative.
+    #[inline(always)]
     pub fn is_sign_negative(&self) -> bool {
         self.flags & SIGN_MASK > 0
     }
@@ -765,6 +766,7 @@ fn flags(neg: bool, scale: u32) -> u32 {
 /// the maximum scale of left/right. If it is unable to do that it
 /// will try to reduce the accuracy of the other argument.
 /// e.g. with 1.23 and 2.345 it'll rescale the first arg to 1.230
+#[inline(always)]
 fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], right_scale: &mut u32) {
     if left_scale == right_scale {
         // Nothing to do
@@ -798,26 +800,18 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
         diff -= 1;
     }
 
+    match target {
+        Target::Left => *right_scale = *left_scale,
+        Target::Right => *left_scale = *right_scale,
+    }
+
     if diff == 0 {
         // We're done - same scale
-        match target {
-            Target::Left => *right_scale = *left_scale,
-            Target::Right => *left_scale = *right_scale,
-        }
         return;
     }
 
     // Scaling further isn't possible since we got an overflow
     // In this case we need to reduce the accuracy of the "side to keep"
-    // First, set the scales
-    match target {
-        Target::Left => {
-            *right_scale = *left_scale;
-        }
-        Target::Right => {
-            *left_scale = *right_scale;
-        }
-    }
 
     // Now do the necessary rounding
     let mut remainder = 0;
@@ -827,7 +821,7 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
         *right_scale -= 1;
 
         // Any remainder is discarded if diff > 0 still (i.e. lost precision)
-        remainder = div_by_u32(other, 10);
+        remainder = div_by_10(other);
     }
     if remainder >= 5 {
         for part in other.iter_mut() {
@@ -1054,6 +1048,18 @@ fn add_part(left: u32, right: u32) -> (u32, u32) {
     )
 }
 
+#[inline(always)]
+fn sub3_internal(value: &mut [u32; 3], by: &[u32; 3]) {
+    let mut overflow = 0;
+    let vl = value.len();
+    for i in 0..vl {
+        let part = (0x1_0000_0000u64 + u64::from(value[i])) - (u64::from(by[i]) + overflow);
+        value[i] = part as u32;
+        overflow = 1 - (part >> 32);
+    }
+}
+
+
 fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
     // The way this works is similar to long subtraction
     // Let's assume we're working with bytes for simpliciy in an example:
@@ -1098,26 +1104,10 @@ fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
 }
 
 fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
-    let mut invert = false;
-    let overflow = i64::from(overflow);
-    let mut part: i64 = i64::from(left) - i64::from(right);
-    if left < right {
-        invert = true;
-    }
-
-    if part > overflow {
-        part -= overflow;
-    } else {
-        part -= overflow;
-        invert = true;
-    }
-
-    let mut hi: i32 = ((part >> 32) & 0xFFFF_FFFF) as i32;
-    let lo: u32 = (part & 0xFFFF_FFFF) as u32;
-    if invert {
-        hi = -hi;
-    }
-    (lo, hi as u32)
+    let part = 0x1_0000_0000u64 + u64::from(left) - (u64::from(right) + u64::from(overflow));
+    let lo = part as u32;
+    let hi = 1 - ((part >> 32) as u32);
+    (lo, hi)
 }
 
 // Returns overflow
@@ -1230,6 +1220,18 @@ fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
 
         remainder
     }
+}
+
+fn div_by_10(bits: &mut [u32; 3]) -> u32 {
+    let mut remainder = 0u32;
+    let divisor = 10u64;
+    for part in bits.iter_mut().rev() {
+        let temp = (u64::from(remainder) << 32) + u64::from(*part);
+        remainder = (temp % divisor) as u32;
+        *part = (temp / divisor) as u32;
+    }
+
+    remainder
 }
 
 #[inline]
@@ -1790,7 +1792,7 @@ forward_all_binop!(impl Add for Decimal, add);
 impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
-    #[inline]
+    #[inline(always)]
     fn add(self, other: &Decimal) -> Decimal {
 
         // Convert to the same scale
@@ -1809,46 +1811,24 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
         if !(my_negative ^ other_negative) {
             negative = my_negative;
             carry = add3_internal(&mut my, &ot);
-        } else if my_negative && !other_negative {
-            // -x + y
+        } else {
             let cmp = cmp_internal(&my, &ot);
+            // -x + y
             // if x > y then it's negative (i.e. -2 + 1)
             match cmp {
                 Ordering::Less => {
-                    sub_internal(&mut ot, &my);
+                    negative = other_negative;
+                    sub3_internal(&mut ot, &my);
                     my[0] = ot[0];
                     my[1] = ot[1];
                     my[2] = ot[2];
                 }
                 Ordering::Greater => {
-                    negative = true;
-                    sub_internal(&mut my, &ot);
+                    negative = my_negative;
+                    sub3_internal(&mut my, &ot);
                 }
                 Ordering::Equal => {
                     // -2 + 2
-                    my[0] = 0;
-                    my[1] = 0;
-                    my[2] = 0;
-                }
-            }
-            carry = 0;
-        } else {
-            // x + -y
-            let cmp = cmp_internal(&my, &ot);
-            // if x < y then it's negative (i.e. 1 + -2)
-            match cmp {
-                Ordering::Less => {
-                    negative = true;
-                    sub_internal(&mut ot, &my);
-                    my[0] = ot[0];
-                    my[1] = ot[1];
-                    my[2] = ot[2];
-                }
-                Ordering::Greater => {
-                    sub_internal(&mut my, &ot);
-                }
-                Ordering::Equal => {
-                    // 2 + -2
                     my[0] = 0;
                     my[1] = 0;
                     my[2] = 0;
@@ -1905,7 +1885,7 @@ forward_all_binop!(impl Sub for Decimal, sub);
 impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
-    #[inline]
+    #[inline(always)]
     fn sub(self, other: &Decimal) -> Decimal {
         let negated_other = Decimal {
             lo: other.lo,
