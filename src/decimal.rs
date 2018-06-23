@@ -1103,33 +1103,11 @@ fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
     overflow
 }
 
-//#[inline]
 fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
     let part = 0x1_0000_0000u64 + u64::from(left) - (u64::from(right) + u64::from(overflow));
     let lo = part as u32;
     let hi = 1 - ((part >> 32) as u32);
     (lo, hi)
-
-//    let mut invert = false;
-//    let overflow = i64::from(overflow);
-//    let mut part: i64 = i64::from(left) - i64::from(right);
-//    if left < right {
-//        invert = true;
-//    }
-//
-//    if part > overflow {
-//        part -= overflow;
-//    } else {
-//        part -= overflow;
-//        invert = true;
-//    }
-//
-//    let mut hi: i32 = ((part >> 32) & 0xFFFF_FFFF) as i32;
-//    let lo: u32 = (part & 0xFFFF_FFFF) as u32;
-//    if invert {
-//        hi = -hi;
-//    }
-//    (lo, hi as u32)
 }
 
 // Returns overflow
