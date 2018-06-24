@@ -2106,7 +2106,6 @@ forward_all_binop!(impl Div for Decimal, div);
 impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
-    #[inline]
     fn div(self, other: &Decimal) -> Decimal {
         if other.is_zero() {
             panic!("Division by zero");
