@@ -23,7 +23,7 @@ macro_rules! bench_decimal_op {
 }
 
 macro_rules! bench_fold_op {
-    ($name:ident, $op:tt, $init:expr) => {
+    ($name:ident, $op:tt, $init:expr, $count:expr) => {
         #[bench]
         fn $name(b: &mut ::test::Bencher) {
             fn fold(values: &[Decimal]) -> Decimal {
@@ -34,7 +34,7 @@ macro_rules! bench_fold_op {
                 acc
             }
 
-            let values: Vec<Decimal> = test::black_box((0..10_000).map(|i| i.into()).collect());
+            let values: Vec<Decimal> = test::black_box((1..$count).map(|i| i.into()).collect());
             b.iter(|| {
                 let result = fold(&values);
                 ::test::black_box(result);
@@ -52,7 +52,7 @@ bench_decimal_op!(add_negative_point_five, +, "-0.5");
 bench_decimal_op!(add_pi, +, "3.1415926535897932384626433832");
 bench_decimal_op!(add_negative_pi, +, "-3.1415926535897932384626433832");
 
-bench_fold_op!(sum_10k, +, 0);
+bench_fold_op!(sum_10k, +, 0, 10_000);
 
 /* Sub */
 bench_decimal_op!(sub_one, -, "1");
@@ -63,7 +63,7 @@ bench_decimal_op!(sub_negative_point_five, -, "-0.5");
 bench_decimal_op!(sub_pi, -, "3.1415926535897932384626433832");
 bench_decimal_op!(sub_negative_pi, -, "-3.1415926535897932384626433832");
 
-bench_fold_op!(dec_10k, -, 5_000_000);
+bench_fold_op!(dec_10k, -, 5_000_000, 10_000);
 
 /* Mul */
 bench_decimal_op!(mul_one, *, "1");
@@ -82,6 +82,8 @@ bench_decimal_op!(div_point_zero_one, /, "0.01");
 bench_decimal_op!(div_negative_point_five, /, "-0.5");
 bench_decimal_op!(div_pi, /, "3.1415926535897932384626433832");
 bench_decimal_op!(div_negative_pi, /, "-3.1415926535897932384626433832");
+
+bench_fold_op!(frac_10k, /, Decimal::max_value(), 10_000);
 
 #[cfg(feature = "comparitive")]
 mod comparitive {
