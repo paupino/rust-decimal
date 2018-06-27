@@ -71,11 +71,22 @@ static BIG_POWERS_10: [u64; 10] = [
     10_000_000_000_000_000_000,
 ];
 
+/// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
+/// of decimal-format stored in it's own field
+#[derive(Clone, Copy, Debug)]
+pub struct UnpackedDecimal {
+    is_negative: bool,
+    scale: u32,
+    hi: u32,
+    mid: u32,
+    lo: u32
+}
+
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
 /// The finite set of values of type `Decimal` are of the form m / 10<sup>e</sup>,
 /// where m is an integer such that -2<sup>96</sup> <= m <= 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
@@ -612,6 +623,17 @@ impl Decimal {
             }
         } else {
             *self
+        }
+    }
+
+    /// Convert `Decimal` to unpacked representation `UnpackedDecimal`
+    pub fn unpack(&self) -> UnpackedDecimal {
+        UnpackedDecimal {
+            is_negative: self.is_sign_negative(),
+            scale: self.scale(),
+            hi: self.hi,
+            lo: self.lo,
+            mid: self.mid,
         }
     }
 
@@ -1763,6 +1785,12 @@ impl fmt::Display for Decimal {
         }
 
         f.pad_integral(self.is_sign_positive(), "", &rep)
+    }
+}
+
+impl fmt::Debug for Decimal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        fmt::Display::fmt(self, f)
     }
 }
 
