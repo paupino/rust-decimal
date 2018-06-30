@@ -628,7 +628,7 @@ fn test_max_compares() {
     let y = Decimal::max_value();
     assert!(x < y);
     assert!(y > x);
-    assert!(y != x);
+    assert_ne!(y, x);
 
 }
 
@@ -638,7 +638,7 @@ fn test_min_compares() {
     let y = Decimal::min_value();
     assert!(x > y);
     assert!(y < x);
-    assert!(y != x);
+    assert_ne!(y, x);
 }
 
 #[test]
@@ -1092,5 +1092,51 @@ fn it_can_parse_scientific_notation() {
 
     for &(value, expected) in tests {
         assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
+    }
+}
+
+#[cfg(feature = "postgres")]
+mod postgres {
+    #[cfg(feature = "postgres")]
+    extern crate postgres as pg_crate;
+
+    use super::*;
+    use postgres::pg_crate::types::{Kind, Type, ToSql, FromSql};
+
+    #[test]
+    fn to_from_sql() {
+        let tests = &[
+            "3950.123456",
+            "3950",
+            "0.1",
+            "0.01",
+            "0.001",
+            "0.0001",
+            "0.00001",
+            "0.000001",
+            "1",
+            "-100",
+            "-123.456",
+            "119996.25",
+            "1000000",
+            "9999999.99999",
+            "12340.56789",
+            "79228162514264337593543950335", // 0xFFFF_FFFF_FFFF_FFFF_FFF_FFFF
+            "4951760157141521099596496895", // 0x0FFF_FFFF_FFFF_FFFF_FFF_FFFF
+            "4951760157141521099596496896", // 0x1000_0000_0000_0000_0000_0000
+            "18446744073709551615",
+            "-18446744073709551615"
+        ];
+
+        let t = Type::_new("".into(), 0, Kind::Simple, "".into());
+
+        for test in tests {
+            let input = Decimal::from_str(test).unwrap();
+            let mut vec = Vec::<u8>::new();
+            input.to_sql(&t, &mut vec).unwrap();
+            let output = Decimal::from_sql(&t, &vec).unwrap();
+
+            assert_eq!(input, output);
+        }
     }
 }
