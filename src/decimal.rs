@@ -637,6 +637,16 @@ impl Decimal {
         }
     }
 
+    #[inline(always)]
+    pub(crate) fn mantissa_array3(&self) -> [u32; 3] {
+        [self.lo, self.mid, self.hi]
+    }
+
+    #[inline(always)]
+    pub(crate) fn mantissa_array4(&self) -> [u32; 4] {
+        [self.lo, self.mid, self.hi, 0]
+    }
+
     fn base2_to_decimal(bits: &mut [u32; 3], exponent2: i32, positive: bool, is64: bool) -> Option<Self> {
         // 2^exponent2 = (10^exponent2)/(5^exponent2)
         //             = (5^-exponent2)*(10^exponent2)
@@ -1149,7 +1159,7 @@ fn mul_by_10(bits: &mut [u32; 3]) -> u32 {
 
 
 // Returns overflow
-fn mul_by_u32(bits: &mut [u32], m: u32) -> u32 {
+pub(crate) fn mul_by_u32(bits: &mut [u32], m: u32) -> u32 {
     let mut overflow = 0;
     for b in bits.iter_mut() {
         let (lo, hi) = mul_part(*b, m, overflow);
@@ -1224,7 +1234,7 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
 }
 
 // Returns remainder
-fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
+pub(crate) fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
     if divisor == 0 {
         // Divide by zero
         panic!("Internal error: divide by zero");
@@ -1301,7 +1311,7 @@ fn cmp_internal(left: &[u32; 3], right: &[u32; 3]) -> Ordering {
 }
 
 #[inline]
-fn is_all_zero(bits: &[u32]) -> bool {
+pub(crate) fn is_all_zero(bits: &[u32]) -> bool {
     bits.iter().all(|b| *b == 0)
 }
 

@@ -2,13 +2,15 @@ extern crate byteorder;
 extern crate num;
 
 use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use self::num::{Zero, ToPrimitive};
+use self::num::Zero;
 use super::Decimal;
 use pg_crate::types::*;
 use std::error;
 use std::fmt;
 use std::io::Cursor;
 use std::result::*;
+use decimal::{div_by_u32, is_all_zero};
+use decimal::mul_by_u32;
 
 lazy_static! {
 
@@ -162,63 +164,41 @@ impl ToSql for Decimal {
             out.write_u64::<BigEndian>(0)?;
             return Ok(IsNull::No);
         }
-
         let sign = if self.is_sign_negative() { 0x4000 } else { 0x0000 };
         let scale = self.scale() as u16;
 
-        let mut whole = *self;
-        whole.set_sign(true);
-        whole.set_scale(0).ok();
-        let mut digits = whole.to_string();
-        let split_point = if scale as usize > digits.len() {
-            let mut new_digits = vec!['0'; scale as usize - digits.len() as usize];
-            new_digits.extend(digits.chars());
-            digits = new_digits.into_iter().collect::<String>();
-            0
+        let groups_diff = scale & 0x3;                           // groups_diff = scale % 4
+        let mut fractional_groups_count = (scale >> 2) as isize; // fractional_groups_count = scale / 4
+        fractional_groups_count += if groups_diff > 0 { 1 } else { 0 };
+
+        let mut mantissa = self.mantissa_array4();
+
+        if groups_diff > 0 {
+            let fractional_group_reminder = 4 - groups_diff;
+            let power = 10u32.pow(fractional_group_reminder as u32);
+            mul_by_u32(&mut mantissa, power);
+        }
+
+        // array to store max mantissa of Decimal in Postgres decimal format
+        const MAX_GROUP_COUNT: usize = 8;
+        let mut groups = [0u16; MAX_GROUP_COUNT];
+
+        let mut num_groups = 0usize;
+        while !is_all_zero(&mantissa) {
+            let group_digits = div_by_u32(&mut mantissa, 10000) as u16;
+            groups[num_groups] = group_digits;
+            num_groups += 1;
+        }
+
+        let whole_portion_len = num_groups as isize - fractional_groups_count;
+        let weight = if whole_portion_len <= 0 {
+            -(fractional_groups_count as i16)
         } else {
-            digits.len() as isize - scale as isize
+            whole_portion_len as i16 - 1
         };
-        let (whole_digits, decimal_digits) = digits.split_at(split_point as usize);
-        let whole_portion = whole_digits
-            .chars()
-            .rev()
-            .collect::<Vec<char>>()
-            .chunks(4)
-            .map(|x| {
-                let mut x = x.to_owned();
-                while x.len() < 4 {
-                    x.push('0');
-                }
-                x.into_iter().rev().collect::<String>()
-            })
-            .rev()
-            .collect::<Vec<String>>();
-        let decimal_portion = decimal_digits
-            .chars()
-            .collect::<Vec<char>>()
-            .chunks(4)
-            .map(|x| {
-                let mut x = x.to_owned();
-                while x.len() < 4 {
-                    x.push('0');
-                }
-                x.into_iter().collect::<String>()
-            })
-            .collect::<Vec<String>>();
-        let weight = if whole_portion.is_empty() {
-            -(decimal_portion.len() as i16)
-        } else {
-            whole_portion.len() as i16 - 1
-        };
-        let all_groups = whole_portion
-            .into_iter()
-            .chain(decimal_portion.into_iter())
-            .skip_while(|ref x| *x == "0000")
-            .collect::<Vec<String>>();
-        let num_groups = all_groups.len() as u16;
 
         // Number of groups
-        out.write_u16::<BigEndian>(num_groups)?;
+        out.write_u16::<BigEndian>(num_groups as u16)?;
         // Weight of first group
         out.write_i16::<BigEndian>(weight)?;
         // Sign
@@ -226,10 +206,10 @@ impl ToSql for Decimal {
         // DScale
         out.write_u16::<BigEndian>(scale)?;
         // Now process the number
-        for chunk in all_groups {
-            let calculated = chunk.parse::<u16>().unwrap();
-            out.write_u16::<BigEndian>(calculated.to_u16().unwrap())?;
+        for group in groups[0..num_groups].iter().rev() {
+            out.write_u16::<BigEndian>(*group)?;
         }
+
         Ok(IsNull::No)
     }
 
