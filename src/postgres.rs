@@ -174,8 +174,8 @@ impl ToSql for Decimal {
         let mut mantissa = self.mantissa_array4();
 
         if groups_diff > 0 {
-            let reminder = 4 - groups_diff;
-            let power = 10u32.pow(reminder as u32);
+            let remainder = 4 - groups_diff;
+            let power = 10u32.pow(remainder as u32);
             mul_by_u32(&mut mantissa, power);
         }
 
