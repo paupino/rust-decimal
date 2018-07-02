@@ -85,6 +85,51 @@ bench_decimal_op!(div_negative_pi, /, "-3.1415926535897932384626433832");
 
 bench_fold_op!(frac_10k, /, Decimal::max_value(), 10_000);
 
+#[cfg(feature = "postgres")]
+mod postgres {
+    #[cfg(feature = "postgres")]
+    extern crate postgres as pg_crate;
+
+    use super::*;
+    use postgres::pg_crate::types::{Kind, Type, ToSql, FromSql};
+
+    #[bench]
+    fn to_from_sql(b: &mut ::test::Bencher) {
+        let samples_strs = &[
+            "3950.123456",
+            "3950",
+            "0.1",
+            "0.01",
+            "0.001",
+            "0.0001",
+            "0.00001",
+            "0.000001",
+            "1",
+            "-100",
+            "-123.456",
+            "119996.25",
+            "1000000",
+            "9999999.99999",
+            "12340.56789"
+        ];
+
+        let samples: Vec<Decimal> = test::black_box(samples_strs.iter().map(|x| Decimal::from_str(x).unwrap()).collect());
+        let t = Type::_new("".into(), 0, Kind::Simple, "".into());
+        let mut vec = Vec::<u8>::with_capacity(100);
+
+        b.iter(|| {
+            for _ in 0..100 {
+                for sample in &samples {
+                    vec.clear();
+                    sample.to_sql(&t, &mut vec).unwrap();
+                    let result = Decimal::from_sql(&t, &vec).unwrap();
+                    ::test::black_box(result);
+                }
+            }
+        });
+    }
+}
+
 #[cfg(feature = "comparitive")]
 mod comparitive {
     use decimal::d128;
