@@ -174,8 +174,8 @@ impl ToSql for Decimal {
         let mut mantissa = self.mantissa_array4();
 
         if groups_diff > 0 {
-            let fractional_group_reminder = 4 - groups_diff;
-            let power = 10u32.pow(fractional_group_reminder as u32);
+            let reminder = 4 - groups_diff;
+            let power = 10u32.pow(reminder as u32);
             mul_by_u32(&mut mantissa, power);
         }
 
@@ -267,7 +267,7 @@ mod test {
         }
     }
 
-    pub static TEST_DECIMALS: &[&str; 14] = &[
+    pub static TEST_DECIMALS: &[&str; 20] = &[
         "3950.123456",
         "3950",
         "0.1",
@@ -282,6 +282,12 @@ mod test {
         "119996.25",
         "1000000",
         "9999999.99999",
+        "12340.56789",
+        "79228162514264337593543950335", // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
+        "4951760157141521099596496895", // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
+        "4951760157141521099596496896", // 0x1000_0000_0000_0000_0000_0000
+        "18446744073709551615",
+        "-18446744073709551615"
     ];
 
     #[test]
@@ -305,12 +311,12 @@ mod test {
 
     #[test]
     fn read_numeric_type() {
-        read_type("NUMERIC(26,6)", TEST_DECIMALS);
+        read_type("NUMERIC(35, 6)", TEST_DECIMALS);
     }
 
 
     #[test]
     fn write_numeric_type() {
-        write_type("NUMERIC(26,6)", TEST_DECIMALS);
+        write_type("NUMERIC(35, 6)", TEST_DECIMALS);
     }
 }
