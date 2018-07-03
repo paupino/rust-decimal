@@ -649,7 +649,7 @@ impl Decimal {
                     _ => {}
                 }
             }
-            _ => {
+            RoundingStrategy::RoundHalfUp => {
                 // when Ordering::Equal, decimal_portion is 0.5 exactly
                 // when Ordering::Greater, decimal_portion is > 0.5
                 match order {
