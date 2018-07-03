@@ -105,10 +105,13 @@ pub struct Decimal {
 ///
 /// `RoundingStrategy::BankersRounding` - Rounds toward the nearest even number, e.g. 6.5 -> 6, 7.5 -> 8
 /// `RoundingStrategy::RoundHalfUp` - Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7,
+/// `RoundingStrategy::RoundHalfDown` - Rounds down if the value =< 5, otherwise rounds up, e.g.
+/// 6.5 -> 6, 6.51 -> 7
 /// 1.4999999 -> 1
 pub enum RoundingStrategy {
     BankersRounding,
-    RoundHalfUp
+    RoundHalfUp,
+    RoundHalfDown
 }
 
 #[allow(dead_code)]
@@ -633,6 +636,14 @@ impl Decimal {
                     }
                     Ordering::Greater => {
                         // Doesn't matter about the decimal portion
+                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    }
+                    _ => {}
+                }
+            },
+            RoundingStrategy::RoundHalfDown => {
+                match order {
+                    Ordering::Greater => {
                         add_internal(&mut value, &ONE_INTERNAL_REPR);
                     }
                     _ => {}
