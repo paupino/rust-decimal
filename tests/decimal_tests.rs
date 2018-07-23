@@ -611,73 +611,24 @@ fn it_can_round_complex_numbers_using_bankers_rounding() {
 }
 
 #[test]
-fn it_can_round_zero_using_round_half_up() {
-    let a = Decimal::from_str("0").unwrap();
-    let b = a.round_dp_with_strategy(0, RoundingStrategy::RoundHalfUp);
-    assert_eq!("0", b.to_string());
-}
-
-#[test]
-fn it_can_round_to_the_scale_it_already_is_using_round_half_up() {
-    let a = Decimal::from_str("1.234").unwrap();
-    let b = a.round_dp_with_strategy(3u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("1.234", b.to_string());
-}
-
-#[test]
-fn it_can_round_to_a_scale_higher_than_it_already_is_using_round_half_up() {
-    let a = Decimal::from_str("1.12").unwrap();
-    let b = a.round_dp_with_strategy(5u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("1.12", b.to_string());
-}
-
-#[test]
-fn it_can_round_to_2dp_using_round_half_up() {
-    let a = Decimal::from_str("6.34567").unwrap();
-    let b = a.round_dp_with_strategy(2u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("6.35", b.to_string());
-}
-
-#[test]
-fn it_can_round_up_using_round_half_up() {
-    let a = Decimal::from_str("6.5").unwrap();
-    let b = a.round_dp_with_strategy(0u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("7", b.to_string());
-}
-
-#[test]
-fn it_can_round_down_using_round_half_up() {
-    let a = Decimal::from_str("12.49").unwrap();
-    let b = a.round_dp_with_strategy(0u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("12", b.to_string());
-}
-
-#[test]
-fn it_can_round_large_decimals_using_round_half_up() {
-    let a = Decimal::from_str("0.6666666666666666666666666666").unwrap();
-    let b = a.round_dp_with_strategy(2u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("0.67", b.to_string());
-}
-
-#[test]
-fn it_can_round_simple_numbers_down_using_round_half_up() {
-    let a = Decimal::from_str("1.40").unwrap();
-    let b = a.round_dp_with_strategy(0u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("1", b.to_string());
-}
-
-#[test]
-fn it_can_round_simple_numbers_up_using_round_half_up() {
-    let a = Decimal::from_str("2.60").unwrap();
-    let b = a.round_dp_with_strategy(0u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("3", b.to_string());
-}
-
-#[test]
-fn it_can_round_simple_numbers_up_with_high_precision_using_round_half_up() {
-    let a = Decimal::from_str("2.1234567890123456789012345678").unwrap();
-    let b = a.round_dp_with_strategy(27u32, RoundingStrategy::RoundHalfUp);
-    assert_eq!("2.123456789012345678901234568", b.to_string());
+fn it_can_round_using_round_half_up() {
+    let tests = &[
+        ("0", 0, "0"),
+        ("1.234", 3, "1.234"),
+        ("1.12", 5, "1.12"),
+        ("6.34567", 2, "6.35"),
+        ("6.5", 0, "7"),
+        ("12.49", 0, "12"),
+        ("0.6666666666666666666666666666", 2, "0.67"),
+        ("1.40", 0, "1"),
+        ("2.60", 0, "3"),
+        ("2.1234567890123456789012345678", 27, "2.123456789012345678901234568"),
+    ];
+    for &(input, dp, expected) in tests {
+        let a = Decimal::from_str(input).unwrap();
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundHalfUp);
+        assert_eq!(expected, b.to_string());
+    }
 }
 
 #[test]
