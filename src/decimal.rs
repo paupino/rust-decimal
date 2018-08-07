@@ -100,6 +100,20 @@ pub struct Decimal {
     mid: u32,
 }
 
+/// `RoundingStrategy` represents the different strategies that can be used by
+/// `round_dp_with_strategy`.
+///
+/// `RoundingStrategy::BankersRounding` - Rounds toward the nearest even number, e.g. 6.5 -> 6, 7.5 -> 8
+/// `RoundingStrategy::RoundHalfUp` - Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7,
+/// `RoundingStrategy::RoundHalfDown` - Rounds down if the value =< 5, otherwise rounds up, e.g.
+/// 6.5 -> 6, 6.51 -> 7
+/// 1.4999999 -> 1
+pub enum RoundingStrategy {
+    BankersRounding,
+    RoundHalfUp,
+    RoundHalfDown
+}
+
 #[allow(dead_code)]
 impl Decimal {
     /// Returns a `Decimal` with a 64 bit `m` representation and corresponding `e` scale.
@@ -514,6 +528,151 @@ impl Decimal {
         self.round_dp(0)
     }
 
+    /// Returns a new `Decimal` number with the specified number of decimal points for fractional
+    /// portion.
+    /// Rounding is performed using the provided `RoundingStrategy`
+    ///
+    /// # Arguments
+    /// * `dp`: the number of decimal points to round to.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::{Decimal, RoundingStrategy};
+    /// use std::str::FromStr;
+    ///
+    /// let tax = Decimal::from_str("3.4395").unwrap();
+    /// assert_eq!(tax.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp).to_string(), "3.44");
+    /// ```
+    pub fn round_dp_with_strategy(&self, dp: u32, strategy: RoundingStrategy) -> Decimal {
+        // Short circuit for zero
+        if self.is_zero() {
+            return Decimal {
+                lo: 0,
+                mid: 0,
+                hi: 0,
+                flags: flags(self.is_sign_negative(), dp),
+            };
+        }
+
+        let old_scale = self.scale();
+
+        // return early if decimal has a smaller number of fractional places than dp
+        // e.g. 2.51 rounded to 3 decimal places is 2.51
+        if old_scale <= dp {
+            return *self;
+        }
+
+        let mut value = [self.lo, self.mid, self.hi];
+        let mut value_scale = self.scale();
+        let negative = self.is_sign_negative();
+
+        value_scale -= dp;
+
+        // Rescale to zero so it's easier to work with
+        while value_scale > 0 {
+            if value_scale < 10 {
+                div_by_u32(&mut value, POWERS_10[value_scale as usize]);
+                value_scale = 0;
+            } else {
+                div_by_u32(&mut value, POWERS_10[9]);
+                value_scale -= 9;
+            }
+        }
+
+        // Do some midpoint rounding checks
+        // We're actually doing two things here.
+        //  1. Figuring out midpoint rounding when we're right on the boundary. e.g. 2.50000
+        //  2. Figuring out whether to add one or not e.g. 2.51
+        // For this, we need to figure out the fractional portion that is additional to
+        // the rounded number. e.g. for 0.12345 rounding to 2dp we'd want 345.
+        // We're doing the equivalent of losing precision (e.g. to get 0.12)
+        // then increasing the precision back up to 0.12000
+        let mut offset = [self.lo, self.mid, self.hi];
+        let mut diff = old_scale - dp;
+
+        while diff > 0 {
+            if diff < 10 {
+                div_by_u32(&mut offset, POWERS_10[diff as usize]);
+                break;
+            } else {
+                div_by_u32(&mut offset, POWERS_10[9]);
+                // Only 9 as this array starts with 1
+                diff -= 9;
+            }
+        }
+
+        let mut diff = old_scale - dp;
+
+        while diff > 0 {
+            if diff < 10 {
+                mul_by_u32(&mut offset, POWERS_10[diff as usize]);
+                break;
+            } else {
+                mul_by_u32(&mut offset, POWERS_10[9]);
+                // Only 9 as this array starts with 1
+                diff -= 9;
+            }
+        }
+
+        let mut decimal_portion = [self.lo, self.mid, self.hi];
+        sub_internal(&mut decimal_portion, &offset);
+
+        // If the decimal_portion is zero then we round based on the other data
+        let mut cap = [5, 0, 0];
+        for _ in 0..(old_scale - dp - 1) {
+            mul_by_u32(&mut cap, 10);
+        }
+        let order = cmp_internal(&decimal_portion, &cap);
+
+
+        match strategy {
+            RoundingStrategy::BankersRounding => {
+                match order {
+                    Ordering::Equal => {
+                        if (value[0] & 1) == 1 {
+                            add_internal(&mut value, &ONE_INTERNAL_REPR);
+                        }
+                    }
+                    Ordering::Greater => {
+                        // Doesn't matter about the decimal portion
+                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    }
+                    _ => {}
+                }
+            },
+            RoundingStrategy::RoundHalfDown => {
+                match order {
+                    Ordering::Greater => {
+                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    }
+                    _ => {}
+                }
+            }
+            RoundingStrategy::RoundHalfUp => {
+                // when Ordering::Equal, decimal_portion is 0.5 exactly
+                // when Ordering::Greater, decimal_portion is > 0.5
+                match order {
+                    Ordering::Equal => {
+                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    }
+                    Ordering::Greater => {
+                        // Doesn't matter about the decimal portion
+                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Decimal {
+            lo: value[0],
+            mid: value[1],
+            hi: value[2],
+            flags: flags(negative, dp),
+        }
+    }
+
     /// Returns a new `Decimal` number with the specified number of decimal points for fractional portion.
     /// Rounding currently follows "Bankers Rounding" rules. e.g. 6.5 -> 6, 7.5 -> 8
     ///
@@ -530,100 +689,7 @@ impl Decimal {
     /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
     /// ```
     pub fn round_dp(&self, dp: u32) -> Decimal {
-
-        let old_scale = self.scale();
-
-        if dp < old_scale {
-            // Short circuit for zero
-            if self.is_zero() {
-                return Decimal {
-                    lo: 0,
-                    mid: 0,
-                    hi: 0,
-                    flags: flags(self.is_sign_negative(), dp),
-                };
-            }
-
-            let mut value = [self.lo, self.mid, self.hi];
-            let mut value_scale = self.scale();
-            let negative = self.is_sign_negative();
-
-            value_scale -= dp;
-
-            // Rescale to zero so it's easier to work with
-            while value_scale > 0 {
-                if value_scale < 10 {
-                    div_by_u32(&mut value, POWERS_10[value_scale as usize]);
-                    value_scale = 0;
-                } else {
-                    div_by_u32(&mut value, POWERS_10[9]);
-                    value_scale -= 9;
-                }
-            }
-
-            // Do some midpoint rounding checks
-            // We're actually doing two things here.
-            //  1. Figuring out midpoint rounding when we're right on the boundary. e.g. 2.50000
-            //  2. Figuring out whether to add one or not e.g. 2.51
-            // For this, we need to figure out the fractional portion that is additional to
-            // the rounded number. e.g. for 0.12345 rounding to 2dp we'd want 345.
-            // We're doing the equivalent of losing precision (e.g. to get 0.12)
-            // then increasing the precision back up to 0.12000
-            let mut offset = [self.lo, self.mid, self.hi];
-            let mut diff = old_scale - dp;
-            while diff > 0 {
-                if diff < 10 {
-                    div_by_u32(&mut offset, POWERS_10[diff as usize]);
-                    break;
-                } else {
-                    div_by_u32(&mut offset, POWERS_10[9]);
-                    // Only 9 as this array starts with 1
-                    diff -= 9;
-                }
-            }
-            let mut diff = old_scale - dp;
-            while diff > 0 {
-                if diff < 10 {
-                    mul_by_u32(&mut offset, POWERS_10[diff as usize]);
-                    break;
-                } else {
-                    mul_by_u32(&mut offset, POWERS_10[9]);
-                    // Only 9 as this array starts with 1
-                    diff -= 9;
-                }
-            }
-
-            let mut decimal_portion = [self.lo, self.mid, self.hi];
-            sub_internal(&mut decimal_portion, &offset);
-
-            // If the decimal_portion is zero then we round based on the other data
-            let mut cap = [5, 0, 0];
-            for _ in 0..(old_scale - dp - 1) {
-                mul_by_u32(&mut cap, 10);
-            }
-            let order = cmp_internal(&decimal_portion, &cap);
-            match order {
-                Ordering::Equal => {
-                    if (value[0] & 1) == 1 {
-                        add_internal(&mut value, &ONE_INTERNAL_REPR);
-                    }
-                }
-                Ordering::Greater => {
-                    // Doesn't matter about the decimal portion
-                    add_internal(&mut value, &ONE_INTERNAL_REPR);
-                }
-                _ => {}
-            }
-
-            Decimal {
-                lo: value[0],
-                mid: value[1],
-                hi: value[2],
-                flags: flags(negative, dp),
-            }
-        } else {
-            *self
-        }
+        self.round_dp_with_strategy(dp, RoundingStrategy::BankersRounding)
     }
 
     /// Convert `Decimal` to unpacked representation `UnpackedDecimal`
