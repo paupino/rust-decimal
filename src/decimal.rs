@@ -555,13 +555,13 @@ impl Decimal {
             };
         }
 
+        let old_scale = self.scale();
+
         // return early if decimal has a smaller number of fractional places than dp
         // e.g. 2.51 rounded to 3 decimal places is 2.51
-        if self.scale() <= dp {
-            return *self
+        if old_scale <= dp {
+            return *self;
         }
-
-        let old_scale = self.scale();
 
         let mut value = [self.lo, self.mid, self.hi];
         let mut value_scale = self.scale();
