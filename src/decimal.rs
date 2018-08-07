@@ -1246,7 +1246,7 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
     // There are a couple of ways to do division on binary numbers:
     //   1. Using long division
     //   2. Using the complement method
-    // ref: https://www.wikihow.com/Divide-Binary-Numbers
+    // ref: http://paulmason.me/dividing-binary-numbers-part-2/
     // The complement method basically keeps trying to subtract the
     // divisor until it can't anymore and placing the rest in remainder.
     let mut complement = [
