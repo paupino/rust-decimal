@@ -1,5 +1,14 @@
 # Version History
 
+## 0.10.0
+
+Special thanks to @xilec, @snd and @AndrewSpeed for their help with this release.
+
+* New rounding strategies introduced via `round_dp_with_strategy`. Previously default rounding support used bankers rounding by default whereas now you can choose to round the half way point either up or down.
+* PostgreSQL write performance improved so that it is at least 3 times faster than the previous implementation.
+* `Debug` trait now outputs the actual decimal number by default to make it more useful within consuming libraries (e.g. `criterion.rs`). To get something similar to the previous functionality you can use the `unpack` argument - this is likely for core `rust-decimal` library maintainers.
+* Various other performance improvements for common operations such as `rescale`, `sub` and `div`.
+
 ## 0.9.1
 
 * Performance optimization for `add`.
