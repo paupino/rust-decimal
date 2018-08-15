@@ -1,5 +1,9 @@
 # Version History
 
+## 0.10.1
+
+* Bumped dependencies to remove some legacy serialization requirements.
+
 ## 0.10.0
 
 Special thanks to @xilec, @snd and @AndrewSpeed for their help with this release.
