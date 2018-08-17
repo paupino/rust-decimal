@@ -17,12 +17,21 @@ pub fn dec(input: TokenStream) -> TokenStream {
     if source.starts_with("- ") {
         source.remove(1);
     }
-    
+
     let decimal = match Decimal::from_str(&source[..]) {
         Ok(d) => d,
         Err(e) => panic!("Unexpected decimal format for {}: {}", source, e),
     };
 
-    let bytes = decimal.serialize();
-    quote!(::rust_decimal::Decimal::deserialize(#bytes)).parse().unwrap()
+    let unpacked = decimal.unpack();
+    // We need to further unpack these for quote for now
+    let lo = unpacked.lo;
+    let mid = unpacked.mid;
+    let hi = unpacked.hi;
+    let negative = unpacked.is_negative;
+    let scale = unpacked.scale;
+    let expanded = quote! {
+        ::rust_decimal::Decimal::from_parts(#lo, #mid, #hi, #negative, #scale)
+    };
+    expanded.into()
 }
