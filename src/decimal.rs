@@ -75,11 +75,11 @@ static BIG_POWERS_10: [u64; 10] = [
 /// of decimal-format stored in it's own field
 #[derive(Clone, Copy, Debug)]
 pub struct UnpackedDecimal {
-    is_negative: bool,
-    scale: u32,
-    hi: u32,
-    mid: u32,
-    lo: u32
+    pub is_negative: bool,
+    pub scale: u32,
+    pub hi: u32,
+    pub mid: u32,
+    pub lo: u32
 }
 
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
