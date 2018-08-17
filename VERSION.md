@@ -1,5 +1,9 @@
 # Version History
 
+## Beta
+
+* Macros (nightly) now output structural data as opposed to serialized data. This is fully backwards compatible and results in some minor performance improvements.
+
 ## 0.10.1
 
 * Bumped dependencies to remove some legacy serialization requirements.
