@@ -24,13 +24,12 @@ postgres = { version = "0.15", optional = true }
 serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
-decimal = "2.0"
+rand = "0.5"
 serde_json = "1.0"
 serde_derive = "1.0"
 
 [features]
 default = ["serde"]
-comparitive = []
 
 [workspace]
-members = [".", "./macros"]
+members = [".", "./macros", "./fuzzer"]

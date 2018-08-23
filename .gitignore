@@ -11,3 +11,6 @@ Cargo.lock
 
 # Hidden macOS files
 .DS_Store
+
+# Fuzz output
+.fuzz/

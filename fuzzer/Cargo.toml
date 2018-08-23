@@ -1,0 +1,17 @@
+[package]
+name = "rust_decimal_fuzzer"
+version = "0.1.0"
+authors = ["Paul Mason <paul@form1.co.nz>"]
+
+[[bin]]
+name = "fuzzer"
+path = "src/main.rs"
+
+[dependencies]
+clap = "2.32.0"
+decimal = "2.0.4"
+rand = "0.5"
+rust_decimal = "0.10.1"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
