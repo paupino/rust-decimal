@@ -35,7 +35,6 @@
 //! let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 //! ```
 //!
-#![cfg_attr(feature = "const_fn", feature(const_fn))]
 extern crate num;
 #[cfg(not(feature = "const_fn"))]
 #[macro_use]
