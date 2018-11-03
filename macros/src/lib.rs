@@ -1,4 +1,3 @@
-#![feature(proc_macro)]
 extern crate rust_decimal;
 extern crate proc_macro;
 #[macro_use]
