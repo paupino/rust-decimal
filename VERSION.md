@@ -1,8 +1,9 @@
 # Version History
 
-## Beta
+## 0.10.2
 
-* Macros (nightly) now output structural data as opposed to serialized data. This is fully backwards compatible and results in some minor performance improvements.
+* Macros (nightly) now output structural data as opposed to serialized data. This is fully backwards compatible and results in some minor performance improvements. Also, removed feature gate so that it can be compiled in stable.
+* Fixes a string parsing bug when given highly significant numbers that require rounding.
 
 ## 0.10.1
 
