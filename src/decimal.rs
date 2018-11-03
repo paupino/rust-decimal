@@ -1580,7 +1580,7 @@ impl FromStr for Decimal {
             return Err(Error::new("Invalid decimal: no digits found"));
         }
 
-        let scale = if dot_offset >= 0 {
+        let mut scale = if dot_offset >= 0 {
             // we had a decimal place so set the scale
             (coeff.len() as u32) - (dot_offset as u32 - cfirst as u32)
         } else {
@@ -1589,17 +1589,40 @@ impl FromStr for Decimal {
 
         // Parse this using base 10 (future allow using radix?)
         let mut data = [0u32, 0u32, 0u32];
-        for digit in coeff {
+        let mut tmp = [0u32, 0u32, 0u32];
+        let len = coeff.len();
+        for (i, digit) in coeff.iter().enumerate() {
             // If the data is going to overflow then we should go into recovery mode
-            let overflow = mul_by_u32(&mut data, 10u32);
+            tmp[0] = data[0];
+            tmp[1] = data[1];
+            tmp[2] = data[2];
+            let overflow = mul_by_u32(&mut tmp, 10u32);
             if overflow > 0 {
-                // This indicates a bug in the coeeficient rounding above
-                return Err(Error::new("Invalid decimal: overflow"));
-            }
-            let carry = add_internal(&mut data, &[digit]);
-            if carry > 0 {
-                // Highly unlikely scenario which is more indicative of a bug
-                return Err(Error::new("Invalid decimal: overflow"));
+                // This indicates a bug in the coeeficient rounding above.
+                // If this is the last position, then round and forget it.
+                // Otherwise, we have more of an issue.
+                if i + 1 < len {
+                    return Err(Error::new("Invalid decimal: overflow from too many digits"));
+                }
+                if *digit >= 5 {
+                    let carry = add_internal(&mut data, &ONE_INTERNAL_REPR);
+                    if carry > 0 {
+                        // Highly unlikely scenario which is more indicative of a bug
+                        return Err(Error::new("Invalid decimal: overflow when rounding"));
+                    }
+
+                    // We're also one less digit so reduce the scale
+                    scale -= 1;
+                }
+            } else {
+                data[0] = tmp[0];
+                data[1] = tmp[1];
+                data[2] = tmp[2];
+                let carry = add_internal(&mut data, &[*digit]);
+                if carry > 0 {
+                    // Highly unlikely scenario which is more indicative of a bug
+                    return Err(Error::new("Invalid decimal: overflow from carry"));
+                }
             }
         }
 
