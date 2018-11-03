@@ -1,4 +1,4 @@
-#![feature(proc_macro_non_items)]
+#![feature(proc_macro_hygiene)]
 extern crate rust_decimal;
 extern crate rust_decimal_macros;
 
