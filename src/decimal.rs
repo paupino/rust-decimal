@@ -1513,7 +1513,7 @@ impl FromStr for Decimal {
                     offset += 1;
                     len -= 1;
 
-                    // If the coefficient is longer than 29 then it'll affect the scale, so exit early
+                    // If the coefficient is longer than 28 then it'll affect the scale, so exit early
                     if coeff.len() as u32 > MAX_PRECISION {
                         // Before we exit, do some rounding if necessary
                         if offset < bytes.len() {
@@ -1604,16 +1604,17 @@ impl FromStr for Decimal {
                 if i + 1 < len {
                     return Err(Error::new("Invalid decimal: overflow from too many digits"));
                 }
+
                 if *digit >= 5 {
                     let carry = add_internal(&mut data, &ONE_INTERNAL_REPR);
                     if carry > 0 {
                         // Highly unlikely scenario which is more indicative of a bug
                         return Err(Error::new("Invalid decimal: overflow when rounding"));
                     }
-
-                    // We're also one less digit so reduce the scale
-                    scale -= 1;
                 }
+                // We're also one less digit so reduce the scale
+                scale -= (len - i) as u32;
+                break;
             } else {
                 data[0] = tmp[0];
                 data[1] = tmp[1];
