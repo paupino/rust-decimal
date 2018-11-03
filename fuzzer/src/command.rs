@@ -6,6 +6,7 @@ use rust_decimal::Decimal;
 
 #[derive(Serialize, Deserialize)]
 struct FuzzInput {
+    test: String,
     left: String,
     right: String,
     operator: Op,
@@ -13,10 +14,11 @@ struct FuzzInput {
 }
 
 impl FuzzInput {
-    fn new(a: &String, b: &String, op: Op) -> FuzzInput {
+    fn new(test_number: u32, a: &String, b: &String, op: Op) -> FuzzInput {
         // Use the decimal crate that wraps the C library to calculate
         // the result. This has higher precision so we then round it naively.
         FuzzInput {
+            test: format!("{}.{}", test_number, op),
             left: a.to_string(),
             right: b.to_string(),
             operator: op,
@@ -37,9 +39,27 @@ impl FuzzInput {
         }.to_string();
         if result.len() > 30 {
             // Absolute max of 29 + decimal point
-            let (r1, _r2) = result.split_at(30);
-            let r1 = r1.to_string();
-            // TODO: Round
+            let (r1, r2) = result.split_at(30);
+            //let negative = r1.chars().next().unwrap() == '-';
+            let mut r1 = r1.to_string();
+            // TODO: This rounding is naive and mostly wrong.
+            let next_digit = r2.chars().next().unwrap().to_digit(10).unwrap();
+            if next_digit >= 5 {
+                let last_digit = r1.pop().unwrap().to_digit(10).unwrap() + 1;
+                // If it is 10 then add one to the previous
+                // Obviously, this could keep going but for now just do the next digit
+                if last_digit > 9 {
+                    let prev_digit = r1.pop().unwrap().to_digit(10).unwrap() + 1;
+                    if prev_digit > 9 {
+                        // We're in the loop scenario. Let's ignore rather than looping
+                        // for now.
+                        panic!("TODO");
+                    }
+                    r1.push_str(&format!("{}0", prev_digit));
+                } else {
+                    r1.push_str(&format!("{}", last_digit));
+                }
+            }
             r1
         } else {
             result
@@ -55,22 +75,35 @@ enum Op {
     Div,
 }
 
+impl ::std::fmt::Display for Op {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{}", match self {
+            Op::Add => "add",
+            Op::Sub => "sub",
+            Op::Mul => "mul",
+            Op::Div => "div",
+        })
+    }
+}
+
 fn to_str<E: ::std::fmt::Display>(e: E) -> String {
     format!("{}", e)
 }
 
 pub fn generate(sample_size: u32, output: &Path) -> Result<(), String> {
     let pairs = generate_pairs(sample_size as usize);
+    let mut test_number = 0;
     let input = pairs.iter()
-                    .flat_map(|(a, b)|
+                    .flat_map(move |(a, b)| {
+                        test_number += 1;
                         vec![
-                            FuzzInput::new(a, b, Op::Add),
-                            FuzzInput::new(a, b, Op::Sub),
+                            FuzzInput::new(test_number, a, b, Op::Add),
+                            FuzzInput::new(test_number, a, b, Op::Sub),
                             // TODO: These cause overflow but the C lib doesn't throw
-                            //FuzzInput::new(a, b, Op::Mul),
-                            FuzzInput::new(a, b, Op::Div),
+                            //FuzzInput::new(test_number, a, b, Op::Mul),
+                            FuzzInput::new(test_number, a, b, Op::Div),
                         ]
-                    )
+                    })
                     .collect::<Vec<_>>();
     let file = File::create(output).map_err(to_str)?;
     serde_json::to_writer_pretty(file, &input).map_err(to_str)?;
@@ -93,12 +126,11 @@ pub fn run(path: &Path) -> Result<(), String> {
     // Load in the json input
     let file = File::open(path).map_err(to_str)?;
     let input : Vec<FuzzInput> = serde_json::from_reader(file).map_err(to_str)?;
-    let mut index = 0;
     for item in input {
         let a = Decimal::from_str(&item.left)
-                    .expect(&format!("Failed to unwrap left for index: {}", index));
+                    .expect(&format!("Failed to unwrap left for test: {}", item.test));
         let b = Decimal::from_str(&item.right)
-                    .expect(&format!("Failed to unwrap right for index: {}", index));
+                    .expect(&format!("Failed to unwrap right for test: {}", item.test));
         let result = match item.operator {
             Op::Add => a + b,
             Op::Sub => a - b,
@@ -107,9 +139,8 @@ pub fn run(path: &Path) -> Result<(), String> {
         }.to_string();
         // Finally, see if we match the result
         if result.ne(&item.result) {
-            panic!("Result mismatch for index {}: {}", index, result);
+            panic!("Result mismatch for test {}: {}", item.test, result);
         }
-        index += 1;
     }
     Ok(())
 }
