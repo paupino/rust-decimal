@@ -1012,6 +1012,34 @@ fn it_can_parse_alternative_formats() {
 }
 
 #[test]
+fn it_can_parse_fractional_numbers_with_underscore_separators() {
+    let a = Decimal::from_str("0.1_23_456").unwrap();
+    assert_eq!(a.is_sign_negative(), false);
+    assert_eq!(a.scale(), 6);
+    assert_eq!("0.123456", a.to_string());
+}
+
+#[test]
+fn it_can_parse_numbers_with_underscore_separators_before_decimal_point() {
+    let a = Decimal::from_str("1_234.56").unwrap();
+    assert_eq!(a.is_sign_negative(), false);
+    assert_eq!(a.scale(), 2);
+    assert_eq!("1234.56", a.to_string());
+}
+
+#[test]
+fn it_can_parse_numbers_and_round_correctly_with_underscore_separators_before_decimal_point() {
+    let tests = &[
+        ("8_097_370_036_018_690_744.2590371159596744091", "8097370036018690744.259037116"),
+        ("8097370036018690744.259_037_115_959_674_409_1", "8097370036018690744.259037116"),
+        ("8_097_370_036_018_690_744.259_037_115_959_674_409_1", "8097370036018690744.259037116"),
+    ];
+    for &(value, expected) in tests {
+        assert_eq!(expected, Decimal::from_str(value).unwrap().to_string());
+    }
+}
+
+#[test]
 fn it_can_reject_invalid_formats() {
     let tests = &["_1", "1.0.0", "10_00.0_00.0"];
     for &value in tests {

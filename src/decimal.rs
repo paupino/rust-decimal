@@ -1501,8 +1501,7 @@ impl FromStr for Decimal {
         }
 
         // should now be at numeric part of the significand
-        let mut dot_offset: i32 = -1; // '.' offset, -1 if none
-        let cfirst = offset; // record start of integer
+        let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
         let mut coeff = Vec::new(); // integer significand array
 
         while len > 0 {
@@ -1533,7 +1532,7 @@ impl FromStr for Decimal {
                                                 coeff[index] = 0;
                                                 if index == 0 {
                                                     coeff.insert(0, 1u32);
-                                                    dot_offset += 1;
+                                                    digits_before_dot += 1;
                                                     coeff.pop();
                                                     break;
                                                 }
@@ -1545,7 +1544,7 @@ impl FromStr for Decimal {
                                 b'_' => {}
                                 b'.' => {
                                     // Still an error if we have a second dp
-                                    if dot_offset >= 0 {
+                                    if digits_before_dot >= 0 {
                                         return Err(Error::new("Invalid decimal: two decimal points"));
                                     }
                                 }
@@ -1556,10 +1555,10 @@ impl FromStr for Decimal {
                     }
                 }
                 b'.' => {
-                    if dot_offset >= 0 {
+                    if digits_before_dot >= 0 {
                         return Err(Error::new("Invalid decimal: two decimal points"));
                     }
-                    dot_offset = offset as i32;
+                    digits_before_dot = coeff.len() as i32;
                     offset += 1;
                     len -= 1;
                 }
@@ -1580,9 +1579,9 @@ impl FromStr for Decimal {
             return Err(Error::new("Invalid decimal: no digits found"));
         }
 
-        let mut scale = if dot_offset >= 0 {
+        let mut scale = if digits_before_dot >= 0 {
             // we had a decimal place so set the scale
-            (coeff.len() as u32) - (dot_offset as u32 - cfirst as u32)
+            (coeff.len() as u32) - (digits_before_dot as u32)
         } else {
             0
         };
