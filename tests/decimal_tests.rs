@@ -1012,6 +1012,14 @@ fn it_can_parse_alternative_formats() {
 }
 
 #[test]
+fn it_can_parse_fractional_numbers_with_underscore_separators() {
+    let a = Decimal::from_str("0.1_23_456").unwrap();
+    assert_eq!(a.is_sign_negative(), false);
+    assert_eq!(a.scale(), 6);
+    assert_eq!("0.123456", a.to_string());
+}
+
+#[test]
 fn it_can_reject_invalid_formats() {
     let tests = &["_1", "1.0.0", "10_00.0_00.0"];
     for &value in tests {
