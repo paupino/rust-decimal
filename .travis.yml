@@ -12,8 +12,8 @@ before_script:
   - "./.travis/setup.sh"
 
 script:
-  - cargo build --verbose -p rust_decimal --all-features
-  - cargo test --verbose -p rust_decimal --all-features
+  - cargo build --verbose -p rust_decimal -p rust_decimal_macros --all-features
+  - cargo test --verbose -p rust_decimal -p rust_decimal_macros --all-features
 
 matrix:
   allow_failures:
