@@ -1,8 +1,7 @@
-#![feature(proc_macro_hygiene)]
 extern crate rust_decimal;
 extern crate rust_decimal_macros;
 
-use rust_decimal_macros::*;
+use rust_decimal_macros::dec;
 
 #[test]
 fn it_can_parse_decimal() {

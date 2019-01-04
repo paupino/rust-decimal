@@ -1,9 +1,9 @@
 [package]
-name = "rust_decimal_macros"
+name = "rust_decimal_macro_impls"
 version = "0.10.2"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 
-description = "Shorthand macros to assist creating Decimal types."
+description = "Shorthand macros to assist creating Decimal types. Do not depend on this directly; use rust_decimal_macros"
 documentation = "https://docs.rs/rust_decimal/"
 repository = "https://github.com/paupino/rust-decimal"
 readme = "../README.md"
@@ -17,6 +17,9 @@ license = "MIT"
 travis-ci = { repository = "paupino/rust-decimal", branch = "master" }
 
 [dependencies]
-rust_decimal = { path = "..", version = "0.10.2" }
-rust_decimal_macro_impls = { path = "../macro_impl", version = "0.10.2" }
+rust_decimal = { path = "../", version = "0.10.2" }
 proc-macro-hack = "0.5"
+quote = "0.6"
+
+[lib]
+proc-macro = true
