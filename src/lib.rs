@@ -36,6 +36,7 @@
 //! ```
 //!
 extern crate num;
+#[cfg(not(feature = "const_fn"))]
 #[macro_use]
 extern crate lazy_static;
 

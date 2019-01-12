@@ -12,6 +12,26 @@ use std::result::*;
 use decimal::{div_by_u32, is_all_zero};
 use decimal::mul_by_u32;
 
+#[cfg(feature = "const_fn")]
+const DECIMALS: [Decimal; 15] = [
+    Decimal::from_parts(1, 0, 0, false, 28),
+    Decimal::from_parts(1, 0, 0, false, 24),
+    Decimal::from_parts(1, 0, 0, false, 20),
+    Decimal::from_parts(1, 0, 0, false, 16),
+    Decimal::from_parts(1, 0, 0, false, 12),
+    Decimal::from_parts(1, 0, 0, false, 8),
+    Decimal::from_parts(1, 0, 0, false, 4),
+    Decimal::from_parts(1, 0, 0, false, 0),
+    Decimal::from_parts(1_0000, 0, 0, false, 0),
+    Decimal::from_parts(1_0000_0000, 0, 0, false, 0),
+    Decimal::from_parts(1_0000_0000_0000u64 as u32, (1_0000_0000_0000u64 >> 32) as u32, 0, false, 0),
+    Decimal::from_parts(1_0000_0000_0000_0000u64 as u32, (1_0000_0000_0000_0000u64 >> 32) as u32, 0, false, 0),
+    Decimal::from_parts(1661992960, 1808227885, 5, false, 0),
+    Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
+    Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
+];
+
+#[cfg(not(feature = "const_fn"))]
 lazy_static! {
 
     // When procedural macro's are stabablized
@@ -228,6 +248,29 @@ mod test {
     use super::*;
     use pg_crate::{Connection, TlsMode};
     use std::str::FromStr;
+
+    #[test]
+    fn ensure_equivalent_decimal_constants() {
+        let expected_decimals = [
+            Decimal::new(1, 28),
+            Decimal::new(1, 24),
+            Decimal::new(1, 20),
+            Decimal::new(1, 16),
+            Decimal::new(1, 12),
+            Decimal::new(1, 8),
+            Decimal::new(1, 4),
+            Decimal::new(1, 0),
+            Decimal::new(10000, 0),
+            Decimal::new(100000000, 0),
+            Decimal::new(1000000000000, 0),
+            Decimal::new(10000000000000000, 0),
+            Decimal::from_parts(1661992960, 1808227885, 5, false, 0),
+            Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
+            Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
+        ];
+
+        assert_eq!(&expected_decimals[..], &DECIMALS[..]);
+    }
 
     fn read_type(sql_type: &str, checks: &[&'static str]) {
         let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
