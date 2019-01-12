@@ -1072,6 +1072,12 @@ fn it_can_parse_scientific_notation() {
     }
 }
 
+#[test]
+#[should_panic]
+fn it_panics_when_scale_too_large() {
+    let _ = Decimal::new(1, 29);
+}
+
 #[cfg(feature = "postgres")]
 mod postgres {
     #[cfg(feature = "postgres")]
