@@ -1,5 +1,13 @@
 # Version History
 
+## 0.11.0
+
+* Macros are now supported on stable. This does use a [hack](https://github.com/dtolnay/proc-macro-hack) for the meantime 
+so due diligence is required before usage. 
+* Fixes issue when parsing strings where an underscore preceded a decimal point. 
+* `const_fn` support via a feature flag. In the future this will be the default option however in order to support older
+compiler versions is behind a feature flag.   
+
 ## 0.10.2
 
 * Macros (nightly) now output structural data as opposed to serialized data. This is fully backwards compatible and results in some minor performance improvements. Also, removed feature gate so that it can be compiled in stable.
