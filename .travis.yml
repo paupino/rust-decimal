@@ -12,18 +12,13 @@ before_script:
   - "./.travis/setup.sh"
 
 script:
-  - cargo build --verbose -p rust_decimal --all-features
-  - cargo test --verbose -p rust_decimal --all-features
+  - cargo build --verbose --all --all-features
+  - cargo test --verbose --all --all-features
 
 matrix:
   allow_failures:
     - rust: nightly
   fast_finish: true
-  include:
-      - rust: nightly
-        script:
-          - cargo build --verbose --all --all-features
-          - cargo test --verbose --all --all-features
 
 notifications:
   email:
