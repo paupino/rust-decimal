@@ -1,5 +1,9 @@
 # Version History
 
+## 0.11.1
+
+* Fixes a bug in `floor` and `ceil` where negative numbers were incorrectly handled.
+
 ## 0.11.0
 
 * Macros are now supported on stable. This does use a [hack](https://github.com/dtolnay/proc-macro-hack) for the meantime 

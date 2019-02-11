@@ -597,8 +597,19 @@ impl Decimal {
     /// assert_eq!(num.floor().to_string(), "3");
     /// ```
     pub fn floor(&self) -> Decimal {
+        let scale = self.scale();
+        if scale == 0 {
+            // Nothing to do
+            return *self;
+        }
+
         // Opportunity for optimization here
-        self.trunc()
+        let floored = self.trunc();
+        if self.is_sign_negative() && !self.fract().is_zero() {
+            floored - Decimal::one()
+        } else {
+            floored
+        }
     }
 
     /// Returns the smallest integer greater than or equal to a number.
@@ -614,11 +625,17 @@ impl Decimal {
     /// assert_eq!(num.ceil().to_string(), "3");
     /// ```
     pub fn ceil(&self) -> Decimal {
+        let scale = self.scale();
+        if scale == 0 {
+            // Nothing to do
+            return *self;
+        }
+
         // Opportunity for optimization here
-        if self.fract().is_zero() {
-            *self
-        } else {
+        if self.is_sign_positive() && !self.fract().is_zero() {
             self.trunc() + Decimal::one()
+        } else {
+            self.trunc()
         }
     }
 
