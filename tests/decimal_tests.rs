@@ -556,6 +556,38 @@ fn it_cmps_decimals() {
 }
 
 #[test]
+fn it_floors_decimals() {
+    let tests = &[
+        ("1", "1"),
+        ("1.00", "1"),
+        ("1.2345", "1"),
+        ("-1", "-1"),
+        ("-1.00", "-1"),
+        ("-1.2345", "-2"),
+    ];
+    for &(a, expected) in tests {
+        let a = Decimal::from_str(a).unwrap();
+        assert_eq!(expected, a.floor().to_string(), "Failed flooring {}", a);
+    }
+}
+
+#[test]
+fn it_ceils_decimals() {
+    let tests = &[
+        ("1", "1"),
+        ("1.00", "1"),
+        ("1.2345", "2"),
+        ("-1", "-1"),
+        ("-1.00", "-1"),
+        ("-1.2345", "-1"),
+    ];
+    for &(a, expected) in tests {
+        let a = Decimal::from_str(a).unwrap();
+        assert_eq!(expected, a.ceil().to_string(), "Failed ceiling {}", a);
+    }
+}
+
+#[test]
 fn test_max_compares() {
     let x = "225.33543601344182".parse::<Decimal>().unwrap();
     let y = Decimal::max_value();
