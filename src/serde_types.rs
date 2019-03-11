@@ -50,7 +50,9 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     where
         E: serde::de::Error,
     {
-        Decimal::from_str(value).map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
+        Decimal::from_str(value)
+            .or_else(|_| Decimal::from_scientific(value))
+            .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
     }
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -87,6 +89,7 @@ mod test {
             ("{\"amount\":\"1.234\"}", "1.234"),
             ("{\"amount\":1234}", "1234"),
             ("{\"amount\":1234.56}", "1234.56"),
+            ("{\"amount\":\"1.23456e3\"}", "1234.56"),
         ];
         for &(serialized, value) in data.iter() {
             let result = serde_json::from_str(serialized);
