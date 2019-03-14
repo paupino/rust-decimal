@@ -4,7 +4,7 @@ use std::cmp::*;
 use std::cmp::Ordering::Equal;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::iter::repeat;
+use std::iter::{repeat, Sum};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign};
 use std::str::FromStr;
 
@@ -1635,10 +1635,6 @@ macro_rules! forward_all_binop {
 }
 
 impl Zero for Decimal {
-    fn is_zero(&self) -> bool {
-        self.lo.is_zero() && self.mid.is_zero() && self.hi.is_zero()
-    }
-
     fn zero() -> Decimal {
         Decimal {
             flags: 0,
@@ -1646,6 +1642,10 @@ impl Zero for Decimal {
             lo: 0,
             mid: 0,
         }
+    }
+
+    fn is_zero(&self) -> bool {
+        self.lo.is_zero() && self.mid.is_zero() && self.hi.is_zero()
     }
 }
 
@@ -1968,22 +1968,6 @@ impl FromPrimitive for Decimal {
 }
 
 impl ToPrimitive for Decimal {
-    fn to_f64(&self) -> Option<f64> {
-        if self.scale() == 0 {
-            let integer = self.to_i64();
-            match integer {
-                Some(i) => Some(i as f64),
-                None => None,
-            }
-        } else {
-            // TODO: Utilize mantissa algorithm.
-            match self.to_string().parse::<f64>() {
-                Ok(s) => Some(s),
-                Err(_) => None,
-            }
-        }
-    }
-
     fn to_i64(&self) -> Option<i64> {
         let d = self.trunc();
         // Quick overflow check
@@ -2012,6 +1996,22 @@ impl ToPrimitive for Decimal {
         }
 
         Some((u64::from(d.mid) << 32) | u64::from(d.lo))
+    }
+
+    fn to_f64(&self) -> Option<f64> {
+        if self.scale() == 0 {
+            let integer = self.to_i64();
+            match integer {
+                Some(i) => Some(i as f64),
+                None => None,
+            }
+        } else {
+            // TODO: Utilize mantissa algorithm.
+            match self.to_string().parse::<f64>() {
+                Ok(s) => Some(s),
+                Err(_) => None,
+            }
+        }
     }
 }
 
@@ -2681,6 +2681,15 @@ impl Ord for Decimal {
     }
 }
 
+impl Sum for Decimal {
+    fn sum<I: Iterator<Item=Decimal>>(iter: I) -> Self {
+        let mut sum = Decimal::zero();
+        for i in iter {
+            sum += i;
+        }
+        return sum;
+    }
+}
 
 #[cfg(test)]
 mod test {
