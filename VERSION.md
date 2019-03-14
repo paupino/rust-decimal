@@ -1,5 +1,10 @@
 # Version History
 
+## 0.11.2
+
+* Fall back to `from_scientific` when `from_str` fails during deserialization. Thanks @mattjbray!
+* Added basic `Sum` trait implementation
+
 ## 0.11.1
 
 * Fixes a bug in `floor` and `ceil` where negative numbers were incorrectly handled.
