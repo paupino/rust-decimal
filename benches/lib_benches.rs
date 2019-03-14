@@ -83,6 +83,51 @@ bench_decimal_op!(div_negative_pi, /, "-3.1415926535897932384626433832");
 
 bench_fold_op!(div_10k, /, Decimal::max_value(), 10_000);
 
+/* Iteration */
+struct DecimalIterator {
+    count: usize,
+}
+
+impl DecimalIterator {
+    fn new() -> DecimalIterator {
+        DecimalIterator { count: 0 }
+    }
+}
+
+impl Iterator for DecimalIterator {
+    type Item = Decimal;
+
+    fn next(&mut self) -> Option<Decimal> {
+        self.count += 1;
+        if self.count < 6 {
+            Some(Decimal::new(314, 2))
+        } else {
+            None
+        }
+    }
+}
+
+#[bench]
+fn iterator_individual(b: &mut ::test::Bencher) {
+    b.iter(|| {
+        let mut result = Decimal::new(0, 0);
+        let iterator = DecimalIterator::new();
+        for i in iterator {
+            result += i;
+        }
+        ::test::black_box(result);
+    });
+}
+
+#[bench]
+fn iterator_sum(b: &mut ::test::Bencher) {
+    b.iter(|| {
+        let result: Decimal = DecimalIterator::new().sum();
+        ::test::black_box(result);
+    });
+}
+
+
 #[cfg(feature = "postgres")]
 mod postgres {
     #[cfg(feature = "postgres")]
