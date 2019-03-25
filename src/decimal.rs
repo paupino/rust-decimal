@@ -1,12 +1,17 @@
-use Error;
+use crate::Error;
+
 use num::{FromPrimitive, One, ToPrimitive, Zero};
-use std::cmp::*;
-use std::cmp::Ordering::Equal;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::iter::{repeat, Sum};
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign};
-use std::str::FromStr;
+
+use lazy_static::lazy_static;
+
+use std::{
+    cmp::{Ordering::Equal, *},
+    fmt,
+    hash::{Hash, Hasher},
+    iter::{repeat, Sum},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign},
+    str::FromStr,
+};
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
@@ -52,7 +57,7 @@ const MIN: Decimal = Decimal {
     flags: 2_147_483_648,
     lo: 4_294_967_295,
     mid: 4_294_967_295,
-    hi: 4_294_967_295
+    hi: 4_294_967_295,
 };
 
 #[cfg(feature = "const_fn")]
@@ -60,35 +65,34 @@ const MAX: Decimal = Decimal {
     flags: 0,
     lo: 4_294_967_295,
     mid: 4_294_967_295,
-    hi: 4_294_967_295
+    hi: 4_294_967_295,
 };
-
 
 // Fast access for 10^n where n is 0-9
 static POWERS_10: [u32; 10] = [
-                1,
-               10,
-              100,
-            1_000,
-           10_000,
-          100_000,
-        1_000_000,
-       10_000_000,
-      100_000_000,
+    1,
+    10,
+    100,
+    1_000,
+    10_000,
+    100_000,
+    1_000_000,
+    10_000_000,
+    100_000_000,
     1_000_000_000,
 ];
 // Fast access for 10^n where n is 10-19
 #[allow(dead_code)]
 static BIG_POWERS_10: [u64; 10] = [
-                10_000_000_000,
-               100_000_000_000,
-             1_000_000_000_000,
-            10_000_000_000_000,
-           100_000_000_000_000,
-         1_000_000_000_000_000,
-        10_000_000_000_000_000,
-       100_000_000_000_000_000,
-     1_000_000_000_000_000_000,
+    10_000_000_000,
+    100_000_000_000,
+    1_000_000_000_000,
+    10_000_000_000_000,
+    100_000_000_000_000,
+    1_000_000_000_000_000,
+    10_000_000_000_000_000,
+    100_000_000_000_000_000,
+    1_000_000_000_000_000_000,
     10_000_000_000_000_000_000,
 ];
 
@@ -100,7 +104,7 @@ pub struct UnpackedDecimal {
     pub scale: u32,
     pub hi: u32,
     pub mid: u32,
-    pub lo: u32
+    pub lo: u32,
 }
 
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
@@ -132,7 +136,7 @@ pub struct Decimal {
 pub enum RoundingStrategy {
     BankersRounding,
     RoundHalfUp,
-    RoundHalfDown
+    RoundHalfDown,
 }
 
 #[allow(dead_code)]
@@ -156,8 +160,7 @@ impl Decimal {
         if scale > MAX_PRECISION {
             panic!(
                 "Scale exceeds the maximum precision allowed: {} > {}",
-                scale,
-                MAX_PRECISION
+                scale, MAX_PRECISION
             );
         }
         let flags: u32 = scale << SCALE_SHIFT;
@@ -261,7 +264,7 @@ impl Decimal {
             scale.remove(0);
             let scale: u32 = scale.as_str().parse().map_err(move |_| err.clone())?;
             let current_scale = ret.scale();
-            ret.set_scale(current_scale+ scale)?;
+            ret.set_scale(current_scale + scale)?;
         } else {
             if scale.contains('+') {
                 scale.remove(0);
@@ -419,13 +422,10 @@ impl Decimal {
     #[cfg(feature = "const_fn")]
     pub const fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
-            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 |
-                (bytes[3] as u32) << 24,
+            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
             lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
-            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 |
-                (bytes[11] as u32) << 24,
-            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 |
-                (bytes[15] as u32) << 24,
+            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
+            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
         }
     }
 
@@ -439,13 +439,10 @@ impl Decimal {
     #[cfg(not(feature = "const_fn"))]
     pub fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
-            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 |
-                (bytes[3] as u32) << 24,
+            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
             lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
-            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 |
-                (bytes[11] as u32) << 24,
-            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 |
-                (bytes[15] as u32) << 24,
+            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
+            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
         }
     }
 
@@ -789,7 +786,6 @@ impl Decimal {
         }
         let order = cmp_internal(&decimal_portion, &cap);
 
-
         match strategy {
             RoundingStrategy::BankersRounding => {
                 match order {
@@ -804,15 +800,13 @@ impl Decimal {
                     }
                     _ => {}
                 }
-            },
-            RoundingStrategy::RoundHalfDown => {
-                match order {
-                    Ordering::Greater => {
-                        add_internal(&mut value, &ONE_INTERNAL_REPR);
-                    }
-                    _ => {}
-                }
             }
+            RoundingStrategy::RoundHalfDown => match order {
+                Ordering::Greater => {
+                    add_internal(&mut value, &ONE_INTERNAL_REPR);
+                }
+                _ => {}
+            },
             RoundingStrategy::RoundHalfUp => {
                 // when Ordering::Equal, decimal_portion is 0.5 exactly
                 // when Ordering::Greater, decimal_portion is > 0.5
@@ -987,7 +981,6 @@ impl Decimal {
         if is64 {
             // Guaranteed to about 16 dp
             while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFE0_0000) != 0) {
-
                 let rem10 = div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {
@@ -996,10 +989,9 @@ impl Decimal {
             }
         } else {
             // Guaranteed to about 7 dp
-            while exponent10 < 0 &&
-                (bits[2] != 0 || bits[1] != 0 || (bits[2] == 0 && bits[1] == 0 && (bits[0] & 0xFF00_0000) != 0))
+            while exponent10 < 0
+                && (bits[2] != 0 || bits[1] != 0 || (bits[2] == 0 && bits[1] == 0 && (bits[0] & 0xFF00_0000) != 0))
             {
-
                 let rem10 = div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {
@@ -1129,11 +1121,8 @@ fn copy_array_diff_lengths(into: &mut [u32], from: &[u32]) {
 }
 
 #[inline]
-fn u64_to_array(value: u64) -> [u32;2] {
-    [
-        (value & U32_MASK) as u32,
-        (value >> 32 & U32_MASK) as u32,
-    ]
+fn u64_to_array(value: u64) -> [u32; 2] {
+    [(value & U32_MASK) as u32, (value >> 32 & U32_MASK) as u32]
 }
 
 fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
@@ -1324,10 +1313,7 @@ fn add_with_scale_internal(
 #[inline]
 fn add_part(left: u32, right: u32) -> (u32, u32) {
     let added = u64::from(left) + u64::from(right);
-    (
-        (added & U32_MASK) as u32,
-        (added >> 32 & U32_MASK) as u32,
-    )
+    ((added & U32_MASK) as u32, (added >> 32 & U32_MASK) as u32)
 }
 
 #[inline(always)]
@@ -1340,7 +1326,6 @@ fn sub3_internal(value: &mut [u32; 3], by: &[u32; 3]) {
         overflow = 1 - (part >> 32);
     }
 }
-
 
 fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
     // The way this works is similar to long subtraction
@@ -1407,7 +1392,6 @@ fn mul_by_10(bits: &mut [u32; 3]) -> u32 {
     overflow as u32
 }
 
-
 // Returns overflow
 pub(crate) fn mul_by_u32(bits: &mut [u32], m: u32) -> u32 {
     let mut overflow = 0;
@@ -1460,7 +1444,6 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
     let mut block = blocks_to_process << 5;
     let mut working = [0u32, 0u32, 0u32, 0u32];
     while block < 128 {
-
         // << 1 for quotient AND remainder
         let carry = shl_internal(quotient, 1, 0);
         shl_internal(remainder, 1, carry);
@@ -1518,7 +1501,6 @@ fn div_by_10(bits: &mut [u32; 3]) -> u32 {
 
 #[inline]
 fn shl_internal(bits: &mut [u32], shift: u32, carry: u32) -> u32 {
-
     let mut shift = shift;
 
     // Whole blocks first
@@ -1573,7 +1555,7 @@ macro_rules! impl_from {
                 $from_ty(t).unwrap()
             }
         }
-    }
+    };
 }
 
 impl_from!(isize, FromPrimitive::from_isize);
@@ -1597,7 +1579,7 @@ macro_rules! forward_val_val_binop {
                 (&self).$method(&other)
             }
         }
-    }
+    };
 }
 
 macro_rules! forward_ref_val_binop {
@@ -1610,7 +1592,7 @@ macro_rules! forward_ref_val_binop {
                 self.$method(&other)
             }
         }
-    }
+    };
 }
 
 macro_rules! forward_val_ref_binop {
@@ -1623,7 +1605,7 @@ macro_rules! forward_val_ref_binop {
                 (&self).$method(other)
             }
         }
-    }
+    };
 }
 
 macro_rules! forward_all_binop {
@@ -2105,7 +2087,6 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn add(self, other: &Decimal) -> Decimal {
-
         // Convert to the same scale
         let mut my = [self.lo, self.mid, self.hi];
         let mut my_scale = self.scale();
@@ -2240,9 +2221,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
         // First of all, if ONLY the lo parts of both numbers is filled
         // then we can simply do a standard 64 bit calculation. It's a minor
         // optimization however prevents the need for long form multiplication
-        if self.mid == 0 && self.hi == 0 &&
-           other.mid == 0 && other.hi == 0 {
-
+        if self.mid == 0 && self.hi == 0 && other.mid == 0 && other.hi == 0 {
             // Simply multiplication
             let mut u64_result = u64_to_array(u64::from(self.lo) * u64::from(other.lo));
 
@@ -2309,11 +2288,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 
         // We can perform a minor short circuit here. If the
         // high portions are both 0 then we can skip portions 5-9
-        let to = if my[2] == 0 && ot[2] == 0 {
-            2
-        } else {
-            3
-        };
+        let to = if my[2] == 0 && ot[2] == 0 { 2 } else { 3 };
 
         for my_index in 0..to {
             for ot_index in 0..to {
@@ -2431,18 +2406,8 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
         let mut quotient_scale: i32 = self.scale() as i32 - other.scale() as i32;
 
         // We supply an extra overflow word for each of the dividend and the remainder
-        let mut working_quotient = [
-            dividend[0],
-            dividend[1],
-            dividend[2],
-            0u32,
-        ];
-        let mut working_remainder = [
-            0u32,
-            0u32,
-            0u32,
-            0u32,
-        ];
+        let mut working_quotient = [dividend[0], dividend[1], dividend[2], 0u32];
+        let mut working_remainder = [0u32, 0u32, 0u32, 0u32];
         let mut working_scale = quotient_scale;
         let mut remainder_scale = quotient_scale;
         let mut underflow;
@@ -2572,7 +2537,6 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
             return Decimal::zero();
         }
 
-
         // Working is the remainder + the quotient
         // We use an aligned array since we'll be using it alot.
         let mut working_quotient = [self.lo, self.mid, self.hi, 0u32];
@@ -2585,11 +2549,7 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
             lo: working_remainder[0],
             mid: working_remainder[1],
             hi: working_remainder[2],
-            flags: if self.is_sign_negative() {
-                SIGN_MASK
-            } else {
-                0
-            },
+            flags: if self.is_sign_negative() { SIGN_MASK } else { 0 },
         }
     }
 }
@@ -2644,8 +2604,8 @@ impl Ord for Decimal {
         //  123 scale 2 and 12345 scale 4
         //  We need to convert the first to
         //  12300 scale 4 so we can compare equally
-        let left : &Decimal;
-        let right : &Decimal;
+        let left: &Decimal;
+        let right: &Decimal;
         if self_negative && other_negative {
             // Both are negative, so reverse cmp
             left = other;
@@ -2671,18 +2631,13 @@ impl Ord for Decimal {
         // Rescale and compare
         let mut left_raw = [left.lo, left.mid, left.hi];
         let mut right_raw = [right.lo, right.mid, right.hi];
-        rescale(
-            &mut left_raw,
-            &mut left_scale,
-            &mut right_raw,
-            &mut right_scale,
-        );
+        rescale(&mut left_raw, &mut left_scale, &mut right_raw, &mut right_scale);
         cmp_internal(&left_raw, &right_raw)
     }
 }
 
 impl Sum for Decimal {
-    fn sum<I: Iterator<Item=Decimal>>(iter: I) -> Self {
+    fn sum<I: Iterator<Item = Decimal>>(iter: I) -> Self {
         let mut sum = Decimal::zero();
         for i in iter {
             sum += i;
@@ -2734,9 +2689,9 @@ mod test {
             ),
             (
                 "0.0872727272727272727272727272", // Scale 28
-                "843.65000000", // Scale 8
-                "0.0872727272727272727272727", // 25
-                "843.6500000000000000000000000", // 25
+                "843.65000000",                   // Scale 8
+                "0.0872727272727272727272727",    // 25
+                "843.6500000000000000000000000",  // 25
             ),
         ];
 

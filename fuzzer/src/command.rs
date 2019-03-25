@@ -1,8 +1,8 @@
-use std::fs::File;
-use std::path::Path;
-use std::str::FromStr;
-
 use rust_decimal::Decimal;
+
+use serde_derive::{Deserialize, Serialize};
+
+use std::{fmt::Display, fs::File, path::Path, str::FromStr};
 
 #[derive(Serialize, Deserialize)]
 struct FuzzInput {
@@ -36,7 +36,8 @@ impl FuzzInput {
             Op::Sub => a - b,
             Op::Mul => a * b,
             Op::Div => a / b,
-        }.to_string();
+        }
+        .to_string();
         if result.len() > 30 {
             // Absolute max of 29 + decimal point
             let (r1, r2) = result.split_at(30);
@@ -75,36 +76,41 @@ enum Op {
     Div,
 }
 
-impl ::std::fmt::Display for Op {
+impl Display for Op {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        write!(f, "{}", match self {
-            Op::Add => "add",
-            Op::Sub => "sub",
-            Op::Mul => "mul",
-            Op::Div => "div",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Op::Add => "add",
+                Op::Sub => "sub",
+                Op::Mul => "mul",
+                Op::Div => "div",
+            }
+        )
     }
 }
 
-fn to_str<E: ::std::fmt::Display>(e: E) -> String {
+fn to_str<E: Display>(e: E) -> String {
     format!("{}", e)
 }
 
 pub fn generate(sample_size: u32, output: &Path) -> Result<(), String> {
     let pairs = generate_pairs(sample_size as usize);
     let mut test_number = 0;
-    let input = pairs.iter()
-                    .flat_map(move |(a, b)| {
-                        test_number += 1;
-                        vec![
-                            FuzzInput::new(test_number, a, b, Op::Add),
-                            FuzzInput::new(test_number, a, b, Op::Sub),
-                            // TODO: These cause overflow but the C lib doesn't throw
-                            //FuzzInput::new(test_number, a, b, Op::Mul),
-                            FuzzInput::new(test_number, a, b, Op::Div),
-                        ]
-                    })
-                    .collect::<Vec<_>>();
+    let input = pairs
+        .iter()
+        .flat_map(move |(a, b)| {
+            test_number += 1;
+            vec![
+                FuzzInput::new(test_number, a, b, Op::Add),
+                FuzzInput::new(test_number, a, b, Op::Sub),
+                // TODO: These cause overflow but the C lib doesn't throw
+                //FuzzInput::new(test_number, a, b, Op::Mul),
+                FuzzInput::new(test_number, a, b, Op::Div),
+            ]
+        })
+        .collect::<Vec<_>>();
     let file = File::create(output).map_err(to_str)?;
     serde_json::to_writer_pretty(file, &input).map_err(to_str)?;
     Ok(())
@@ -125,18 +131,17 @@ fn generate_pairs(size: usize) -> Vec<(String, String)> {
 pub fn run(path: &Path) -> Result<(), String> {
     // Load in the json input
     let file = File::open(path).map_err(to_str)?;
-    let input : Vec<FuzzInput> = serde_json::from_reader(file).map_err(to_str)?;
+    let input: Vec<FuzzInput> = serde_json::from_reader(file).map_err(to_str)?;
     for item in input {
-        let a = Decimal::from_str(&item.left)
-                    .expect(&format!("Failed to unwrap left for test: {}", item.test));
-        let b = Decimal::from_str(&item.right)
-                    .expect(&format!("Failed to unwrap right for test: {}", item.test));
+        let a = Decimal::from_str(&item.left).expect(&format!("Failed to unwrap left for test: {}", item.test));
+        let b = Decimal::from_str(&item.right).expect(&format!("Failed to unwrap right for test: {}", item.test));
         let result = match item.operator {
             Op::Add => a + b,
             Op::Sub => a - b,
             Op::Mul => a * b,
             Op::Div => a / b,
-        }.to_string();
+        }
+        .to_string();
         // Finally, see if we match the result
         if result.ne(&item.result) {
             panic!("Result mismatch for test {}: {}", item.test, result);

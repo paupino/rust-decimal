@@ -1,9 +1,10 @@
-use Decimal;
+use crate::Decimal;
+
 use num::FromPrimitive;
-use serde;
-use serde::de::Unexpected;
-use std::fmt;
-use std::str::FromStr;
+
+use serde::{self, de::Unexpected};
+
+use std::{fmt, str::FromStr};
 
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
@@ -56,10 +57,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     }
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            formatter,
-            "a Decimal type representing a fixed-point number"
-        )
+        write!(formatter, "a Decimal type representing a fixed-point number")
     }
 }
 
@@ -74,9 +72,10 @@ impl serde::Serialize for Decimal {
 
 #[cfg(test)]
 mod test {
-    extern crate serde_json;
 
     use super::*;
+
+    use serde_derive::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug)]
     struct Record {
@@ -120,7 +119,9 @@ mod test {
 
     #[test]
     fn serialize_decimal() {
-        let record = Record { amount: Decimal::new(1234, 3) };
+        let record = Record {
+            amount: Decimal::new(1234, 3),
+        };
         let serialized = serde_json::to_string(&record).unwrap();
         assert_eq!("{\"amount\":\"1.234\"}", serialized);
     }

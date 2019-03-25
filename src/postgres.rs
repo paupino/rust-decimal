@@ -1,16 +1,16 @@
-extern crate byteorder;
-extern crate num;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use self::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use self::num::Zero;
-use super::Decimal;
-use pg_crate::types::*;
-use std::error;
-use std::fmt;
-use std::io::Cursor;
-use std::result::*;
-use decimal::{div_by_u32, is_all_zero};
-use decimal::mul_by_u32;
+use num::Zero;
+
+use crate::Decimal;
+
+use postgres::{to_sql_checked, types::*};
+
+use lazy_static::lazy_static;
+
+use std::{error, fmt, io::Cursor, result::*};
+
+use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32};
 
 #[cfg(feature = "const_fn")]
 const DECIMALS: [Decimal; 15] = [
@@ -24,8 +24,20 @@ const DECIMALS: [Decimal; 15] = [
     Decimal::from_parts(1, 0, 0, false, 0),
     Decimal::from_parts(1_0000, 0, 0, false, 0),
     Decimal::from_parts(1_0000_0000, 0, 0, false, 0),
-    Decimal::from_parts(1_0000_0000_0000u64 as u32, (1_0000_0000_0000u64 >> 32) as u32, 0, false, 0),
-    Decimal::from_parts(1_0000_0000_0000_0000u64 as u32, (1_0000_0000_0000_0000u64 >> 32) as u32, 0, false, 0),
+    Decimal::from_parts(
+        1_0000_0000_0000u64 as u32,
+        (1_0000_0000_0000u64 >> 32) as u32,
+        0,
+        false,
+        0,
+    ),
+    Decimal::from_parts(
+        1_0000_0000_0000_0000u64 as u32,
+        (1_0000_0000_0000_0000u64 >> 32) as u32,
+        0,
+        false,
+        0,
+    ),
     Decimal::from_parts(1661992960, 1808227885, 5, false, 0),
     Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
     Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
@@ -128,7 +140,7 @@ impl FromSql for Decimal {
         let mut raw = Cursor::new(raw);
         let num_groups = raw.read_u16::<BigEndian>()?;
         let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
-        // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
+                                                   // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
         let sign = raw.read_u16::<BigEndian>()?;
         // Number of digits (in base 10) to print after decimal separator
         let fixed_scale = raw.read_u16::<BigEndian>()? as i32;
@@ -187,7 +199,7 @@ impl ToSql for Decimal {
         let sign = if self.is_sign_negative() { 0x4000 } else { 0x0000 };
         let scale = self.scale() as u16;
 
-        let groups_diff = scale & 0x3;                           // groups_diff = scale % 4
+        let groups_diff = scale & 0x3; // groups_diff = scale % 4
         let mut fractional_groups_count = (scale >> 2) as isize; // fractional_groups_count = scale / 4
         fractional_groups_count += if groups_diff > 0 { 1 } else { 0 };
 
@@ -246,7 +258,9 @@ impl ToSql for Decimal {
 #[cfg(test)]
 mod test {
     use super::*;
-    use pg_crate::{Connection, TlsMode};
+
+    use postgres::{Connection, TlsMode};
+
     use std::str::FromStr;
 
     #[test]
@@ -274,7 +288,6 @@ mod test {
 
     fn read_type(sql_type: &str, checks: &[&'static str]) {
         let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
-
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
         };
@@ -327,10 +340,10 @@ mod test {
         "9999999.99999",
         "12340.56789",
         "79228162514264337593543950335", // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
-        "4951760157141521099596496895", // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
-        "4951760157141521099596496896", // 0x1000_0000_0000_0000_0000_0000
+        "4951760157141521099596496895",  // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
+        "4951760157141521099596496896",  // 0x1000_0000_0000_0000_0000_0000
         "18446744073709551615",
-        "-18446744073709551615"
+        "-18446744073709551615",
     ];
 
     #[test]
@@ -356,7 +369,6 @@ mod test {
     fn read_numeric_type() {
         read_type("NUMERIC(35, 6)", TEST_DECIMALS);
     }
-
 
     #[test]
     fn write_numeric_type() {

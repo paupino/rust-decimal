@@ -1,12 +1,13 @@
 extern crate proc_macro;
-extern crate proc_macro_hack;
-extern crate rust_decimal;
-extern crate quote;
 
 use proc_macro::TokenStream;
+
 use proc_macro_hack::proc_macro_hack;
+
 use quote::quote;
+
 use rust_decimal::Decimal;
+
 use std::str::FromStr;
 
 #[proc_macro_hack]
