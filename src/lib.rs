@@ -35,25 +35,6 @@
 //! let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 //! ```
 //!
-extern crate num;
-#[cfg(not(feature = "const_fn"))]
-#[macro_use]
-extern crate lazy_static;
-
-#[cfg(feature = "postgres")]
-#[macro_use]
-extern crate postgres as pg_crate;
-
-#[cfg(feature = "serde")]
-extern crate serde;
-#[cfg(feature = "serde")]
-#[cfg(test)]
-extern crate serde_json;
-#[cfg(feature = "serde")]
-#[cfg(test)]
-#[macro_use]
-extern crate serde_derive;
-
 mod decimal;
 mod error;
 

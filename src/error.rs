@@ -1,5 +1,4 @@
-use std::error;
-use std::fmt;
+use std::{error, fmt};
 
 /// Error type for the library.
 #[derive(Clone, Debug)]
@@ -13,7 +12,9 @@ impl Error {
     /// This function is only available within the crate as there should never
     /// be a need to create this error outside of the library.
     pub(crate) fn new<S: Into<String>>(message: S) -> Error {
-        Error { message: message.into() }
+        Error {
+            message: message.into(),
+        }
     }
 }
 

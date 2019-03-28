@@ -2,6 +2,7 @@
 name = "rust_decimal_fuzzer"
 version = "0.11.2"
 authors = ["Paul Mason <paul@form1.co.nz>"]
+edition = "2018"
 
 [[bin]]
 name = "fuzzer"

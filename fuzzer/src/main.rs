@@ -1,17 +1,6 @@
-#[macro_use]
-extern crate clap;
-extern crate decimal;
-extern crate rand;
-extern crate rust_decimal;
-
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-
 mod command;
 
-use clap::{App, Arg, SubCommand};
+use clap::{crate_authors, crate_version, App, Arg, SubCommand};
 
 use std::path::Path;
 use std::str::FromStr;
