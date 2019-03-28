@@ -1031,6 +1031,12 @@ impl Decimal {
     }
 }
 
+impl Default for Decimal {
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 #[inline]
 #[cfg(feature = "const_fn")]
 const fn flags(neg: bool, scale: u32) -> u32 {
