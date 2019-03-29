@@ -283,6 +283,17 @@ fn it_can_addassign() {
     let b = Decimal::from_str("0.99").unwrap();
     a += b;
     assert_eq!("2.00", a.to_string());
+
+    a += &b;
+    assert_eq!("2.99", a.to_string());
+
+    let mut c = &mut a;
+    c += b;
+    assert_eq!("3.98", a.to_string());
+
+    let mut c = &mut a;
+    c += &b;
+    assert_eq!("4.97", a.to_string());
 }
 
 // Subtraction
@@ -329,6 +340,17 @@ fn it_can_subassign() {
     let b = Decimal::from_str("0.51").unwrap();
     a -= b;
     assert_eq!("0.50", a.to_string());
+
+    a -= &b;
+    assert_eq!("-0.01", a.to_string());
+
+    let mut c = &mut a;
+    c -= b;
+    assert_eq!("-0.52", a.to_string());
+
+    let mut c = &mut a;
+    c -= &b;
+    assert_eq!("-1.03", a.to_string());
 }
 
 // Multiplication
@@ -404,8 +426,20 @@ fn it_panics_when_multiply_with_overflow() {
 fn it_can_mulassign() {
     let mut a = Decimal::from_str("1.25").unwrap();
     let b = Decimal::from_str("0.01").unwrap();
+
     a *= b;
     assert_eq!("0.0125", a.to_string());
+
+    a *= &b;
+    assert_eq!("0.000125", a.to_string());
+
+    let mut c = &mut a;
+    c *= b;
+    assert_eq!("0.00000125", a.to_string());
+
+    let mut c = &mut a;
+    c *= &b;
+    assert_eq!("0.0000000125", a.to_string());
 }
 
 // Division
@@ -450,8 +484,20 @@ fn it_can_divide_by_zero() {
 fn it_can_divassign() {
     let mut a = Decimal::from_str("1.25").unwrap();
     let b = Decimal::from_str("0.01").unwrap();
+
     a /= b;
     assert_eq!("125", a.to_string());
+
+    a /= &b;
+    assert_eq!("12500", a.to_string());
+
+    let mut c = &mut a;
+    c /= b;
+    assert_eq!("1250000", a.to_string());
+
+    let mut c = &mut a;
+    c /= &b;
+    assert_eq!("125000000", a.to_string());
 }
 
 // Modulus and Remainder are not the same thing!
@@ -483,7 +529,19 @@ fn it_rems_decimals() {
 fn it_can_remassign() {
     let mut a = Decimal::from_str("5").unwrap();
     let b = Decimal::from_str("2").unwrap();
+
     a %= b;
+    assert_eq!("1", a.to_string());
+
+    a %= &b;
+    assert_eq!("1", a.to_string());
+
+    let mut c = &mut a;
+    c %= b;
+    assert_eq!("1", a.to_string());
+
+    let mut c = &mut a;
+    c %= &b;
     assert_eq!("1", a.to_string());
 }
 

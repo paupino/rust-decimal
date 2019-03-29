@@ -1,3 +1,4 @@
+
 use crate::Error;
 
 use num::{FromPrimitive, One, ToPrimitive, Zero};
@@ -2172,6 +2173,24 @@ impl AddAssign for Decimal {
     }
 }
 
+impl<'a> AddAssign<&'a Decimal> for Decimal {
+    fn add_assign(&mut self, other: &'a Decimal) {
+        Decimal::add_assign(self, *other)
+    }
+}
+
+impl<'a> AddAssign<Decimal> for &'a mut Decimal {
+    fn add_assign(&mut self, other: Decimal) {
+        Decimal::add_assign(*self, other)
+    }
+}
+
+impl<'a> AddAssign<&'a Decimal> for &'a mut Decimal {
+    fn add_assign(&mut self, other: &'a Decimal) {
+        Decimal::add_assign(*self, *other)
+    }
+}
+
 forward_all_binop!(impl Sub for Decimal, sub);
 
 impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
@@ -2196,6 +2215,24 @@ impl SubAssign for Decimal {
         self.mid = result.mid;
         self.hi = result.hi;
         self.flags = result.flags;
+    }
+}
+
+impl<'a> SubAssign<&'a Decimal> for Decimal {
+    fn sub_assign(&mut self, other: &'a Decimal) {
+        Decimal::sub_assign(self, *other)
+    }
+}
+
+impl<'a> SubAssign<Decimal> for &'a mut Decimal {
+    fn sub_assign(&mut self, other: Decimal) {
+        Decimal::sub_assign(*self, other)
+    }
+}
+
+impl<'a> SubAssign<&'a Decimal> for &'a mut Decimal {
+    fn sub_assign(&mut self, other: &'a Decimal) {
+        Decimal::sub_assign(*self, *other)
     }
 }
 
@@ -2387,6 +2424,24 @@ impl MulAssign for Decimal {
     }
 }
 
+impl<'a> MulAssign<&'a Decimal> for Decimal {
+    fn mul_assign(&mut self, other: &'a Decimal) {
+        Decimal::mul_assign(self, *other)
+    }
+}
+
+impl<'a> MulAssign<Decimal> for &'a mut Decimal {
+    fn mul_assign(&mut self, other: Decimal) {
+        Decimal::mul_assign(*self, other)
+    }
+}
+
+impl<'a> MulAssign<&'a Decimal> for &'a mut Decimal {
+    fn mul_assign(&mut self, other: &'a Decimal) {
+        Decimal::mul_assign(*self, *other)
+    }
+}
+
 forward_all_binop!(impl Div for Decimal, div);
 
 impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
@@ -2523,6 +2578,25 @@ impl DivAssign for Decimal {
     }
 }
 
+impl<'a> DivAssign<&'a Decimal> for Decimal {
+    fn div_assign(&mut self, other: &'a Decimal) {
+        Decimal::div_assign(self, *other)
+    }
+}
+
+impl<'a> DivAssign<Decimal> for &'a mut Decimal {
+    fn div_assign(&mut self, other: Decimal) {
+        Decimal::div_assign(*self, other)
+    }
+}
+
+impl<'a> DivAssign<&'a Decimal> for &'a mut Decimal {
+    fn div_assign(&mut self, other: &'a Decimal) {
+        Decimal::div_assign(*self, *other)
+    }
+}
+
+
 forward_all_binop!(impl Rem for Decimal, rem);
 
 impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
@@ -2561,6 +2635,24 @@ impl RemAssign for Decimal {
         self.mid = result.mid;
         self.hi = result.hi;
         self.flags = result.flags;
+    }
+}
+
+impl<'a> RemAssign<&'a Decimal> for Decimal {
+    fn rem_assign(&mut self, other: &'a Decimal) {
+        Decimal::rem_assign(self, *other)
+    }
+}
+
+impl<'a> RemAssign<Decimal> for &'a mut Decimal {
+    fn rem_assign(&mut self, other: Decimal) {
+        Decimal::rem_assign(*self, other)
+    }
+}
+
+impl<'a> RemAssign<&'a Decimal> for &'a mut Decimal {
+    fn rem_assign(&mut self, other: &'a Decimal) {
+        Decimal::rem_assign(*self, *other)
     }
 }
 
