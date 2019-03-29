@@ -1,4 +1,3 @@
-
 use crate::Error;
 
 use num::{FromPrimitive, One, ToPrimitive, Zero};

@@ -1,12 +1,11 @@
 extern crate num;
 extern crate rust_decimal;
 
-use num::ToPrimitive;
-use num::Zero;
+use num::{ToPrimitive, Zero};
+
 use rust_decimal::{Decimal, RoundingStrategy};
-use std::cmp::Ordering;
-use std::cmp::Ordering::*;
-use std::str::FromStr;
+
+use std::{cmp::{Ordering, Ordering::*}, str::FromStr};
 
 // Parsing
 
