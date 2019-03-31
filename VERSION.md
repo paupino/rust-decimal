@@ -1,5 +1,13 @@
 # Version History
 
+## 0.11.3
+
+* Add prelude to help num trait inclusion (`use rust_decimal::prelude::*`)
+* Add `Default` trait to the library. This is equivalent to using `Decimal::zero()`
+* Added assignment operators for references.
+
+Special thanks to @jean-airoldie for his help with this release!
+
 ## 0.11.2
 
 * Fall back to `from_scientific` when `from_str` fails during deserialization. Thanks @mattjbray!
