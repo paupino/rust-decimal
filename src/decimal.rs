@@ -1810,16 +1810,16 @@ impl FromStr for Decimal {
 impl FromPrimitive for Decimal {
     fn from_i32(n: i32) -> Option<Decimal> {
         let flags: u32;
-        let value_copy: i32;
+        let value_copy: i64;
         if n >= 0 {
             flags = 0;
-            value_copy = n;
+            value_copy = n as i64;
         } else {
             flags = SIGN_MASK;
-            value_copy = -n;
+            value_copy = -(n as i64);
         }
         Some(Decimal {
-            flags: flags,
+            flags,
             lo: value_copy as u32,
             mid: 0,
             hi: 0,
@@ -1828,16 +1828,16 @@ impl FromPrimitive for Decimal {
 
     fn from_i64(n: i64) -> Option<Decimal> {
         let flags: u32;
-        let value_copy: i64;
+        let value_copy: i128;
         if n >= 0 {
             flags = 0;
-            value_copy = n;
+            value_copy = n as i128;
         } else {
             flags = SIGN_MASK;
-            value_copy = -n;
+            value_copy = -(n as i128);
         }
         Some(Decimal {
-            flags: flags,
+            flags,
             lo: value_copy as u32,
             mid: (value_copy >> 32) as u32,
             hi: 0,
