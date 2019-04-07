@@ -663,6 +663,43 @@ fn test_min_compares() {
 }
 
 #[test]
+fn it_can_parse_from_i32() {
+    use num::FromPrimitive;
+
+    let tests = &[
+        (0i32, "0"),
+        (1i32, "1"),
+        (-1i32, "-1"),
+        (i32::max_value(), "2147483647"),
+        (i32::min_value(), "-2147483648"),
+    ];
+    for &(input, expected) in tests {
+        let parsed = Decimal::from_i32(input).unwrap();
+        assert_eq!(expected, parsed.to_string(), "expected {} does not match parsed {}", expected, parsed);
+        assert_eq!(input.to_string(), parsed.to_string(), "i32 to_string {} does not match parsed {}", input, parsed);
+    }
+}
+
+#[test]
+fn it_can_parse_from_i64() {
+    use num::FromPrimitive;
+
+    let tests = &[
+        (0i64, "0"),
+        (1i64, "1"),
+        (-1i64, "-1"),
+        (i64::max_value(), "9223372036854775807"),
+        (i64::min_value(), "-9223372036854775808"),
+    ];
+    for &(input, expected) in tests {
+        let parsed = Decimal::from_i64(input).unwrap();
+        assert_eq!(expected, parsed.to_string(), "expected {} does not match parsed {}", expected, parsed);
+        assert_eq!(input.to_string(), parsed.to_string(), "i64 to_string {} does not match parsed {}", input, parsed);
+    }
+
+}
+
+#[test]
 fn it_can_round_to_2dp() {
     let a = Decimal::from_str("6.12345").unwrap();
     let b = (Decimal::from_str("100").unwrap() * a).round() / Decimal::from_str("100").unwrap();
