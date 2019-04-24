@@ -264,6 +264,37 @@ mod test {
 
     use std::str::FromStr;
 
+    pub static TEST_DECIMALS: &[(u32, u32, &str, &str)] = &[
+        // precision, scale, sent, expected
+        (35, 6, "3950.123456", "3950.123456"),
+        (35, 2, "3950.123456", "3950.12"),
+        (35, 2, "3950.1256", "3950.13"),
+        (10, 2, "3950.123456", "3950.12"),
+        (35, 6, "3950", "3950"),
+        (4, 0, "3950", "3950"),
+        (35, 6, "0.1", "0.1"),
+        (35, 6, "0.01", "0.01"),
+        (35, 6, "0.001", "0.001"),
+        (35, 6, "0.0001", "0.0001"),
+        (35, 6, "0.00001", "0.00001"),
+        (35, 6, "0.000001", "0.000001"),
+        (35, 6, "1", "1"),
+        (35, 6, "-100", "-100"),
+        (35, 6, "-123.456", "-123.456"),
+        (35, 6, "119996.25", "119996.25"),
+        (35, 6, "1000000", "1000000"),
+        (35, 6, "9999999.99999", "9999999.99999"),
+        (35, 6, "12340.56789", "12340.56789"),
+        // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
+        (35, 6, "79228162514264337593543950335", "79228162514264337593543950335"),
+        // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
+        (35, 6, "4951760157141521099596496895", "4951760157141521099596496895"),
+        // 0x1000_0000_0000_0000_0000_0000
+        (35, 6, "4951760157141521099596496896", "4951760157141521099596496896"),
+        (35, 6, "18446744073709551615", "18446744073709551615"),
+        (35, 6, "-18446744073709551615", "-18446744073709551615"),
+    ];
+
     #[test]
     fn ensure_equivalent_decimal_constants() {
         let expected_decimals = [
@@ -287,66 +318,6 @@ mod test {
         assert_eq!(&expected_decimals[..], &DECIMALS[..]);
     }
 
-    fn read_type(sql_type: &str, checks: &[&'static str]) {
-        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err),
-        };
-        for &val in checks.iter() {
-            let stmt = match conn.prepare(&*format!("SELECT {}::{}", val, sql_type)) {
-                Ok(x) => x,
-                Err(err) => panic!("{:#?}", err),
-            };
-            let result: Decimal = match stmt.query(&[]) {
-                Ok(x) => x.iter().next().unwrap().get(0),
-                Err(err) => panic!("{:#?}", err),
-            };
-            assert_eq!(val, result.to_string());
-        }
-    }
-
-    fn write_type(sql_type: &str, checks: &[&'static str]) {
-        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err),
-        };
-        for &val in checks.iter() {
-            let stmt = match conn.prepare(&*format!("SELECT $1::{}", sql_type)) {
-                Ok(x) => x,
-                Err(err) => panic!("{:#?}", err),
-            };
-            let number = Decimal::from_str(val).unwrap();
-            let result: Decimal = match stmt.query(&[&number]) {
-                Ok(x) => x.iter().next().unwrap().get(0),
-                Err(err) => panic!("{:#?}", err),
-            };
-            assert_eq!(val, result.to_string());
-        }
-    }
-
-    pub static TEST_DECIMALS: &[&str; 20] = &[
-        "3950.123456",
-        "3950",
-        "0.1",
-        "0.01",
-        "0.001",
-        "0.0001",
-        "0.00001",
-        "0.000001",
-        "1",
-        "-100",
-        "-123.456",
-        "119996.25",
-        "1000000",
-        "9999999.99999",
-        "12340.56789",
-        "79228162514264337593543950335", // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
-        "4951760157141521099596496895",  // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
-        "4951760157141521099596496896",  // 0x1000_0000_0000_0000_0000_0000
-        "18446744073709551615",
-        "-18446744073709551615",
-    ];
-
     #[test]
     fn test_null() {
         let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
@@ -368,11 +339,63 @@ mod test {
 
     #[test]
     fn read_numeric_type() {
-        read_type("NUMERIC(35, 6)", TEST_DECIMALS);
+        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+        for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
+            let stmt = match conn.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)) {
+                Ok(x) => x,
+                Err(err) => panic!("{:#?}", err),
+            };
+            let result: Decimal = match stmt.query(&[]) {
+                Ok(x) => x.iter().next().unwrap().get(0),
+                Err(err) => panic!("{:#?}", err),
+            };
+            assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+        }
     }
 
     #[test]
     fn write_numeric_type() {
-        write_type("NUMERIC(35, 6)", TEST_DECIMALS);
+        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+        for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
+            let stmt = match conn.prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale)) {
+                Ok(x) => x,
+                Err(err) => panic!("{:#?}", err),
+            };
+            let number = Decimal::from_str(sent).unwrap();
+            let result: Decimal = match stmt.query(&[&number]) {
+                Ok(x) => x.iter().next().unwrap().get(0),
+                Err(err) => panic!("{:#?}", err),
+            };
+            assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+        }
+    }
+
+    #[test]
+    fn numeric_overflow() {
+        let tests = [
+            (4, 4, "3950.1234"),
+        ];
+        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+        for &(precision, scale, sent) in tests.iter() {
+            let stmt = match conn.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)) {
+                Ok(x) => x,
+                Err(err) => panic!("{:#?}", err),
+            };
+            match stmt.query(&[]) {
+                Ok(_) => panic!("Expected numeric overflow for {}::NUMERIC({}, {})", sent, precision, scale),
+                Err(err) => {
+                    assert_eq!("22003", err.code().unwrap().code(), "Unexpected error code");
+                },
+            };
+        }
     }
 }
