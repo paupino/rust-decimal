@@ -43,8 +43,6 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 
 ## Features
 
-There are some features that can be enabled:
-
 * [postgres](#postgres)
 * [const_fn](#const_fn)
 
@@ -55,5 +53,5 @@ type by transparently serializing/deserializing into the `NUMERIC` data type wit
 
 ## `const_fn`
 
-This feature uses the `const_fn` feature within Rust which enables some performance optimizations
+This feature leverages constant functions within Rust which enables some performance optimizations
 at compile time. This feature is expected to become a default in future versions.
