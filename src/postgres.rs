@@ -6,6 +6,7 @@ use crate::Decimal;
 
 use postgres::{to_sql_checked, types::*};
 
+#[cfg(not(feature = "const_fn"))]
 use lazy_static::lazy_static;
 
 use std::{error, fmt, io::Cursor, result::*};

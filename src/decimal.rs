@@ -2,6 +2,7 @@ use crate::Error;
 
 use num::{FromPrimitive, One, ToPrimitive, Zero};
 
+#[cfg(not(feature = "const_fn"))]
 use lazy_static::lazy_static;
 
 use std::{
@@ -850,7 +851,23 @@ impl Decimal {
         self.round_dp_with_strategy(dp, RoundingStrategy::BankersRounding)
     }
 
-    /// Convert `Decimal` to unpacked representation `UnpackedDecimal`
+    /// Convert `Decimal` to an internal representation of the underlying struct. This is useful
+    /// for debugging the internal state of the object.
+    ///
+    /// # Important Disclaimer
+    /// This is primarily intended for library maintainers. The internal representation of a
+    /// `Decimal` is considered "unstable" for public use.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use std::str::FromStr;
+    ///
+    /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+    /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
+    /// assert_eq!(format!("{:?}", pi.unpack()), "UnpackedDecimal { is_negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 }");
+    /// ```
     #[cfg(feature = "const_fn")]
     pub const fn unpack(&self) -> UnpackedDecimal {
         UnpackedDecimal {
@@ -862,7 +879,25 @@ impl Decimal {
         }
     }
 
-    /// Convert `Decimal` to unpacked representation `UnpackedDecimal`
+    /// Convert `Decimal` to an internal representation of the underlying struct. This is useful
+    /// for debugging the internal state of the object.
+    ///
+    /// # Important Disclaimer
+    /// This is primarily intended for library maintainers. The internal representation of a
+    /// `Decimal` is considered "unstable" for public use.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use std::str::FromStr;
+    ///
+    /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+    /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
+    /// assert_eq!(format!("{:?}", pi.unpack()), "UnpackedDecimal { \
+    ///     is_negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
+    /// }");
+    /// ```
     #[cfg(not(feature = "const_fn"))]
     pub fn unpack(&self) -> UnpackedDecimal {
         UnpackedDecimal {
