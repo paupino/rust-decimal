@@ -40,3 +40,20 @@ let my_int : Decimal = 3i32.into();
 // 3.1415926535897932384626433832
 let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 ```
+
+## Features
+
+There are some features that can be enabled:
+
+* [postgres](#postgres_feature)
+* [const_fn](#const_fn)
+
+## Postgres Feature
+
+This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
+type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL. 
+
+## `const_fn`
+
+This feature uses the `const_fn` feature within Rust which enables some performance optimizations
+at compile time. This feature is expected to become a default in future versions.
