@@ -45,10 +45,10 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 
 There are some features that can be enabled:
 
-* [postgres](#postgres-feature)
+* [postgres](#postgresql-support)
 * [const_fn](#const_fn)
 
-## Postgres Feature
+## PostgreSQL support
 
 This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
 type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL. 
