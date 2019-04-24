@@ -45,7 +45,7 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 
 There are some features that can be enabled:
 
-* [postgres](#postgres_feature)
+* [postgres](#postgres-feature)
 * [const_fn](#const_fn)
 
 ## Postgres Feature
