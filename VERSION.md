@@ -1,5 +1,19 @@
 # Version History
 
+## 1.0.0
+
+This release represents the start of semantic versioning and allows the library to start making fundamental improvements under
+the guise of V2.0. Leading up to that I expect to release 1.x versions which will include adding
+various mathematical functions such as `pow`, `ln`, `log10` etc.
+
+Version `1.0.0` does come with some new features:
+
+* Checked Operations! This implements `checked_add`, `checked_sub`, `checked_mul`, `checked_div` and `checked_rem`.
+* Fixes overflow from `max_value()` and `min_value()` for `i32` and `i64`.
+* Minor documentation improvements and test coverage. 
+
+Special thanks to @0e4ef622 for their help with this release! 
+
 ## 0.11.3
 
 * Add prelude to help num trait inclusion (`use rust_decimal::prelude::*`)

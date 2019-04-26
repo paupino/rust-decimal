@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal"
-version = "0.11.3"
+version = "1.0.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2018"
 
