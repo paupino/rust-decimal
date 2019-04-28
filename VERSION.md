@@ -1,5 +1,13 @@
 # Version History
 
+## 1.0.1
+
+Bug fix release:
+
+* Fixes issue where `ToSql` was incorrectly calculating weight when whole portion = numeric portion.
+* Fixes issue where `Decimal::new` incorrectly handled `i64::max_value()` and `i64::min_value()`.
+* Fixes issue where `rem` operation incorrectly returned results when `scale` was required. 
+
 ## 1.0.0
 
 This release represents the start of semantic versioning and allows the library to start making fundamental improvements under

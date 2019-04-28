@@ -224,7 +224,7 @@ impl ToSql for Decimal {
         }
 
         let whole_portion_len = num_groups as isize - fractional_groups_count;
-        let weight = if whole_portion_len <= 0 {
+        let weight = if whole_portion_len < 0 {
             -(fractional_groups_count as i16)
         } else {
             whole_portion_len as i16 - 1
@@ -293,6 +293,8 @@ mod test {
         (35, 6, "4951760157141521099596496896", "4951760157141521099596496896"),
         (35, 6, "18446744073709551615", "18446744073709551615"),
         (35, 6, "-18446744073709551615", "-18446744073709551615"),
+        (35, 6, "0.10001", "0.10001"),
+        (35, 6, "0.12345", "0.12345"),
     ];
 
     #[test]

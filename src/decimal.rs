@@ -110,7 +110,7 @@ pub struct UnpackedDecimal {
 
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
 /// The finite set of values of type `Decimal` are of the form m / 10<sup>e</sup>,
-/// where m is an integer such that -2<sup>96</sup> <= m <= 2<sup>96</sup>, and e is an integer
+/// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
 pub struct Decimal {
@@ -166,15 +166,16 @@ impl Decimal {
         }
         let flags: u32 = scale << SCALE_SHIFT;
         if num < 0 {
+            let pos_num = num.wrapping_neg() as u64;
             return Decimal {
                 flags: flags | SIGN_MASK,
                 hi: 0,
-                lo: (num.abs() as u64 & U32_MASK) as u32,
-                mid: ((num.abs() as u64 >> 32) & U32_MASK) as u32,
+                lo: (pos_num & U32_MASK) as u32,
+                mid: ((pos_num >> 32) & U32_MASK) as u32,
             };
         }
         Decimal {
-            flags: flags,
+            flags,
             hi: 0,
             lo: (num as u64 & U32_MASK) as u32,
             mid: ((num as u64 >> 32) & U32_MASK) as u32,
@@ -1458,19 +1459,38 @@ impl Decimal {
             return Some(Decimal::zero());
         }
 
+        // Rescale so comparable
+        let initial_scale = self.scale();
+        let mut quotient = [self.lo, self.mid, self.hi];
+        let mut quotient_scale = initial_scale;
+        let mut divisor = [other.lo, other.mid, other.hi];
+        let mut divisor_scale = other.scale();
+        rescale(&mut quotient, &mut quotient_scale, &mut divisor, &mut divisor_scale);
+
         // Working is the remainder + the quotient
-        // We use an aligned array since we'll be using it alot.
-        let mut working_quotient = [self.lo, self.mid, self.hi, 0u32];
+        // We use an aligned array since we'll be using it a lot.
+        let mut working_quotient = [quotient[0], quotient[1], quotient[2], 0u32];
         let mut working_remainder = [0u32, 0u32, 0u32, 0u32];
-        let divisor = [other.lo, other.mid, other.hi];
         div_internal(&mut working_quotient, &mut working_remainder, &divisor);
 
-        // Remainder has no scale however does have a sign (the same as self)
+        // Round if necessary. This is for semantic correctness, but could feasibly be removed for
+        // performance improvements.
+        if quotient_scale > initial_scale {
+            let mut working = [working_remainder[0], working_remainder[1], working_remainder[2], working_remainder[3]];
+            while quotient_scale > initial_scale {
+                if div_by_u32(&mut working, 10) > 0 {
+                    break;
+                }
+                quotient_scale -= 1;
+                working_remainder.copy_from_slice(&working);
+            }
+        }
+
         Some(Decimal {
             lo: working_remainder[0],
             mid: working_remainder[1],
             hi: working_remainder[2],
-            flags: if self.is_sign_negative() { SIGN_MASK } else { 0 },
+            flags: flags(self.is_sign_negative(), quotient_scale),
         })
     }
 }
