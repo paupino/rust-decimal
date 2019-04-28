@@ -110,7 +110,7 @@ pub struct UnpackedDecimal {
 
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
 /// The finite set of values of type `Decimal` are of the form m / 10<sup>e</sup>,
-/// where m is an integer such that -2<sup>96</sup> <= m <= 2<sup>96</sup>, and e is an integer
+/// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
 pub struct Decimal {
@@ -166,15 +166,16 @@ impl Decimal {
         }
         let flags: u32 = scale << SCALE_SHIFT;
         if num < 0 {
+            let pos_num = num.wrapping_neg() as u64;
             return Decimal {
                 flags: flags | SIGN_MASK,
                 hi: 0,
-                lo: (num.abs() as u64 & U32_MASK) as u32,
-                mid: ((num.abs() as u64 >> 32) & U32_MASK) as u32,
+                lo: (pos_num & U32_MASK) as u32,
+                mid: ((pos_num >> 32) & U32_MASK) as u32,
             };
         }
         Decimal {
-            flags: flags,
+            flags,
             hi: 0,
             lo: (num as u64 & U32_MASK) as u32,
             mid: ((num as u64 >> 32) & U32_MASK) as u32,

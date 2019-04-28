@@ -18,6 +18,19 @@ fn it_creates_a_new_negative_decimal() {
 }
 
 #[test]
+fn it_creates_a_new_decimal_using_numeric_boundaries() {
+    let a = Decimal::new(i64::max_value(), 2);
+    assert_eq!(a.is_sign_negative(), false);
+    assert_eq!(a.scale(), 2);
+    assert_eq!("92233720368547758.07", a.to_string());
+
+    let b = Decimal::new(i64::min_value(), 2);
+    assert_eq!(b.is_sign_negative(), true);
+    assert_eq!(b.scale(), 2);
+    assert_eq!("-92233720368547758.08", b.to_string());
+}
+
+#[test]
 fn it_parses_empty_string() {
     assert!(Decimal::from_str("").is_err());
     assert!(Decimal::from_str(" ").is_err());
