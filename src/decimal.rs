@@ -1476,7 +1476,12 @@ impl Decimal {
         // Round if necessary. This is for semantic correctness, but could feasibly be removed for
         // performance improvements.
         if quotient_scale > initial_scale {
-            let mut working = [working_remainder[0], working_remainder[1], working_remainder[2], working_remainder[3]];
+            let mut working = [
+                working_remainder[0],
+                working_remainder[1],
+                working_remainder[2],
+                working_remainder[3],
+            ];
             while quotient_scale > initial_scale {
                 if div_by_u32(&mut working, 10) > 0 {
                     break;
@@ -2731,7 +2736,6 @@ impl<'a> DivAssign<&'a Decimal> for &'a mut Decimal {
         Decimal::div_assign(*self, *other)
     }
 }
-
 
 forward_all_binop!(impl Rem for Decimal, rem);
 

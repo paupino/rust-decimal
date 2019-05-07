@@ -380,9 +380,7 @@ mod test {
 
     #[test]
     fn numeric_overflow() {
-        let tests = [
-            (4, 4, "3950.1234"),
-        ];
+        let tests = [(4, 4, "3950.1234")];
         let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
@@ -393,10 +391,13 @@ mod test {
                 Err(err) => panic!("{:#?}", err),
             };
             match stmt.query(&[]) {
-                Ok(_) => panic!("Expected numeric overflow for {}::NUMERIC({}, {})", sent, precision, scale),
+                Ok(_) => panic!(
+                    "Expected numeric overflow for {}::NUMERIC({}, {})",
+                    sent, precision, scale
+                ),
                 Err(err) => {
                     assert_eq!("22003", err.code().unwrap().code(), "Unexpected error code");
-                },
+                }
             };
         }
     }
