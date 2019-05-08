@@ -1272,7 +1272,7 @@ fn it_panics_when_scale_too_large() {
 #[cfg(feature = "postgres")]
 #[test]
 fn to_from_sql() {
-    use postgres::types::{FromSql, Kind, ToSql, Type};
+    use postgres::types::{FromSql, ToSql, Type};
 
     let tests = &[
         "3950.123456",
@@ -1297,13 +1297,11 @@ fn to_from_sql() {
         "-18446744073709551615",
     ];
 
-    let t = Type::_new("".into(), 0, Kind::Simple, "".into());
-
     for test in tests {
         let input = Decimal::from_str(test).unwrap();
         let mut vec = Vec::<u8>::new();
-        input.to_sql(&t, &mut vec).unwrap();
-        let output = Decimal::from_sql(&t, &vec).unwrap();
+        input.to_sql(&Type::NUMERIC, &mut vec).unwrap();
+        let output = Decimal::from_sql(&Type::NUMERIC, &vec).unwrap();
 
         assert_eq!(input, output);
     }
