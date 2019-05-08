@@ -44,14 +44,8 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 ## Features
 
 * [postgres](#postgres)
-* [const_fn](#const_fn)
 
 ## `postgres`
 
 This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
-type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL. 
-
-## `const_fn`
-
-This feature leverages constant functions within Rust which enables some performance optimizations
-at compile time. This feature is expected to become a default in future versions.
+type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL.
