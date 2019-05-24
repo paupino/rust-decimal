@@ -5,7 +5,10 @@ use num::{ToPrimitive, Zero};
 
 use rust_decimal::{Decimal, RoundingStrategy};
 
-use std::{cmp::{Ordering, Ordering::*}, str::FromStr};
+use std::{
+    cmp::{Ordering, Ordering::*},
+    str::FromStr,
+};
 
 // Parsing
 
@@ -693,8 +696,20 @@ fn it_can_parse_from_i32() {
     ];
     for &(input, expected) in tests {
         let parsed = Decimal::from_i32(input).unwrap();
-        assert_eq!(expected, parsed.to_string(), "expected {} does not match parsed {}", expected, parsed);
-        assert_eq!(input.to_string(), parsed.to_string(), "i32 to_string {} does not match parsed {}", input, parsed);
+        assert_eq!(
+            expected,
+            parsed.to_string(),
+            "expected {} does not match parsed {}",
+            expected,
+            parsed
+        );
+        assert_eq!(
+            input.to_string(),
+            parsed.to_string(),
+            "i32 to_string {} does not match parsed {}",
+            input,
+            parsed
+        );
     }
 }
 
@@ -711,10 +726,21 @@ fn it_can_parse_from_i64() {
     ];
     for &(input, expected) in tests {
         let parsed = Decimal::from_i64(input).unwrap();
-        assert_eq!(expected, parsed.to_string(), "expected {} does not match parsed {}", expected, parsed);
-        assert_eq!(input.to_string(), parsed.to_string(), "i64 to_string {} does not match parsed {}", input, parsed);
+        assert_eq!(
+            expected,
+            parsed.to_string(),
+            "expected {} does not match parsed {}",
+            expected,
+            parsed
+        );
+        assert_eq!(
+            input.to_string(),
+            parsed.to_string(),
+            "i64 to_string {} does not match parsed {}",
+            input,
+            parsed
+        );
     }
-
 }
 
 #[test]
