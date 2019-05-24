@@ -2,9 +2,6 @@ use crate::Error;
 
 use num::{FromPrimitive, One, ToPrimitive, Zero};
 
-#[cfg(not(feature = "const_fn"))]
-use lazy_static::lazy_static;
-
 use std::{
     cmp::{Ordering::Equal, *},
     fmt,
@@ -37,23 +34,6 @@ const MAX_PRECISION: u32 = 28;
 
 static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
-#[cfg(not(feature = "const_fn"))]
-lazy_static! {
-    static ref MIN: Decimal = Decimal {
-        flags: 2_147_483_648,
-        lo: 4_294_967_295,
-        mid: 4_294_967_295,
-        hi: 4_294_967_295
-    };
-    static ref MAX: Decimal = Decimal {
-        flags: 0,
-        lo: 4_294_967_295,
-        mid: 4_294_967_295,
-        hi: 4_294_967_295
-    };
-}
-
-#[cfg(feature = "const_fn")]
 const MIN: Decimal = Decimal {
     flags: 2_147_483_648,
     lo: 4_294_967_295,
@@ -61,7 +41,6 @@ const MIN: Decimal = Decimal {
     hi: 4_294_967_295,
 };
 
-#[cfg(feature = "const_fn")]
 const MAX: Decimal = Decimal {
     flags: 0,
     lo: 4_294_967_295,
@@ -200,36 +179,7 @@ impl Decimal {
     /// let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
     /// assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
     /// ```
-    #[cfg(feature = "const_fn")]
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
-        Decimal {
-            lo: lo,
-            mid: mid,
-            hi: hi,
-            flags: flags(negative, scale),
-        }
-    }
-
-    /// Returns a `Decimal` using the instances constituent parts.
-    ///
-    /// # Arguments
-    ///
-    /// * `lo` - The low 32 bits of a 96-bit integer.
-    /// * `mid` - The middle 32 bits of a 96-bit integer.
-    /// * `hi` - The high 32 bits of a 96-bit integer.
-    /// * `negative` - `true` to indicate a negative number.
-    /// * `scale` - A power of 10 ranging from 0 to 28.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rust_decimal::Decimal;
-    ///
-    /// let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
-    /// assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
-    /// ```
-    #[cfg(not(feature = "const_fn"))]
-    pub fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
         Decimal {
             lo: lo,
             mid: mid,
@@ -289,24 +239,7 @@ impl Decimal {
     /// assert_eq!(num.scale(), 3u32);
     /// ```
     #[inline]
-    #[cfg(feature = "const_fn")]
     pub const fn scale(&self) -> u32 {
-        ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
-    }
-
-    /// Returns the scale of the decimal number, otherwise known as `e`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rust_decimal::Decimal;
-    ///
-    /// let num = Decimal::new(1234, 3);
-    /// assert_eq!(num.scale(), 3u32);
-    /// ```
-    #[inline]
-    #[cfg(not(feature = "const_fn"))]
-    pub fn scale(&self) -> u32 {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
     }
 
@@ -363,7 +296,6 @@ impl Decimal {
     /// * Bytes 5-8: lo portion of `m`
     /// * Bytes 9-12: mid portion of `m`
     /// * Bytes 13-16: high portion of `m`
-    #[cfg(feature = "const_fn")]
     pub const fn serialize(&self) -> [u8; 16] {
         [
             (self.flags & U8_MASK) as u8,
@@ -385,35 +317,6 @@ impl Decimal {
         ]
     }
 
-    /// Returns a serialized version of the decimal number.
-    /// The resulting byte array will have the following representation:
-    ///
-    /// * Bytes 1-4: flags
-    /// * Bytes 5-8: lo portion of `m`
-    /// * Bytes 9-12: mid portion of `m`
-    /// * Bytes 13-16: high portion of `m`
-    #[cfg(not(feature = "const_fn"))]
-    pub fn serialize(&self) -> [u8; 16] {
-        [
-            (self.flags & U8_MASK) as u8,
-            ((self.flags >> 8) & U8_MASK) as u8,
-            ((self.flags >> 16) & U8_MASK) as u8,
-            ((self.flags >> 24) & U8_MASK) as u8,
-            (self.lo & U8_MASK) as u8,
-            ((self.lo >> 8) & U8_MASK) as u8,
-            ((self.lo >> 16) & U8_MASK) as u8,
-            ((self.lo >> 24) & U8_MASK) as u8,
-            (self.mid & U8_MASK) as u8,
-            ((self.mid >> 8) & U8_MASK) as u8,
-            ((self.mid >> 16) & U8_MASK) as u8,
-            ((self.mid >> 24) & U8_MASK) as u8,
-            (self.hi & U8_MASK) as u8,
-            ((self.hi >> 8) & U8_MASK) as u8,
-            ((self.hi >> 16) & U8_MASK) as u8,
-            ((self.hi >> 24) & U8_MASK) as u8,
-        ]
-    }
-
     /// Deserializes the given bytes into a decimal number.
     /// The deserialized byte representation must be 16 bytes and adhere to the followign convention:
     ///
@@ -421,25 +324,7 @@ impl Decimal {
     /// * Bytes 5-8: lo portion of `m`
     /// * Bytes 9-12: mid portion of `m`
     /// * Bytes 13-16: high portion of `m`
-    #[cfg(feature = "const_fn")]
     pub const fn deserialize(bytes: [u8; 16]) -> Decimal {
-        Decimal {
-            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
-            lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
-            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
-            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
-        }
-    }
-
-    /// Deserializes the given bytes into a decimal number.
-    /// The deserialized byte representation must be 16 bytes and adhere to the followign convention:
-    ///
-    /// * Bytes 1-4: flags
-    /// * Bytes 5-8: lo portion of `m`
-    /// * Bytes 9-12: mid portion of `m`
-    /// * Bytes 13-16: high portion of `m`
-    #[cfg(not(feature = "const_fn"))]
-    pub fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
             flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
             lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
@@ -462,54 +347,24 @@ impl Decimal {
 
     /// Returns `true` if the decimal is negative.
     #[inline(always)]
-    #[cfg(feature = "const_fn")]
     pub const fn is_sign_negative(&self) -> bool {
         self.flags & SIGN_MASK > 0
     }
 
-    /// Returns `true` if the decimal is negative.
-    #[inline(always)]
-    #[cfg(not(feature = "const_fn"))]
-    pub fn is_sign_negative(&self) -> bool {
-        self.flags & SIGN_MASK > 0
-    }
-
     /// Returns `true` if the decimal is positive.
     #[inline(always)]
-    #[cfg(feature = "const_fn")]
     pub const fn is_sign_positive(&self) -> bool {
         self.flags & SIGN_MASK == 0
     }
 
-    /// Returns `true` if the decimal is positive.
-    #[inline(always)]
-    #[cfg(not(feature = "const_fn"))]
-    pub fn is_sign_positive(&self) -> bool {
-        self.flags & SIGN_MASK == 0
-    }
-
     /// Returns the minimum possible number that `Decimal` can represent.
-    #[cfg(feature = "const_fn")]
     pub const fn min_value() -> Decimal {
         MIN
     }
 
-    /// Returns the minimum possible number that `Decimal` can represent.
-    #[cfg(not(feature = "const_fn"))]
-    pub fn min_value() -> Decimal {
-        *MIN
-    }
-
     /// Returns the maximum possible number that `Decimal` can represent.
-    #[cfg(feature = "const_fn")]
     pub const fn max_value() -> Decimal {
         MAX
-    }
-
-    /// Returns the maximum possible number that `Decimal` can represent.
-    #[cfg(not(feature = "const_fn"))]
-    pub fn max_value() -> Decimal {
-        *MAX
     }
 
     /// Returns a new `Decimal` integral with no fractional portion.
@@ -867,9 +722,10 @@ impl Decimal {
     ///
     /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
     /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
-    /// assert_eq!(format!("{:?}", pi.unpack()), "UnpackedDecimal { is_negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 }");
+    /// assert_eq!(format!("{:?}", pi.unpack()), "UnpackedDecimal { \
+    ///     is_negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
+    /// }");
     /// ```
-    #[cfg(feature = "const_fn")]
     pub const fn unpack(&self) -> UnpackedDecimal {
         UnpackedDecimal {
             is_negative: self.is_sign_negative(),
@@ -899,16 +755,6 @@ impl Decimal {
     ///     is_negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
     /// }");
     /// ```
-    #[cfg(not(feature = "const_fn"))]
-    pub fn unpack(&self) -> UnpackedDecimal {
-        UnpackedDecimal {
-            is_negative: self.is_sign_negative(),
-            scale: self.scale(),
-            hi: self.hi,
-            lo: self.lo,
-            mid: self.mid,
-        }
-    }
 
     #[inline(always)]
     pub(crate) fn mantissa_array3(&self) -> [u32; 3] {
@@ -1513,14 +1359,7 @@ enum DivResult {
 }
 
 #[inline]
-#[cfg(feature = "const_fn")]
 const fn flags(neg: bool, scale: u32) -> u32 {
-    (scale << SCALE_SHIFT) | ((neg as u32) << SIGN_SHIFT)
-}
-
-#[inline]
-#[cfg(not(feature = "const_fn"))]
-fn flags(neg: bool, scale: u32) -> u32 {
     (scale << SCALE_SHIFT) | ((neg as u32) << SIGN_SHIFT)
 }
 

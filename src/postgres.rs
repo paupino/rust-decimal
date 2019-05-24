@@ -6,14 +6,10 @@ use crate::Decimal;
 
 use postgres::{to_sql_checked, types::*};
 
-#[cfg(not(feature = "const_fn"))]
-use lazy_static::lazy_static;
-
 use std::{error, fmt, io::Cursor, result::*};
 
 use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32};
 
-#[cfg(feature = "const_fn")]
 const DECIMALS: [Decimal; 15] = [
     Decimal::from_parts(1, 0, 0, false, 28),
     Decimal::from_parts(1, 0, 0, false, 24),
@@ -43,30 +39,6 @@ const DECIMALS: [Decimal; 15] = [
     Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
     Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
 ];
-
-#[cfg(not(feature = "const_fn"))]
-lazy_static! {
-
-    // When procedural macro's are stabablized
-    //  this will look MUCH better
-    static ref DECIMALS: [Decimal; 15] = [
-        Decimal::new(1, 28),
-        Decimal::new(1, 24),
-        Decimal::new(1, 20),
-        Decimal::new(1, 16),
-        Decimal::new(1, 12),
-        Decimal::new(1, 8),
-        Decimal::new(1, 4),
-        Decimal::new(1, 0),
-        Decimal::new(10000, 0),
-        Decimal::new(100000000, 0),
-        Decimal::new(1000000000000, 0),
-        Decimal::new(10000000000000000, 0),
-        Decimal::from_parts(1661992960, 1808227885, 5, false, 0),
-        Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
-        Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
-    ];
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct InvalidDecimal;
