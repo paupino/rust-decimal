@@ -129,7 +129,7 @@ fn iterator_sum(b: &mut ::test::Bencher) {
 #[cfg(feature = "postgres")]
 #[bench]
 fn to_from_sql(b: &mut ::test::Bencher) {
-    use postgres::types::{FromSql, Kind, ToSql, Type};
+    use tokio_postgres::types::{FromSql, Kind, ToSql, Type};
 
     let samples_strs = &[
         "3950.123456",
