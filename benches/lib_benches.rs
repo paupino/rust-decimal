@@ -26,7 +26,7 @@ macro_rules! bench_fold_op {
             fn fold(values: &[Decimal]) -> Decimal {
                 let mut acc: Decimal = $init.into();
                 for value in values {
-                    acc = acc $op value;
+                    acc $op value;
                 }
                 acc
             }
@@ -49,7 +49,7 @@ bench_decimal_op!(add_negative_point_five, +, "-0.5");
 bench_decimal_op!(add_pi, +, "3.1415926535897932384626433832");
 bench_decimal_op!(add_negative_pi, +, "-3.1415926535897932384626433832");
 
-bench_fold_op!(add_10k, +, 0, 10_000);
+bench_fold_op!(add_10k, +=, 0, 10_000);
 
 /* Sub */
 bench_decimal_op!(sub_one, -, "1");
@@ -60,7 +60,7 @@ bench_decimal_op!(sub_negative_point_five, -, "-0.5");
 bench_decimal_op!(sub_pi, -, "3.1415926535897932384626433832");
 bench_decimal_op!(sub_negative_pi, -, "-3.1415926535897932384626433832");
 
-bench_fold_op!(sub_10k, -, 5_000_000, 10_000);
+bench_fold_op!(sub_10k, -=, 5_000_000, 10_000);
 
 /* Mul */
 bench_decimal_op!(mul_one, *, "1");
@@ -80,7 +80,7 @@ bench_decimal_op!(div_negative_point_five, /, "-0.5");
 bench_decimal_op!(div_pi, /, "3.1415926535897932384626433832");
 bench_decimal_op!(div_negative_pi, /, "-3.1415926535897932384626433832");
 
-bench_fold_op!(div_10k, /, Decimal::max_value(), 10_000);
+bench_fold_op!(div_10k, /=, Decimal::max_value(), 10_000);
 
 /* Iteration */
 struct DecimalIterator {
@@ -129,7 +129,7 @@ fn iterator_sum(b: &mut ::test::Bencher) {
 #[cfg(feature = "postgres")]
 #[bench]
 fn to_from_sql(b: &mut ::test::Bencher) {
-    use postgres::types::{FromSql, Kind, ToSql, Type};
+    use tokio_postgres::types::{FromSql, Kind, ToSql, Type};
 
     let samples_strs = &[
         "3950.123456",

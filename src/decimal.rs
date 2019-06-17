@@ -1,3 +1,5 @@
+#![allow(clippy::nonminimal_bool, clippy::needless_range_loop)]
+
 use crate::Error;
 
 use num::{FromPrimitive, One, ToPrimitive, Zero};
@@ -181,9 +183,9 @@ impl Decimal {
     /// ```
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
         Decimal {
-            lo: lo,
-            mid: mid,
-            hi: hi,
+            lo,
+            mid,
+            hi,
             flags: flags(negative, scale),
         }
     }
@@ -207,8 +209,8 @@ impl Decimal {
         let err = Error::new("Failed to parse");
         let mut split = value.splitn(2, 'e');
 
-        let base = split.next().ok_or(err.clone())?;
-        let mut scale = split.next().ok_or(err.clone())?.to_string();
+        let base = split.next().ok_or_else(|| err.clone())?;
+        let mut scale = split.next().ok_or_else(|| err.clone())?.to_string();
 
         let mut ret = Decimal::from_str(base)?;
 
@@ -324,12 +326,24 @@ impl Decimal {
     /// * Bytes 5-8: lo portion of `m`
     /// * Bytes 9-12: mid portion of `m`
     /// * Bytes 13-16: high portion of `m`
-    pub const fn deserialize(bytes: [u8; 16]) -> Decimal {
+    pub fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
-            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
-            lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
-            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
-            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
+            flags: (u32::from(bytes[0]))
+                | (u32::from(bytes[1])) << 8
+                | (u32::from(bytes[2])) << 16
+                | (u32::from(bytes[3])) << 24,
+            lo: (u32::from(bytes[4]))
+                | (u32::from(bytes[5])) << 8
+                | (u32::from(bytes[6])) << 16
+                | (u32::from(bytes[7])) << 24,
+            mid: (u32::from(bytes[8]))
+                | (u32::from(bytes[9])) << 8
+                | (u32::from(bytes[10])) << 16
+                | (u32::from(bytes[11])) << 24,
+            hi: (u32::from(bytes[12]))
+                | (u32::from(bytes[13])) << 8
+                | (u32::from(bytes[14])) << 16
+                | (u32::from(bytes[15])) << 24,
         }
     }
 
@@ -658,12 +672,11 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundHalfDown => match order {
-                Ordering::Greater => {
+            RoundingStrategy::RoundHalfDown => {
+                if let Ordering::Greater = order {
                     add_internal(&mut value, &ONE_INTERNAL_REPR);
                 }
-                _ => {}
-            },
+            }
             RoundingStrategy::RoundHalfUp => {
                 // when Ordering::Equal, decimal_portion is 0.5 exactly
                 // when Ordering::Greater, decimal_portion is > 0.5
@@ -918,16 +931,14 @@ impl Decimal {
         // Add the items together
         let my_negative = self.is_sign_negative();
         let other_negative = other.is_sign_negative();
-        let mut negative = false;
-        let carry;
-        if !(my_negative ^ other_negative) {
-            negative = my_negative;
-            carry = add3_internal(&mut my, &ot);
+
+        let (negative, carry) = if !(my_negative ^ other_negative) {
+            (my_negative, add3_internal(&mut my, &ot))
         } else {
-            let cmp = cmp_internal(&my, &ot);
             // -x + y
             // if x > y then it's negative (i.e. -2 + 1)
-            match cmp {
+            let mut negative = false;
+            match cmp_internal(&my, &ot) {
                 Ordering::Less => {
                     negative = other_negative;
                     sub3_internal(&mut ot, &my);
@@ -945,9 +956,9 @@ impl Decimal {
                     my[1] = 0;
                     my[2] = 0;
                 }
-            }
-            carry = 0;
-        }
+            };
+            (negative, 0)
+        };
 
         // If we have a carry we underflowed.
         // We need to lose some significant digits (if possible)
@@ -1025,16 +1036,16 @@ impl Decimal {
                     return Some(Decimal::zero());
                 }
 
-                let mut rem_lo = 0;
-                let mut power;
-                if final_scale > 9 {
+                let (rem_lo, mut power) = if final_scale > 9 {
                     // Since 10^10 doesn't fit into u32, we divide by 10^10/4
                     // and multiply the next divisor by 4.
-                    rem_lo = div_by_u32(&mut u64_result, 2500000000);
-                    power = POWERS_10[final_scale as usize - 10] << 2;
+                    (
+                        div_by_u32(&mut u64_result, 2_500_000_000),
+                        POWERS_10[final_scale as usize - 10] << 2,
+                    )
                 } else {
-                    power = POWERS_10[final_scale as usize];
-                }
+                    (0, POWERS_10[final_scale as usize])
+                };
 
                 // Divide fits in 32 bits
                 let rem_hi = div_by_u32(&mut u64_result, power);
@@ -2001,7 +2012,7 @@ impl FromStr for Decimal {
         while len > 0 {
             let b = bytes[offset];
             match b {
-                b'0'...b'9' => {
+                b'0'..=b'9' => {
                     coeff.push(u32::from(b - b'0'));
                     offset += 1;
                     len -= 1;
@@ -2013,7 +2024,7 @@ impl FromStr for Decimal {
                             // We only need to look at the next significant digit
                             let next_byte = bytes[offset];
                             match next_byte {
-                                b'0'...b'9' => {
+                                b'0'..=b'9' => {
                                     let digit = u32::from(next_byte - b'0');
                                     if digit >= 5 {
                                         let mut index = coeff.len() - 1;
@@ -2131,15 +2142,12 @@ impl FromStr for Decimal {
 
 impl FromPrimitive for Decimal {
     fn from_i32(n: i32) -> Option<Decimal> {
-        let flags: u32;
-        let value_copy: i64;
-        if n >= 0 {
-            flags = 0;
-            value_copy = n as i64;
+        let (flags, value_copy): (u32, i64) = if n >= 0 {
+            (0, i64::from(n))
         } else {
-            flags = SIGN_MASK;
-            value_copy = -(n as i64);
-        }
+            (SIGN_MASK, -(i64::from(n)))
+        };
+
         Some(Decimal {
             flags,
             lo: value_copy as u32,
@@ -2149,15 +2157,12 @@ impl FromPrimitive for Decimal {
     }
 
     fn from_i64(n: i64) -> Option<Decimal> {
-        let flags: u32;
-        let value_copy: i128;
-        if n >= 0 {
-            flags = 0;
-            value_copy = n as i128;
+        let (flags, value_copy): (u32, i128) = if n >= 0 {
+            (0, i128::from(n))
         } else {
-            flags = SIGN_MASK;
-            value_copy = -(n as i128);
-        }
+            (SIGN_MASK, -(i128::from(n)))
+        };
+
         Some(Decimal {
             flags,
             lo: value_copy as u32,
@@ -2658,16 +2663,13 @@ impl Ord for Decimal {
         //  123 scale 2 and 12345 scale 4
         //  We need to convert the first to
         //  12300 scale 4 so we can compare equally
-        let left: &Decimal;
-        let right: &Decimal;
-        if self_negative && other_negative {
+        let (left, right) = if self_negative && other_negative {
             // Both are negative, so reverse cmp
-            left = other;
-            right = self;
+            (other, self)
         } else {
-            left = self;
-            right = other;
-        }
+            (self, other)
+        };
+
         let mut left_scale = left.scale();
         let mut right_scale = right.scale();
 
@@ -2696,7 +2698,7 @@ impl Sum for Decimal {
         for i in iter {
             sum += i;
         }
-        return sum;
+        sum
     }
 }
 

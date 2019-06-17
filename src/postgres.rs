@@ -4,7 +4,7 @@ use num::Zero;
 
 use crate::Decimal;
 
-use postgres::{to_sql_checked, types::*};
+use tokio_postgres::{to_sql_checked, types::*};
 
 use std::{error, fmt, io::Cursor, result::*};
 
@@ -55,7 +55,7 @@ impl error::Error for InvalidDecimal {
     }
 }
 
-impl FromSql for Decimal {
+impl<'a> FromSql<'a> for Decimal {
     // Decimals are represented as follows:
     // Header:
     //  u16 numGroups
@@ -109,7 +109,7 @@ impl FromSql for Decimal {
     //   result = result + 5600 * 0.00000001;
     //
 
-    fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
+    fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<dyn error::Error + 'static + Sync + Send>> {
         let mut raw = Cursor::new(raw);
         let num_groups = raw.read_u16::<BigEndian>()?;
         let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
@@ -155,15 +155,12 @@ impl FromSql for Decimal {
     }
 
     fn accepts(ty: &Type) -> bool {
-        match *ty {
-            NUMERIC => true,
-            _ => false,
-        }
+        ty.name() == "numeric"
     }
 }
 
 impl ToSql for Decimal {
-    fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
+    fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<dyn error::Error + 'static + Sync + Send>> {
         // If it's zero we can short cut with a u64
         if self.is_zero() {
             out.write_u64::<BigEndian>(0)?;
@@ -219,10 +216,7 @@ impl ToSql for Decimal {
     }
 
     fn accepts(ty: &Type) -> bool {
-        match *ty {
-            NUMERIC => true,
-            _ => false,
-        }
+        ty.name() == "numeric"
     }
 
     to_sql_checked!();
@@ -232,7 +226,10 @@ impl ToSql for Decimal {
 mod test {
     use super::*;
 
-    use postgres::{Connection, TlsMode};
+    use futures::future::Future;
+    use futures::stream::Stream;
+    use tokio::runtime::current_thread::Runtime;
+    use tokio_postgres::{connect, Error, NoTls, Row};
 
     use std::str::FromStr;
 
@@ -294,83 +291,101 @@ mod test {
 
     #[test]
     fn test_null() {
-        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err),
-        };
+        let mut runtime = Runtime::new().unwrap();
+        let handshake = connect("postgres://postgres@localhost", NoTls);
+        let (mut client, connection) = runtime.block_on(handshake).unwrap();
+        let connection = connection.map_err(|e| panic!("{}", e));
+        runtime.handle().spawn(connection).unwrap();
 
         // Test NULL
-        let stmt = match conn.prepare(&"SELECT NULL::numeric") {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err),
-        };
-        let result: Option<Decimal> = match stmt.query(&[]) {
-            Ok(x) => x.iter().next().unwrap().get(0),
-            Err(err) => panic!("{:#?}", err),
-        };
-        assert_eq!(None, result);
+        let prepare = client.prepare(&"SELECT NULL::numeric");
+        let statement = runtime.block_on(prepare).unwrap();
+        let query = client.query(&statement, &[]).collect().map(|rows| {
+            let result: Option<Decimal> = rows.iter().next().unwrap().get(0);
+            assert_eq!(None, result);
+        });
+        runtime.block_on(query).unwrap();
+
+        drop(statement);
+        drop(client);
+
+        runtime.run().unwrap();
     }
 
     #[test]
     fn read_numeric_type() {
-        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err),
-        };
+        let mut runtime = Runtime::new().unwrap();
+        let handshake = connect("postgres://postgres@localhost", NoTls);
+        let (mut client, connection) = runtime.block_on(handshake).unwrap();
+        let connection = connection.map_err(|e| panic!("{}", e));
+        runtime.handle().spawn(connection).unwrap();
+
         for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-            let stmt = match conn.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)) {
-                Ok(x) => x,
-                Err(err) => panic!("{:#?}", err),
-            };
-            let result: Decimal = match stmt.query(&[]) {
-                Ok(x) => x.iter().next().unwrap().get(0),
-                Err(err) => panic!("{:#?}", err),
-            };
-            assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+            let prepare = client.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale));
+            let statement = runtime.block_on(prepare).unwrap();
+            let query = client.query(&statement, &[]).collect().map(|rows| {
+                let result: Decimal = rows.iter().next().unwrap().get(0);
+                assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+            });
+            runtime.block_on(query).unwrap();
+
+            drop(statement);
         }
+
+        drop(client);
+        runtime.run().unwrap();
     }
 
     #[test]
     fn write_numeric_type() {
-        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err),
-        };
+        let mut runtime = Runtime::new().unwrap();
+        let handshake = connect("postgres://postgres@localhost", NoTls);
+        let (mut client, connection) = runtime.block_on(handshake).unwrap();
+        let connection = connection.map_err(|e| panic!("{}", e));
+        runtime.handle().spawn(connection).unwrap();
+
         for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-            let stmt = match conn.prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale)) {
-                Ok(x) => x,
-                Err(err) => panic!("{:#?}", err),
-            };
+            let prepare = client.prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale));
+            let statement = runtime.block_on(prepare).unwrap();
             let number = Decimal::from_str(sent).unwrap();
-            let result: Decimal = match stmt.query(&[&number]) {
-                Ok(x) => x.iter().next().unwrap().get(0),
-                Err(err) => panic!("{:#?}", err),
-            };
-            assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+            let query = client.query(&statement, &[&number]).collect().map(|rows| {
+                let result: Decimal = rows.iter().next().unwrap().get(0);
+                assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+            });
+            runtime.block_on(query).unwrap();
+
+            drop(statement);
         }
+
+        drop(client);
+        runtime.run().unwrap();
     }
 
     #[test]
     fn numeric_overflow() {
         let tests = [(4, 4, "3950.1234")];
-        let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
-            Ok(x) => x,
-            Err(err) => panic!("{:#?}", err),
-        };
+        let mut runtime = Runtime::new().unwrap();
+        let handshake = connect("postgres://postgres@localhost", NoTls);
+        let (mut client, connection) = runtime.block_on(handshake).unwrap();
+        let connection = connection.map_err(|e| panic!("{}", e));
+        runtime.handle().spawn(connection).unwrap();
+
         for &(precision, scale, sent) in tests.iter() {
-            let stmt = match conn.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)) {
-                Ok(x) => x,
-                Err(err) => panic!("{:#?}", err),
-            };
-            match stmt.query(&[]) {
+            let prepare = client.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale));
+            let statement = runtime.block_on(prepare).unwrap();
+            let query = client.query(&statement, &[]).collect();
+
+            drop(statement);
+            match runtime.block_on(query) {
                 Ok(_) => panic!(
                     "Expected numeric overflow for {}::NUMERIC({}, {})",
                     sent, precision, scale
                 ),
-                Err(err) => {
-                    assert_eq!("22003", err.code().unwrap().code(), "Unexpected error code");
-                }
+                Err(err) => assert_eq!("22003", err.code().unwrap().code(), "Unexpected error code"),
             };
         }
+
+        drop(client);
+        runtime.run().unwrap();
     }
 }
