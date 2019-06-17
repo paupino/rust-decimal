@@ -1,14 +1,13 @@
-extern crate num;
-extern crate rust_decimal;
-
+use float_cmp::*;
 use num::{ToPrimitive, Zero};
-
 use rust_decimal::{Decimal, RoundingStrategy};
 
 use std::{
     cmp::{Ordering, Ordering::*},
     str::FromStr,
 };
+
+// Since comparison of floating point numbers is considered a bad practice by clippy, we are using an implementation (`float_cmp`) of its suggested link (https://www.floating-point-gui.de/errors/comparison/) to see if floating point numbers are similar enough to be considered equal.
 
 // Parsing
 
@@ -1035,17 +1034,36 @@ fn it_can_go_from_and_into() {
 
 #[test]
 fn it_converts_to_f64() {
-    assert_eq!(5f64, Decimal::from_str("5").unwrap().to_f64().unwrap());
-    assert_eq!(-5f64, Decimal::from_str("-5").unwrap().to_f64().unwrap());
-    assert_eq!(0.1f64, Decimal::from_str("0.1").unwrap().to_f64().unwrap());
-    assert_eq!(
+    assert!(approx_eq!(
+        f64,
+        5f64,
+        Decimal::from_str("5").unwrap().to_f64().unwrap(),
+        ulps = 2
+    ));
+    assert!(approx_eq!(
+        f64,
+        -5f64,
+        Decimal::from_str("-5").unwrap().to_f64().unwrap(),
+        ulps = 2
+    ));
+    assert!(approx_eq!(
+        f64,
+        0.1f64,
+        Decimal::from_str("0.1").unwrap().to_f64().unwrap(),
+        ulps = 2
+    ));
+    assert!(approx_eq!(
+        f64,
         0.25e-11f64,
-        Decimal::from_str("0.0000000000025").unwrap().to_f64().unwrap()
-    );
-    assert_eq!(
+        Decimal::from_str("0.0000000000025").unwrap().to_f64().unwrap(),
+        ulps = 2
+    ));
+    assert!(approx_eq!(
+        f64,
         1e6f64,
-        Decimal::from_str("1000000.0000000000025").unwrap().to_f64().unwrap()
-    );
+        Decimal::from_str("1000000.0000000000025").unwrap().to_f64().unwrap(),
+        ulps = 2
+    ));
 }
 
 #[test]
@@ -1084,13 +1102,22 @@ fn it_converts_from_f32() {
     assert_eq!("0.12345", from_f32(0.12345f32).unwrap().to_string());
     assert_eq!(
         "0.12345678",
-        from_f32(0.1234567800123456789012345678f32).unwrap().to_string()
+        from_f32(0.123_456_780_012_345_678_901_234_567_8f32)
+            .unwrap()
+            .to_string()
     );
     assert_eq!(
         "0.12345679",
-        from_f32(0.12345678901234567890123456789f32).unwrap().to_string()
+        from_f32(0.123_456_789_012_345_678_901_234_567_89f32)
+            .unwrap()
+            .to_string()
     );
-    assert_eq!("0", from_f32(0.00000000000000000000000000001f32).unwrap().to_string());
+    assert_eq!(
+        "0",
+        from_f32(0.000_000_000_000_000_000_000_000_000_01f32)
+            .unwrap()
+            .to_string()
+    );
 
     assert!(from_f32(std::f32::NAN).is_none());
     assert!(from_f32(std::f32::INFINITY).is_none());
@@ -1111,13 +1138,22 @@ fn it_converts_from_f64() {
     assert_eq!("0.12345", from_f64(0.12345f64).unwrap().to_string());
     assert_eq!(
         "0.1234567890123456",
-        from_f64(0.1234567890123456089012345678f64).unwrap().to_string()
+        from_f64(0.123_456_789_012_345_608_901_234_567_8f64)
+            .unwrap()
+            .to_string()
     );
     assert_eq!(
         "0.1234567890123457",
-        from_f64(0.12345678901234567890123456789f64).unwrap().to_string()
+        from_f64(0.123_456_789_012_345_678_901_234_567_89f64)
+            .unwrap()
+            .to_string()
     );
-    assert_eq!("0", from_f64(0.00000000000000000000000000001f64).unwrap().to_string());
+    assert_eq!(
+        "0",
+        from_f64(0.000_000_000_000_000_000_000_000_000_01f64)
+            .unwrap()
+            .to_string()
+    );
 
     assert!(from_f64(std::f64::NAN).is_none());
     assert!(from_f64(std::f64::INFINITY).is_none());
@@ -1244,7 +1280,7 @@ fn it_can_reject_invalid_formats() {
 
 #[test]
 fn it_can_parse_individual_parts() {
-    let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
+    let pi = Decimal::from_parts(1_102_470_952, 185_874_565, 1_703_060_790, false, 28);
     assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
 }
 

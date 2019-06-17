@@ -4,7 +4,7 @@ use num::Zero;
 
 use crate::Decimal;
 
-use postgres::{to_sql_checked, types::*};
+use tokio_postgres::{to_sql_checked, types::*};
 
 use std::{error, fmt, io::Cursor, result::*};
 
@@ -55,7 +55,7 @@ impl error::Error for InvalidDecimal {
     }
 }
 
-impl FromSql for Decimal {
+impl<'a> FromSql<'a> for Decimal {
     // Decimals are represented as follows:
     // Header:
     //  u16 numGroups
@@ -155,7 +155,7 @@ impl FromSql for Decimal {
     }
 
     fn accepts(ty: &Type) -> bool {
-        match *ty {
+        match ty {
             NUMERIC => true,
             _ => false,
         }
@@ -219,7 +219,7 @@ impl ToSql for Decimal {
     }
 
     fn accepts(ty: &Type) -> bool {
-        match *ty {
+        match ty {
             NUMERIC => true,
             _ => false,
         }

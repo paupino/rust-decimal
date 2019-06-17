@@ -181,9 +181,9 @@ impl Decimal {
     /// ```
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
         Decimal {
-            lo: lo,
-            mid: mid,
-            hi: hi,
+            lo,
+            mid,
+            hi,
             flags: flags(negative, scale),
         }
     }
@@ -207,8 +207,8 @@ impl Decimal {
         let err = Error::new("Failed to parse");
         let mut split = value.splitn(2, 'e');
 
-        let base = split.next().ok_or(err.clone())?;
-        let mut scale = split.next().ok_or(err.clone())?.to_string();
+        let base = split.next().ok_or_else(|| err.clone())?;
+        let mut scale = split.next().ok_or_else(|| err.clone())?.to_string();
 
         let mut ret = Decimal::from_str(base)?;
 
