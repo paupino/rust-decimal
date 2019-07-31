@@ -181,12 +181,12 @@ mod diesel {
                     weight,
                     scale,
                     ref digits,
-                } => (true, weight, scale, digits),
+                } => (false, weight, scale, digits),
                 PgNumeric::Negative {
                     weight,
                     scale,
                     ref digits,
-                } => (false, weight, scale, digits),
+                } => (true, weight, scale, digits),
                 PgNumeric::NaN => return Err(Box::from("NaN is not supported in Decimal")),
             };
 
@@ -351,6 +351,7 @@ mod diesel {
         }
 
         #[test]
+        #[cfg(feature = "unstable")]
         fn decimal_to_pg_numeric_retains_sign() {
             let decimal = Decimal::from_str("123.456").unwrap();
             let expected = PgNumeric::Positive {
@@ -370,8 +371,15 @@ mod diesel {
         }
 
         #[test]
-        #[cfg(feature = "unstable")]
         fn pg_numeric_to_decimal_works() {
+            let expected = Decimal::from_str("50").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 0,
+                digits: vec![50],
+            };
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res, expected);
             let expected = Decimal::from_str("123.456").unwrap();
             let pg_numeric = PgNumeric::Positive {
                 weight: 0,
