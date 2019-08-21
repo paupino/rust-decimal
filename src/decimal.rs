@@ -1386,6 +1386,14 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
         return;
     }
 
+    if is_all_zero(left) {
+        *left_scale = *right_scale;
+        return;
+    } else if is_all_zero(right) {
+        *right_scale = *left_scale;
+        return;
+    }
+
     enum Target {
         Left,
         Right,
@@ -1414,8 +1422,14 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
     }
 
     match target {
-        Target::Left => *right_scale = *left_scale,
-        Target::Right => *left_scale = *right_scale,
+        Target::Left => {
+            *left_scale -= diff;
+            *right_scale = *left_scale;
+        },
+        Target::Right => {
+            *right_scale -= diff;
+            *left_scale = *right_scale;
+        },
     }
 
     if diff == 0 {
@@ -1428,10 +1442,12 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
 
     // Now do the necessary rounding
     let mut remainder = 0;
-    while diff > 0 && !is_all_zero(other) {
+    while diff > 0 {
+        if is_all_zero(other) {
+            return;
+        }
+
         diff -= 1;
-        *left_scale -= 1;
-        *right_scale -= 1;
 
         // Any remainder is discarded if diff > 0 still (i.e. lost precision)
         remainder = div_by_10(other);

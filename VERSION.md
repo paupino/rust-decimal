@@ -1,5 +1,11 @@
 # Version History
 
+## 1.0.2
+
+Bug fix release:
+
+* Fixes issue where scaling logic produced incorrect results when one arm was a high precision zero. Thank you @KonishchevDmitry!
+
 ## 1.0.1
 
 Bug fix release:
