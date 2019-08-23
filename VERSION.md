@@ -1,5 +1,9 @@
 # Version History
 
+## 1.0.3
+
+Updates dependencies to prevent build issues.
+
 ## 1.0.2
 
 Bug fix release:
