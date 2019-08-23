@@ -2,6 +2,9 @@ use crate::Error;
 
 use num::{FromPrimitive, One, ToPrimitive, Zero};
 
+#[cfg(feature = "diesel")]
+use diesel::sql_types::Numeric;
+
 use std::{
     cmp::{Ordering::Equal, *},
     fmt,
@@ -92,6 +95,7 @@ pub struct UnpackedDecimal {
 /// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), sql_type = "Numeric")]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
