@@ -2017,7 +2017,7 @@ impl FromStr for Decimal {
         while len > 0 {
             let b = bytes[offset];
             match b {
-                b'0'...b'9' => {
+                b'0'..=b'9' => {
                     coeff.push(u32::from(b - b'0'));
                     offset += 1;
                     len -= 1;
@@ -2029,7 +2029,7 @@ impl FromStr for Decimal {
                             // We only need to look at the next significant digit
                             let next_byte = bytes[offset];
                             match next_byte {
-                                b'0'...b'9' => {
+                                b'0'..=b'9' => {
                                     let digit = u32::from(next_byte - b'0');
                                     if digit >= 5 {
                                         let mut index = coeff.len() - 1;

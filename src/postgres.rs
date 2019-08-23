@@ -109,7 +109,7 @@ impl FromSql for Decimal {
     //   result = result + 5600 * 0.00000001;
     //
 
-    fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
+    fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<dyn error::Error + 'static + Sync + Send>> {
         let mut raw = Cursor::new(raw);
         let num_groups = raw.read_u16::<BigEndian>()?;
         let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
@@ -163,7 +163,7 @@ impl FromSql for Decimal {
 }
 
 impl ToSql for Decimal {
-    fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
+    fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<dyn error::Error + 'static + Sync + Send>> {
         // If it's zero we can short cut with a u64
         if self.is_zero() {
             out.write_u64::<BigEndian>(0)?;
