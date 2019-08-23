@@ -2,8 +2,6 @@ use num::Zero;
 
 use crate::Decimal;
 
-use ::postgres::{to_sql_checked, types::*};
-
 use std::{convert::TryInto, error, fmt, result::*};
 
 use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32};
@@ -173,7 +171,7 @@ mod diesel {
     };
 
     impl<'a> TryFrom<&'a PgNumeric> for Decimal {
-        type Error = Box<error::Error + Send + Sync>;
+        type Error = Box<dyn error::Error + Send + Sync>;
 
         fn try_from(numeric: &'a PgNumeric) -> deserialize::Result<Self> {
             let (neg, weight, scale, digits) = match *numeric {
@@ -201,7 +199,7 @@ mod diesel {
     }
 
     impl TryFrom<PgNumeric> for Decimal {
-        type Error = Box<error::Error + Send + Sync>;
+        type Error = Box<dyn error::Error + Send + Sync>;
 
         fn try_from(numeric: PgNumeric) -> deserialize::Result<Self> {
             (&numeric).try_into()
@@ -463,7 +461,7 @@ mod postgres {
         //   result = result + 5600 * 0.00000001;
         //
 
-        fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<error::Error + 'static + Sync + Send>> {
+        fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<dyn error::Error + 'static + Sync + Send>> {
             let mut raw = Cursor::new(raw);
             let num_groups = raw.read_u16::<BigEndian>()?;
             let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
@@ -496,7 +494,7 @@ mod postgres {
     }
 
     impl ToSql for Decimal {
-        fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<error::Error + 'static + Sync + Send>> {
+        fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<dyn error::Error + 'static + Sync + Send>> {
             let PostgresDecimal {
                 neg,
                 weight,
