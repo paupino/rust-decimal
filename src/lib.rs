@@ -38,7 +38,7 @@
 mod decimal;
 mod error;
 
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "postgres", feature = "diesel"))]
 mod postgres;
 #[cfg(feature = "serde")]
 mod serde_types;
@@ -49,3 +49,7 @@ pub use error::Error;
 pub mod prelude {
     pub use num::{FromPrimitive, One, ToPrimitive, Zero};
 }
+
+#[cfg(feature = "diesel")]
+#[macro_use]
+extern crate diesel;
