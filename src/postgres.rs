@@ -505,16 +505,16 @@ mod postgres {
             out.reserve(8 + num_digits * 2);
 
             // Number of groups
-            out.put_u16_be(num_digits.try_into().unwrap());
+            out.put_u16(num_digits.try_into().unwrap());
             // Weight of first group
-            out.put_i16_be(weight);
+            out.put_i16(weight);
             // Sign
-            out.put_u16_be(if neg { 0x4000 } else { 0x0000 });
+            out.put_u16(if neg { 0x4000 } else { 0x0000 });
             // DScale
-            out.put_u16_be(scale);
+            out.put_u16(scale);
             // Now process the number
             for digit in digits[0..num_digits].iter() {
-                out.put_i16_be(*digit);
+                out.put_i16(*digit);
             }
 
             Ok(IsNull::No)
