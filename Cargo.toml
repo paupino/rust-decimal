@@ -35,6 +35,7 @@ futures = "0.3"
 
 [features]
 default = ["serde"]
+serde-float = ["serde"]
 tokio-pg = ["postgres", "tokio-postgres"]
 
 [workspace]

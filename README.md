@@ -44,8 +44,25 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 ## Features
 
 * [postgres](#postgres)
+* [tokio-pg](#tokio-pg)
+* [serde-float](#serde-float)
 
 ## `postgres`
 
 This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
 type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL.
+
+## `tokio-pg`
+
+Enables the tokio postgres module allowing for async communication with PostgreSQL.
+
+## `serde-float`
+
+Enable this so that JSON serialization of Decimal types are sent as a float instead of a string (default).
+
+e.g. with this turned on, JSON serialization would output:
+```
+{
+  "value": 1.234
+}
+```
