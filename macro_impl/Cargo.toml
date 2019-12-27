@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal_macro_impls"
-version = "1.0.3"
+version = "1.1.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2018"
 
@@ -18,9 +18,9 @@ license = "MIT"
 travis-ci = { repository = "paupino/rust-decimal", branch = "master" }
 
 [dependencies]
-rust_decimal = { path = "../", version = "1.0.3" }
+rust_decimal = { path = "../", version = "1.1.0" }
 proc-macro-hack = "0.5"
-quote = "0.6"
+quote = "1.0"
 
 [lib]
 proc-macro = true
