@@ -1,8 +1,9 @@
 # Version History
 
-## 1.1.x
+## 1.1.0
 
-* Update to Postgres 0.17 and add async/await support
+* Update to Postgres 0.17 and add postgres async/await support via `tokio-pg` 
+* Added option for serializing decimals as float via `serde-float` 
 
 Special thanks to @pimeys and @kaibyao!
 
