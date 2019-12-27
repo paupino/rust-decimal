@@ -4,6 +4,8 @@
 
 * Update to Postgres 0.17 and add async/await support
 
+Special thanks to @pimeys and @kaibyao!
+
 ## 1.0.3
 
 Updates dependencies to prevent build issues.
