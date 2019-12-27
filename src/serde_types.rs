@@ -20,11 +20,8 @@ struct DecimalVisitor;
 impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     type Value = Decimal;
 
-    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
-    where
-        E: serde::de::Error,
-    {
-        Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a Decimal type representing a fixed-point number")
     }
 
     fn visit_i64<E>(self, value: i64) -> Result<Decimal, E>
@@ -47,6 +44,13 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         }
     }
 
+    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
+    }
+
     fn visit_str<E>(self, value: &str) -> Result<Decimal, E>
     where
         E: serde::de::Error,
@@ -55,12 +59,9 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
             .or_else(|_| Decimal::from_scientific(value))
             .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
     }
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "a Decimal type representing a fixed-point number")
-    }
 }
 
+#[cfg(not(feature = "serde-float"))]
 impl serde::Serialize for Decimal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -69,6 +70,18 @@ impl serde::Serialize for Decimal {
         serializer.serialize_str(&self.to_string())
     }
 }
+
+#[cfg(feature = "serde-float")]
+impl serde::Serialize for Decimal {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+    {
+        use num::ToPrimitive;
+        serializer.serialize_f64(self.to_f64().unwrap())
+    }
+}
+
 
 #[cfg(test)]
 mod test {
@@ -118,6 +131,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(feature = "serde-float"))]
     fn serialize_decimal() {
         let record = Record {
             amount: Decimal::new(1234, 3),
@@ -125,4 +139,15 @@ mod test {
         let serialized = serde_json::to_string(&record).unwrap();
         assert_eq!("{\"amount\":\"1.234\"}", serialized);
     }
+
+    #[test]
+    #[cfg(feature = "serde-float")]
+    fn serialize_decimal() {
+        let record = Record {
+            amount: Decimal::new(1234, 3),
+        };
+        let serialized = serde_json::to_string(&record).unwrap();
+        assert_eq!("{\"amount\":1.234}", serialized);
+    }
+
 }
