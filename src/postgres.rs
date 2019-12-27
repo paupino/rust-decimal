@@ -613,6 +613,22 @@ mod postgres {
             assert_eq!(None, result);
         }
 
+        #[tokio::test]
+        async fn async_test_null() {
+            use ::tokio_postgres::connect;
+            use ::futures::future::FutureExt;
+
+            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let connection = connection.map(|e| e.unwrap());
+            tokio::spawn(connection);
+
+            let statement = client.prepare(&"SELECT NULL::numeric").await.unwrap();
+            let rows = client.query(&statement, &[]).await.unwrap();
+            let result: Option<Decimal> = rows.iter().next().unwrap().get(0);
+
+            assert_eq!(None, result);
+        }
+
         #[test]
         fn read_numeric_type() {
             let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
@@ -624,6 +640,23 @@ mod postgres {
                     Ok(x) => x.iter().next().unwrap().get(0),
                     Err(err) => panic!("{:#?}", err),
                 };
+                assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+            }
+        }
+
+        #[tokio::test]
+        async fn async_read_numeric_type() {
+            use ::tokio_postgres::connect;
+            use ::futures::future::FutureExt;
+
+            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let connection = connection.map(|e| e.unwrap());
+            tokio::spawn(connection);
+            for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
+                let statement = client.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)).await.unwrap();
+                let rows = client.query(&statement, &[]).await.unwrap();
+                let result: Decimal = rows.iter().next().unwrap().get(0);
+
                 assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
             }
         }
@@ -640,6 +673,25 @@ mod postgres {
                     Ok(x) => x.iter().next().unwrap().get(0),
                     Err(err) => panic!("{:#?}", err),
                 };
+                assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+            }
+        }
+
+        #[tokio::test]
+        async fn async_write_numeric_type() {
+            use ::tokio_postgres::connect;
+            use ::futures::future::FutureExt;
+
+            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let connection = connection.map(|e| e.unwrap());
+            tokio::spawn(connection);
+
+            for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
+                let statement = client.prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale)).await.unwrap();
+                let number = Decimal::from_str(sent).unwrap();
+                let rows = client.query(&statement, &[&number]).await.unwrap();
+                let result: Decimal = rows.iter().next().unwrap().get(0);
+
                 assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
             }
         }
@@ -661,6 +713,29 @@ mod postgres {
                         assert_eq!("22003", err.code().unwrap().code(), "Unexpected error code");
                     }
                 };
+            }
+        }
+
+        #[tokio::test]
+        async fn async_numeric_overflow() {
+            use ::tokio_postgres::connect;
+            use ::futures::future::FutureExt;
+
+            let tests = [(4, 4, "3950.1234")];
+            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let connection = connection.map(|e| e.unwrap());
+            tokio::spawn(connection);
+
+            for &(precision, scale, sent) in tests.iter() {
+                let statement = client.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)).await.unwrap();
+
+                match client.query(&statement, &[]).await {
+                    Ok(_) => panic!(
+                        "Expected numeric overflow for {}::NUMERIC({}, {})",
+                        sent, precision, scale
+                    ),
+                    Err(err) => assert_eq!("22003", err.code().unwrap().code(), "Unexpected error code"),
+                }
             }
         }
     }
