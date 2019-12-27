@@ -1,5 +1,9 @@
 # Version History
 
+## 1.1.x
+
+* Update to Postgres 0.17 and add async/await support
+
 ## 1.0.3
 
 Updates dependencies to prevent build issues.

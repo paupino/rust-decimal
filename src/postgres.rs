@@ -403,11 +403,12 @@ mod diesel {
 mod postgres {
     use super::*;
 
-    use ::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-    use ::postgres::{to_sql_checked, types::*};
+    use ::byteorder::{BigEndian, ReadBytesExt};
+    use ::bytes::{BytesMut, BufMut};
+    use ::postgres::types::*;
     use ::std::io::Cursor;
 
-    impl FromSql for Decimal {
+    impl<'a> FromSql<'a> for Decimal {
         // Decimals are represented as follows:
         // Header:
         //  u16 numGroups
@@ -486,15 +487,15 @@ mod postgres {
         }
 
         fn accepts(ty: &Type) -> bool {
-            match *ty {
-                NUMERIC => true,
+            match ty {
+                &Type::NUMERIC => true,
                 _ => false,
             }
         }
     }
 
     impl ToSql for Decimal {
-        fn to_sql(&self, _: &Type, out: &mut Vec<u8>) -> Result<IsNull, Box<dyn error::Error + 'static + Sync + Send>> {
+        fn to_sql(&self, _: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn error::Error + 'static + Sync + Send>> {
             let PostgresDecimal {
                 neg,
                 weight,
@@ -504,25 +505,28 @@ mod postgres {
 
             let num_digits = digits.len();
 
+            // Reserve bytes
+            out.reserve(8 + num_digits * 2);
+
             // Number of groups
-            out.write_u16::<BigEndian>(num_digits.try_into().unwrap())?;
+            out.put_u16(num_digits.try_into().unwrap());
             // Weight of first group
-            out.write_i16::<BigEndian>(weight)?;
+            out.put_i16(weight);
             // Sign
-            out.write_u16::<BigEndian>(if neg { 0x4000 } else { 0x0000 })?;
+            out.put_u16(if neg { 0x4000 } else { 0x0000 });
             // DScale
-            out.write_u16::<BigEndian>(scale)?;
+            out.put_u16(scale);
             // Now process the number
             for digit in digits[0..num_digits].iter() {
-                out.write_i16::<BigEndian>(*digit)?;
+                out.put_i16(*digit);
             }
 
             Ok(IsNull::No)
         }
 
         fn accepts(ty: &Type) -> bool {
-            match *ty {
-                NUMERIC => true,
+            match ty {
+                &Type::NUMERIC => true,
                 _ => false,
             }
         }
@@ -534,7 +538,7 @@ mod postgres {
     mod test {
         use super::*;
 
-        use ::postgres::{Connection, TlsMode};
+        use ::postgres::{Client, NoTls};
 
         use std::str::FromStr;
 
@@ -596,17 +600,13 @@ mod postgres {
 
         #[test]
         fn test_null() {
-            let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
 
             // Test NULL
-            let stmt = match conn.prepare(&"SELECT NULL::numeric") {
-                Ok(x) => x,
-                Err(err) => panic!("{:#?}", err),
-            };
-            let result: Option<Decimal> = match stmt.query(&[]) {
+            let result: Option<Decimal> = match client.query("SELECT NULL::numeric", &[]) {
                 Ok(x) => x.iter().next().unwrap().get(0),
                 Err(err) => panic!("{:#?}", err),
             };
@@ -615,16 +615,12 @@ mod postgres {
 
         #[test]
         fn read_numeric_type() {
-            let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-                let stmt = match conn.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)) {
-                    Ok(x) => x,
-                    Err(err) => panic!("{:#?}", err),
-                };
-                let result: Decimal = match stmt.query(&[]) {
+                let result: Decimal = match client.query(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale), &[]) {
                     Ok(x) => x.iter().next().unwrap().get(0),
                     Err(err) => panic!("{:#?}", err),
                 };
@@ -634,17 +630,13 @@ mod postgres {
 
         #[test]
         fn write_numeric_type() {
-            let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-                let stmt = match conn.prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale)) {
-                    Ok(x) => x,
-                    Err(err) => panic!("{:#?}", err),
-                };
                 let number = Decimal::from_str(sent).unwrap();
-                let result: Decimal = match stmt.query(&[&number]) {
+                let result: Decimal = match client.query(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale), &[&number]) {
                     Ok(x) => x.iter().next().unwrap().get(0),
                     Err(err) => panic!("{:#?}", err),
                 };
@@ -655,16 +647,12 @@ mod postgres {
         #[test]
         fn numeric_overflow() {
             let tests = [(4, 4, "3950.1234")];
-            let conn = match Connection::connect("postgres://postgres@localhost", TlsMode::None) {
+            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
             for &(precision, scale, sent) in tests.iter() {
-                let stmt = match conn.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)) {
-                    Ok(x) => x,
-                    Err(err) => panic!("{:#?}", err),
-                };
-                match stmt.query(&[]) {
+                match client.query(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale), &[]) {
                     Ok(_) => panic!(
                         "Expected numeric overflow for {}::NUMERIC({}, {})",
                         sent, precision, scale
