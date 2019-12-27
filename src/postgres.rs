@@ -614,6 +614,7 @@ mod postgres {
         }
 
         #[tokio::test]
+        #[cfg(feature = "tokio-pg")]
         async fn async_test_null() {
             use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
@@ -645,6 +646,7 @@ mod postgres {
         }
 
         #[tokio::test]
+        #[cfg(feature = "tokio-pg")]
         async fn async_read_numeric_type() {
             use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
@@ -678,6 +680,7 @@ mod postgres {
         }
 
         #[tokio::test]
+        #[cfg(feature = "tokio-pg")]
         async fn async_write_numeric_type() {
             use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
@@ -717,6 +720,7 @@ mod postgres {
         }
 
         #[tokio::test]
+        #[cfg(feature = "tokio-pg")]
         async fn async_numeric_overflow() {
             use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
