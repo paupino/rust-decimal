@@ -2649,10 +2649,11 @@ impl Eq for Decimal {}
 
 impl Hash for Decimal {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.lo.hash(state);
-        self.mid.hash(state);
-        self.hi.hash(state);
-        self.flags.hash(state);
+        let n = self.normalize();
+        n.lo.hash(state);
+        n.mid.hash(state);
+        n.hi.hash(state);
+        n.flags.hash(state);
     }
 }
 
