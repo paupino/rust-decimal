@@ -91,7 +91,12 @@ impl Decimal {
             result *= Decimal::new(10i64.pow((-scale) as u32), 0);
             scale = 0;
         } else if scale > fixed_scale {
+            // Remove trailing zeroes
             result /= Decimal::new(10i64.pow((scale - fixed_scale) as u32), 0);
+            scale = fixed_scale;
+        } else if scale < fixed_scale {
+            // Add trailing zeroes
+            result *= Decimal::new(10i64.pow((fixed_scale - scale) as u32), 0);
             scale = fixed_scale;
         }
 
@@ -101,8 +106,8 @@ impl Decimal {
         }
         result.set_sign(!neg);
 
-        // Normalize by truncating any trailing 0's from the decimal representation
-        Ok(result.normalize())
+        // Retain trailing zeroes.
+        Ok(result)
     }
 
     fn to_postgres(self) -> PostgresDecimal<Vec<i16>> {
@@ -395,6 +400,28 @@ mod diesel {
             };
             let res: Decimal = pg_numeric.try_into().unwrap();
             assert_eq!(res, expected);
+
+            // Verify no trailing zeroes are lost.
+
+            let expected = Decimal::from_str("1.100").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 3,
+                digits: vec![1, 1000],
+            };
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
+
+            let expected = Decimal::from_str("5.00").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 2,
+                // To represent 5.00, Postgres can return either [5, 0] or just [5]
+                // as the list of digits. Verify this crate handles the shortened list correctly.
+                digits: vec![5],
+            };
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
         }
     }
 }
