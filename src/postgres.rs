@@ -91,7 +91,12 @@ impl Decimal {
             result *= Decimal::new(10i64.pow((-scale) as u32), 0);
             scale = 0;
         } else if scale > fixed_scale {
+            // Remove trailing zeroes
             result /= Decimal::new(10i64.pow((scale - fixed_scale) as u32), 0);
+            scale = fixed_scale;
+        } else if scale < fixed_scale {
+            // Add trailing zeroes
+            result *= Decimal::new(10i64.pow((fixed_scale - scale) as u32), 0);
             scale = fixed_scale;
         }
 
@@ -101,8 +106,8 @@ impl Decimal {
         }
         result.set_sign(!neg);
 
-        // Normalize by truncating any trailing 0's from the decimal representation
-        Ok(result.normalize())
+        // Retain trailing zeroes.
+        Ok(result)
     }
 
     fn to_postgres(self) -> PostgresDecimal<Vec<i16>> {
@@ -395,6 +400,28 @@ mod diesel {
             };
             let res: Decimal = pg_numeric.try_into().unwrap();
             assert_eq!(res, expected);
+
+            // Verify no trailing zeroes are lost.
+
+            let expected = Decimal::from_str("1.100").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 3,
+                digits: vec![1, 1000],
+            };
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
+
+            let expected = Decimal::from_str("5.00").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 2,
+                // To represent 5.00, Postgres can return either [5, 0] or just [5]
+                // as the list of digits. Verify this crate handles the shortened list correctly.
+                digits: vec![5],
+            };
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
         }
     }
 }
@@ -546,37 +573,46 @@ mod postgres {
 
         use std::str::FromStr;
 
+        /// Gets the URL for connecting to PostgreSQL for testing. Set the POSTGRES_URL
+        /// environment variable to change from the default of "postgres://postgres@localhost".
+        fn get_postgres_url() -> String {
+            if let Ok(url) = std::env::var("POSTGRES_URL") {
+                return url;
+            }
+            "postgres://postgres@localhost".to_string()
+        }
+
         pub static TEST_DECIMALS: &[(u32, u32, &str, &str)] = &[
             // precision, scale, sent, expected
             (35, 6, "3950.123456", "3950.123456"),
             (35, 2, "3950.123456", "3950.12"),
             (35, 2, "3950.1256", "3950.13"),
             (10, 2, "3950.123456", "3950.12"),
-            (35, 6, "3950", "3950"),
+            (35, 6, "3950", "3950.000000"),
             (4, 0, "3950", "3950"),
-            (35, 6, "0.1", "0.1"),
-            (35, 6, "0.01", "0.01"),
-            (35, 6, "0.001", "0.001"),
-            (35, 6, "0.0001", "0.0001"),
-            (35, 6, "0.00001", "0.00001"),
+            (35, 6, "0.1", "0.100000"),
+            (35, 6, "0.01", "0.010000"),
+            (35, 6, "0.001", "0.001000"),
+            (35, 6, "0.0001", "0.000100"),
+            (35, 6, "0.00001", "0.000010"),
             (35, 6, "0.000001", "0.000001"),
-            (35, 6, "1", "1"),
-            (35, 6, "-100", "-100"),
-            (35, 6, "-123.456", "-123.456"),
-            (35, 6, "119996.25", "119996.25"),
+            (35, 6, "1", "1.000000"),
+            (35, 6, "-100", "-100.000000"),
+            (35, 6, "-123.456", "-123.456000"),
+            (35, 6, "119996.25", "119996.250000"),
             (35, 6, "1000000", "1000000"),
-            (35, 6, "9999999.99999", "9999999.99999"),
-            (35, 6, "12340.56789", "12340.56789"),
+            (35, 6, "9999999.99999", "9999999.999990"),
+            (35, 6, "12340.56789", "12340.567890"),
             // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
-            (35, 6, "79228162514264337593543950335", "79228162514264337593543950335"),
+            (35, 0, "79228162514264337593543950335", "79228162514264337593543950335"),
             // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
-            (35, 6, "4951760157141521099596496895", "4951760157141521099596496895"),
+            (35, 1, "4951760157141521099596496895", "4951760157141521099596496895.0"),
             // 0x1000_0000_0000_0000_0000_0000
-            (35, 6, "4951760157141521099596496896", "4951760157141521099596496896"),
-            (35, 6, "18446744073709551615", "18446744073709551615"),
-            (35, 6, "-18446744073709551615", "-18446744073709551615"),
-            (35, 6, "0.10001", "0.10001"),
-            (35, 6, "0.12345", "0.12345"),
+            (35, 1, "4951760157141521099596496896", "4951760157141521099596496896.0"),
+            (35, 6, "18446744073709551615", "18446744073709551615.000000"),
+            (35, 6, "-18446744073709551615", "-18446744073709551615.000000"),
+            (35, 6, "0.10001", "0.100010"),
+            (35, 6, "0.12345", "0.123450"),
         ];
 
         #[test]
@@ -604,7 +640,7 @@ mod postgres {
 
         #[test]
         fn test_null() {
-            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
+            let mut client = match Client::connect(&get_postgres_url(), NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
@@ -623,7 +659,7 @@ mod postgres {
             use ::futures::future::FutureExt;
             use ::tokio_postgres::connect;
 
-            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
             tokio::spawn(connection);
 
@@ -636,7 +672,7 @@ mod postgres {
 
         #[test]
         fn read_numeric_type() {
-            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
+            let mut client = match Client::connect(&get_postgres_url(), NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
@@ -656,7 +692,7 @@ mod postgres {
             use ::futures::future::FutureExt;
             use ::tokio_postgres::connect;
 
-            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
             tokio::spawn(connection);
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
@@ -673,7 +709,7 @@ mod postgres {
 
         #[test]
         fn write_numeric_type() {
-            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
+            let mut client = match Client::connect(&get_postgres_url(), NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
@@ -694,7 +730,7 @@ mod postgres {
             use ::futures::future::FutureExt;
             use ::tokio_postgres::connect;
 
-            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
             tokio::spawn(connection);
 
@@ -714,7 +750,7 @@ mod postgres {
         #[test]
         fn numeric_overflow() {
             let tests = [(4, 4, "3950.1234")];
-            let mut client = match Client::connect("postgres://postgres@localhost", NoTls) {
+            let mut client = match Client::connect(&get_postgres_url(), NoTls) {
                 Ok(x) => x,
                 Err(err) => panic!("{:#?}", err),
             };
@@ -738,7 +774,7 @@ mod postgres {
             use ::tokio_postgres::connect;
 
             let tests = [(4, 4, "3950.1234")];
-            let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
+            let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
             tokio::spawn(connection);
 
