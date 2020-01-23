@@ -3,19 +3,13 @@ name = "rust_decimal"
 version = "1.1.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2018"
-
 description = "A Decimal Implementation written in pure Rust suitable for financial calculations."
 documentation = "https://docs.rs/rust_decimal/"
 repository = "https://github.com/paupino/rust-decimal"
 readme = "./README.md"
-
 keywords = ["decimal","financial","fixed","precision"]
 categories = ["science","data-structures"]
-
 license = "MIT"
-
-[badges]
-travis-ci = { repository = "paupino/rust-decimal", branch = "master" }
 
 [dependencies]
 num = "0.2"
