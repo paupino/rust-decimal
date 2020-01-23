@@ -52,9 +52,3 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-
-      - name: Check clippy rules
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
