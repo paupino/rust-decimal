@@ -283,25 +283,25 @@ fn it_adds_decimals() {
         ),
         (
             "108053.27500000000000000000000",
-                 "0.00000000000000000000000",
+            "0.00000000000000000000000",
             "108053.27500000000000000000000",
         ),
         (
             "108053.27500000000000000000000",
             // This zero value has too high precision and will be trimmed
-                 "0.000000000000000000000000",
+            "0.000000000000000000000000",
             "108053.27500000000000000000000",
         ),
         (
             "108053.27500000000000000000000",
             // This value has too high precision and will be rounded
-                 "0.000000000000000000000001",
+            "0.000000000000000000000001",
             "108053.27500000000000000000000",
         ),
         (
             "108053.27500000000000000000000",
             // This value has too high precision and will be rounded
-                 "0.000000000000000000000005",
+            "0.000000000000000000000005",
             "108053.27500000000000000000001",
         ),
         (
@@ -1304,8 +1304,8 @@ fn test_zero_eq_negative_zero() {
 #[cfg(feature = "postgres")]
 #[test]
 fn to_from_sql() {
-    use postgres::types::{FromSql, Kind, ToSql, Type};
     use bytes::BytesMut;
+    use postgres::types::{FromSql, Kind, ToSql, Type};
 
     let tests = &[
         "3950.123456",
