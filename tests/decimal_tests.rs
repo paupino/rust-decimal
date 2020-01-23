@@ -1341,3 +1341,61 @@ fn to_from_sql() {
         assert_eq!(input, output);
     }
 }
+
+#[test]
+fn it_computes_equal_hashes_for_equal_values() {
+    // From the Rust Hash docs:
+    //
+    // "When implementing both Hash and Eq, it is important that the following property holds:
+    //
+    //     k1 == k2 -> hash(k1) == hash(k2)"
+
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hash;
+    use std::hash::Hasher;
+
+    fn hash_it(d: Decimal) -> u64 {
+        let mut h = DefaultHasher::new();
+        d.hash(&mut h);
+        h.finish()
+    }
+
+    let k1 = Decimal::from_str("1").unwrap();
+    let k2 = Decimal::from_str("1.0").unwrap();
+    let k3 = Decimal::from_str("1.00").unwrap();
+    let k4 = Decimal::from_str("1.01").unwrap();
+
+    assert_eq!(k1, k2);
+    assert_eq!(k1, k3);
+    assert_ne!(k1, k4);
+
+    let h1 = hash_it(k1);
+    let h2 = hash_it(k2);
+    let h3 = hash_it(k3);
+    let h4 = hash_it(k4);
+
+    assert_eq!(h1, h2);
+    assert_eq!(h1, h3);
+    assert_ne!(h1, h4);
+
+    // Test the application of Hash calculation to a HashMap.
+
+    use std::collections::HashMap;
+
+    let mut map = HashMap::new();
+
+    map.insert(k1, k1.to_string());
+    // map[k2] should overwrite map[k1] because k1 == k2.
+    map.insert(k2, k2.to_string());
+
+    assert_eq!("1.0", map.get(&k3).expect("could not get k3"));
+    assert_eq!(1, map.len());
+
+    // map[k3] should overwrite map[k2] because k3 == k2.
+    map.insert(k3, k3.to_string());
+    // map[k4] should not overwrite map[k3] because k4 != k3.
+    map.insert(k4, k4.to_string());
+
+    assert_eq!(2, map.len());
+    assert_eq!("1.00", map.get(&k1).expect("could not get k1"));
+}
