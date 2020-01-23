@@ -1351,8 +1351,8 @@ fn it_computes_equal_hashes_for_equal_values() {
     //     k1 == k2 -> hash(k1) == hash(k2)"
 
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hasher;
     use std::hash::Hash;
+    use std::hash::Hasher;
 
     fn hash_it(d: Decimal) -> u64 {
         let mut h = DefaultHasher::new();
