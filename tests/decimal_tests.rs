@@ -1372,10 +1372,12 @@ fn it_computes_equal_hashes_for_equal_values() {
     let h1 = hash_it(k1);
     let h2 = hash_it(k2);
     let h3 = hash_it(k3);
+    let h4 = hash_it(k4);
 
     assert_eq!(h1, h2);
     assert_eq!(h1, h3);
-assert_ne!(h1, h4);
+    assert_ne!(h1, h4);
+
     // Test the application of Hash calculation to a HashMap.
 
     use std::collections::HashMap;
@@ -1396,5 +1398,4 @@ assert_ne!(h1, h4);
 
     assert_eq!(2, map.len());
     assert_eq!("1.00", map.get(&k1).expect("could not get k1"));
-
 }
