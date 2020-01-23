@@ -74,14 +74,13 @@ impl serde::Serialize for Decimal {
 #[cfg(feature = "serde-float")]
 impl serde::Serialize for Decimal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
         use num::ToPrimitive;
         serializer.serialize_f64(self.to_f64().unwrap())
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -149,5 +148,4 @@ mod test {
         let serialized = serde_json::to_string(&record).unwrap();
         assert_eq!("{\"amount\":1.234}", serialized);
     }
-
 }
