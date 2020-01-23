@@ -1292,6 +1292,15 @@ fn it_panics_when_scale_too_large() {
     let _ = Decimal::new(1, 29);
 }
 
+#[test]
+fn test_zero_eq_negative_zero() {
+    let zero: Decimal = 0.into();
+
+    assert!(zero == zero);
+    assert!(-zero == zero);
+    assert!(zero == -zero);
+}
+
 #[cfg(feature = "postgres")]
 #[test]
 fn to_from_sql() {
