@@ -431,7 +431,7 @@ mod postgres {
     use super::*;
 
     use ::byteorder::{BigEndian, ReadBytesExt};
-    use ::bytes::{BytesMut, BufMut};
+    use ::bytes::{BufMut, BytesMut};
     use ::postgres::types::*;
     use ::std::io::Cursor;
 
@@ -522,7 +522,11 @@ mod postgres {
     }
 
     impl ToSql for Decimal {
-        fn to_sql(&self, _: &Type, out: &mut BytesMut) -> Result<IsNull, Box<dyn error::Error + 'static + Sync + Send>> {
+        fn to_sql(
+            &self,
+            _: &Type,
+            out: &mut BytesMut,
+        ) -> Result<IsNull, Box<dyn error::Error + 'static + Sync + Send>> {
             let PostgresDecimal {
                 neg,
                 weight,
@@ -643,8 +647,8 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_test_null() {
-            use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
+            use ::tokio_postgres::connect;
 
             let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
@@ -664,10 +668,11 @@ mod postgres {
                 Err(err) => panic!("{:#?}", err),
             };
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-                let result: Decimal = match client.query(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale), &[]) {
-                    Ok(x) => x.iter().next().unwrap().get(0),
-                    Err(err) => panic!("{:#?}", err),
-                };
+                let result: Decimal =
+                    match client.query(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale), &[]) {
+                        Ok(x) => x.iter().next().unwrap().get(0),
+                        Err(err) => panic!("{:#?}", err),
+                    };
                 assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
             }
         }
@@ -675,14 +680,17 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_read_numeric_type() {
-            use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
+            use ::tokio_postgres::connect;
 
             let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
             tokio::spawn(connection);
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-                let statement = client.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)).await.unwrap();
+                let statement = client
+                    .prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale))
+                    .await
+                    .unwrap();
                 let rows = client.query(&statement, &[]).await.unwrap();
                 let result: Decimal = rows.iter().next().unwrap().get(0);
 
@@ -698,10 +706,11 @@ mod postgres {
             };
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
                 let number = Decimal::from_str(sent).unwrap();
-                let result: Decimal = match client.query(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale), &[&number]) {
-                    Ok(x) => x.iter().next().unwrap().get(0),
-                    Err(err) => panic!("{:#?}", err),
-                };
+                let result: Decimal =
+                    match client.query(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale), &[&number]) {
+                        Ok(x) => x.iter().next().unwrap().get(0),
+                        Err(err) => panic!("{:#?}", err),
+                    };
                 assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
             }
         }
@@ -709,15 +718,18 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_write_numeric_type() {
-            use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
+            use ::tokio_postgres::connect;
 
             let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
             tokio::spawn(connection);
 
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-                let statement = client.prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale)).await.unwrap();
+                let statement = client
+                    .prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale))
+                    .await
+                    .unwrap();
                 let number = Decimal::from_str(sent).unwrap();
                 let rows = client.query(&statement, &[&number]).await.unwrap();
                 let result: Decimal = rows.iter().next().unwrap().get(0);
@@ -749,8 +761,8 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_numeric_overflow() {
-            use ::tokio_postgres::connect;
             use ::futures::future::FutureExt;
+            use ::tokio_postgres::connect;
 
             let tests = [(4, 4, "3950.1234")];
             let (client, connection) = connect("postgres://postgres@localhost", NoTls).await.unwrap();
@@ -758,7 +770,10 @@ mod postgres {
             tokio::spawn(connection);
 
             for &(precision, scale, sent) in tests.iter() {
-                let statement = client.prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale)).await.unwrap();
+                let statement = client
+                    .prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale))
+                    .await
+                    .unwrap();
 
                 match client.query(&statement, &[]).await {
                     Ok(_) => panic!(
