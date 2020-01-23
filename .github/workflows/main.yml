@@ -27,29 +27,34 @@ jobs:
         run: |
           sudo apt-get -y install libpq-dev
 
-      - uses: actions-rs/toolchain@v1
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
           components: rustfmt, clippy
 
-      - uses: actions-rs/cargo@v1
+      - name: Build rust-decimal
+        uses: actions-rs/cargo@v1
         with:
           command: build
           args: --all --all-features
 
-      - uses: actions-rs/cargo@v1
+      - name: Run tests
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all --all-features
 
-      - uses: actions-rs/cargo@v1
+      - name: Check file formatting
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
 
-      - uses: actions-rs/cargo@v1
+      - name: Check clippy rules
+        uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: -- -D warnings
