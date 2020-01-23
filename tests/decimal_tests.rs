@@ -1375,7 +1375,7 @@ fn it_computes_equal_hashes_for_equal_values() {
 
     assert_eq!(h1, h2);
     assert_eq!(h1, h3);
-
+assert_ne!(h1, h4);
     // Test the application of Hash calculation to a HashMap.
 
     use std::collections::HashMap;
