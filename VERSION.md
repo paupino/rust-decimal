@@ -1,5 +1,14 @@
 # Version History
 
+## 1.2.0
+
+* Retain trailing zeros from PostgreSQL. This ensures that the scale is maintained when serialized into the Decimal type.
+* Fixes issue where -0 != 0 (these are now equivalent - thank you @hengchu for discovering).
+* Improve hashing function so that the following property is true: `k1 == k2 -> hash(k1) == hash(k2)`
+* Update normalize function so that -0 normalizes to 0.
+
+Special thanks to @hathawsh for their help in this release!
+
 ## 1.1.0
 
 * Update to Postgres 0.17 and add postgres async/await support via `tokio-pg` 
