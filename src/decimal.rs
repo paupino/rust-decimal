@@ -497,7 +497,7 @@ impl Decimal {
         }
     }
 
-    /// Strips any trailing zero's from a `Decimal`.
+    /// Strips any trailing zero's from a `Decimal` and converts -0 to 0.
     ///
     /// # Example
     ///
@@ -509,6 +509,11 @@ impl Decimal {
     /// assert_eq!(number.normalize().to_string(), "3.1");
     /// ```
     pub fn normalize(&self) -> Decimal {
+        if self.is_zero() {
+            // Convert -0, -0.0*, or 0.0* to 0.
+            return Decimal::zero();
+        }
+
         let mut scale = self.scale();
         if scale == 0 {
             // Nothing to do

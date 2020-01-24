@@ -1014,6 +1014,10 @@ fn it_can_normalize() {
         ("1", "1"),
         ("1.1", "1.1"),
         ("1.0001", "1.0001"),
+        ("-0", "0"),
+        ("-0.0", "0"),
+        ("-0.010", "-0.01"),
+        ("0.0", "0"),
     ];
 
     for &(value, expected) in tests {
@@ -1342,6 +1346,16 @@ fn to_from_sql() {
     }
 }
 
+fn hash_it(d: Decimal) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hash;
+    use std::hash::Hasher;
+
+    let mut h = DefaultHasher::new();
+    d.hash(&mut h);
+    h.finish()
+}
+
 #[test]
 fn it_computes_equal_hashes_for_equal_values() {
     // From the Rust Hash docs:
@@ -1349,16 +1363,6 @@ fn it_computes_equal_hashes_for_equal_values() {
     // "When implementing both Hash and Eq, it is important that the following property holds:
     //
     //     k1 == k2 -> hash(k1) == hash(k2)"
-
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hash;
-    use std::hash::Hasher;
-
-    fn hash_it(d: Decimal) -> u64 {
-        let mut h = DefaultHasher::new();
-        d.hash(&mut h);
-        h.finish()
-    }
 
     let k1 = Decimal::from_str("1").unwrap();
     let k2 = Decimal::from_str("1.0").unwrap();
@@ -1398,4 +1402,25 @@ fn it_computes_equal_hashes_for_equal_values() {
 
     assert_eq!(2, map.len());
     assert_eq!("1.00", map.get(&k1).expect("could not get k1"));
+}
+
+#[test]
+fn it_computes_equal_hashes_for_positive_and_negative_zero() {
+    // Verify 0 and -0 have the same hash
+    let k1 = Decimal::from_str("0").unwrap();
+    let k2 = Decimal::from_str("-0").unwrap();
+    assert_eq!("-0", k2.to_string());
+    assert_eq!(k1, k2);
+    let h1 = hash_it(k1);
+    let h2 = hash_it(k2);
+    assert_eq!(h1, h2);
+
+    // Verify 0 and -0.0 have the same hash
+    let k1 = Decimal::from_str("0").unwrap();
+    let k2 = Decimal::from_str("-0.0").unwrap();
+    assert_eq!("-0.0", k2.to_string());
+    assert_eq!(k1, k2);
+    let h1 = hash_it(k1);
+    let h2 = hash_it(k2);
+    assert_eq!(h1, h2);
 }
