@@ -1,6 +1,6 @@
 use num::Zero;
 
-use crate::Decimal;
+use crate::{Decimal, Sign};
 
 use std::{convert::TryInto, error, fmt, result::*};
 
@@ -104,7 +104,7 @@ impl Decimal {
         if result.set_scale(scale as u32).is_err() {
             return Err(InvalidDecimal);
         }
-        result.set_sign(!neg);
+        result.set_sign(if neg { Sign::Negative } else { Sign::Positive });
 
         // Retain trailing zeroes.
         Ok(result)

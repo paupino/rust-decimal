@@ -43,7 +43,7 @@ mod postgres;
 #[cfg(feature = "serde")]
 mod serde_types;
 
-pub use decimal::{Decimal, RoundingStrategy};
+pub use decimal::{Decimal, RoundingStrategy, Sign};
 pub use error::Error;
 
 pub mod prelude {

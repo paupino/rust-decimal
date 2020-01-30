@@ -64,20 +64,6 @@ static POWERS_10: [u32; 10] = [
     100_000_000,
     1_000_000_000,
 ];
-// Fast access for 10^n where n is 10-19
-#[allow(dead_code)]
-static BIG_POWERS_10: [u64; 10] = [
-    10_000_000_000,
-    100_000_000_000,
-    1_000_000_000_000,
-    10_000_000_000_000,
-    100_000_000_000_000,
-    1_000_000_000_000_000,
-    10_000_000_000_000_000,
-    100_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    10_000_000_000_000_000_000,
-];
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
@@ -107,6 +93,12 @@ pub struct Decimal {
     hi: u32,
     lo: u32,
     mid: u32,
+}
+
+#[derive(Clone, Copy)]
+pub enum Sign {
+    Positive,
+    Negative,
 }
 
 /// `RoundingStrategy` represents the different strategies that can be used by
@@ -256,17 +248,16 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// use rust_decimal::Decimal;
+    /// use rust_decimal::{Decimal, Sign};
     ///
     /// let mut one = Decimal::new(1, 0);
-    /// one.set_sign(false);
+    /// one.set_sign(Sign::Negative);
     /// assert_eq!(one.to_string(), "-1");
     /// ```
-    pub fn set_sign(&mut self, positive: bool) {
-        if positive {
-            self.flags &= UNSIGN_MASK;
-        } else {
-            self.flags |= SIGN_MASK;
+    pub fn set_sign(&mut self, sign: Sign) {
+        match sign {
+            Sign::Positive => self.flags &= UNSIGN_MASK,
+            Sign::Negative => self.flags |= SIGN_MASK,
         }
     }
 
@@ -440,7 +431,7 @@ impl Decimal {
     /// ```
     pub fn abs(&self) -> Decimal {
         let mut me = *self;
-        me.set_sign(true);
+        me.set_sign(Sign::Positive);
         me
     }
 
@@ -2228,7 +2219,7 @@ impl FromPrimitive for Decimal {
         if biased_exponent == 0 && mantissa == 0 {
             let mut zero = Decimal::zero();
             if !positive {
-                zero.set_sign(false);
+                zero.set_sign(Sign::Negative);
             }
             return Some(zero);
         }
@@ -2272,7 +2263,7 @@ impl FromPrimitive for Decimal {
         if biased_exponent == 0 && mantissa == 0 {
             let mut zero = Decimal::zero();
             if !positive {
-                zero.set_sign(false);
+                zero.set_sign(Sign::Negative);
             }
             return Some(zero);
         }

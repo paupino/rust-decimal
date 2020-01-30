@@ -107,7 +107,7 @@ mod test {
             assert_eq!(
                 true,
                 result.is_ok(),
-                "expected successful deseralization for {}. Error: {:?}",
+                "expected successful deserialization for {}. Error: {:?}",
                 serialized,
                 result.err().unwrap()
             );
