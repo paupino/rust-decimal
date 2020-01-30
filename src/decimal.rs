@@ -329,18 +329,6 @@ impl Decimal {
     }
 
     /// Returns `true` if the decimal is negative.
-    #[deprecated(since = "0.6.3", note = "please use `is_sign_negative` instead")]
-    pub fn is_negative(&self) -> bool {
-        self.is_sign_negative()
-    }
-
-    /// Returns `true` if the decimal is positive.
-    #[deprecated(since = "0.6.3", note = "please use `is_sign_positive` instead")]
-    pub fn is_positive(&self) -> bool {
-        self.is_sign_positive()
-    }
-
-    /// Returns `true` if the decimal is negative.
     #[inline(always)]
     pub const fn is_sign_negative(&self) -> bool {
         self.flags & SIGN_MASK > 0
