@@ -88,16 +88,20 @@ impl Decimal {
         let mut scale = (num_groups as i16 - weight - 1) as i32 * 4;
         // Scale could be negative
         if scale < 0 {
-            result *= Decimal::new(10i64.pow((-scale) as u32), 0);
+            result *= Decimal::from_i128_with_scale(10i128.pow((-scale) as u32), 0);
             scale = 0;
         } else if scale > fixed_scale {
             // Remove trailing zeroes
-            result /= Decimal::new(10i64.pow((scale - fixed_scale) as u32), 0);
+            result /= Decimal::from_i128_with_scale(10i128.pow((scale - fixed_scale) as u32), 0);
             scale = fixed_scale;
         } else if scale < fixed_scale {
-            // Add trailing zeroes
-            result *= Decimal::new(10i64.pow((fixed_scale - scale) as u32), 0);
-            scale = fixed_scale;
+            // Since we're only adding trailing zeros we only add as many as feasibly represented
+            let mut max_scale = fixed_scale;
+            if max_scale > 28 {
+                max_scale = 28;
+            }
+            result *= Decimal::from_i128_with_scale(10i128.pow((max_scale - scale) as u32), 0);
+            scale = max_scale;
         }
 
         // Create the decimal
@@ -603,7 +607,8 @@ mod postgres {
             (35, 6, "1000000", "1000000"),
             (35, 6, "9999999.99999", "9999999.999990"),
             (35, 6, "12340.56789", "12340.567890"),
-            (65, 30, "1.2", "1.200000000000000000000000000000"),
+            // Scale is only 28 since that is the maximum we can represent.
+            (65, 30, "1.2", "1.2000000000000000000000000000"),
             // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
             (35, 0, "79228162514264337593543950335", "79228162514264337593543950335"),
             // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
