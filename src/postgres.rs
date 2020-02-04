@@ -1,4 +1,4 @@
-use num::Zero;
+use num::{Zero};
 
 use crate::Decimal;
 
@@ -67,13 +67,21 @@ impl Decimal {
             digits,
         }: PostgresDecimal<D>,
     ) -> Result<Self, InvalidDecimal> {
-        let num_groups = digits.len() as u16;
+        let mut digits = digits.into_iter().collect::<Vec<_>>();
+        let mut num_groups = digits.len() as u16;
         // Number of digits (in base 10) to print after decimal separator
         let fixed_scale = scale as i32;
+        if num_groups > 8 {
+            num_groups = 8;
+            if digits[8] > 5000 {
+                digits[7] += 1;
+            }
+        }
 
         // Read all of the groups
         let mut groups = digits
             .into_iter()
+            .take(num_groups as usize)
             .map(|d| Decimal::new(d as i64, 0))
             .collect::<Vec<_>>();
         groups.reverse();
@@ -81,6 +89,7 @@ impl Decimal {
         // Now process the number
         let mut result = Decimal::zero();
         for (index, group) in groups.iter().enumerate() {
+            println!("{} * {}", DECIMALS[index + 7], group);
             result = result + (DECIMALS[index + 7] * group);
         }
 
@@ -609,8 +618,9 @@ mod postgres {
             (35, 6, "12340.56789", "12340.567890"),
             // Scale is only 28 since that is the maximum we can represent.
             (65, 30, "1.2", "1.2000000000000000000000000000"),
-            // PI
-            (65, 30, "3.141592653589793238462643383279", "3.141592653589793238462643383279"),
+            // Pi - rounded at scale 28
+            (65, 30, "3.141592653589793238462643383279", "3.1415926535897932384626433833"),
+            (65, 30, "3.1415926535897932384626433832795028", "3.1415926535897932384626433833"),
             // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
             (35, 0, "79228162514264337593543950335", "79228162514264337593543950335"),
             // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
