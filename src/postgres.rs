@@ -71,9 +71,11 @@ impl Decimal {
         let mut num_groups = digits.len() as u16;
         // Number of digits (in base 10) to print after decimal separator
         let fixed_scale = scale as i32;
+        // If we're greater than 8 groups then we have a higher precision than Decimal can represent.
+        // We limit this here. We also round up if the value AFTER our cutoff is over 5.
         if num_groups > 8 {
             num_groups = 8;
-            if digits[8] > 5000 {
+            if digits[8] >= 5000 {
                 digits[7] += 1;
             }
         }
@@ -89,7 +91,6 @@ impl Decimal {
         // Now process the number
         let mut result = Decimal::zero();
         for (index, group) in groups.iter().enumerate() {
-            println!("{} * {}", DECIMALS[index + 7], group);
             result = result + (DECIMALS[index + 7] * group);
         }
 
