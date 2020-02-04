@@ -1,4 +1,4 @@
-use num::{Zero};
+use num::Zero;
 
 use crate::Decimal;
 
@@ -73,10 +73,11 @@ impl Decimal {
         let fixed_scale = scale as i32;
         // If we're greater than 8 groups then we have a higher precision than Decimal can represent.
         // We limit this here. We also round up if the value AFTER our cutoff is over 5.
-        if num_groups > 8 {
-            num_groups = 8;
-            if digits[8] >= 5000 {
-                digits[7] += 1;
+        const MAX_GROUP_COUNT: usize = 8;
+        if num_groups as usize > MAX_GROUP_COUNT {
+            num_groups = MAX_GROUP_COUNT as u16;
+            if digits[MAX_GROUP_COUNT] >= 5000 {
+                digits[MAX_GROUP_COUNT - 1] += 1;
             }
         }
 
@@ -620,8 +621,31 @@ mod postgres {
             // Scale is only 28 since that is the maximum we can represent.
             (65, 30, "1.2", "1.2000000000000000000000000000"),
             // Pi - rounded at scale 28
-            (65, 30, "3.141592653589793238462643383279", "3.1415926535897932384626433833"),
-            (65, 30, "3.1415926535897932384626433832795028", "3.1415926535897932384626433833"),
+            (
+                65,
+                30,
+                "3.141592653589793238462643383279",
+                "3.1415926535897932384626433833",
+            ),
+            (
+                65,
+                34,
+                "3.1415926535897932384626433832795028",
+                "3.1415926535897932384626433833",
+            ),
+            // Unrounded number
+            (
+                65,
+                34,
+                "1.234567890123456789012345678950000",
+                "1.2345678901234567890123456790",
+            ),
+            (
+                65,
+                34, // No rounding due to 49999 after significant digits
+                "1.234567890123456789012345678949999",
+                "1.2345678901234567890123456789",
+            ),
             // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
             (35, 0, "79228162514264337593543950335", "79228162514264337593543950335"),
             // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
@@ -701,7 +725,14 @@ mod postgres {
                         Ok(x) => x.iter().next().unwrap().get(0),
                         Err(err) => panic!("{:#?}", err),
                     };
-                assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
+                assert_eq!(
+                    expected,
+                    result.to_string(),
+                    "NUMERIC({}, {}) sent: {}",
+                    precision,
+                    scale,
+                    sent
+                );
             }
         }
 
