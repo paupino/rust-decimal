@@ -34,6 +34,8 @@ const SIGN_SHIFT: u32 = 31;
 
 // The maximum supported precision
 const MAX_PRECISION: u32 = 28;
+// 281,474,976,710,655
+const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
 
 static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
@@ -162,6 +164,48 @@ impl Decimal {
             hi: 0,
             lo: (num as u64 & U32_MASK) as u32,
             mid: ((num as u64 >> 32) & U32_MASK) as u32,
+        }
+    }
+
+    /// Creates a `Decimal` using a 128 bit signed `m` representation and corresponding `e` scale.
+    ///
+    /// # Arguments
+    ///
+    /// * `num` - An i128 that represents the `m` portion of the decimal number
+    /// * `scale` - A u32 representing the `e` portion of the decimal number.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let pi = Decimal::from_i128_with_scale(3141i128, 3);
+    /// assert_eq!(pi.to_string(), "3.141");
+    /// ```
+    pub fn from_i128_with_scale(num: i128, scale: u32) -> Decimal {
+        if scale > MAX_PRECISION {
+            panic!(
+                "Scale exceeds the maximum precision allowed: {} > {}",
+                scale, MAX_PRECISION
+            );
+        }
+        let mut neg = false;
+        let mut wrapped = num;
+        if num > MAX_I128_REPR {
+            panic!("Number exceeds maximum value that can be represented");
+        } else if num < 0 {
+            neg = true;
+            wrapped = num.wrapping_neg();
+            if wrapped > MAX_I128_REPR {
+                panic!("Number less than minimum value that can be represented");
+            }
+        }
+        let flags: u32 = flags(neg, scale);
+        Decimal {
+            flags,
+            lo: (wrapped as u64 & U32_MASK) as u32,
+            mid: ((wrapped as u64 >> 32) & U32_MASK) as u32,
+            hi: ((wrapped as u128 >> 64) as u64 & U32_MASK) as u32,
         }
     }
 
