@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal_fuzzer"
-version = "1.2.0"
+version = "1.2.1"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2018"
 
