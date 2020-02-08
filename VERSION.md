@@ -1,5 +1,11 @@
 # Version History
 
+## 1.2.1
+
+* Fixes issue whereby overflow would occur reading from PostgreSQL with high precision. The library now 
+  handles this by rounding high precision numbers as they're read as opposed to crashing (similar to other
+  underflow situations e.g. 1/3).
+
 ## 1.2.0
 
 * Retain trailing zeros from PostgreSQL. This ensures that the scale is maintained when serialized into the Decimal type.
