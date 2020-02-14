@@ -1,7 +1,4 @@
-extern crate num;
-extern crate rust_decimal;
-
-use num::{ToPrimitive, Zero};
+use num_traits::{ToPrimitive, Zero};
 
 use rust_decimal::{Decimal, RoundingStrategy};
 
@@ -708,7 +705,7 @@ fn test_min_compares() {
 
 #[test]
 fn it_can_parse_from_i32() {
-    use num::FromPrimitive;
+    use num_traits::FromPrimitive;
 
     let tests = &[
         (0i32, "0"),
@@ -738,7 +735,7 @@ fn it_can_parse_from_i32() {
 
 #[test]
 fn it_can_parse_from_i64() {
-    use num::FromPrimitive;
+    use num_traits::FromPrimitive;
 
     let tests = &[
         (0i64, "0"),
@@ -1103,7 +1100,7 @@ fn it_converts_to_u64() {
 #[test]
 fn it_converts_from_f32() {
     fn from_f32(f: f32) -> Option<Decimal> {
-        num::FromPrimitive::from_f32(f)
+        num_traits::FromPrimitive::from_f32(f)
     }
 
     assert_eq!("1", from_f32(1f32).unwrap().to_string());
@@ -1130,7 +1127,7 @@ fn it_converts_from_f32() {
 #[test]
 fn it_converts_from_f64() {
     fn from_f64(f: f64) -> Option<Decimal> {
-        num::FromPrimitive::from_f64(f)
+        num_traits::FromPrimitive::from_f64(f)
     }
 
     assert_eq!("1", from_f64(1f64).unwrap().to_string());

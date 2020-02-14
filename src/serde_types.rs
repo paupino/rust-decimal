@@ -1,6 +1,6 @@
 use crate::Decimal;
 
-use num::FromPrimitive;
+use num_traits::FromPrimitive;
 
 use serde::{self, de::Unexpected};
 
@@ -77,7 +77,7 @@ impl serde::Serialize for Decimal {
     where
         S: serde::Serializer,
     {
-        use num::ToPrimitive;
+        use num_traits::ToPrimitive;
         serializer.serialize_f64(self.to_f64().unwrap())
     }
 }

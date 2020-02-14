@@ -1,6 +1,6 @@
 use crate::Error;
 
-use num::{FromPrimitive, One, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
 
 #[cfg(feature = "diesel")]
 use diesel::sql_types::Numeric;

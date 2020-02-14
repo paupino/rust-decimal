@@ -47,7 +47,7 @@ pub use decimal::{Decimal, RoundingStrategy};
 pub use error::Error;
 
 pub mod prelude {
-    pub use num::{FromPrimitive, One, ToPrimitive, Zero};
+    pub use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
 }
 
 #[cfg(feature = "diesel")]
