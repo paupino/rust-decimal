@@ -253,7 +253,7 @@ impl Decimal {
     /// ```
     pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
         let err = Error::new("Failed to parse");
-        let mut split = value.splitn(2, 'e');
+        let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
 
         let base = split.next().ok_or_else(|| err.clone())?;
         let mut scale = split.next().ok_or_else(|| err.clone())?.to_string();
