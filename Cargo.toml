@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal"
-version = "1.2.0"
+version = "1.2.1"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2018"
 description = "A Decimal Implementation written in pure Rust suitable for financial calculations."
@@ -12,7 +12,7 @@ categories = ["science","data-structures"]
 license = "MIT"
 
 [dependencies]
-num = "0.2"
+num-traits = "0.2"
 byteorder = "1.3"
 bytes = "0.5"
 diesel = { version = "1.4", default-features = false, features = ["postgres"], optional = true }

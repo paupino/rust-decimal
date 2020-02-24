@@ -1,7 +1,4 @@
-extern crate num;
-extern crate rust_decimal;
-
-use num::{ToPrimitive, Zero};
+use num_traits::{Signed, ToPrimitive, Zero};
 
 use rust_decimal::{Decimal, RoundingStrategy};
 
@@ -708,7 +705,7 @@ fn test_min_compares() {
 
 #[test]
 fn it_can_parse_from_i32() {
-    use num::FromPrimitive;
+    use num_traits::FromPrimitive;
 
     let tests = &[
         (0i32, "0"),
@@ -738,7 +735,7 @@ fn it_can_parse_from_i32() {
 
 #[test]
 fn it_can_parse_from_i64() {
-    use num::FromPrimitive;
+    use num_traits::FromPrimitive;
 
     let tests = &[
         (0i64, "0"),
@@ -1103,7 +1100,7 @@ fn it_converts_to_u64() {
 #[test]
 fn it_converts_from_f32() {
     fn from_f32(f: f32) -> Option<Decimal> {
-        num::FromPrimitive::from_f32(f)
+        num_traits::FromPrimitive::from_f32(f)
     }
 
     assert_eq!("1", from_f32(1f32).unwrap().to_string());
@@ -1130,7 +1127,7 @@ fn it_converts_from_f32() {
 #[test]
 fn it_converts_from_f64() {
     fn from_f64(f: f64) -> Option<Decimal> {
-        num::FromPrimitive::from_f64(f)
+        num_traits::FromPrimitive::from_f64(f)
     }
 
     assert_eq!("1", from_f64(1f64).unwrap().to_string());
@@ -1287,6 +1284,78 @@ fn it_can_parse_scientific_notation() {
 
     for &(value, expected) in tests {
         assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
+    }
+}
+
+#[test]
+fn it_can_parse_different_radix() {
+    use num_traits::Num;
+
+    let tests = &[
+        // Input, Radix, Success, to_string()
+        ("123", 10, true, "123"),
+        ("123", 8, true, "83"),
+        ("123", 16, true, "291"),
+        ("abc", 10, false, ""),
+        ("abc", 16, true, "2748"),
+        ("78", 10, true, "78"),
+        ("78", 8, false, ""),
+        ("101", 2, true, "5"),
+    ];
+
+    for &(input, radix, success, expected) in tests {
+        let result = Decimal::from_str_radix(input, radix);
+        assert_eq!(
+            success,
+            result.is_ok(),
+            "Failed to parse: {} radix {}: {:?}",
+            input,
+            radix,
+            result.err()
+        );
+        if result.is_ok() {
+            assert_eq!(
+                expected,
+                result.unwrap().to_string(),
+                "Original input: {} radix {}",
+                input,
+                radix
+            );
+        }
+    }
+}
+
+#[test]
+fn it_can_calculate_signum() {
+    let tests = &[("123", 1), ("-123", -1), ("0", 0)];
+
+    for &(input, expected) in tests {
+        let input = Decimal::from_str(input).unwrap();
+        assert_eq!(expected, input.signum().to_i32().unwrap(), "Input: {}", input);
+    }
+}
+
+#[test]
+fn it_can_calculate_abs_sub() {
+    let tests = &[
+        ("123", "124", 0),
+        ("123", "123", 0),
+        ("123", "122", 123),
+        ("-123", "-124", 123),
+        ("-123", "-123", 0),
+        ("-123", "-122", 0),
+    ];
+
+    for &(input1, input2, expected) in tests {
+        let input1 = Decimal::from_str(input1).unwrap();
+        let input2 = Decimal::from_str(input2).unwrap();
+        assert_eq!(
+            expected,
+            input1.abs_sub(&input2).to_i32().unwrap(),
+            "Input: {} {}",
+            input1,
+            input2
+        );
     }
 }
 
