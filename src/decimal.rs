@@ -1,6 +1,6 @@
 use crate::Error;
 
-use num::{FromPrimitive, One, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 
 #[cfg(feature = "diesel")]
 use diesel::sql_types::Numeric;
@@ -2038,17 +2038,58 @@ impl One for Decimal {
     }
 }
 
-impl FromStr for Decimal {
-    type Err = Error;
+impl Signed for Decimal {
+    fn abs(&self) -> Self {
+        self.abs()
+    }
 
-    fn from_str(value: &str) -> Result<Decimal, Self::Err> {
-        if value.is_empty() {
+    fn abs_sub(&self, other: &Self) -> Self {
+        if self <= other {
+            Decimal::zero()
+        } else {
+            self.abs()
+        }
+    }
+
+    fn signum(&self) -> Self {
+        if self.is_zero() {
+            Decimal::zero()
+        } else {
+            let mut value = Decimal::one();
+            if self.is_sign_negative() {
+                value.set_sign(false);
+            }
+            value
+        }
+    }
+
+    fn is_positive(&self) -> bool {
+        self.is_sign_positive()
+    }
+
+    fn is_negative(&self) -> bool {
+        self.is_sign_negative()
+    }
+}
+
+impl Num for Decimal {
+    type FromStrRadixErr = Error;
+
+    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+        if str.is_empty() {
             return Err(Error::new("Invalid decimal: empty"));
+        }
+        if radix < 2 {
+            return Err(Error::new("Unsupported radix < 2"));
+        }
+        if radix > 36 {
+            // As per trait documentation
+            return Err(Error::new("Unsupported radix > 36"));
         }
 
         let mut offset = 0;
-        let mut len = value.len();
-        let bytes: Vec<u8> = value.bytes().collect();
+        let mut len = str.len();
+        let bytes: Vec<u8> = str.bytes().collect();
         let mut negative = false; // assume positive
 
         // handle the sign
@@ -2066,53 +2107,55 @@ impl FromStr for Decimal {
         let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
         let mut coeff = Vec::new(); // integer significand array
 
+        // Supporting different radix
+        let (max_n, max_alpha_lower, max_alpha_upper) = if radix <= 10 {
+            (b'0' + (radix - 1) as u8, 0, 0)
+        } else {
+            let adj = (radix - 11) as u8;
+            (b'9', adj + b'a', adj + b'A')
+        };
+
+        let mut maybe_round = false;
         while len > 0 {
             let b = bytes[offset];
             match b {
                 b'0'..=b'9' => {
+                    if b > max_n {
+                        return Err(Error::new("Invalid decimal: invalid character"));
+                    }
                     coeff.push(u32::from(b - b'0'));
                     offset += 1;
                     len -= 1;
 
                     // If the coefficient is longer than 28 then it'll affect the scale, so exit early
                     if coeff.len() as u32 > MAX_PRECISION {
-                        // Before we exit, do some rounding if necessary
-                        if offset < bytes.len() {
-                            // We only need to look at the next significant digit
-                            let next_byte = bytes[offset];
-                            match next_byte {
-                                b'0'..=b'9' => {
-                                    let digit = u32::from(next_byte - b'0');
-                                    if digit >= 5 {
-                                        let mut index = coeff.len() - 1;
-                                        loop {
-                                            let new_digit = coeff[index] + 1;
-                                            if new_digit <= 9 {
-                                                coeff[index] = new_digit;
-                                                break;
-                                            } else {
-                                                coeff[index] = 0;
-                                                if index == 0 {
-                                                    coeff.insert(0, 1u32);
-                                                    digits_before_dot += 1;
-                                                    coeff.pop();
-                                                    break;
-                                                }
-                                            }
-                                            index -= 1;
-                                        }
-                                    }
-                                }
-                                b'_' => {}
-                                b'.' => {
-                                    // Still an error if we have a second dp
-                                    if digits_before_dot >= 0 {
-                                        return Err(Error::new("Invalid decimal: two decimal points"));
-                                    }
-                                }
-                                _ => return Err(Error::new("Invalid decimal: unknown character")),
-                            }
-                        }
+                        maybe_round = true;
+                        break;
+                    }
+                }
+                b'a'..=b'z' => {
+                    if b > max_alpha_lower {
+                        return Err(Error::new("Invalid decimal: invalid character"));
+                    }
+                    coeff.push(u32::from(b - b'a') + 10);
+                    offset += 1;
+                    len -= 1;
+
+                    if coeff.len() as u32 > MAX_PRECISION {
+                        maybe_round = true;
+                        break;
+                    }
+                }
+                b'A'..=b'Z' => {
+                    if b > max_alpha_upper {
+                        return Err(Error::new("Invalid decimal: invalid character"));
+                    }
+                    coeff.push(u32::from(b - b'A') + 10);
+                    offset += 1;
+                    len -= 1;
+
+                    if coeff.len() as u32 > MAX_PRECISION {
+                        maybe_round = true;
                         break;
                     }
                 }
@@ -2136,6 +2179,61 @@ impl FromStr for Decimal {
             }
         }
 
+        // If we exited before the end of the string then do some rounding if necessary
+        if maybe_round && offset < bytes.len() {
+            let next_byte = bytes[offset];
+            let digit = match next_byte {
+                b'0'..=b'9' => {
+                    if next_byte > max_n {
+                        return Err(Error::new("Invalid decimal: invalid character"));
+                    }
+                    u32::from(next_byte - b'0')
+                }
+                b'a'..=b'z' => {
+                    if next_byte > max_alpha_lower {
+                        return Err(Error::new("Invalid decimal: invalid character"));
+                    }
+                    u32::from(next_byte - b'a') + 10
+                }
+                b'A'..=b'Z' => {
+                    if next_byte > max_alpha_upper {
+                        return Err(Error::new("Invalid decimal: invalid character"));
+                    }
+                    u32::from(next_byte - b'A') + 10
+                }
+                b'_' => 0,
+                b'.' => {
+                    // Still an error if we have a second dp
+                    if digits_before_dot >= 0 {
+                        return Err(Error::new("Invalid decimal: two decimal points"));
+                    }
+                    0
+                }
+                _ => return Err(Error::new("Invalid decimal: unknown character")),
+            };
+
+            // Round at midpoint
+            if digit >= radix / 2 {
+                let mut index = coeff.len() - 1;
+                loop {
+                    let new_digit = coeff[index] + 1;
+                    if new_digit <= 9 {
+                        coeff[index] = new_digit;
+                        break;
+                    } else {
+                        coeff[index] = 0;
+                        if index == 0 {
+                            coeff.insert(0, 1u32);
+                            digits_before_dot += 1;
+                            coeff.pop();
+                            break;
+                        }
+                    }
+                    index -= 1;
+                }
+            }
+        }
+
         // here when no characters left
         if coeff.is_empty() {
             return Err(Error::new("Invalid decimal: no digits found"));
@@ -2148,7 +2246,7 @@ impl FromStr for Decimal {
             0
         };
 
-        // Parse this using base 10 (future allow using radix?)
+        // Parse this using specified radix
         let mut data = [0u32, 0u32, 0u32];
         let mut tmp = [0u32, 0u32, 0u32];
         let len = coeff.len();
@@ -2157,9 +2255,9 @@ impl FromStr for Decimal {
             tmp[0] = data[0];
             tmp[1] = data[1];
             tmp[2] = data[2];
-            let overflow = mul_by_u32(&mut tmp, 10u32);
+            let overflow = mul_by_u32(&mut tmp, radix);
             if overflow > 0 {
-                // This indicates a bug in the coeeficient rounding above.
+                // This indicates a bug in the coefficient rounding above.
                 // If this is the last position, then round and forget it.
                 // Otherwise, we have more of an issue.
                 if i + 1 < len {
@@ -2194,6 +2292,14 @@ impl FromStr for Decimal {
             hi: data[2],
             flags: flags(negative, scale),
         })
+    }
+}
+
+impl FromStr for Decimal {
+    type Err = Error;
+
+    fn from_str(value: &str) -> Result<Decimal, Self::Err> {
+        Decimal::from_str_radix(value, 10)
     }
 }
 
