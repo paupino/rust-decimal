@@ -1,5 +1,9 @@
 # Version History
 
+## 1.3.0
+
+* Replace `num` dependency with `num_trait` - implemented `Signed` and `Num` traits.
+
 ## 1.2.1
 
 * Fixes issue whereby overflow would occur reading from PostgreSQL with high precision. The library now 
