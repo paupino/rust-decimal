@@ -126,6 +126,34 @@ fn iterator_sum(b: &mut ::test::Bencher) {
     });
 }
 
+#[bench]
+fn decimal_from_str(b: &mut test::Bencher) {
+    let samples_strs = &[
+        "3950.123456",
+        "3950",
+        "0.1",
+        "0.01",
+        "0.001",
+        "0.0001",
+        "0.00001",
+        "0.000001",
+        "1",
+        "-100",
+        "-123.456",
+        "119996.25",
+        "1000000",
+        "9999999.99999",
+        "12340.56789",
+    ];
+
+    b.iter(|| {
+        for s in samples_strs {
+            let result = Decimal::from_str(s).unwrap();
+            test::black_box(result);
+        }
+    })
+}
+
 #[cfg(feature = "postgres")]
 #[bench]
 fn to_from_sql(b: &mut ::test::Bencher) {
