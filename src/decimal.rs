@@ -256,21 +256,22 @@ impl Decimal {
         let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
 
         let base = split.next().ok_or_else(|| err.clone())?;
-        let mut scale = split.next().ok_or_else(|| err.clone())?;
+        let exp = split.next().ok_or_else(|| err.clone())?;
 
         let mut ret = Decimal::from_str(base)?;
+        let current_scale = ret.scale();
 
-        if scale.starts_with('-') {
-            let scale: u32 = scale[1..].parse().map_err(move |_| err)?;
-            let current_scale = ret.scale();
-            ret.set_scale(current_scale + scale)?;
+        if exp.starts_with('-') {
+            let exp: u32 = exp[1..].parse().map_err(move |_| err)?;
+            ret.set_scale(current_scale + exp)?;
         } else {
-            if scale.starts_with('+') {
-                scale = &scale[1..];
+            let exp: u32 = exp.parse().map_err(move |_| err)?;
+            if exp <= current_scale {
+                ret.set_scale(current_scale - exp)?;
+            } else {
+                ret *= Decimal::from_i64(10_i64.pow(exp)).unwrap();
+                ret = ret.normalize();
             }
-            let pow: u32 = scale.parse().map_err(move |_| err)?;
-            ret *= Decimal::from_i64(10_i64.pow(pow)).unwrap();
-            ret = ret.normalize();
         }
         Ok(ret)
     }
