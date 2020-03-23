@@ -41,15 +41,11 @@ pub struct InvalidDecimal;
 
 impl fmt::Display for InvalidDecimal {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(error::Error::description(self))
+        fmt.write_str("Invalid Decimal")
     }
 }
 
-impl error::Error for InvalidDecimal {
-    fn description(&self) -> &str {
-        "Invalid Decimal"
-    }
-}
+impl error::Error for InvalidDecimal {}
 
 struct PostgresDecimal<D> {
     neg: bool,
