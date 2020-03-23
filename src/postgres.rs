@@ -119,7 +119,7 @@ impl Decimal {
         if result.set_scale(scale as u32).is_err() {
             return Err(InvalidDecimal);
         }
-        result.set_sign(!neg);
+        result.set_sign_negative(neg);
 
         // Retain trailing zeroes.
         Ok(result)
