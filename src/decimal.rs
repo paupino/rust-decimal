@@ -352,11 +352,7 @@ impl Decimal {
     /// ```
     #[inline(always)]
     pub fn set_sign_negative(&mut self, negative: bool) {
-        if negative {
-            self.flags |= SIGN_MASK;
-        } else {
-            self.flags &= UNSIGN_MASK;
-        }
+        self.set_sign_positive(!negative);
     }
 
     /// An optimized method for changing the scale of a decimal number.
