@@ -20,7 +20,7 @@ pub fn dec(input: TokenStream) -> TokenStream {
         source.remove(1);
     }
 
-    let decimal = match Decimal::from_str(&source[..]) {
+    let decimal = match Decimal::from_str(&source[..]).or_else(|_| Decimal::from_scientific(&source[..])) {
         Ok(d) => d,
         Err(e) => panic!("Unexpected decimal format for {}: {}", source, e),
     };

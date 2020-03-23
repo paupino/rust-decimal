@@ -1283,6 +1283,7 @@ fn it_can_parse_scientific_notation() {
         ("1.2e10", "12000000000"),
         ("1.2e+10", "12000000000"),
         ("12e10", "120000000000"),
+        ("9.7E-7", "0.00000097"),
     ];
 
     for &(value, expected) in tests {
