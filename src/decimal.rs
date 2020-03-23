@@ -914,7 +914,7 @@ impl Decimal {
         // floating point number
         if is64 {
             // Guaranteed to about 16 dp
-            while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFE0_0000) != 0) {
+            while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFF0_0000) != 0) {
                 let rem10 = div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {
