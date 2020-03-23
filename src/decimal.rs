@@ -306,12 +306,53 @@ impl Decimal {
     /// one.set_sign(false);
     /// assert_eq!(one.to_string(), "-1");
     /// ```
+    #[deprecated(since = "1.4.0", note = "please use `set_sign_positive` instead")]
     pub fn set_sign(&mut self, positive: bool) {
+        self.set_sign_positive(positive);
+    }
+
+    /// An optimized method for changing the sign of a decimal number.
+    ///
+    /// # Arguments
+    ///
+    /// * `positive`: true if the resulting decimal should be positive.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let mut one = Decimal::new(1, 0);
+    /// one.set_sign_positive(false);
+    /// assert_eq!(one.to_string(), "-1");
+    /// ```
+    #[inline(always)]
+    pub fn set_sign_positive(&mut self, positive: bool) {
         if positive {
             self.flags &= UNSIGN_MASK;
         } else {
             self.flags |= SIGN_MASK;
         }
+    }
+
+    /// An optimized method for changing the sign of a decimal number.
+    ///
+    /// # Arguments
+    ///
+    /// * `negative`: true if the resulting decimal should be negative.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let mut one = Decimal::new(1, 0);
+    /// one.set_sign_negative(true);
+    /// assert_eq!(one.to_string(), "-1");
+    /// ```
+    #[inline(always)]
+    pub fn set_sign_negative(&mut self, negative: bool) {
+        self.set_sign_positive(!negative);
     }
 
     /// An optimized method for changing the scale of a decimal number.
@@ -484,7 +525,7 @@ impl Decimal {
     /// ```
     pub fn abs(&self) -> Decimal {
         let mut me = *self;
-        me.set_sign(true);
+        me.set_sign_positive(true);
         me
     }
 
@@ -2057,7 +2098,7 @@ impl Signed for Decimal {
         } else {
             let mut value = Decimal::one();
             if self.is_sign_negative() {
-                value.set_sign(false);
+                value.set_sign_negative(true);
             }
             value
         }
@@ -2378,7 +2419,7 @@ impl FromPrimitive for Decimal {
         if biased_exponent == 0 && mantissa == 0 {
             let mut zero = Decimal::zero();
             if !positive {
-                zero.set_sign(false);
+                zero.set_sign_negative(true);
             }
             return Some(zero);
         }
@@ -2422,7 +2463,7 @@ impl FromPrimitive for Decimal {
         if biased_exponent == 0 && mantissa == 0 {
             let mut zero = Decimal::zero();
             if !positive {
-                zero.set_sign(false);
+                zero.set_sign_negative(true);
             }
             return Some(zero);
         }
