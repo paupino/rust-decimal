@@ -1,5 +1,15 @@
 # Version History
 
+## 1.4.0
+
+* Allow uppercase "E" in scientific notation.
+* Allow scientific notation in `dec!` macro.
+* Deprecate `set_sign` and replace with `set_sign_positive` and `set_sign_negative`. This is intended
+ to improve the readability of the API.
+* Fixes precision issue when parsing `f64` values. The base 2 mantissa of the float was assuming guaranteed accuracy
+ of 53 bit precision, however 52 bit precision is more accurate (`f64` only).
+* Removes deprecated usage of `Error::description`.
+
 ## 1.3.0
 
 * Replace `num` dependency with `num_trait` - implemented `Signed` and `Num` traits.
