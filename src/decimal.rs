@@ -2531,11 +2531,17 @@ impl ToPrimitive for Decimal {
                 None => None,
             }
         } else {
-            // TODO: Utilize mantissa algorithm.
-            match self.to_string().parse::<f64>() {
-                Ok(s) => Some(s),
-                Err(_) => None,
-            }
+            let sign: f64 = if self.is_sign_negative() { -1.0 } else { 1.0 };
+            let mut mantissa: u128 = self.lo.into();
+            mantissa |= (self.mid as u128) << 32;
+            mantissa |= (self.hi as u128) << 64;
+            // scale is at most 28, so this fits comfortably into a u128.
+            let scale = self.scale();
+            let precision: u128 = 10_u128.pow(scale);
+            let integral_part = mantissa / precision;
+            let frac_part = mantissa % precision;
+            let frac_f64 = (frac_part as f64) / (precision as f64);
+            Some(sign * ((integral_part as f64) + frac_f64))
         }
     }
 }
