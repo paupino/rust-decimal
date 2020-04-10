@@ -1,5 +1,11 @@
 # Version History
 
+## 1.4.1
+
+* Performance improvements for `to_f64` when using a scale > 0.
+
+Special thank you to @hengchu who discovered and resolved the issue!
+
 ## 1.4.0
 
 * Allow uppercase "E" in scientific notation.
