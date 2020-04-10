@@ -7,8 +7,6 @@ use std::{
     str::FromStr,
 };
 
-use float_cmp::approx_eq;
-
 // Parsing
 
 #[test]
@@ -1066,15 +1064,33 @@ fn it_converts_to_f64() {
     assert_eq!(0.1f64, Decimal::from_str("0.1").unwrap().to_f64().unwrap());
     assert_eq!(0f64, Decimal::from_str("0.0").unwrap().to_f64().unwrap());
     assert_eq!(0f64, Decimal::from_str("-0.0").unwrap().to_f64().unwrap());
-    assert!(approx_eq!(
-        f64,
+    assert_eq!(
         0.25e-11f64,
         Decimal::from_str("0.0000000000025").unwrap().to_f64().unwrap(),
-        ulps = 2
-    ));
+    );
     assert_eq!(
         1e6f64,
         Decimal::from_str("1000000.0000000000025").unwrap().to_f64().unwrap()
+    );
+    assert_eq!(
+        0.25e-25_f64,
+        Decimal::from_str("0.000000000000000000000000025")
+            .unwrap()
+            .to_f64()
+            .unwrap(),
+    );
+    assert_eq!(
+        2.1234567890123456789012345678_f64,
+        Decimal::from_str("2.1234567890123456789012345678")
+            .unwrap()
+            .to_f64()
+            .unwrap(),
+    );
+
+    assert_eq!(
+        None,
+        // Cannot be represented in an f64
+        Decimal::from_str("21234567890123456789012345678").unwrap().to_f64(),
     );
 }
 
