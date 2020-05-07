@@ -776,7 +776,7 @@ impl Decimal {
                 }
             }
             RoundingStrategy::RoundUp => {
-                if is_all_zero(&decimal_portion) {
+                if !is_all_zero(&decimal_portion) {
                     add_internal(&mut value, &ONE_INTERNAL_REPR);
                 }
             }
