@@ -976,6 +976,30 @@ fn it_can_round_complex_numbers() {
 }
 
 #[test]
+fn it_can_round_down() {
+    let a = Decimal::new(470, 3).round_dp_with_strategy(1, RoundingStrategy::RoundDown);
+    assert_eq!("0.4", a.to_string());
+}
+
+#[test]
+fn it_only_rounds_down_when_needed() {
+    let a = Decimal::new(400, 3).round_dp_with_strategy(1, RoundingStrategy::RoundDown);
+    assert_eq!("0.4", a.to_string());
+}
+
+#[test]
+fn it_can_round_up() {
+    let a = Decimal::new(320, 3).round_dp_with_strategy(1, RoundingStrategy::RoundUp);
+    assert_eq!("0.4", a.to_string());
+}
+
+#[test]
+fn it_only_rounds_up_when_needed() {
+    let a = Decimal::new(300, 3).round_dp_with_strategy(1, RoundingStrategy::RoundUp);
+    assert_eq!("0.3", a.to_string());
+}
+
+#[test]
 fn it_can_trunc() {
     let tests = &[("1.00000000000000000000", "1"), ("1.000000000000000000000001", "1")];
 

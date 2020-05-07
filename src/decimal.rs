@@ -119,10 +119,14 @@ pub struct Decimal {
 /// `RoundingStrategy::RoundHalfDown` - Rounds down if the value =< 5, otherwise rounds up, e.g.
 /// 6.5 -> 6, 6.51 -> 7
 /// 1.4999999 -> 1
+/// `RoundingStrategy::RoundDown` - Always round down.
+/// `RoundingStrategy::RoundUp` - Always round up.
 pub enum RoundingStrategy {
     BankersRounding,
     RoundHalfUp,
     RoundHalfDown,
+    RoundDown,
+    RoundUp,
 }
 
 #[allow(dead_code)]
@@ -771,6 +775,12 @@ impl Decimal {
                     _ => {}
                 }
             }
+            RoundingStrategy::RoundUp => {
+                if decimal_portion != [0, 0, 0] {
+                    add_internal(&mut value, &ONE_INTERNAL_REPR);
+                }
+            }
+            RoundingStrategy::RoundDown => (),
         }
 
         Decimal {
