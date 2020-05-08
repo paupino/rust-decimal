@@ -1,5 +1,13 @@
 # Version History
 
+## 1.5.0
+
+* Added additional `RoundStrategy` abilities: `RoundUp` to always round up and `RoundDown` to always round down.
+* Updated prelude to include expected structs and traits by default. 
+
+Special thank you to @jean-airoldie for adding the additional rounding strategies and to @pfrenssen for fixing an
+issue in the README.
+
 ## 1.4.1
 
 * Performance improvements for `to_f64` when using a scale > 0.
