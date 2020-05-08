@@ -25,8 +25,7 @@ let number = dec!(-1.23);
 Alternatively you can also use one of the Decimal number convenience functions:
 
 ```rust
-use rust_decimal::Decimal;
-use std::str::FromStr;
+use rust_decimal::prelude::*;
 
 // Using an integer followed by the decimal points
 let scaled = Decimal::new(202, 2); // 2.02

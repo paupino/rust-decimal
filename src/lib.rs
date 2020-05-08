@@ -18,8 +18,7 @@
 //! using one of it's convenience methods.
 //!
 //! ```rust
-//! use rust_decimal::Decimal;
-//! use std::str::FromStr;
+//! use rust_decimal::prelude::*;
 //!
 //! // Using an integer followed by the decimal points
 //! let scaled = Decimal::new(202, 2); // 2.02
@@ -47,7 +46,9 @@ pub use decimal::{Decimal, RoundingStrategy};
 pub use error::Error;
 
 pub mod prelude {
+    pub use crate::{Decimal, RoundingStrategy};
     pub use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
+    pub use std::str::FromStr;
 }
 
 #[cfg(feature = "diesel")]
