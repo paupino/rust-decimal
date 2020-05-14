@@ -4,7 +4,7 @@ use crate::Decimal;
 
 use std::{convert::TryInto, error, fmt, result::*};
 
-use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32};
+use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32, MAX_PRECISION};
 
 #[derive(Debug, Clone, Copy)]
 pub struct InvalidDecimal;
@@ -58,8 +58,10 @@ impl Decimal {
             let dec: Vec<_> = digits.into_iter().collect();
             let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
             for (i, digit) in dec.into_iter().enumerate() {
-                result += Decimal::new(digit as i64, 0)
-                    / Decimal::from_i128_with_scale(10i128.pow(4 * (i as u32 + 1 + start_fractionals)), 0);
+                let fract_pow = 4 * (i as u32 + 1 + start_fractionals);
+                if fract_pow <= MAX_PRECISION {
+                    result += Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0);
+                }
             }
         }
 
@@ -515,6 +517,35 @@ mod diesel {
             };
             let res: Decimal = pg_numeric.try_into().unwrap();
             assert_eq!(res.to_string(), expected.to_string());
+
+            let expected = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 30,
+                digits: vec![3, 1415, 9265, 3589, 7932, 3846, 2643, 3832, 7950, 2800],
+            };
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
+
+            let expected = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 34,
+                digits: vec![3, 1415, 9265, 3589, 7932, 3846, 2643, 3832, 7950, 2800],
+            };
+
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
+
+            let expected = Decimal::from_str("1.2345678901234567890123456789").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 34,
+                digits: vec![1, 2345, 6789, 0123, 4567, 8901, 2345, 6789, 5000, 0],
+            };
+
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
         }
     }
 }
@@ -703,20 +734,20 @@ mod postgres {
                 65,
                 30,
                 "3.141592653589793238462643383279",
-                "3.1415926535897932384626433833",
+                "3.1415926535897932384626433832",
             ),
             (
                 65,
                 34,
                 "3.1415926535897932384626433832795028",
-                "3.1415926535897932384626433833",
+                "3.1415926535897932384626433832",
             ),
             // Unrounded number
             (
                 65,
                 34,
                 "1.234567890123456789012345678950000",
-                "1.2345678901234567890123456790",
+                "1.2345678901234567890123456789",
             ),
             (
                 65,
@@ -778,7 +809,7 @@ mod postgres {
                 let result: Decimal =
                     match client.query(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale), &[]) {
                         Ok(x) => x.iter().next().unwrap().get(0),
-                        Err(err) => panic!("{:#?}", err),
+                        Err(err) => panic!("SELECT {}::NUMERIC({}, {}), error - {:#?}", sent, precision, scale, err),
                     };
                 assert_eq!(
                     expected,

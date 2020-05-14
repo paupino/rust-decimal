@@ -33,7 +33,7 @@ const SCALE_SHIFT: u32 = 16;
 const SIGN_SHIFT: u32 = 31;
 
 // The maximum supported precision
-const MAX_PRECISION: u32 = 28;
+pub(crate) const MAX_PRECISION: u32 = 28;
 // 281,474,976,710,655
 const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
 
