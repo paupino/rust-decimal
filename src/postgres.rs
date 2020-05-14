@@ -61,6 +61,12 @@ impl Decimal {
                 let fract_pow = 4 * (i as u32 + 1 + start_fractionals);
                 if fract_pow <= MAX_PRECISION {
                     result += Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0);
+                } else if fract_pow == MAX_PRECISION + 4 {
+                    // rounding last digit
+                    if digit >= 5000 {
+                        result +=
+                            Decimal::new(1 as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION), 0);
+                    }
                 }
             }
         }
@@ -279,7 +285,7 @@ mod diesel {
 
         #[test]
         fn test_with_scale() {
-            let value = Decimal::from_str("0.024537600000").unwrap();
+            let value = Decimal::from_str("0.024537600001").unwrap();
             let from_value = Decimal::from_str("0.40000000").unwrap();
             let to_value = Decimal::from_str("16.30151278").unwrap();
             let new_value = (from_value / to_value).with_scale(12);
@@ -518,7 +524,7 @@ mod diesel {
             let res: Decimal = pg_numeric.try_into().unwrap();
             assert_eq!(res.to_string(), expected.to_string());
 
-            let expected = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+            let expected = Decimal::from_str("3.1415926535897932384626433833").unwrap();
             let pg_numeric = PgNumeric::Positive {
                 weight: 0,
                 scale: 30,
@@ -527,7 +533,7 @@ mod diesel {
             let res: Decimal = pg_numeric.try_into().unwrap();
             assert_eq!(res.to_string(), expected.to_string());
 
-            let expected = Decimal::from_str("3.1415926535897932384626433832").unwrap();
+            let expected = Decimal::from_str("3.1415926535897932384626433833").unwrap();
             let pg_numeric = PgNumeric::Positive {
                 weight: 0,
                 scale: 34,
@@ -537,7 +543,7 @@ mod diesel {
             let res: Decimal = pg_numeric.try_into().unwrap();
             assert_eq!(res.to_string(), expected.to_string());
 
-            let expected = Decimal::from_str("1.2345678901234567890123456789").unwrap();
+            let expected = Decimal::from_str("1.2345678901234567890123456790").unwrap();
             let pg_numeric = PgNumeric::Positive {
                 weight: 0,
                 scale: 34,
@@ -734,20 +740,20 @@ mod postgres {
                 65,
                 30,
                 "3.141592653589793238462643383279",
-                "3.1415926535897932384626433832",
+                "3.1415926535897932384626433833",
             ),
             (
                 65,
                 34,
                 "3.1415926535897932384626433832795028",
-                "3.1415926535897932384626433832",
+                "3.1415926535897932384626433833",
             ),
             // Unrounded number
             (
                 65,
                 34,
                 "1.234567890123456789012345678950000",
-                "1.2345678901234567890123456789",
+                "1.2345678901234567890123456790",
             ),
             (
                 65,

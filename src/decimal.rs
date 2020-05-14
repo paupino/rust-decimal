@@ -415,7 +415,7 @@ impl Decimal {
                 result.set_scale(set_scale).unwrap();
                 result
             }
-            scale if scale < unpacked.scale => self.round_dp_with_strategy(scale, RoundingStrategy::RoundDown),
+            scale if scale < unpacked.scale => self.round_dp_with_strategy(scale, RoundingStrategy::BankersRounding),
             _ => self,
         }
     }
