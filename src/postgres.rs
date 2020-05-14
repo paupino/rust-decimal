@@ -6,36 +6,6 @@ use std::{convert::TryInto, error, fmt, result::*};
 
 use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32};
 
-const DECIMALS: [Decimal; 15] = [
-    Decimal::from_parts(1, 0, 0, false, 28),
-    Decimal::from_parts(1, 0, 0, false, 24),
-    Decimal::from_parts(1, 0, 0, false, 20),
-    Decimal::from_parts(1, 0, 0, false, 16),
-    Decimal::from_parts(1, 0, 0, false, 12),
-    Decimal::from_parts(1, 0, 0, false, 8),
-    Decimal::from_parts(1, 0, 0, false, 4),
-    Decimal::from_parts(1, 0, 0, false, 0),
-    Decimal::from_parts(1_0000, 0, 0, false, 0),
-    Decimal::from_parts(1_0000_0000, 0, 0, false, 0),
-    Decimal::from_parts(
-        1_0000_0000_0000u64 as u32,
-        (1_0000_0000_0000u64 >> 32) as u32,
-        0,
-        false,
-        0,
-    ),
-    Decimal::from_parts(
-        1_0000_0000_0000_0000u64 as u32,
-        (1_0000_0000_0000_0000u64 >> 32) as u32,
-        0,
-        false,
-        0,
-    ),
-    Decimal::from_parts(1661992960, 1808227885, 5, false, 0),
-    Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
-    Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
-];
-
 #[derive(Debug, Clone, Copy)]
 pub struct InvalidDecimal;
 
@@ -58,66 +28,45 @@ impl Decimal {
     fn from_postgres<D: ExactSizeIterator<Item = u16>>(
         PostgresDecimal {
             neg,
-            weight,
             scale,
             digits,
+            weight,
         }: PostgresDecimal<D>,
     ) -> Result<Self, InvalidDecimal> {
         let mut digits = digits.into_iter().collect::<Vec<_>>();
-        let mut num_groups = digits.len() as u16;
-        // Number of digits (in base 10) to print after decimal separator
-        let fixed_scale = scale as i32;
-        // If we're greater than 8 groups then we have a higher precision than Decimal can represent.
-        // We limit this here. We also round up if the value AFTER our cutoff is over 5.
-        const MAX_GROUP_COUNT: usize = 8;
-        if num_groups as usize > MAX_GROUP_COUNT {
-            num_groups = MAX_GROUP_COUNT as u16;
-            if digits[MAX_GROUP_COUNT] >= 5000 {
-                digits[MAX_GROUP_COUNT - 1] += 1;
-            }
-        }
 
-        // Read all of the groups
-        let mut groups = digits
-            .into_iter()
-            .take(num_groups as usize)
-            .map(|d| Decimal::new(d as i64, 0))
-            .collect::<Vec<_>>();
-        groups.reverse();
+        let fractionals_part_count = digits.len() as i32 + (-weight as i32) - 1;
+        let integers_part_count = weight as i32 + 1;
 
-        // Now process the number
         let mut result = Decimal::zero();
-        for (index, group) in groups.iter().enumerate() {
-            result = result + (DECIMALS[index + 7] * group);
-        }
-
-        // Finally, adjust for the scale
-        let mut scale = (num_groups as i16 - weight - 1) as i32 * 4;
-        // Scale could be negative
-        if scale < 0 {
-            result *= Decimal::from_i128_with_scale(10i128.pow((-scale) as u32), 0);
-            scale = 0;
-        } else if scale > fixed_scale {
-            // Remove trailing zeroes
-            result /= Decimal::from_i128_with_scale(10i128.pow((scale - fixed_scale) as u32), 0);
-            scale = fixed_scale;
-        } else if scale < fixed_scale {
-            // Since we're only adding trailing zeros we only add as many as feasibly represented
-            let mut max_scale = fixed_scale;
-            if max_scale > 28 {
-                max_scale = 28;
+        // adding integer part
+        if integers_part_count > 0 {
+            let (start_integers, last) = if integers_part_count > digits.len() as i32 {
+                (integers_part_count - digits.len() as i32, digits.len() as i32)
+            } else {
+                (0, integers_part_count)
+            };
+            let integers: Vec<_> = digits.drain(..last as usize).collect();
+            for digit in integers {
+                result *= Decimal::from_i128_with_scale(10i128.pow(4), 0);
+                result += Decimal::new(digit as i64, 0);
             }
-            result *= Decimal::from_i128_with_scale(10i128.pow((max_scale - scale) as u32), 0);
-            scale = max_scale;
+            result *= Decimal::from_i128_with_scale(10i128.pow(4 * start_integers as u32), 0);
+        }
+        // adding fractional part
+        if fractionals_part_count > 0 {
+            let dec: Vec<_> = digits.into_iter().collect();
+            let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
+            for (i, digit) in dec.into_iter().enumerate() {
+                result += Decimal::new(digit as i64, 0)
+                    / Decimal::from_i128_with_scale(10i128.pow(4 * (i as u32 + 1 + start_fractionals)), 0);
+            }
         }
 
-        // Create the decimal
-        if result.set_scale(scale as u32).is_err() {
-            return Err(InvalidDecimal);
-        }
         result.set_sign_negative(neg);
+        // Setting scale frm PG value.
+        result = result.with_scale(scale as u32);
 
-        // Retain trailing zeroes.
         Ok(result)
     }
 
@@ -133,8 +82,6 @@ impl Decimal {
         let scale = self.scale() as u16;
 
         let groups_diff = scale & 0x3; // groups_diff = scale % 4
-        let mut fractional_groups_count = (scale >> 2) as isize; // fractional_groups_count = scale / 4
-        fractional_groups_count += if groups_diff > 0 { 1 } else { 0 };
 
         let mut mantissa = self.mantissa_array4();
 
@@ -153,13 +100,23 @@ impl Decimal {
             digits.push(digit.try_into().unwrap());
         }
         digits.reverse();
+        let digits_after_decimal = (scale + 3) as u16 / 4;
+        let weight = digits.len() as i16 - digits_after_decimal as i16 - 1;
 
-        let whole_portion_len = digits.len() as isize - fractional_groups_count;
-        let weight = if whole_portion_len < 0 {
-            -(fractional_groups_count as i16)
+        let unnecessary_zeroes = if weight >= 0 {
+            let index_of_decimal = (weight + 1) as usize;
+            digits
+                .get(index_of_decimal..)
+                .expect("enough digits exist")
+                .iter()
+                .rev()
+                .take_while(|i| **i == 0)
+                .count()
         } else {
-            whole_portion_len as i16 - 1
+            0
         };
+        let relevant_digits = digits.len() - unnecessary_zeroes;
+        digits.truncate(relevant_digits);
 
         PostgresDecimal {
             neg: self.is_sign_negative(),
@@ -210,7 +167,7 @@ mod diesel {
                 scale,
                 digits: digits.iter().copied().map(|v| v.try_into().unwrap()),
             })
-            .map_err(Box::new)?)
+                .map_err(Box::new)?)
         }
     }
 
@@ -266,9 +223,91 @@ mod diesel {
     }
 
     #[cfg(test)]
-    mod tests {
+    mod pg_tests {
         use super::*;
         use std::str::FromStr;
+
+        #[test]
+        fn test_unnecessary_zeroes() {
+            let value = Decimal::from_str("0.000001660").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec, value);
+
+            let value = Decimal::from_str("41.120255926293").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec, value);
+
+            let value = Decimal::from_str("0.55389733").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec, value);
+
+            let value = Decimal::from_str("8883.559868542931").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec, value);
+
+            let value = Decimal::from_str("0.0000_0000_0016_6000_00").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec, value);
+
+            let value = Decimal::from_str("0.00000166650000").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec.to_string(), "0.00000166650000".to_string());
+
+            let value = Decimal::from_str("1666500000000").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec.to_string(), "1666500000000".to_string());
+
+            let value = Decimal::from_str("1666500000000.00000545").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec.to_string(), "1666500000000.00000545".to_string());
+
+            let value = Decimal::from_str("8944.000000000000").unwrap();
+            let pg = PgNumeric::from(value);
+            let dec = Decimal::try_from(pg).unwrap();
+            assert_eq!(dec.to_string(), "8944.000000000000".to_string());
+        }
+
+        #[test]
+        fn test_with_scale() {
+            let value = Decimal::from_str("0.024537600000").unwrap();
+            let from_value = Decimal::from_str("0.40000000").unwrap();
+            let to_value = Decimal::from_str("16.30151278").unwrap();
+            let new_value = (from_value / to_value).with_scale(12);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("0.12345600000").unwrap();
+            let new_value = Decimal::from_str("0.123456").unwrap();
+            let value = value.with_scale(6);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("0.123456").unwrap();
+            let new_value = Decimal::from_str("0.123456000000").unwrap();
+            let value = value.with_scale(12);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("0.123456").unwrap();
+            let new_value = Decimal::from_str("0").unwrap();
+            let value = value.with_scale(0);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("0.000001").unwrap();
+            let new_value = Decimal::from_str("0.0000").unwrap();
+            let value = value.with_scale(4);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("1233456").unwrap();
+            let new_value = Decimal::from_str("1233456.0000").unwrap();
+            let value = value.with_scale(4);
+            assert_eq!(new_value.to_string(), value.to_string());
+        }
 
         #[test]
         fn decimal_to_pgnumeric_converts_digits_to_base_10000() {
@@ -327,7 +366,7 @@ mod diesel {
             let expected = PgNumeric::Positive {
                 weight: 0,
                 scale: 1,
-                digits: vec![1, 0],
+                digits: vec![1],
             };
             assert_eq!(expected, decimal.into());
 
@@ -423,12 +462,22 @@ mod diesel {
             let res: Decimal = pg_numeric.try_into().unwrap();
             assert_eq!(res.to_string(), expected.to_string());
 
+            // To represent 5.00, Postgres can return either [5, 0] as the list of digits.
             let expected = Decimal::from_str("5.00").unwrap();
             let pg_numeric = PgNumeric::Positive {
                 weight: 0,
                 scale: 2,
-                // To represent 5.00, Postgres can return either [5, 0] or just [5]
-                // as the list of digits. Verify this crate handles the shortened list correctly.
+
+                digits: vec![5, 0],
+            };
+            let res: Decimal = pg_numeric.try_into().unwrap();
+            assert_eq!(res.to_string(), expected.to_string());
+
+            // To represent 5.00, Postgres can return [5] as the list of digits.
+            let expected = Decimal::from_str("5.00").unwrap();
+            let pg_numeric = PgNumeric::Positive {
+                weight: 0,
+                scale: 2,
                 digits: vec![5],
             };
             let res: Decimal = pg_numeric.try_into().unwrap();
@@ -504,7 +553,7 @@ mod postgres {
             let mut raw = Cursor::new(raw);
             let num_groups = raw.read_u16::<BigEndian>()?;
             let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
-                                                       // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
+            // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
             let sign = raw.read_u16::<BigEndian>()?;
             // Number of digits (in base 10) to print after decimal separator
             let scale = raw.read_u16::<BigEndian>()?;
@@ -521,7 +570,7 @@ mod postgres {
                 scale,
                 digits: groups.into_iter(),
             })
-            .map_err(Box::new)?)
+                .map_err(Box::new)?)
         }
 
         fn accepts(ty: &Type) -> bool {
@@ -653,29 +702,6 @@ mod postgres {
             (35, 6, "0.10001", "0.100010"),
             (35, 6, "0.12345", "0.123450"),
         ];
-
-        #[test]
-        fn ensure_equivalent_decimal_constants() {
-            let expected_decimals = [
-                Decimal::new(1, 28),
-                Decimal::new(1, 24),
-                Decimal::new(1, 20),
-                Decimal::new(1, 16),
-                Decimal::new(1, 12),
-                Decimal::new(1, 8),
-                Decimal::new(1, 4),
-                Decimal::new(1, 0),
-                Decimal::new(10000, 0),
-                Decimal::new(100000000, 0),
-                Decimal::new(1000000000000, 0),
-                Decimal::new(10000000000000000, 0),
-                Decimal::from_parts(1661992960, 1808227885, 5, false, 0),
-                Decimal::from_parts(2701131776, 466537709, 54210, false, 0),
-                Decimal::from_parts(268435456, 1042612833, 542101086, false, 0),
-            ];
-
-            assert_eq!(&expected_decimals[..], &DECIMALS[..]);
-        }
 
         #[test]
         fn test_null() {

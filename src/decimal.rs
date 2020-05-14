@@ -80,6 +80,19 @@ static BIG_POWERS_10: [u64; 10] = [
     1_000_000_000_000_000_000,
     10_000_000_000_000_000_000,
 ];
+// Fast access for 10^n where n is 20-28
+#[allow(dead_code)]
+static MAX_POWERS_10: [u128; 9] = [
+    100_000_000_000_000_000_000,
+    1_000_000_000_000_000_000_000,
+    10_000_000_000_000_000_000_000,
+    100_000_000_000_000_000_000_000,
+    1_000_000_000_000_000_000_000_000,
+    10_000_000_000_000_000_000_000_000,
+    100_000_000_000_000_000_000_000_000,
+    1_000_000_000_000_000_000_000_000_000,
+    10_000_000_000_000_000_000_000_000_000,
+];
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
@@ -380,6 +393,40 @@ impl Decimal {
         }
         self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
         Ok(())
+    }
+
+    /// Change scale of decimal number, without changing number itself
+    ///
+    /// > Note that values bigger then 28 will cause panic
+    /// > Note that setting scale which is less then current, cause number truncation
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let number = Decimal::new(1_123, 3).with_scale(6);
+    /// assert_eq!(number, Decimal::new(1_123_000, 6));
+    /// ```
+    pub fn with_scale(self, scale: u32) -> Self {
+        let unpacked = self.unpack();
+
+        match scale {
+            scale if scale > unpacked.scale => {
+                let scale_diff = scale - unpacked.scale;
+                let mul = match scale_diff {
+                    0..=9 => Decimal::from_u32(POWERS_10[scale_diff as usize]).unwrap(),
+                    10..=19 => Decimal::from_u64(BIG_POWERS_10[scale_diff as usize - 10]).unwrap(),
+                    20..=MAX_PRECISION => Decimal::from_u128(MAX_POWERS_10[scale_diff as usize - 20]).unwrap(),
+                    _ => unreachable!(),
+                };
+                let mut result = self * mul;
+                result.set_scale(scale).unwrap();
+                result
+            }
+            scale if scale < unpacked.scale => self.round_dp_with_strategy(scale, RoundingStrategy::RoundDown),
+            _ => self,
+        }
     }
 
     /// Returns a serialized version of the decimal number.
