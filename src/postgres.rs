@@ -167,7 +167,7 @@ mod diesel {
                 scale,
                 digits: digits.iter().copied().map(|v| v.try_into().unwrap()),
             })
-                .map_err(Box::new)?)
+            .map_err(Box::new)?)
         }
     }
 
@@ -553,7 +553,7 @@ mod postgres {
             let mut raw = Cursor::new(raw);
             let num_groups = raw.read_u16::<BigEndian>()?;
             let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
-            // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
+                                                       // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
             let sign = raw.read_u16::<BigEndian>()?;
             // Number of digits (in base 10) to print after decimal separator
             let scale = raw.read_u16::<BigEndian>()?;
@@ -570,7 +570,7 @@ mod postgres {
                 scale,
                 digits: groups.into_iter(),
             })
-                .map_err(Box::new)?)
+            .map_err(Box::new)?)
         }
 
         fn accepts(ty: &Type) -> bool {
@@ -660,7 +660,7 @@ mod postgres {
             (35, 6, "-100", "-100.000000"),
             (35, 6, "-123.456", "-123.456000"),
             (35, 6, "119996.25", "119996.250000"),
-            (35, 6, "1000000", "1000000"),
+            (35, 6, "1000000", "1000000.000000"),
             (35, 6, "9999999.99999", "9999999.999990"),
             (35, 6, "12340.56789", "12340.567890"),
             // Scale is only 28 since that is the maximum we can represent.
