@@ -307,6 +307,39 @@ mod diesel {
             let new_value = Decimal::from_str("1233456.0000").unwrap();
             let value = value.with_scale(4);
             assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("1.2").unwrap();
+            let new_value = Decimal::from_str("1.2000000000000000000000000000").unwrap();
+            let value = value.with_scale(30);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
+            let value = Decimal::from_str("79228162514264337593543950335").unwrap();
+            let new_value = Decimal::from_str("79228162514264337593543950335").unwrap();
+            let value = value.with_scale(0);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
+            let value = Decimal::from_str("4951760157141521099596496895").unwrap();
+            let new_value = Decimal::from_str("4951760157141521099596496895.0").unwrap();
+            let value = value.with_scale(1);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            // 0x1000_0000_0000_0000_0000_0000
+            let value = Decimal::from_str("4951760157141521099596496896").unwrap();
+            let new_value = Decimal::from_str("4951760157141521099596496896.0").unwrap();
+            let value = value.with_scale(1);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("18446744073709551615").unwrap();
+            let new_value = Decimal::from_str("18446744073709551615.000000").unwrap();
+            let value = value.with_scale(6);
+            assert_eq!(new_value.to_string(), value.to_string());
+
+            let value = Decimal::from_str("-18446744073709551615").unwrap();
+            let new_value = Decimal::from_str("-18446744073709551615.000000").unwrap();
+            let value = value.with_scale(6);
+            assert_eq!(new_value.to_string(), value.to_string());
         }
 
         #[test]

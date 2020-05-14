@@ -80,19 +80,6 @@ static BIG_POWERS_10: [u64; 10] = [
     1_000_000_000_000_000_000,
     10_000_000_000_000_000_000,
 ];
-// Fast access for 10^n where n is 20-28
-#[allow(dead_code)]
-static MAX_POWERS_10: [u128; 9] = [
-    100_000_000_000_000_000_000,
-    1_000_000_000_000_000_000_000,
-    10_000_000_000_000_000_000_000,
-    100_000_000_000_000_000_000_000,
-    1_000_000_000_000_000_000_000_000,
-    10_000_000_000_000_000_000_000_000,
-    100_000_000_000_000_000_000_000_000,
-    1_000_000_000_000_000_000_000_000_000,
-    10_000_000_000_000_000_000_000_000_000,
-];
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
@@ -417,11 +404,15 @@ impl Decimal {
                 let mul = match scale_diff {
                     0..=9 => Decimal::from_u32(POWERS_10[scale_diff as usize]).unwrap(),
                     10..=19 => Decimal::from_u64(BIG_POWERS_10[scale_diff as usize - 10]).unwrap(),
-                    20..=MAX_PRECISION => Decimal::from_u128(MAX_POWERS_10[scale_diff as usize - 20]).unwrap(),
-                    _ => unreachable!(),
+                    20..=MAX_PRECISION => {
+                        Decimal::from_u64(BIG_POWERS_10[0]).unwrap()
+                            * Decimal::from_u64(BIG_POWERS_10[scale_diff as usize - 20]).unwrap()
+                    }
+                    _ => Decimal::from_u64(BIG_POWERS_10[0]).unwrap() * Decimal::from_u64(BIG_POWERS_10[8]).unwrap(),
                 };
                 let mut result = self * mul;
-                result.set_scale(scale).unwrap();
+                let set_scale = std::cmp::min(MAX_PRECISION, scale);
+                result.set_scale(set_scale).unwrap();
                 result
             }
             scale if scale < unpacked.scale => self.round_dp_with_strategy(scale, RoundingStrategy::RoundDown),
