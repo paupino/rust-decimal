@@ -384,8 +384,7 @@ impl Decimal {
 
     /// Change scale of decimal number, without changing number itself
     ///
-    /// > Note that values bigger then 28 will cause panic
-    /// > Note that setting scale which is less then current, cause number truncation
+    /// > Note that setting scale which is less then current, cause number Bankers Rounding
     ///
     /// # Example
     ///
