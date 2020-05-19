@@ -34,7 +34,7 @@ const SIGN_SHIFT: u32 = 31;
 
 // The maximum supported precision
 pub(crate) const MAX_PRECISION: u32 = 28;
-// 281,474,976,710,655
+// 79,228,162,514,264,337,593,543,950,335
 const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
 
 static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
@@ -197,12 +197,11 @@ impl Decimal {
         let mut wrapped = num;
         if num > MAX_I128_REPR {
             panic!("Number exceeds maximum value that can be represented");
+        } else if num < -MAX_I128_REPR {
+            panic!("Number less than minimum value that can be represented");
         } else if num < 0 {
             neg = true;
-            wrapped = num.wrapping_neg();
-            if wrapped > MAX_I128_REPR {
-                panic!("Number less than minimum value that can be represented");
-            }
+            wrapped = -num;
         }
         let flags: u32 = flags(neg, scale);
         Decimal {
@@ -683,10 +682,11 @@ impl Decimal {
 
     /// Returns a new `Decimal` number with the specified number of decimal points for fractional
     /// portion.
-    /// Rounding is performed using the provided `RoundingStrategy`
+    /// Rounding is performed using the provided [`RoundingStrategy`]
     ///
     /// # Arguments
     /// * `dp`: the number of decimal points to round to.
+    /// * `strategy`: the [`RoundingStrategy`] to use.
     ///
     /// # Example
     ///
@@ -2360,7 +2360,11 @@ impl Num for Decimal {
                     }
                 }
                 // We're also one less digit so reduce the scale
-                scale -= (len - i) as u32;
+                let diff = (len - i) as u32;
+                if diff > scale {
+                    return Err(Error::new("Invalid decimal: overflow from too many digits"));
+                }
+                scale -= diff;
                 break;
             } else {
                 data[0] = tmp[0];
