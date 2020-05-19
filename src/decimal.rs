@@ -1035,7 +1035,7 @@ impl Decimal {
         let mut my_scale = self.scale();
         let mut ot = [other.lo, other.mid, other.hi];
         let mut other_scale = other.scale();
-        rescale(&mut my, &mut my_scale, &mut ot, &mut other_scale);
+        try_rescale_to_maximum(&mut my, &mut my_scale, &mut ot, &mut other_scale);
         let mut final_scale = my_scale.max(other_scale);
 
         // Add the items together
@@ -1434,7 +1434,7 @@ impl Decimal {
         let mut quotient_scale = initial_scale;
         let mut divisor = [other.lo, other.mid, other.hi];
         let mut divisor_scale = other.scale();
-        rescale(&mut quotient, &mut quotient_scale, &mut divisor, &mut divisor_scale);
+        try_rescale_to_maximum(&mut quotient, &mut quotient_scale, &mut divisor, &mut divisor_scale);
 
         // Working is the remainder + the quotient
         // We use an aligned array since we'll be using it a lot.
@@ -1492,7 +1492,7 @@ const fn flags(neg: bool, scale: u32) -> u32 {
 /// will try to reduce the accuracy of the other argument.
 /// e.g. with 1.23 and 2.345 it'll rescale the first arg to 1.230
 #[inline(always)]
-fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], right_scale: &mut u32) {
+fn try_rescale_to_maximum(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], right_scale: &mut u32) {
     if left_scale == right_scale {
         // Nothing to do
         return;
@@ -1506,72 +1506,15 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
         return;
     }
 
-    enum Target {
-        Left,
-        Right,
-    }
-
-    let target; // The target which we're aiming for
-    let mut diff;
-    let my;
-    let other;
     if left_scale > right_scale {
-        diff = *left_scale - *right_scale;
-        my = right;
-        other = left;
-        target = Target::Left;
+        inner_rescale(right, right_scale, *left_scale);
+        if right_scale != left_scale {
+            inner_rescale(left, left_scale, *right_scale);
+        }
     } else {
-        diff = *right_scale - *left_scale;
-        my = left;
-        other = right;
-        target = Target::Right;
-    };
-
-    let mut working = [my[0], my[1], my[2]];
-    while diff > 0 && mul_by_10(&mut working) == 0 {
-        my.copy_from_slice(&working);
-        diff -= 1;
-    }
-
-    match target {
-        Target::Left => {
-            *left_scale -= diff;
-            *right_scale = *left_scale;
-        }
-        Target::Right => {
-            *right_scale -= diff;
-            *left_scale = *right_scale;
-        }
-    }
-
-    if diff == 0 {
-        // We're done - same scale
-        return;
-    }
-
-    // Scaling further isn't possible since we got an overflow
-    // In this case we need to reduce the accuracy of the "side to keep"
-
-    // Now do the necessary rounding
-    let mut remainder = 0;
-    while diff > 0 {
-        if is_all_zero(other) {
-            return;
-        }
-
-        diff -= 1;
-
-        // Any remainder is discarded if diff > 0 still (i.e. lost precision)
-        remainder = div_by_10(other);
-    }
-    if remainder >= 5 {
-        for part in other.iter_mut() {
-            let digit = u64::from(*part) + 1u64;
-            remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
-            *part = (digit & 0xFFFF_FFFF) as u32;
-            if remainder == 0 {
-                break;
-            }
+        inner_rescale(left, left_scale, *right_scale);
+        if right_scale != left_scale {
+            inner_rescale(right, right_scale, *left_scale);
         }
     }
 }
@@ -3000,7 +2943,7 @@ impl Ord for Decimal {
         // Rescale and compare
         let mut left_raw = [left.lo, left.mid, left.hi];
         let mut right_raw = [right.lo, right.mid, right.hi];
-        rescale(&mut left_raw, &mut left_scale, &mut right_raw, &mut right_scale);
+        try_rescale_to_maximum(&mut left_raw, &mut left_scale, &mut right_raw, &mut right_scale);
         cmp_internal(&left_raw, &right_raw)
     }
 }
@@ -3073,7 +3016,7 @@ mod test {
 
             let (mut left, mut left_scale) = extract(left_raw);
             let (mut right, mut right_scale) = extract(right_raw);
-            rescale(&mut left, &mut left_scale, &mut right, &mut right_scale);
+            try_rescale_to_maximum(&mut left, &mut left_scale, &mut right, &mut right_scale);
             assert_eq!(left, expected_left);
             assert_eq!(left_scale, expected_lscale);
             assert_eq!(right, expected_right);
@@ -3082,7 +3025,7 @@ mod test {
             // Also test the transitive case
             let (mut left, mut left_scale) = extract(left_raw);
             let (mut right, mut right_scale) = extract(right_raw);
-            rescale(&mut right, &mut right_scale, &mut left, &mut left_scale);
+            try_rescale_to_maximum(&mut right, &mut right_scale, &mut left, &mut left_scale);
             assert_eq!(left, expected_left);
             assert_eq!(left_scale, expected_lscale);
             assert_eq!(right, expected_right);
