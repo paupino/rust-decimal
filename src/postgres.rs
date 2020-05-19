@@ -237,50 +237,28 @@ mod diesel {
 
         #[test]
         fn test_unnecessary_zeroes() {
-            let value = Decimal::from_str("0.000001660").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec, value);
+            fn extract(value: &str) -> Decimal {
+                Decimal::from_str(value).unwrap()
+            }
 
-            let value = Decimal::from_str("41.120255926293").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec, value);
+            let tests = &[
+                ("0.000001660"),
+                ("41.120255926293000"),
+                ("0.5538973300"),
+                ("08883.55986854293100"),
+                ("0.0000_0000_0016_6000_00"),
+                ("0.00000166650000"),
+                ("1666500000000"),
+                ("1666500000000.0000054500"),
+                ("8944.000000000000"),
+            ];
 
-            let value = Decimal::from_str("0.55389733").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec, value);
-
-            let value = Decimal::from_str("8883.559868542931").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec, value);
-
-            let value = Decimal::from_str("0.0000_0000_0016_6000_00").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec, value);
-
-            let value = Decimal::from_str("0.00000166650000").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec.to_string(), "0.00000166650000".to_string());
-
-            let value = Decimal::from_str("1666500000000").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec.to_string(), "1666500000000".to_string());
-
-            let value = Decimal::from_str("1666500000000.00000545").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec.to_string(), "1666500000000.00000545".to_string());
-
-            let value = Decimal::from_str("8944.000000000000").unwrap();
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
-            assert_eq!(dec.to_string(), "8944.000000000000".to_string());
+            for &value in tests {
+                let value = extract(value);
+                let pg = PgNumeric::from(value);
+                let dec = Decimal::try_from(pg).unwrap();
+                assert_eq!(dec, value);
+            }
         }
 
         #[test]
