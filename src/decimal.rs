@@ -390,32 +390,15 @@ impl Decimal {
     /// ```
     /// use rust_decimal::Decimal;
     ///
-    /// let number = Decimal::new(1_123, 3).with_scale(6);
+    /// let number = Decimal::new(1_123, 3).rescale(6);
     /// assert_eq!(number, Decimal::new(1_123_000, 6));
     /// ```
-    pub fn with_scale(self, scale: u32) -> Self {
-        let unpacked = self.unpack();
-
-        match scale {
-            scale if scale > unpacked.scale => {
-                let scale_diff = scale - unpacked.scale;
-                let mul = match scale_diff {
-                    0..=9 => Decimal::from_u32(POWERS_10[scale_diff as usize]).unwrap(),
-                    10..=19 => Decimal::from_u64(BIG_POWERS_10[scale_diff as usize - 10]).unwrap(),
-                    20..=MAX_PRECISION => {
-                        Decimal::from_u64(BIG_POWERS_10[0]).unwrap()
-                            * Decimal::from_u64(BIG_POWERS_10[scale_diff as usize - 20]).unwrap()
-                    }
-                    _ => Decimal::from_u64(BIG_POWERS_10[0]).unwrap() * Decimal::from_u64(BIG_POWERS_10[8]).unwrap(),
-                };
-                let mut result = self * mul;
-                let set_scale = std::cmp::min(MAX_PRECISION, scale);
-                result.set_scale(set_scale).unwrap();
-                result
-            }
-            scale if scale < unpacked.scale => self.round_dp_with_strategy(scale, RoundingStrategy::BankersRounding),
-            _ => self,
-        }
+    pub fn rescale(self, scale: u32) -> Self {
+        let mut array = [self.lo, self.mid, self.hi];
+        let mut value_scale = self.scale();
+        let negative = self.is_sign_negative();
+        inner_rescale(&mut array, &mut value_scale, scale);
+        Decimal::from_parts(array[0], array[1], array[2], negative, value_scale)
     }
 
     /// Returns a serialized version of the decimal number.
@@ -1590,6 +1573,59 @@ fn rescale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], righ
                 break;
             }
         }
+    }
+}
+
+/// Rescales the given decimal to new scale.
+/// e.g. with 1.23 and new scale 3 rescale the value to 1.230
+#[inline(always)]
+pub fn inner_rescale(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
+    if *value_scale == new_scale {
+        // Nothing to do
+        return;
+    }
+
+    if is_all_zero(value) {
+        return;
+    }
+
+    if *value_scale > new_scale {
+        let mut diff = *value_scale - new_scale;
+        // Scaling further isn't possible since we got an overflow
+        // In this case we need to reduce the accuracy of the "side to keep"
+
+        // Now do the necessary rounding
+        let mut remainder = 0;
+        while diff > 0 {
+            if is_all_zero(value) {
+                *value_scale = new_scale;
+                return;
+            }
+
+            diff -= 1;
+
+            // Any remainder is discarded if diff > 0 still (i.e. lost precision)
+            remainder = div_by_10(value);
+        }
+        if remainder >= 5 {
+            for part in value.iter_mut() {
+                let digit = u64::from(*part) + 1u64;
+                remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
+                *part = (digit & 0xFFFF_FFFF) as u32;
+                if remainder == 0 {
+                    break;
+                }
+            }
+        }
+        *value_scale = new_scale;
+    } else {
+        let mut diff = new_scale - *value_scale;
+        let mut working = [value[0], value[1], value[2]];
+        while diff > 0 && mul_by_10(&mut working) == 0 {
+            value.copy_from_slice(&working);
+            diff -= 1;
+        }
+        *value_scale = new_scale - diff;
     }
 }
 
@@ -3051,6 +3087,68 @@ mod test {
             assert_eq!(left_scale, expected_lscale);
             assert_eq!(right, expected_right);
             assert_eq!(right_scale, expected_rscale);
+        }
+    }
+
+    #[test]
+    fn it_can_inner_rescale() {
+        fn extract(value: &str) -> ([u32; 3], u32) {
+            let v = Decimal::from_str(value).unwrap();
+            ([v.lo, v.mid, v.hi], v.scale())
+        }
+
+        let tests = &[
+            ("1", 0, "1"),
+            ("1", 1, "1.0"),
+            ("1", 5, "1.00000"),
+            ("1", 10, "1.0000000000"),
+            ("1", 20, "1.00000000000000000000"),
+            ("0.6386554621848739495798319328", 27, "0.638655462184873949579831933"),
+            (
+                "843.65000000",                  // Scale 8
+                25,                              // 25
+                "843.6500000000000000000000000", // 25
+            ),
+            (
+                "843.65000000",                     // Scale 8
+                30,                                 // 30
+                "843.6500000000000000000000000000", // 28
+            ),
+        ];
+
+        for &(value_raw, new_scale, expected_value) in tests {
+            let (expected_value, _) = extract(expected_value);
+            let (mut value, mut value_scale) = extract(value_raw);
+            inner_rescale(&mut value, &mut value_scale, new_scale);
+            assert_eq!(value, expected_value);
+        }
+    }
+
+    #[test]
+    fn test_rescale() {
+        fn extract(value: &str) -> Decimal {
+            Decimal::from_str(value).unwrap()
+        }
+
+        let tests = &[
+            ("0.12345600000", 6, "0.123456"),
+            ("0.123456", 12, "0.123456000000"),
+            ("0.123456", 0, "0"),
+            ("0.000001", 4, "0.0000"),
+            ("1233456", 4, "1233456.0000"),
+            ("1.2", 30, "1.2000000000000000000000000000"),
+            ("79228162514264337593543950335", 0, "79228162514264337593543950335"),
+            ("4951760157141521099596496895", 1, "4951760157141521099596496895.0"),
+            ("4951760157141521099596496896", 1, "4951760157141521099596496896.0"),
+            ("18446744073709551615", 6, "18446744073709551615.000000"),
+            ("-18446744073709551615", 6, "-18446744073709551615.000000"),
+        ];
+
+        for &(value_raw, new_scale, expected_value) in tests {
+            let new_value = extract(expected_value);
+            let value = extract(value_raw);
+            let value = value.rescale(new_scale);
+            assert_eq!(new_value.to_string(), value.to_string());
         }
     }
 }

@@ -73,7 +73,7 @@ impl Decimal {
 
         result.set_sign_negative(neg);
         // Setting scale frm PG value.
-        result = result.with_scale(scale as u32);
+        result = result.rescale(scale as u32);
 
         Ok(result)
     }
@@ -281,73 +281,6 @@ mod diesel {
             let pg = PgNumeric::from(value);
             let dec = Decimal::try_from(pg).unwrap();
             assert_eq!(dec.to_string(), "8944.000000000000".to_string());
-        }
-
-        #[test]
-        fn test_with_scale() {
-            let value = Decimal::from_str("0.024537600001").unwrap();
-            let from_value = Decimal::from_str("0.40000000").unwrap();
-            let to_value = Decimal::from_str("16.30151278").unwrap();
-            let new_value = (from_value / to_value).with_scale(12);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("0.12345600000").unwrap();
-            let new_value = Decimal::from_str("0.123456").unwrap();
-            let value = value.with_scale(6);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("0.123456").unwrap();
-            let new_value = Decimal::from_str("0.123456000000").unwrap();
-            let value = value.with_scale(12);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("0.123456").unwrap();
-            let new_value = Decimal::from_str("0").unwrap();
-            let value = value.with_scale(0);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("0.000001").unwrap();
-            let new_value = Decimal::from_str("0.0000").unwrap();
-            let value = value.with_scale(4);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("1233456").unwrap();
-            let new_value = Decimal::from_str("1233456.0000").unwrap();
-            let value = value.with_scale(4);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("1.2").unwrap();
-            let new_value = Decimal::from_str("1.2000000000000000000000000000").unwrap();
-            let value = value.with_scale(30);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            // 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF (96 bit)
-            let value = Decimal::from_str("79228162514264337593543950335").unwrap();
-            let new_value = Decimal::from_str("79228162514264337593543950335").unwrap();
-            let value = value.with_scale(0);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            // 0x0FFF_FFFF_FFFF_FFFF_FFFF_FFFF (95 bit)
-            let value = Decimal::from_str("4951760157141521099596496895").unwrap();
-            let new_value = Decimal::from_str("4951760157141521099596496895.0").unwrap();
-            let value = value.with_scale(1);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            // 0x1000_0000_0000_0000_0000_0000
-            let value = Decimal::from_str("4951760157141521099596496896").unwrap();
-            let new_value = Decimal::from_str("4951760157141521099596496896.0").unwrap();
-            let value = value.with_scale(1);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("18446744073709551615").unwrap();
-            let new_value = Decimal::from_str("18446744073709551615.000000").unwrap();
-            let value = value.with_scale(6);
-            assert_eq!(new_value.to_string(), value.to_string());
-
-            let value = Decimal::from_str("-18446744073709551615").unwrap();
-            let new_value = Decimal::from_str("-18446744073709551615.000000").unwrap();
-            let value = value.with_scale(6);
-            assert_eq!(new_value.to_string(), value.to_string());
         }
 
         #[test]
