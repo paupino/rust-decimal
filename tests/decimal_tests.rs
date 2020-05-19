@@ -1316,6 +1316,25 @@ fn it_can_reject_invalid_formats() {
 }
 
 #[test]
+fn it_can_reject_large_numbers_with_panic() {
+    let tests = &[
+        // The maximum number supported is 79,228,162,514,264,337,593,543,950,335
+        "79228162514264337593543950336",
+        "79228162514264337593543950337",
+        "79228162514264337593543950338",
+        "79228162514264337593543950339",
+        "79228162514264337593543950340",
+    ];
+    for &value in tests {
+        assert!(
+            Decimal::from_str(value).is_err(),
+            "This succeeded unexpectedly: {}",
+            value
+        );
+    }
+}
+
+#[test]
 fn it_can_parse_individual_parts() {
     let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
     assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
@@ -1547,5 +1566,5 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 #[test]
 #[should_panic]
 fn it_handles_i128_min() {
-    Decimal::from_i128_with_scale(i128::MIN, 0);
+    Decimal::from_i128_with_scale(std::i128::MIN, 0);
 }

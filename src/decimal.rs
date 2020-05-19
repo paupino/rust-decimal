@@ -645,10 +645,11 @@ impl Decimal {
 
     /// Returns a new `Decimal` number with the specified number of decimal points for fractional
     /// portion.
-    /// Rounding is performed using the provided `RoundingStrategy`
+    /// Rounding is performed using the provided [`RoundingStrategy`]
     ///
     /// # Arguments
     /// * `dp`: the number of decimal points to round to.
+    /// * `strategy`: the [`RoundingStrategy`] to use.
     ///
     /// # Example
     ///
@@ -2322,7 +2323,11 @@ impl Num for Decimal {
                     }
                 }
                 // We're also one less digit so reduce the scale
-                scale -= (len - i) as u32;
+                let diff = (len - i) as u32;
+                if diff > scale {
+                    return Err(Error::new("Invalid decimal: overflow from too many digits"));
+                }
+                scale -= diff;
                 break;
             } else {
                 data[0] = tmp[0];
