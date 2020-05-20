@@ -6,12 +6,18 @@ use std::{convert::TryInto, error, fmt, result::*};
 
 use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32, MAX_PRECISION};
 
-#[derive(Debug, Clone, Copy)]
-pub struct InvalidDecimal;
+#[derive(Debug, Clone)]
+pub struct InvalidDecimal {
+    inner: Option<String>,
+}
 
 impl fmt::Display for InvalidDecimal {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str("Invalid Decimal")
+        if let Some(ref msg) = self.inner {
+            fmt.write_fmt(format_args!("Invalid Decimal: {}", msg))
+        } else {
+            fmt.write_str("Invalid Decimal")
+        }
     }
 }
 
@@ -72,8 +78,8 @@ impl Decimal {
         }
 
         result.set_sign_negative(neg);
-        // Setting scale frm PG value.
-        result = result.rescale(scale as u32);
+        // Rescale to the postgres value, automatically rounding as needed.
+        result.rescale(scale as u32);
 
         Ok(result)
     }

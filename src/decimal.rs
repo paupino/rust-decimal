@@ -381,24 +381,38 @@ impl Decimal {
         Ok(())
     }
 
-    /// Change scale of decimal number, without changing number itself
+    /// Modifies the `Decimal` to the given scale, attempting to do so without changing the
+    /// underlying number itself.
     ///
-    /// > Note that setting scale which is less then current, cause number Bankers Rounding
+    /// Note that setting the scale to something less then the current `Decimal`s scale will
+    /// cause the newly created `Decimal` to have some rounding.
+    /// Scales greater than the maximum precision supported by `Decimal` will be automatically
+    /// rounded to `Decimal::MAX_PRECISION`.
+    /// Rounding leverages the half up strategy.
+    ///
+    /// # Arguments
+    /// * `scale`: The scale to use for the new `Decimal` number.
     ///
     /// # Example
     ///
     /// ```
     /// use rust_decimal::Decimal;
     ///
-    /// let number = Decimal::new(1_123, 3).rescale(6);
+    /// let mut number = Decimal::new(1_123, 3);
+    /// number.rescale(6);
     /// assert_eq!(number, Decimal::new(1_123_000, 6));
+    /// let mut round = Decimal::new(145, 2);
+    /// round.rescale(1);
+    /// assert_eq!(round, Decimal::new(15, 1));
     /// ```
-    pub fn rescale(self, scale: u32) -> Self {
+    pub fn rescale(&mut self, scale: u32) {
         let mut array = [self.lo, self.mid, self.hi];
         let mut value_scale = self.scale();
-        let negative = self.is_sign_negative();
-        inner_rescale(&mut array, &mut value_scale, scale);
-        Decimal::from_parts(array[0], array[1], array[2], negative, value_scale)
+        rescale_internal(&mut array, &mut value_scale, scale);
+        self.lo = array[0];
+        self.mid = array[1];
+        self.hi = array[2];
+        self.flags = flags(self.is_sign_negative(), value_scale);
     }
 
     /// Returns a serialized version of the decimal number.
@@ -1035,7 +1049,7 @@ impl Decimal {
         let mut my_scale = self.scale();
         let mut ot = [other.lo, other.mid, other.hi];
         let mut other_scale = other.scale();
-        try_rescale_to_maximum(&mut my, &mut my_scale, &mut ot, &mut other_scale);
+        rescale_to_maximum_scale(&mut my, &mut my_scale, &mut ot, &mut other_scale);
         let mut final_scale = my_scale.max(other_scale);
 
         // Add the items together
@@ -1434,7 +1448,7 @@ impl Decimal {
         let mut quotient_scale = initial_scale;
         let mut divisor = [other.lo, other.mid, other.hi];
         let mut divisor_scale = other.scale();
-        try_rescale_to_maximum(&mut quotient, &mut quotient_scale, &mut divisor, &mut divisor_scale);
+        rescale_to_maximum_scale(&mut quotient, &mut quotient_scale, &mut divisor, &mut divisor_scale);
 
         // Working is the remainder + the quotient
         // We use an aligned array since we'll be using it a lot.
@@ -1492,7 +1506,7 @@ const fn flags(neg: bool, scale: u32) -> u32 {
 /// will try to reduce the accuracy of the other argument.
 /// e.g. with 1.23 and 2.345 it'll rescale the first arg to 1.230
 #[inline(always)]
-fn try_rescale_to_maximum(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], right_scale: &mut u32) {
+fn rescale_to_maximum_scale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], right_scale: &mut u32) {
     if left_scale == right_scale {
         // Nothing to do
         return;
@@ -1507,14 +1521,14 @@ fn try_rescale_to_maximum(left: &mut [u32; 3], left_scale: &mut u32, right: &mut
     }
 
     if left_scale > right_scale {
-        inner_rescale(right, right_scale, *left_scale);
+        rescale_internal(right, right_scale, *left_scale);
         if right_scale != left_scale {
-            inner_rescale(left, left_scale, *right_scale);
+            rescale_internal(left, left_scale, *right_scale);
         }
     } else {
-        inner_rescale(left, left_scale, *right_scale);
+        rescale_internal(left, left_scale, *right_scale);
         if right_scale != left_scale {
-            inner_rescale(right, right_scale, *left_scale);
+            rescale_internal(right, right_scale, *left_scale);
         }
     }
 }
@@ -1522,7 +1536,7 @@ fn try_rescale_to_maximum(left: &mut [u32; 3], left_scale: &mut u32, right: &mut
 /// Rescales the given decimal to new scale.
 /// e.g. with 1.23 and new scale 3 rescale the value to 1.230
 #[inline(always)]
-pub fn inner_rescale(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
+fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
     if *value_scale == new_scale {
         // Nothing to do
         return;
@@ -2943,7 +2957,7 @@ impl Ord for Decimal {
         // Rescale and compare
         let mut left_raw = [left.lo, left.mid, left.hi];
         let mut right_raw = [right.lo, right.mid, right.hi];
-        try_rescale_to_maximum(&mut left_raw, &mut left_scale, &mut right_raw, &mut right_scale);
+        rescale_to_maximum_scale(&mut left_raw, &mut left_scale, &mut right_raw, &mut right_scale);
         cmp_internal(&left_raw, &right_raw)
     }
 }
@@ -2967,7 +2981,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn it_can_rescale() {
+    fn it_can_rescale_to_maximum_scale() {
         fn extract(value: &str) -> ([u32; 3], u32) {
             let v = Decimal::from_str(value).unwrap();
             ([v.lo, v.mid, v.hi], v.scale())
@@ -3016,7 +3030,7 @@ mod test {
 
             let (mut left, mut left_scale) = extract(left_raw);
             let (mut right, mut right_scale) = extract(right_raw);
-            try_rescale_to_maximum(&mut left, &mut left_scale, &mut right, &mut right_scale);
+            rescale_to_maximum_scale(&mut left, &mut left_scale, &mut right, &mut right_scale);
             assert_eq!(left, expected_left);
             assert_eq!(left_scale, expected_lscale);
             assert_eq!(right, expected_right);
@@ -3025,7 +3039,7 @@ mod test {
             // Also test the transitive case
             let (mut left, mut left_scale) = extract(left_raw);
             let (mut right, mut right_scale) = extract(right_raw);
-            try_rescale_to_maximum(&mut right, &mut right_scale, &mut left, &mut left_scale);
+            rescale_to_maximum_scale(&mut right, &mut right_scale, &mut left, &mut left_scale);
             assert_eq!(left, expected_left);
             assert_eq!(left_scale, expected_lscale);
             assert_eq!(right, expected_right);
@@ -3034,7 +3048,7 @@ mod test {
     }
 
     #[test]
-    fn it_can_inner_rescale() {
+    fn it_can_rescale_internal() {
         fn extract(value: &str) -> ([u32; 3], u32) {
             let v = Decimal::from_str(value).unwrap();
             ([v.lo, v.mid, v.hi], v.scale())
@@ -3062,36 +3076,8 @@ mod test {
         for &(value_raw, new_scale, expected_value) in tests {
             let (expected_value, _) = extract(expected_value);
             let (mut value, mut value_scale) = extract(value_raw);
-            inner_rescale(&mut value, &mut value_scale, new_scale);
+            rescale_internal(&mut value, &mut value_scale, new_scale);
             assert_eq!(value, expected_value);
-        }
-    }
-
-    #[test]
-    fn test_rescale() {
-        fn extract(value: &str) -> Decimal {
-            Decimal::from_str(value).unwrap()
-        }
-
-        let tests = &[
-            ("0.12345600000", 6, "0.123456"),
-            ("0.123456", 12, "0.123456000000"),
-            ("0.123456", 0, "0"),
-            ("0.000001", 4, "0.0000"),
-            ("1233456", 4, "1233456.0000"),
-            ("1.2", 30, "1.2000000000000000000000000000"),
-            ("79228162514264337593543950335", 0, "79228162514264337593543950335"),
-            ("4951760157141521099596496895", 1, "4951760157141521099596496895.0"),
-            ("4951760157141521099596496896", 1, "4951760157141521099596496896.0"),
-            ("18446744073709551615", 6, "18446744073709551615.000000"),
-            ("-18446744073709551615", 6, "-18446744073709551615.000000"),
-        ];
-
-        for &(value_raw, new_scale, expected_value) in tests {
-            let new_value = extract(expected_value);
-            let value = extract(value_raw);
-            let value = value.rescale(new_scale);
-            assert_eq!(new_value.to_string(), value.to_string());
         }
     }
 }
