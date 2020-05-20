@@ -1568,3 +1568,28 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 fn it_handles_i128_min() {
     Decimal::from_i128_with_scale(std::i128::MIN, 0);
 }
+
+
+#[test]
+fn it_can_rescale() {
+    let tests = &[
+        ("0.12345600000", 6, "0.123456"),
+        ("0.123456", 12, "0.123456000000"),
+        ("0.123456", 0, "0"),
+        ("0.000001", 4, "0.0000"),
+        ("1233456", 4, "1233456.0000"),
+        ("1.2", 30, "1.2000000000000000000000000000"),
+        ("79228162514264337593543950335", 0, "79228162514264337593543950335"),
+        ("4951760157141521099596496895", 1, "4951760157141521099596496895.0"),
+        ("4951760157141521099596496896", 1, "4951760157141521099596496896.0"),
+        ("18446744073709551615", 6, "18446744073709551615.000000"),
+        ("-18446744073709551615", 6, "-18446744073709551615.000000"),
+    ];
+
+    for &(value_raw, new_scale, expected_value) in tests {
+        let new_value = Decimal::from_str(expected_value).unwrap();
+        let mut value = Decimal::from_str(value_raw).unwrap();
+        value.rescale(new_scale);
+        assert_eq!(new_value.to_string(), value.to_string());
+    }
+}
