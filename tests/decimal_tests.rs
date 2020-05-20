@@ -1569,7 +1569,6 @@ fn it_handles_i128_min() {
     Decimal::from_i128_with_scale(std::i128::MIN, 0);
 }
 
-
 #[test]
 fn it_can_rescale() {
     let tests = &[
