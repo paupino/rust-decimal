@@ -2196,6 +2196,48 @@ impl Num for Decimal {
             (b'9', adj + b'a', adj + b'A')
         };
 
+        // Estimate the max precision. All in all, it needs to fit into 96 bits.
+        // Rather than try to estimate, I've included the constants directly in here. We could,
+        // perhaps, replace this with a formula if it's faster - though it does appear to be log2.
+        let estimated_max_precision = match radix {
+            2 => 96,
+            3 => 61,
+            4 => 48,
+            5 => 42,
+            6 => 38,
+            7 => 35,
+            8 => 32,
+            9 => 31,
+            10 => 29,
+            11 => 28,
+            12 => 27,
+            13 => 26,
+            14 => 26,
+            15 => 25,
+            16 => 24,
+            17 => 24,
+            18 => 24,
+            19 => 23,
+            20 => 23,
+            21 => 22,
+            22 => 22,
+            23 => 22,
+            24 => 21,
+            25 => 21,
+            26 => 21,
+            27 => 21,
+            28 => 20,
+            29 => 20,
+            30 => 20,
+            31 => 20,
+            32 => 20,
+            33 => 20,
+            34 => 19,
+            35 => 19,
+            36 => 19,
+            _ => return Err(Error::new("Unsupported radix")),
+        };
+
         let mut maybe_round = false;
         while len > 0 {
             let b = bytes[offset];
@@ -2208,8 +2250,8 @@ impl Num for Decimal {
                     offset += 1;
                     len -= 1;
 
-                    // If the coefficient is longer than 28 then it'll affect the scale, so exit early
-                    if coeff.len() as u32 > MAX_PRECISION {
+                    // If the coefficient is longer than the max, exit early
+                    if coeff.len() as u32 > estimated_max_precision {
                         maybe_round = true;
                         break;
                     }
@@ -2222,7 +2264,7 @@ impl Num for Decimal {
                     offset += 1;
                     len -= 1;
 
-                    if coeff.len() as u32 > MAX_PRECISION {
+                    if coeff.len() as u32 > estimated_max_precision {
                         maybe_round = true;
                         break;
                     }
@@ -2235,7 +2277,7 @@ impl Num for Decimal {
                     offset += 1;
                     len -= 1;
 
-                    if coeff.len() as u32 > MAX_PRECISION {
+                    if coeff.len() as u32 > estimated_max_precision {
                         maybe_round = true;
                         break;
                     }
@@ -2294,7 +2336,8 @@ impl Num for Decimal {
             };
 
             // Round at midpoint
-            if digit >= radix / 2 {
+            let midpoint = if radix & 0x1 == 1 { radix / 2 } else { radix + 1 / 2 };
+            if digit >= midpoint {
                 let mut index = coeff.len() - 1;
                 loop {
                     let new_digit = coeff[index] + 1;
@@ -2338,10 +2381,10 @@ impl Num for Decimal {
             tmp[2] = data[2];
             let overflow = mul_by_u32(&mut tmp, radix);
             if overflow > 0 {
-                // This indicates a bug in the coefficient rounding above.
-                // If this is the last position, then round and forget it.
-                // Otherwise, we have more of an issue.
-                if i + 1 < len {
+                // This means that we have more data to process, that we're not sure what to do with.
+                // This may or may not be an issue - depending on whether we're past a decimal point
+                // or not.
+                if (i as i32) < digits_before_dot && i + 1 < len {
                     return Err(Error::new("Invalid decimal: overflow from too many digits"));
                 }
 
@@ -2355,7 +2398,7 @@ impl Num for Decimal {
                 // We're also one less digit so reduce the scale
                 let diff = (len - i) as u32;
                 if diff > scale {
-                    return Err(Error::new("Invalid decimal: overflow from too many digits"));
+                    return Err(Error::new("Invalid decimal: overflow from scale mismatch"));
                 }
                 scale -= diff;
                 break;
