@@ -1,18 +1,31 @@
 # Version History
 
+## 1.6.0
+
+* Fixes issue with PostgreSQL conversions whereby certain inputs would cause unexpected
+  outputs. [Issue 241](https://github.com/paupino/rust-decimal/issues/241).
+* Fixes issue with `from_str_radix` whereby rounding logic would kick in too early, 
+  especially with radix less than 10. [Issue 242](https://github.com/paupino/rust-decimal/issues/242).
+* Fixes issue whereby `from_str` (implicity `from_str_radix`) would panic when there was overflow
+  and overflow significant digit was < 5. [Issue 246](https://github.com/paupino/rust-decimal/issues/246).
+* Make `bytes` and `byteorder` optional since they're only used in the `postgres` feature and tests.
+* Fix edge case in `from_i128_with_scale` when `i128::MIN` was provided.
+
+Thank you to [@serejkaaa512](https://github.com/serejkaaa512), [@AbsurdlySuspicious](https://github.com/AbsurdlySuspicious) and [@0e4ef622]((https://github.com/0e4ef622)) for your contributions!
+
 ## 1.5.0
 
 * Added additional `RoundStrategy` abilities: `RoundUp` to always round up and `RoundDown` to always round down.
 * Updated prelude to include expected structs and traits by default. 
 
-Special thank you to @jean-airoldie for adding the additional rounding strategies and to @pfrenssen for fixing an
+Special thank you to [@jean-airoldie](https://github.com/jean-airoldie) for adding the additional rounding strategies and to [@pfrenssen](https://github.com/pfrenssen) for fixing an
 issue in the README.
 
 ## 1.4.1
 
 * Performance improvements for `to_f64` when using a scale > 0.
 
-Special thank you to @hengchu who discovered and resolved the issue!
+Special thank you to [@hengchu](https://github.com/hengchu) who discovered and resolved the issue!
 
 ## 1.4.0
 
