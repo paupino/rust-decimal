@@ -2235,7 +2235,7 @@ impl Num for Decimal {
             34 => 19,
             35 => 19,
             36 => 19,
-            _ => return Err(Error::new("Unsupported radix"))
+            _ => return Err(Error::new("Unsupported radix")),
         };
 
         let mut maybe_round = false;
