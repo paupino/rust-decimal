@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal_macros"
-version = "1.5.0"
+version = "1.6.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2018"
 description = "Shorthand macros to assist creating Decimal types."
@@ -12,6 +12,6 @@ categories = ["science","data-structures"]
 license = "MIT"
 
 [dependencies]
-rust_decimal = { path = "..", version = "1.5.0" }
-rust_decimal_macro_impls = { path = "../macro_impl", version = "1.5.0" }
+rust_decimal = { path = "..", version = "1.6.0" }
+rust_decimal_macro_impls = { path = "../macro_impl", version = "1.6.0" }
 proc-macro-hack = "0.5"
