@@ -619,6 +619,40 @@ impl Decimal {
         }
     }
 
+    /// Returns the maximum of the two numbers.
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let x = Decimal::new(1, 0);
+    /// let y = Decimal::new(2, 0);
+    /// assert_eq!(y, x.max(y));
+    /// ```
+    pub fn max(self, other: Decimal) -> Decimal {
+        if self < other {
+            return other;
+        } else {
+            self
+        }
+    }
+
+    /// Returns the minimum of the two numbers.
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    ///
+    /// let x = Decimal::new(1, 0);
+    /// let y = Decimal::new(2, 0);
+    /// assert_eq!(x, x.min(y));
+    /// ```
+    pub fn min(self, other: Decimal) -> Decimal {
+        if self > other {
+            return other;
+        } else {
+            self
+        }
+    }
+
     /// Strips any trailing zero's from a `Decimal` and converts -0 to 0.
     ///
     /// # Example

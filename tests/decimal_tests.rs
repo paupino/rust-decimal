@@ -686,6 +686,34 @@ fn it_ceils_decimals() {
 }
 
 #[test]
+fn it_finds_max_of_two() {
+    let tests = &[
+        ("1", "1", "1"),
+        ("2", "1", "2"),
+        ("1", "2", "2"),
+    ];
+    for &(a, b, expected) in tests {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        assert_eq!(expected, a.max(b).to_string());
+    }
+}
+
+#[test]
+fn it_finds_min_of_two() {
+    let tests = &[
+        ("1", "1", "1"),
+        ("2", "1", "1"),
+        ("1", "2", "1"),
+    ];
+    for &(a, b, expected) in tests {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        assert_eq!(expected, a.min(b).to_string());
+    }
+}
+
+#[test]
 fn test_max_compares() {
     let x = "225.33543601344182".parse::<Decimal>().unwrap();
     let y = Decimal::max_value();
