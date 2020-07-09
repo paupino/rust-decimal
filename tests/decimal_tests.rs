@@ -687,11 +687,7 @@ fn it_ceils_decimals() {
 
 #[test]
 fn it_finds_max_of_two() {
-    let tests = &[
-        ("1", "1", "1"),
-        ("2", "1", "2"),
-        ("1", "2", "2"),
-    ];
+    let tests = &[("1", "1", "1"), ("2", "1", "2"), ("1", "2", "2")];
     for &(a, b, expected) in tests {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
@@ -701,11 +697,7 @@ fn it_finds_max_of_two() {
 
 #[test]
 fn it_finds_min_of_two() {
-    let tests = &[
-        ("1", "1", "1"),
-        ("2", "1", "1"),
-        ("1", "2", "1"),
-    ];
+    let tests = &[("1", "1", "1"), ("2", "1", "1"), ("1", "2", "1")];
     for &(a, b, expected) in tests {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
