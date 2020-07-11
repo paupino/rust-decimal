@@ -1,5 +1,18 @@
 # Version History
 
+## 1.7.0
+
+* Enables `bincode` support via the feature `serde-bincode`. This provides a long term fix for a regression 
+  that was introduced in version `0.6.5` (tests now cover this case!). [Issue 43](https://github.com/paupino/rust-decimal/issues/43).
+* Fixes issue where `rescale` on zero would not have an affect. This was due to an early exit condition which failed to 
+  set the new scale. [Issue 253](https://github.com/paupino/rust-decimal/issues/253).
+* Add `min` and `max` functions, similar to what `f32` and `f64` provide. Thank you [@michalsieron](https://github.com/michalsieron). 
+* Updates documentation for `is_sign_positive` and `is_sign_negative` to specify that the sign bit is being checked.
+
+Please note: feature naming conventions have been modified, however backwards compatible aliases have been created where 
+necessary. It's highly recommended that you move over to the new naming conventions as these aliases may be removed at a 
+later date. 
+
 ## 1.6.0
 
 * Fixes issue with PostgreSQL conversions whereby certain inputs would cause unexpected
