@@ -31,9 +31,12 @@ tokio = { version = "0.2", features = ["rt-threaded", "test-util", "macros"] }
 
 [features]
 default = ["serde"]
+db-postgres = ["postgres", "bytes", "byteorder"]
+db-tokio-postgres = ["postgres", "tokio-postgres", "bytes", "byteorder"]
+db-diesel-postgres = ["diesel"]
 serde-bincode = ["serde"]
 serde-float = ["serde"]
-tokio-pg = ["postgres", "tokio-postgres", "bytes", "byteorder"]
+tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [workspace]
 members = [".", "./macros", "./fuzzer"]

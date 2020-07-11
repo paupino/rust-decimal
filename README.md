@@ -43,22 +43,22 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 
 ## Features
 
-* [postgres](#postgres)
-* [tokio-pg](#tokio-pg)
-* [diesel](#diesel)
+* [db-postgres](#db-postgres)
+* [db-tokio-postgres](#db-tokio-postgres)
+* [db-diesel-postgres](#db-diesel-postgres)
 * [serde-float](#serde-float)
 * [serde-bincode](#serde-bincode)
 
-## `postgres`
+## `db-postgres`
 
 This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
 type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL.
 
-## `tokio-pg`
+## `db-tokio-postgres`
 
 Enables the tokio postgres module allowing for async communication with PostgreSQL.
 
-## `diesel`
+## `db-diesel-postgres`
 
 Enable `diesel` PostgreSQL support. 
 
