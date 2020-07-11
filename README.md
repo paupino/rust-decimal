@@ -43,18 +43,24 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 
 ## Features
 
-* [postgres](#postgres)
-* [tokio-pg](#tokio-pg)
+* [db-postgres](#db-postgres)
+* [db-tokio-postgres](#db-tokio-postgres)
+* [db-diesel-postgres](#db-diesel-postgres)
 * [serde-float](#serde-float)
+* [serde-bincode](#serde-bincode)
 
-## `postgres`
+## `db-postgres`
 
 This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
 type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL.
 
-## `tokio-pg`
+## `db-tokio-postgres`
 
 Enables the tokio postgres module allowing for async communication with PostgreSQL.
+
+## `db-diesel-postgres`
+
+Enable `diesel` PostgreSQL support. 
 
 ## `serde-float`
 
@@ -66,3 +72,13 @@ e.g. with this turned on, JSON serialization would output:
   "value": 1.234
 }
 ```
+
+## `serde-bincode`
+
+Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to 
+correctly be able to deserialize. Enabling this feature on it's own will force deserialization to use `deserialize_str` 
+instead of `deserialize_any`. 
+
+If, for some reason, you also have `serde-float` enabled then this will use `deserialize_f64` as a type hint. Because
+converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with 
+`bincode`. That being said, this will only use 8 bytes so is slightly more efficient in regards to storage size.
