@@ -39,7 +39,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --workspace -- --check
+          args: --all -- --check
 
       - name: Build rust-decimal
         uses: actions-rs/cargo@v1
