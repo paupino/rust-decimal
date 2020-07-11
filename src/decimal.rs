@@ -1577,6 +1577,7 @@ fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32)
     }
 
     if is_all_zero(value) {
+        *value_scale = new_scale;
         return;
     }
 
