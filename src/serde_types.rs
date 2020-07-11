@@ -6,6 +6,9 @@ use serde::{self, de::Unexpected};
 
 use std::{fmt, str::FromStr};
 
+#[cfg(all(feature = "serde-bincode", feature = "serde-float"))]
+compile_error!("The features \"serde-bincode\" and \"serde-float\" cannot be enabled at the same time.");
+
 #[cfg(not(feature = "serde-bincode"))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
