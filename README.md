@@ -76,6 +76,9 @@ e.g. with this turned on, JSON serialization would output:
 ## `serde-bincode`
 
 Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to 
-correctly be able to deserialize. Enabling this feature will force deserialization to use `deserialize_str` instead
-of `deserialize_any`. Because serialization uses string format by default, the feature `serde-float` should _*not*_ be 
-used in conjunction with this feature.
+correctly be able to deserialize. Enabling this feature on it's own will force deserialization to use `deserialize_str` 
+instead of `deserialize_any`. 
+
+If, for some reason, you also have `serde-float` enabled then this will use `deserialize_f64` as a type hint. Because
+converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with 
+`bincode`. 

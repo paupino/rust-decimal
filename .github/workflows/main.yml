@@ -45,7 +45,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace
+          args: --workspace --all-features
 
       - name: Run default tests
         uses: actions-rs/cargo@v1
@@ -82,3 +82,9 @@ jobs:
         with:
           command: test
           args: --workspace --tests --features serde-bincode
+
+      - name: Run tests (serde-bincode + serde-float)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features serde-bincode,serde-float
