@@ -45,7 +45,9 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 
 * [postgres](#postgres)
 * [tokio-pg](#tokio-pg)
+* [diesel](#diesel)
 * [serde-float](#serde-float)
+* [serde-bincode](#serde-bincode)
 
 ## `postgres`
 
@@ -55,6 +57,10 @@ type by transparently serializing/deserializing into the `NUMERIC` data type wit
 ## `tokio-pg`
 
 Enables the tokio postgres module allowing for async communication with PostgreSQL.
+
+## `diesel`
+
+Enable `diesel` PostgreSQL support. 
 
 ## `serde-float`
 
@@ -66,3 +72,10 @@ e.g. with this turned on, JSON serialization would output:
   "value": 1.234
 }
 ```
+
+## `serde-bincode`
+
+Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to 
+correctly be able to deserialize. Enabling this feature will force deserialization to use `deserialize_str` instead
+of `deserialize_any`. Because serialization uses string format by default, the feature `serde-float` should _*not*_ be 
+used in conjunction with this feature.

@@ -35,20 +35,50 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Build rust-decimal
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all --all-features
-
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all --all-features
-
       - name: Check file formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: --workspace -- --check
+
+      - name: Build rust-decimal
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --all-features
+
+      - name: Run default tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --features default
+
+      - name: Run tests (postgres)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features postgres
+
+      - name: Run tests (tokio-pg)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features tokio-pg
+
+      - name: Run tests (diesel)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features diesel
+
+      - name: Run tests (serde-float)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features serde-float
+
+      - name: Run tests (serde-bincode)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features serde-bincode
