@@ -471,13 +471,13 @@ impl Decimal {
         self.is_sign_positive()
     }
 
-    /// Returns `true` if the decimal is negative.
+    /// Returns `true` if the sign bit of the decimal is negative.
     #[inline(always)]
     pub const fn is_sign_negative(&self) -> bool {
         self.flags & SIGN_MASK > 0
     }
 
-    /// Returns `true` if the decimal is positive.
+    /// Returns `true` if the sign bit of the decimal is positive.
     #[inline(always)]
     pub const fn is_sign_positive(&self) -> bool {
         self.flags & SIGN_MASK == 0
