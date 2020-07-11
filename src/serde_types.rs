@@ -29,8 +29,8 @@ impl<'de> serde::Deserialize<'de> for Decimal {
 #[cfg(all(feature = "serde-bincode", feature = "serde-float"))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
-        where
-            D: serde::de::Deserializer<'de>,
+    where
+        D: serde::de::Deserializer<'de>,
     {
         deserializer.deserialize_f64(DecimalVisitor)
     }

@@ -81,4 +81,4 @@ instead of `deserialize_any`.
 
 If, for some reason, you also have `serde-float` enabled then this will use `deserialize_f64` as a type hint. Because
 converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with 
-`bincode`. 
+`bincode`. That being said, this will only use 8 bytes so is slightly more efficient in regards to storage size.
