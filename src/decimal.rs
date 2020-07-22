@@ -121,6 +121,7 @@ pub struct Decimal {
 /// 1.4999999 -> 1
 /// `RoundingStrategy::RoundDown` - Always round down.
 /// `RoundingStrategy::RoundUp` - Always round up.
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RoundingStrategy {
     BankersRounding,
     RoundHalfUp,
