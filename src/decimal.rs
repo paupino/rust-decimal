@@ -2991,17 +2991,14 @@ impl PartialOrd for Decimal {
 impl Ord for Decimal {
     fn cmp(&self, other: &Decimal) -> Ordering {
         // Quick exit if major differences
+        if self.is_zero() && other.is_zero() {
+            return Ordering::Equal;
+        }
         let self_negative = self.is_sign_negative();
         let other_negative = other.is_sign_negative();
         if self_negative && !other_negative {
-            if self.is_zero() && other.is_zero() {
-                return Ordering::Equal;
-            }
             return Ordering::Less;
         } else if !self_negative && other_negative {
-            if self.is_zero() && other.is_zero() {
-                return Ordering::Equal;
-            }
             return Ordering::Greater;
         }
 
