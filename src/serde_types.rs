@@ -2,9 +2,9 @@ use crate::Decimal;
 
 use num_traits::FromPrimitive;
 
+use alloc::string::ToString;
+use core::{fmt, str::FromStr};
 use serde::{self, de::Unexpected};
-
-use std::{fmt, str::FromStr};
 
 #[cfg(not(feature = "serde-bincode"))]
 impl<'de> serde::Deserialize<'de> for Decimal {

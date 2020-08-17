@@ -2,10 +2,8 @@ use crate::Error;
 
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 
-#[cfg(feature = "diesel")]
-use diesel::sql_types::Numeric;
-
-use std::{
+use alloc::{string::String, vec::Vec};
+use core::{
     cmp::{Ordering::Equal, *},
     fmt,
     hash::{Hash, Hasher},
@@ -13,6 +11,8 @@ use std::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign},
     str::FromStr,
 };
+#[cfg(feature = "diesel")]
+use diesel::sql_types::Numeric;
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
@@ -724,7 +724,7 @@ impl Decimal {
     ///
     /// ```
     /// use rust_decimal::{Decimal, RoundingStrategy};
-    /// use std::str::FromStr;
+    /// use core::str::FromStr;
     ///
     /// let tax = Decimal::from_str("3.4395").unwrap();
     /// assert_eq!(tax.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp).to_string(), "3.44");
@@ -870,7 +870,7 @@ impl Decimal {
     ///
     /// ```
     /// use rust_decimal::Decimal;
-    /// use std::str::FromStr;
+    /// use core::str::FromStr;
     ///
     /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
     /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
@@ -890,7 +890,7 @@ impl Decimal {
     ///
     /// ```
     /// use rust_decimal::Decimal;
-    /// use std::str::FromStr;
+    /// use core::str::FromStr;
     ///
     /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
     /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
@@ -919,7 +919,7 @@ impl Decimal {
     ///
     /// ```
     /// use rust_decimal::Decimal;
-    /// use std::str::FromStr;
+    /// use core::str::FromStr;
     ///
     /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
     /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");

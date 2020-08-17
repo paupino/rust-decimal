@@ -2,9 +2,9 @@ use num_traits::Zero;
 
 use crate::Decimal;
 
-use std::{convert::TryInto, error, fmt, result::*};
-
 use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32, MAX_PRECISION};
+use core::{convert::TryInto, fmt, result::*};
+use std::error;
 
 #[derive(Debug, Clone)]
 pub struct InvalidDecimal {
@@ -152,10 +152,8 @@ mod diesel {
         serialize::{self, Output, ToSql},
         sql_types::Numeric,
     };
-    use ::std::{
-        convert::{TryFrom, TryInto},
-        io::Write,
-    };
+    use core::convert::{TryFrom, TryInto};
+    use std::io::Write;
 
     impl<'a> TryFrom<&'a PgNumeric> for Decimal {
         type Error = Box<dyn error::Error + Send + Sync>;
@@ -239,7 +237,7 @@ mod diesel {
     #[cfg(test)]
     mod pg_tests {
         use super::*;
-        use std::str::FromStr;
+        use core::str::FromStr;
 
         #[test]
         fn test_unnecessary_zeroes() {
@@ -477,10 +475,10 @@ mod diesel {
 mod postgres {
     use super::*;
 
-    use ::byteorder::{BigEndian, ReadBytesExt};
-    use ::bytes::{BufMut, BytesMut};
     use ::postgres::types::*;
-    use ::std::io::Cursor;
+    use byteorder::{BigEndian, ReadBytesExt};
+    use bytes::{BufMut, BytesMut};
+    use std::io::Cursor;
 
     impl<'a> FromSql<'a> for Decimal {
         // Decimals are represented as follows:
@@ -490,7 +488,7 @@ mod postgres {
         //  u16 sign (0x0000 = positive, 0x4000 = negative, 0xC000 = NaN)
         //  i16 dscale. Number of digits (in base 10) to print after decimal separator
         //
-        //  Psuedo code :
+        //  Pseudo code :
         //  const Decimals [
         //          0.0000000000000000000000000001,
         //          0.000000000000000000000001,
@@ -618,7 +616,7 @@ mod postgres {
 
         use ::postgres::{Client, NoTls};
 
-        use std::str::FromStr;
+        use core::str::FromStr;
 
         /// Gets the URL for connecting to PostgreSQL for testing. Set the POSTGRES_URL
         /// environment variable to change from the default of "postgres://postgres@localhost".
@@ -708,8 +706,8 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_test_null() {
-            use ::futures::future::FutureExt;
-            use ::tokio_postgres::connect;
+            use futures::future::FutureExt;
+            use tokio_postgres::connect;
 
             let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
@@ -748,8 +746,8 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_read_numeric_type() {
-            use ::futures::future::FutureExt;
-            use ::tokio_postgres::connect;
+            use futures::future::FutureExt;
+            use tokio_postgres::connect;
 
             let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
@@ -786,8 +784,8 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_write_numeric_type() {
-            use ::futures::future::FutureExt;
-            use ::tokio_postgres::connect;
+            use futures::future::FutureExt;
+            use tokio_postgres::connect;
 
             let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();
             let connection = connection.map(|e| e.unwrap());
@@ -829,8 +827,8 @@ mod postgres {
         #[tokio::test]
         #[cfg(feature = "tokio-pg")]
         async fn async_numeric_overflow() {
-            use ::futures::future::FutureExt;
-            use ::tokio_postgres::connect;
+            use futures::future::FutureExt;
+            use tokio_postgres::connect;
 
             let tests = [(4, 4, "3950.1234")];
             let (client, connection) = connect(&get_postgres_url(), NoTls).await.unwrap();

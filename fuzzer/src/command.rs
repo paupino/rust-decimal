@@ -2,7 +2,11 @@ use rust_decimal::Decimal;
 
 use serde_derive::{Deserialize, Serialize};
 
-use std::{fmt::Display, fs::File, path::Path, str::FromStr};
+use core::{
+    fmt::{self, Display},
+    str::FromStr,
+};
+use std::{fs::File, path::Path};
 
 #[derive(Serialize, Deserialize)]
 struct FuzzInput {
@@ -77,7 +81,7 @@ enum Op {
 }
 
 impl Display for Op {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",

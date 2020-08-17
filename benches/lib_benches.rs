@@ -2,8 +2,8 @@
 
 extern crate test;
 
+use core::str::FromStr;
 use rust_decimal::Decimal;
-use std::str::FromStr;
 
 macro_rules! bench_decimal_op {
     ($name:ident, $op:tt, $y:expr) => {
