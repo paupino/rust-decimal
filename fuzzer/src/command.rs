@@ -1,11 +1,9 @@
-use rust_decimal::Decimal;
-
-use serde_derive::{Deserialize, Serialize};
-
 use core::{
     fmt::{self, Display},
     str::FromStr,
 };
+use rust_decimal::Decimal;
+use serde_derive::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 
 #[derive(Serialize, Deserialize)]

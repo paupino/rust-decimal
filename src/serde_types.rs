@@ -1,9 +1,7 @@
 use crate::Decimal;
-
-use num_traits::FromPrimitive;
-
 use alloc::string::ToString;
 use core::{fmt, str::FromStr};
+use num_traits::FromPrimitive;
 use serde::{self, de::Unexpected};
 
 #[cfg(not(feature = "serde-bincode"))]
@@ -105,9 +103,7 @@ impl serde::Serialize for Decimal {
 
 #[cfg(test)]
 mod test {
-
     use super::*;
-
     use serde_derive::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug)]

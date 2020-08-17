@@ -1,7 +1,6 @@
 mod command;
 
 use clap::{crate_authors, crate_version, App, Arg, SubCommand};
-
 use core::str::FromStr;
 use std::path::Path;
 

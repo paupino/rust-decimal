@@ -1,11 +1,9 @@
-use num_traits::{Signed, ToPrimitive, Zero};
-
-use rust_decimal::{Decimal, RoundingStrategy};
-
 use core::{
     cmp::{Ordering, Ordering::*},
     str::FromStr,
 };
+use num_traits::{Signed, ToPrimitive, Zero};
+use rust_decimal::{Decimal, RoundingStrategy};
 
 // Parsing
 
@@ -1558,9 +1556,7 @@ fn it_computes_equal_hashes_for_equal_values() {
 
     // Test the application of Hash calculation to a HashMap.
 
-    use std::collections::HashMap;
-
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
 
     map.insert(k1, k1.to_string());
     // map[k2] should overwrite map[k1] because k1 == k2.

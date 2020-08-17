@@ -1,7 +1,4 @@
 use crate::Error;
-
-use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
-
 use alloc::{string::String, vec::Vec};
 use core::{
     cmp::{Ordering::Equal, *},
@@ -13,6 +10,7 @@ use core::{
 };
 #[cfg(feature = "diesel")]
 use diesel::sql_types::Numeric;
+use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a

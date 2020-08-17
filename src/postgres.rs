@@ -1,9 +1,9 @@
-use num_traits::Zero;
-
-use crate::Decimal;
-
-use crate::decimal::{div_by_u32, is_all_zero, mul_by_u32, MAX_PRECISION};
+use crate::{
+    decimal::{div_by_u32, is_all_zero, mul_by_u32, MAX_PRECISION},
+    Decimal,
+};
 use core::{convert::TryInto, fmt, result::*};
+use num_traits::Zero;
 use std::error;
 
 #[derive(Debug, Clone)]
@@ -144,7 +144,6 @@ impl Decimal {
 #[cfg(feature = "diesel")]
 mod diesel {
     use super::*;
-
     use ::diesel::{
         deserialize::{self, FromSql},
         pg::data_types::PgNumeric,
@@ -474,7 +473,6 @@ mod diesel {
 #[cfg(feature = "postgres")]
 mod postgres {
     use super::*;
-
     use ::postgres::types::*;
     use byteorder::{BigEndian, ReadBytesExt};
     use bytes::{BufMut, BytesMut};
@@ -613,9 +611,7 @@ mod postgres {
     #[cfg(test)]
     mod test {
         use super::*;
-
         use ::postgres::{Client, NoTls};
-
         use core::str::FromStr;
 
         /// Gets the URL for connecting to PostgreSQL for testing. Set the POSTGRES_URL
