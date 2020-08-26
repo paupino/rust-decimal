@@ -1,8 +1,7 @@
+use core::str::FromStr;
 use proc_macro::TokenStream;
 use quote::quote;
 use rust_decimal::Decimal;
-
-use std::str::FromStr;
 
 #[proc_macro]
 pub fn dec(input: TokenStream) -> TokenStream {

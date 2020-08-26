@@ -1,10 +1,8 @@
 use crate::Decimal;
-
+use alloc::string::ToString;
+use core::{fmt, str::FromStr};
 use num_traits::FromPrimitive;
-
 use serde::{self, de::Unexpected};
-
-use std::{fmt, str::FromStr};
 
 #[cfg(not(feature = "serde-bincode"))]
 impl<'de> serde::Deserialize<'de> for Decimal {
@@ -105,9 +103,7 @@ impl serde::Serialize for Decimal {
 
 #[cfg(test)]
 mod test {
-
     use super::*;
-
     use serde_derive::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug)]

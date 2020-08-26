@@ -1,11 +1,10 @@
 mod command;
 
 use clap::{crate_authors, crate_version, App, Arg, SubCommand};
-
+use core::str::FromStr;
 use std::path::Path;
-use std::str::FromStr;
 
-fn main() -> std::result::Result<(), String> {
+fn main() -> Result<(), String> {
     // Command line:
     //  1. Generate fuzz file of size (this generates expected)
     //  2. Take fuzz file and check results

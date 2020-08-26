@@ -1,11 +1,9 @@
-use num_traits::{Signed, ToPrimitive, Zero};
-
-use rust_decimal::{Decimal, RoundingStrategy};
-
-use std::{
+use core::{
     cmp::{Ordering, Ordering::*},
     str::FromStr,
 };
+use num_traits::{Signed, ToPrimitive, Zero};
+use rust_decimal::{Decimal, RoundingStrategy};
 
 // Parsing
 
@@ -1182,12 +1180,12 @@ fn it_converts_from_f32() {
     );
     assert_eq!("0", from_f32(0.00000000000000000000000000001f32).unwrap().to_string());
 
-    assert!(from_f32(std::f32::NAN).is_none());
-    assert!(from_f32(std::f32::INFINITY).is_none());
+    assert!(from_f32(core::f32::NAN).is_none());
+    assert!(from_f32(core::f32::INFINITY).is_none());
 
     // These both overflow
-    assert!(from_f32(std::f32::MAX).is_none());
-    assert!(from_f32(std::f32::MIN).is_none());
+    assert!(from_f32(core::f32::MAX).is_none());
+    assert!(from_f32(core::f32::MIN).is_none());
 }
 
 #[test]
@@ -1212,12 +1210,12 @@ fn it_converts_from_f64() {
     assert_eq!("0.00006927", from_f64(0.00006927f64).unwrap().to_string());
     assert_eq!("0.000000006927", from_f64(0.000000006927f64).unwrap().to_string());
 
-    assert!(from_f64(std::f64::NAN).is_none());
-    assert!(from_f64(std::f64::INFINITY).is_none());
+    assert!(from_f64(core::f64::NAN).is_none());
+    assert!(from_f64(core::f64::INFINITY).is_none());
 
     // These both overflow
-    assert!(from_f64(std::f64::MAX).is_none());
-    assert!(from_f64(std::f64::MIN).is_none());
+    assert!(from_f64(core::f64::MAX).is_none());
+    assert!(from_f64(core::f64::MIN).is_none());
 }
 
 #[test]
@@ -1522,9 +1520,8 @@ fn to_from_sql() {
 }
 
 fn hash_it(d: Decimal) -> u64 {
+    use core::hash::{Hash, Hasher};
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::Hash;
-    use std::hash::Hasher;
 
     let mut h = DefaultHasher::new();
     d.hash(&mut h);
@@ -1559,9 +1556,7 @@ fn it_computes_equal_hashes_for_equal_values() {
 
     // Test the application of Hash calculation to a HashMap.
 
-    use std::collections::HashMap;
-
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
 
     map.insert(k1, k1.to_string());
     // map[k2] should overwrite map[k1] because k1 == k2.
@@ -1603,7 +1598,7 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 #[test]
 #[should_panic]
 fn it_handles_i128_min() {
-    Decimal::from_i128_with_scale(std::i128::MIN, 0);
+    Decimal::from_i128_with_scale(core::i128::MIN, 0);
 }
 
 #[test]

@@ -34,6 +34,11 @@
 //! let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 //! ```
 //!
+
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
+
 mod decimal;
 mod error;
 
@@ -47,8 +52,8 @@ pub use error::Error;
 
 pub mod prelude {
     pub use crate::{Decimal, RoundingStrategy};
+    pub use core::str::FromStr;
     pub use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
-    pub use std::str::FromStr;
 }
 
 #[cfg(feature = "diesel")]

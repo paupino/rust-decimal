@@ -1,4 +1,5 @@
-use std::{error, fmt};
+use alloc::string::String;
+use core::fmt;
 
 /// Error type for the library.
 #[derive(Clone, Debug)]
@@ -18,7 +19,8 @@ impl Error {
     }
 }
 
-impl error::Error for Error {
+#[cfg(feature = "std")]
+impl std::error::Error for Error {
     fn description(&self) -> &str {
         &self.message
     }
