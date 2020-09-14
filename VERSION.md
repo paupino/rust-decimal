@@ -1,5 +1,16 @@
 # Version History
 
+## 1.8.0
+
+* `no_std` support added to Rust Decimal by default. `std` isn't required to use Rust Decimal, however can be enabled by
+  using the `std` feature. [#190](https://github.com/paupino/rust-decimal/issues/190)
+* Fixes issue with Decimal sometimes losing precision through `to_f64`. [#267](https://github.com/paupino/rust-decimal/issues/267).
+* Add `Clone`, `Copy`, `PartialEq` and `Eq` derives to `RoundingStrategy`.
+* Remove Proc Macro hack due to procedural macros as expressions being stabilized.
+* Minor optimizations
+  
+Thank you to [@c410-f3r](https://github.com/c410-f3r), [@smessmer](https://github.com/smessmer) and [@KiChjang](https://github.com/KiChjang).
+
 ## 1.7.0
 
 * Enables `bincode` support via the feature `serde-bincode`. This provides a long term fix for a regression 
