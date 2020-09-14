@@ -1101,39 +1101,29 @@ fn it_can_go_from_and_into() {
 
 #[test]
 fn it_converts_to_f64() {
-    assert_eq!(5f64, Decimal::from_str("5").unwrap().to_f64().unwrap());
-    assert_eq!(-5f64, Decimal::from_str("-5").unwrap().to_f64().unwrap());
-    assert_eq!(0.1f64, Decimal::from_str("0.1").unwrap().to_f64().unwrap());
-    assert_eq!(0f64, Decimal::from_str("0.0").unwrap().to_f64().unwrap());
-    assert_eq!(0f64, Decimal::from_str("-0.0").unwrap().to_f64().unwrap());
-    assert_eq!(
-        0.25e-11f64,
-        Decimal::from_str("0.0000000000025").unwrap().to_f64().unwrap(),
-    );
-    assert_eq!(
-        1e6f64,
-        Decimal::from_str("1000000.0000000000025").unwrap().to_f64().unwrap()
-    );
-    assert_eq!(
-        0.25e-25_f64,
-        Decimal::from_str("0.000000000000000000000000025")
-            .unwrap()
-            .to_f64()
-            .unwrap(),
-    );
-    assert_eq!(
-        2.1234567890123456789012345678_f64,
-        Decimal::from_str("2.1234567890123456789012345678")
-            .unwrap()
-            .to_f64()
-            .unwrap(),
-    );
-
-    assert_eq!(
-        None,
-        // Cannot be represented in an f64
-        Decimal::from_str("21234567890123456789012345678").unwrap().to_f64(),
-    );
+    let tests = &[
+        ("5", Some(5f64)),
+        ("-5", Some(-5f64)),
+        ("0.1", Some(0.1f64)),
+        ("0.0", Some(0f64)),
+        ("-0.0", Some(0f64)),
+        ("0.0000000000025", Some(0.25e-11f64)),
+        ("1000000.0000000000025", Some(1e6f64)),
+        ("0.000000000000000000000000025", Some(0.25e-25_f64)),
+        (
+            "2.1234567890123456789012345678",
+            Some(2.1234567890123456789012345678_f64),
+        ),
+        (
+            "21234567890123456789012345678",
+            None, // Cannot be represented in an f64
+        ),
+        ("1.59283191", Some(1.59283191_f64)),
+    ];
+    for &(value, expected) in tests {
+        let value = Decimal::from_str(value).unwrap().to_f64();
+        assert_eq!(expected, value);
+    }
 }
 
 #[test]
