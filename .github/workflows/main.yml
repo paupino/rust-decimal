@@ -53,11 +53,11 @@ jobs:
           command: test
           args: --workspace --features default
 
-      - name: Run non-default tests (no_std)
-          uses: actions-rs/cargo@v1
-          with:
-            command: test
-            args: --workspace --no-default-features
+      - name: Run no_std tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --no-default-features
 
       - name: Run tests (db-postgres)
         uses: actions-rs/cargo@v1
