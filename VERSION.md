@@ -1,5 +1,15 @@
 # Version History
 
+## 1.8.1
+
+Make `std` support the default to prevent breaking downstream library dependencies. To enable `no_std` support please set 
+default features to false and opt-in to any required components. e.g.
+
+```
+rust_decimal = { default-features = false, version = "1.8.0" }
+```
+ 
+
 ## 1.8.0
 
 * `no_std` support added to Rust Decimal by default. `std` isn't required to use Rust Decimal, however can be enabled by

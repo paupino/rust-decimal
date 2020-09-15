@@ -33,7 +33,7 @@ tokio = { features = ["rt-threaded", "test-util", "macros"], version = "0.2" }
 db-diesel-postgres = ["diesel", "std"]
 db-postgres = ["byteorder", "bytes", "postgres", "std"]
 db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
-default = ["serde"]
+default = ["serde", "std"]
 serde-bincode = ["serde"]
 serde-float = ["serde"]
 std = []
