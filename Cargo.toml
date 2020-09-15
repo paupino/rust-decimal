@@ -9,7 +9,7 @@ license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
-version = "1.8.0"
+version = "1.8.1"
 
 [dependencies]
 byteorder = { default-features = false, optional = true, version = "1.3" }
