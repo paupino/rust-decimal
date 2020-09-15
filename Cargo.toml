@@ -9,7 +9,7 @@ license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
-version = "1.8.0"
+version = "1.8.1"
 
 [dependencies]
 byteorder = { default-features = false, optional = true, version = "1.3" }
@@ -33,7 +33,7 @@ tokio = { features = ["rt-threaded", "test-util", "macros"], version = "0.2" }
 db-diesel-postgres = ["diesel", "std"]
 db-postgres = ["byteorder", "bytes", "postgres", "std"]
 db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
-default = ["serde"]
+default = ["serde", "std"]
 serde-bincode = ["serde"]
 serde-float = ["serde"]
 std = []

@@ -48,6 +48,7 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 * [db-diesel-postgres](#db-diesel-postgres)
 * [serde-float](#serde-float)
 * [serde-bincode](#serde-bincode)
+* [std](#std)
 
 ## `db-postgres`
 
@@ -82,3 +83,8 @@ instead of `deserialize_any`.
 If, for some reason, you also have `serde-float` enabled then this will use `deserialize_f64` as a type hint. Because
 converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with 
 `bincode`. That being said, this will only use 8 bytes so is slightly more efficient in regards to storage size.
+
+## `std`
+
+Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to support `no_std`
+libraries, this crate can be compiled with `--no-default-features`.
