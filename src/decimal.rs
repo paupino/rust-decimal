@@ -3170,7 +3170,7 @@ mod test {
     #[test]
     fn declarative_dec_sum() {
         let vs = (0..10).map(|i| i.into()).collect::<Vec<Decimal>>();
-        let sum : Decimal = vs.iter().cloned().sum();
+        let sum: Decimal = vs.iter().cloned().sum();
 
         assert_eq!(sum, Decimal::from(45))
     }
@@ -3178,7 +3178,7 @@ mod test {
     #[test]
     fn declarative_ref_dec_sum() {
         let vs = (0..10).map(|i| i.into()).collect::<Vec<Decimal>>();
-        let sum : Decimal = vs.iter().sum();
+        let sum: Decimal = vs.iter().sum();
 
         assert_eq!(sum, Decimal::from(45))
     }
