@@ -3048,6 +3048,16 @@ impl Sum for Decimal {
     }
 }
 
+impl<'a> Sum<&'a Decimal> for Decimal {
+    fn sum<I: Iterator<Item = &'a Decimal>>(iter: I) -> Self {
+        let mut sum = Decimal::zero();
+        for i in iter {
+            sum += i;
+        }
+        sum
+    }
+}
+
 #[cfg(test)]
 mod test {
     // Tests on private methods.
@@ -3155,5 +3165,21 @@ mod test {
             rescale_internal(&mut value, &mut value_scale, new_scale);
             assert_eq!(value, expected_value);
         }
+    }
+
+    #[test]
+    fn declarative_dec_sum() {
+        let vs = (0..10).map(|i| i.into()).collect::<Vec<Decimal>>();
+        let sum: Decimal = vs.iter().cloned().sum();
+
+        assert_eq!(sum, Decimal::from(45))
+    }
+
+    #[test]
+    fn declarative_ref_dec_sum() {
+        let vs = (0..10).map(|i| i.into()).collect::<Vec<Decimal>>();
+        let sum: Decimal = vs.iter().sum();
+
+        assert_eq!(sum, Decimal::from(45))
     }
 }
