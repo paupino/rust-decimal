@@ -1514,6 +1514,122 @@ impl Decimal {
             flags: flags(self.is_sign_negative(), quotient_scale),
         })
     }
+
+    /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
+    /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
+    /// multiplication overflow.
+    fn exp(&self) -> Decimal {
+        if self == &Decimal::zero() {
+            return Decimal::one();
+        }
+
+        let tolerance = Decimal::new(2, 7);
+        let mut term = self.clone();
+        let mut result = self.clone() + Decimal::one();
+        let mut prev_result = Decimal::zero();
+        let mut factorial = Decimal::one();
+        let mut n = Decimal::new(2, 0);
+
+        // Needs rounding because multiplication overflows otherwise.
+        while (result - prev_result).abs() > tolerance && n < Decimal::new(24, 0) {
+            prev_result = result;
+            term = self * term.round_dp(8);
+            factorial *= n;
+            result += (term / factorial).round_dp(8);
+            n += Decimal::one();
+        }
+
+        result
+    }
+
+    /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
+    fn powi(&self, exp: u64) -> Decimal {
+        if exp == 0 {
+            Decimal::one()
+        } else if exp == 1 {
+            self.clone()
+        } else {
+            let mut result = self.clone();
+            for _ in 1..exp {
+                result *= self;
+            }
+            result
+        }
+    }
+
+    /// The square root of a Decimal. Uses a standard Babylonian method.
+    fn sqrt(&self) -> Option<Decimal> {
+        if self.is_sign_negative() {
+            return None;
+        }
+
+        if self == &Decimal::zero() {
+            return Some(Decimal::zero());
+        }
+
+        // Start with an arbitrary number as the first guess
+        let mut result = self / Decimal::new(2, 0);
+        let mut last = result + Decimal::one();
+
+        // Keep going while the difference is larger than the tolerance
+        while last != result {
+            last = result;
+            result = (result + self / result) / Decimal::new(2, 0);
+        }
+
+        return Some(result);
+    }
+
+    /// The natural logarithm for a Decimal. Uses a [fast estimation algorithm](https://en.wikipedia.org/wiki/Natural_logarithm#High_precision)
+    /// This is more accurate on larger numbers and less on numbers less than 1.
+    fn ln(&self) -> Decimal {
+        if self.is_sign_positive() {
+            if self == &Decimal::one() {
+                Decimal::zero()
+            } else {
+                let pi = Decimal::from_str("3.141592653589793238462643383279502884197169399375105820974").unwrap();
+                let ln2 = Decimal::from_str("0.693147180559945309417232121458176568075500134360255254120").unwrap();
+                let s = self * Decimal::from_str("256").unwrap();
+                let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::one(), &(Decimal::from_str("4").unwrap() / s));
+
+                pi / (arith_geo_mean * Decimal::from_str("2").unwrap()) - (Decimal::from_str("8").unwrap() * ln2)
+            }
+        } else {
+            Decimal::zero()
+        }
+    }
+
+    /// Abramowitz Approximation of Error Function from [wikipedia](https://en.wikipedia.org/wiki/Error_function#Numerical_approximations)
+    fn erf(&self) -> Decimal {
+        if self.is_sign_positive() {
+            let one = &Decimal::one();
+
+            let xa1 = self * Decimal::from_str("0.0705230784").unwrap();
+            let xa2 = self.powi(2) * Decimal::from_str("0.0422820123").unwrap();
+            let xa3 = self.powi(3) * Decimal::from_str("0.0092705272").unwrap();
+            let xa4 = self.powi(4) * Decimal::from_str("0.0001520143").unwrap();
+            let xa5 = self.powi(5) * Decimal::from_str("0.0002765672").unwrap();
+            let xa6 = self.powi(6) * Decimal::from_str("0.0000430638").unwrap();
+
+            let sum = one + xa1 + xa2 + xa3 + xa4 + xa5 + xa6;
+            one - (one / sum.powi(16))
+        } else {
+            -self.abs().erf()
+        }
+    }
+
+    /// The Cumulative distribution function for a Normal distribution
+    fn norm_cdf(&self) -> Decimal {
+        (Decimal::one() + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf())
+            / Decimal::from_str("2").unwrap()
+    }
+
+    /// The Probability distribution function for a Normal distribution
+    fn norm_pdf(&self) -> Decimal {
+        (-(self.powi(2) / Decimal::new(2, 0))).exp()
+            / (Decimal::from_str("1.4142135").unwrap()
+                * Decimal::from_str("3.14159").unwrap().sqrt().unwrap_or_default())
+    }
 }
 
 impl Default for Decimal {
@@ -2058,6 +2174,28 @@ pub(crate) fn is_all_zero(bits: &[u32]) -> bool {
     bits.iter().all(|b| *b == 0)
 }
 
+/// Returns the convergence of both the arithmetic and geometric mean.
+/// Used internally.
+fn arithmetic_geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
+    let tolerance = Decimal::from_str("0.0000005").unwrap();
+    let diff = (a - b).abs();
+
+    if diff < tolerance {
+        a.clone()
+    } else {
+        arithmetic_geo_mean_of_2(&mean_of_2(a, b), &geo_mean_of_2(a, b))
+    }
+}
+
+/// The Arithmetic mean. Used internally.
+fn mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
+    (a + b) / Decimal::from_str("2").unwrap()
+}
+
+/// The geometric mean. Used internally.
+fn geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
+    (a * b).sqrt().unwrap()
+}
 macro_rules! impl_from {
     ($T:ty, $from_ty:path) => {
         impl From<$T> for Decimal {
@@ -3181,5 +3319,256 @@ mod test {
         let sum: Decimal = vs.iter().sum();
 
         assert_eq!(sum, Decimal::from(45))
+    }
+
+    #[test]
+    fn test_powi() {
+        let test_cases = vec![
+            (Decimal::new(4, 0), 3_u64, Decimal::new(64, 0)),
+            (
+                Decimal::from_str("3.222").unwrap(),
+                5_u64,
+                Decimal::from_str("347.238347228449632").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.1").unwrap(),
+                0_u64,
+                Decimal::from_str("1").unwrap(),
+            ),
+            (
+                Decimal::from_str("342.4").unwrap(),
+                1_u64,
+                Decimal::from_str("342.4").unwrap(),
+            ),
+            (
+                Decimal::from_str("2.0").unwrap(),
+                16_u64,
+                Decimal::from_str("65536").unwrap(),
+            ),
+        ];
+        for case in test_cases {
+            assert_eq!(case.2, case.0.powi(case.1));
+        }
+    }
+
+    #[test]
+    fn test_sqrt() {
+        let test_cases = vec![
+            (Decimal::new(4, 0), Decimal::new(2, 0)),
+            (
+                Decimal::new(3222, 3),
+                Decimal::from_str("1.7949930361981909371487724124").unwrap(),
+            ),
+            (
+                Decimal::new(19945, 2),
+                Decimal::from_str("14.122676800097069416754994263").unwrap(),
+            ),
+            (
+                Decimal::from_str("342.4").unwrap(),
+                Decimal::from_str("18.504053609952604112132102540").unwrap(),
+            ),
+            (
+                Decimal::new(2, 0),
+                Decimal::from_str("1.414213562373095048801688724209698078569671875376948073176").unwrap(),
+            ),
+        ];
+        for case in test_cases {
+            assert_eq!(case.1, case.0.sqrt().unwrap());
+        }
+
+        assert_eq!(Decimal::new(-2, 0).sqrt(), None);
+    }
+
+    #[test]
+    fn test_exp() {
+        let test_cases = vec![
+            (Decimal::new(10, 0), Decimal::from_str("22023.81992829").unwrap()),
+            (Decimal::new(11, 0), Decimal::from_str("59846.36875797").unwrap()),
+            (Decimal::new(3, 0), Decimal::from_str("20.08553690").unwrap()),
+            (
+                Decimal::from_str("8").unwrap(),
+                Decimal::from_str("2980.94688158").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.1").unwrap(),
+                Decimal::from_str("1.10517092").unwrap(),
+            ),
+            (
+                Decimal::from_str("2.0").unwrap(),
+                Decimal::from_str("7.38905609").unwrap(),
+            ),
+        ];
+        for case in test_cases {
+            assert_eq!(case.1, case.0.exp());
+        }
+    }
+
+    #[test]
+    fn test_norm_cdf() {
+        let test_cases = vec![
+            (
+                Decimal::from_str("-0.4").unwrap(),
+                Decimal::from_str("0.3445781286821245037094401727").unwrap(),
+            ),
+            (
+                Decimal::from_str("-0.1").unwrap(),
+                Decimal::from_str("0.4601722899186706579921922710").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.1").unwrap(),
+                Decimal::from_str("0.5398277100813293420078077290").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.4").unwrap(),
+                Decimal::from_str("0.6554218713178754962905598274").unwrap(),
+            ),
+            (
+                Decimal::from_str("2.0").unwrap(),
+                Decimal::from_str("0.9772497381095865280953380672").unwrap(),
+            ),
+        ];
+        for case in test_cases {
+            assert_eq!(case.1, case.0.norm_cdf());
+        }
+    }
+
+    #[test]
+    fn test_norm_pdf() {
+        let test_cases = vec![
+            (
+                Decimal::from_str("-2.0").unwrap(),
+                Decimal::from_str("0.0539910023736058393236792574").unwrap(),
+            ),
+            (
+                Decimal::from_str("-0.4").unwrap(),
+                Decimal::from_str("0.3682703135195416387279954115").unwrap(),
+            ),
+            (
+                Decimal::from_str("-0.1").unwrap(),
+                Decimal::from_str("0.3969527329523051502814425937").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.1").unwrap(),
+                Decimal::from_str("0.3969527329523051502814425937").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.4").unwrap(),
+                Decimal::from_str("0.3682703135195416387279954115").unwrap(),
+            ),
+            (
+                Decimal::from_str("2.0").unwrap(),
+                Decimal::from_str("0.0539910023736058393236792574").unwrap(),
+            ),
+        ];
+        for case in test_cases {
+            assert_eq!(case.1, case.0.norm_pdf());
+        }
+    }
+
+    #[test]
+    fn test_ln() {
+        let test_cases = vec![
+            (Decimal::from_str("1").unwrap(), Decimal::from_str("0").unwrap()),
+            (Decimal::from_str("-2.0").unwrap(), Decimal::from_str("0").unwrap()),
+            (
+                Decimal::from_str("0.23").unwrap(),
+                // Wolfram Alpha gives -1.46968
+                Decimal::from_str("-1.4661188292208822723626471532").unwrap(),
+            ),
+            (
+                Decimal::from_str("2").unwrap(),
+                // Wolfram Alpha gives 0.693147180559945309417232121458176568075500134360255254120
+                Decimal::from_str("0.6932271134541528994884316422").unwrap(),
+            ),
+            (
+                Decimal::from_str("25").unwrap(),
+                // Wolfram Alpha gives 3.218875824868200749201518666452375279051202708537035443825
+                Decimal::from_str("3.218876058872673755992392564").unwrap(),
+            ),
+        ];
+
+        for case in test_cases {
+            assert_eq!(case.1, case.0.ln());
+        }
+    }
+
+    #[test]
+    fn test_erf() {
+        let test_cases = vec![
+            (
+                Decimal::from_str("-2.0").unwrap(),
+                // Wolfram give -0.9953222650189527
+                Decimal::from_str("-0.9953225170750043399400930073").unwrap(),
+            ),
+            (
+                Decimal::from_str("-0.4").unwrap(),
+                Decimal::from_str("-0.4283924127205154977961931418").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.4").unwrap(),
+                Decimal::from_str("0.4283924127205154977961931418").unwrap(),
+            ),
+            (
+                Decimal::one(),
+                Decimal::from_str("0.8427010463338918630217928957").unwrap(),
+            ),
+            (
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("0.9953225170750043399400930073").unwrap(),
+            ),
+        ];
+        for case in test_cases {
+            assert_eq!(case.1, case.0.erf());
+        }
+    }
+
+    #[test]
+    fn test_geo_mean_of_2() {
+        let test_cases = vec![
+            (
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
+            ),
+            (
+                Decimal::from_str("4").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("3.4641016151377545870548926830").unwrap(),
+            ),
+            (
+                Decimal::from_str("12").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("6").unwrap(),
+            ),
+        ];
+
+        for case in test_cases {
+            assert_eq!(case.2, geo_mean_of_2(&case.0, &case.1));
+        }
+    }
+
+    #[test]
+    fn test_mean_of_2() {
+        let test_cases = vec![
+            (
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
+            ),
+            (
+                Decimal::from_str("4").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("3.5").unwrap(),
+            ),
+            (
+                Decimal::from_str("12").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("7.5").unwrap(),
+            ),
+        ];
+
+        for case in test_cases {
+            assert_eq!(case.2, mean_of_2(&case.0, &case.1));
+        }
     }
 }
