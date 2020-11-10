@@ -1518,7 +1518,7 @@ impl Decimal {
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
     /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
     /// multiplication overflow.
-    fn exp(&self) -> Decimal {
+    pub fn exp(&self) -> Decimal {
         if self == &Decimal::zero() {
             return Decimal::one();
         }
@@ -1543,7 +1543,7 @@ impl Decimal {
     }
 
     /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
-    fn powi(&self, exp: u64) -> Decimal {
+    pub fn powi(&self, exp: u64) -> Decimal {
         if exp == 0 {
             Decimal::one()
         } else if exp == 1 {
@@ -1558,7 +1558,7 @@ impl Decimal {
     }
 
     /// The square root of a Decimal. Uses a standard Babylonian method.
-    fn sqrt(&self) -> Option<Decimal> {
+    pub fn sqrt(&self) -> Option<Decimal> {
         if self.is_sign_negative() {
             return None;
         }
@@ -1582,7 +1582,7 @@ impl Decimal {
 
     /// The natural logarithm for a Decimal. Uses a [fast estimation algorithm](https://en.wikipedia.org/wiki/Natural_logarithm#High_precision)
     /// This is more accurate on larger numbers and less on numbers less than 1.
-    fn ln(&self) -> Decimal {
+    pub fn ln(&self) -> Decimal {
         if self.is_sign_positive() {
             if self == &Decimal::one() {
                 Decimal::zero()
@@ -1600,7 +1600,7 @@ impl Decimal {
     }
 
     /// Abramowitz Approximation of Error Function from [wikipedia](https://en.wikipedia.org/wiki/Error_function#Numerical_approximations)
-    fn erf(&self) -> Decimal {
+    pub fn erf(&self) -> Decimal {
         if self.is_sign_positive() {
             let one = &Decimal::one();
 
@@ -1619,13 +1619,13 @@ impl Decimal {
     }
 
     /// The Cumulative distribution function for a Normal distribution
-    fn norm_cdf(&self) -> Decimal {
+    pub fn norm_cdf(&self) -> Decimal {
         (Decimal::one() + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf())
             / Decimal::from_str("2").unwrap()
     }
 
     /// The Probability distribution function for a Normal distribution
-    fn norm_pdf(&self) -> Decimal {
+    pub fn norm_pdf(&self) -> Decimal {
         (-(self.powi(2) / Decimal::new(2, 0))).exp()
             / (Decimal::from_str("1.4142135").unwrap()
                 * Decimal::from_str("3.14159").unwrap().sqrt().unwrap_or_default())
