@@ -79,6 +79,27 @@ static BIG_POWERS_10: [u64; 10] = [
     10_000_000_000_000_000_000,
 ];
 
+pub const TWO: Decimal = Decimal {
+    flags: 0,
+    hi: 0,
+    lo: 2,
+    mid: 0,
+};
+
+pub const PI: Decimal = Decimal {
+    flags: 1835008,
+    hi: 1703060790,
+    mid: 185874565,
+    lo: 1102470953,
+};
+
+pub const LN2: Decimal = Decimal {
+    flags: 1900544,
+    hi: 3757558395,
+    mid: 328455696,
+    lo: 2831677809,
+};
+
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
 #[derive(Clone, Copy, Debug)]
@@ -1528,7 +1549,7 @@ impl Decimal {
         let mut result = self.clone() + Decimal::one();
         let mut prev_result = Decimal::zero();
         let mut factorial = Decimal::one();
-        let mut n = Decimal::new(2, 0);
+        let mut n = TWO;
 
         // Needs rounding because multiplication overflows otherwise.
         while (result - prev_result).abs() > tolerance && n < Decimal::new(24, 0) {
@@ -1544,16 +1565,26 @@ impl Decimal {
 
     /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
     pub fn powi(&self, exp: u64) -> Decimal {
-        if exp == 0 {
-            Decimal::one()
-        } else if exp == 1 {
-            self.clone()
-        } else {
-            let mut result = self.clone();
-            for _ in 1..exp {
-                result *= self;
+        match exp {
+            0 => Decimal::one(),
+            1 => self.clone(),
+            2 => self * self,
+            _ => {
+                // Square self once and make an infinite sized iterator of the square.
+                let i = std::iter::repeat(self * self);
+
+                // We then take half of the exponent to create a finite iterator and then multiply those together.
+                let product = i
+                    .take((exp / 2) as usize)
+                    .fold(Decimal::one(), |accumulator, x| accumulator * x);
+
+                // If the exponent is odd we still need to multiply once more
+                if exp % 2 > 0 {
+                    product * self
+                } else {
+                    product
+                }
             }
-            result
         }
     }
 
@@ -1568,13 +1599,13 @@ impl Decimal {
         }
 
         // Start with an arbitrary number as the first guess
-        let mut result = self / Decimal::new(2, 0);
+        let mut result = self / TWO;
         let mut last = result + Decimal::one();
 
         // Keep going while the difference is larger than the tolerance
         while last != result {
             last = result;
-            result = (result + self / result) / Decimal::new(2, 0);
+            result = (result + self / result) / TWO;
         }
 
         return Some(result);
@@ -1587,12 +1618,10 @@ impl Decimal {
             if self == &Decimal::one() {
                 Decimal::zero()
             } else {
-                let pi = Decimal::from_str("3.141592653589793238462643383279502884197169399375105820974").unwrap();
-                let ln2 = Decimal::from_str("0.693147180559945309417232121458176568075500134360255254120").unwrap();
-                let s = self * Decimal::from_str("256").unwrap();
-                let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::one(), &(Decimal::from_str("4").unwrap() / s));
+                let s = self * Decimal::new(256, 0);
+                let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::one(), &(Decimal::new(4, 0) / s));
 
-                pi / (arith_geo_mean * Decimal::from_str("2").unwrap()) - (Decimal::from_str("8").unwrap() * ln2)
+                PI / (arith_geo_mean * TWO) - (Decimal::new(8, 0) * LN2)
             }
         } else {
             Decimal::zero()
@@ -3408,11 +3437,11 @@ mod test {
         let test_cases = vec![
             (
                 Decimal::from_str("-0.4").unwrap(),
-                Decimal::from_str("0.3445781286821245037094401727").unwrap(),
+                Decimal::from_str("0.3445781286821245037094401728").unwrap(),
             ),
             (
                 Decimal::from_str("-0.1").unwrap(),
-                Decimal::from_str("0.4601722899186706579921922710").unwrap(),
+                Decimal::from_str("0.4601722899186706579921922711").unwrap(),
             ),
             (
                 Decimal::from_str("0.1").unwrap(),
@@ -3420,7 +3449,7 @@ mod test {
             ),
             (
                 Decimal::from_str("0.4").unwrap(),
-                Decimal::from_str("0.6554218713178754962905598274").unwrap(),
+                Decimal::from_str("0.6554218713178754962905598272").unwrap(),
             ),
             (
                 Decimal::from_str("2.0").unwrap(),
@@ -3502,11 +3531,11 @@ mod test {
             ),
             (
                 Decimal::from_str("-0.4").unwrap(),
-                Decimal::from_str("-0.4283924127205154977961931418").unwrap(),
+                Decimal::from_str("-0.4283924127205154977961931420").unwrap(),
             ),
             (
                 Decimal::from_str("0.4").unwrap(),
-                Decimal::from_str("0.4283924127205154977961931418").unwrap(),
+                Decimal::from_str("0.4283924127205154977961931420").unwrap(),
             ),
             (
                 Decimal::one(),
