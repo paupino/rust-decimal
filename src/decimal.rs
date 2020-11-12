@@ -1563,6 +1563,34 @@ impl Decimal {
         result
     }
 
+    /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
+    /// calculating when it is within `tolerance`.
+    /// Multiplication overflows are likely if you are not careful with the size of `tolerance`.
+    /// It is recommended to set the `tolerance` larger for larger numbers and smaller for smaller
+    /// numbers to avoid multiplication overflow.
+    pub fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal {
+        if self == &Decimal::zero() {
+            return Decimal::one();
+        }
+
+        let mut term = self.clone();
+        let mut result = self.clone() + Decimal::one();
+        let mut prev_result = Decimal::zero();
+        let mut factorial = Decimal::one();
+        let mut n = TWO;
+
+        // Needs rounding because multiplication overflows otherwise.
+        while (result - prev_result).abs() > tolerance && n < Decimal::new(24, 0) {
+            prev_result = result;
+            term = self * term.round_dp(8);
+            factorial *= n;
+            result += (term / factorial).round_dp(8);
+            n += Decimal::one();
+        }
+
+        result
+    }
+
     /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
     pub fn powi(&self, exp: u64) -> Decimal {
         match exp {
@@ -3429,6 +3457,45 @@ mod test {
         ];
         for case in test_cases {
             assert_eq!(case.1, case.0.exp());
+        }
+    }
+
+    #[test]
+    fn test_exp_with_tolerance() {
+        let test_cases = vec![
+            (
+                Decimal::new(10, 0),
+                Decimal::new(3, 2),
+                Decimal::from_str("22023.81992829").unwrap(),
+            ),
+            (
+                Decimal::new(11, 0),
+                Decimal::new(2, 4),
+                Decimal::from_str("59846.36875797").unwrap(),
+            ),
+            (
+                Decimal::new(3, 0),
+                Decimal::new(2, 5),
+                Decimal::from_str("20.08553442").unwrap(),
+            ),
+            (
+                Decimal::from_str("8").unwrap(),
+                Decimal::new(2, 4),
+                Decimal::from_str("2980.94688158").unwrap(),
+            ),
+            (
+                Decimal::from_str("0.1").unwrap(),
+                Decimal::new(2, 4),
+                Decimal::from_str("1.10516667").unwrap(),
+            ),
+            (
+                Decimal::from_str("2.0").unwrap(),
+                Decimal::new(2, 4),
+                Decimal::from_str("7.38904603").unwrap(),
+            ),
+        ];
+        for case in test_cases {
+            assert_eq!(case.2, case.0.exp_with_tolerance(case.1));
         }
     }
 
