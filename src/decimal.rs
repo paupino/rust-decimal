@@ -1540,27 +1540,8 @@ impl Decimal {
     /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
     /// multiplication overflow.
     pub fn exp(&self) -> Decimal {
-        if self == &Decimal::zero() {
-            return Decimal::one();
-        }
-
         let tolerance = Decimal::new(2, 7);
-        let mut term = self.clone();
-        let mut result = self.clone() + Decimal::one();
-        let mut prev_result = Decimal::zero();
-        let mut factorial = Decimal::one();
-        let mut n = TWO;
-
-        // Needs rounding because multiplication overflows otherwise.
-        while (result - prev_result).abs() > tolerance && n < Decimal::new(24, 0) {
-            prev_result = result;
-            term = self * term.round_dp(8);
-            factorial *= n;
-            result += (term / factorial).round_dp(8);
-            n += Decimal::one();
-        }
-
-        result
+        self.exp_with_tolerance(tolerance)
     }
 
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
@@ -1568,19 +1549,21 @@ impl Decimal {
     /// Multiplication overflows are likely if you are not careful with the size of `tolerance`.
     /// It is recommended to set the `tolerance` larger for larger numbers and smaller for smaller
     /// numbers to avoid multiplication overflow.
+    #[inline]
     pub fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal {
         if self == &Decimal::zero() {
             return Decimal::one();
         }
 
-        let mut term = self.clone();
-        let mut result = self.clone() + Decimal::one();
+        let mut term = *self;
+        let mut result = self + Decimal::one();
         let mut prev_result = Decimal::zero();
         let mut factorial = Decimal::one();
         let mut n = TWO;
+        let twenty_four = Decimal::new(24, 0);
 
         // Needs rounding because multiplication overflows otherwise.
-        while (result - prev_result).abs() > tolerance && n < Decimal::new(24, 0) {
+        while (result - prev_result).abs() > tolerance && n < twenty_four {
             prev_result = result;
             term = self * term.round_dp(8);
             factorial *= n;
@@ -1595,7 +1578,7 @@ impl Decimal {
     pub fn powi(&self, exp: u64) -> Decimal {
         match exp {
             0 => Decimal::one(),
-            1 => self.clone(),
+            1 => *self,
             2 => self * self,
             _ => {
                 // Square self once and make an infinite sized iterator of the square.
@@ -1681,11 +1664,15 @@ impl Decimal {
             / Decimal::from_str("2").unwrap()
     }
 
-    /// The Probability distribution function for a Normal distribution
+    /// The Probability density function for a Normal distribution
     pub fn norm_pdf(&self) -> Decimal {
-        (-(self.powi(2) / Decimal::new(2, 0))).exp()
-            / (Decimal::from_str("1.4142135").unwrap()
-                * Decimal::from_str("3.14159").unwrap().sqrt().unwrap_or_default())
+        let sqrt2pi = Decimal {
+            flags: 1835008,
+            hi: 1358845910,
+            mid: 2079885984,
+            lo: 2133383024,
+        };
+        (-self.powi(2) / TWO).exp() / sqrt2pi
     }
 }
 
@@ -3533,27 +3520,27 @@ mod test {
         let test_cases = vec![
             (
                 Decimal::from_str("-2.0").unwrap(),
-                Decimal::from_str("0.0539910023736058393236792574").unwrap(),
+                Decimal::from_str("0.0539909771902348159131327614").unwrap(),
             ),
             (
                 Decimal::from_str("-0.4").unwrap(),
-                Decimal::from_str("0.3682703135195416387279954115").unwrap(),
+                Decimal::from_str("0.3682701417448470684306485260").unwrap(),
             ),
             (
                 Decimal::from_str("-0.1").unwrap(),
-                Decimal::from_str("0.3969527329523051502814425937").unwrap(),
+                Decimal::from_str("0.3969525477990849244300670202").unwrap(),
             ),
             (
                 Decimal::from_str("0.1").unwrap(),
-                Decimal::from_str("0.3969527329523051502814425937").unwrap(),
+                Decimal::from_str("0.3969525477990849244300670202").unwrap(),
             ),
             (
                 Decimal::from_str("0.4").unwrap(),
-                Decimal::from_str("0.3682703135195416387279954115").unwrap(),
+                Decimal::from_str("0.3682701417448470684306485260").unwrap(),
             ),
             (
                 Decimal::from_str("2.0").unwrap(),
-                Decimal::from_str("0.0539910023736058393236792574").unwrap(),
+                Decimal::from_str("0.0539909771902348159131327614").unwrap(),
             ),
         ];
         for case in test_cases {
