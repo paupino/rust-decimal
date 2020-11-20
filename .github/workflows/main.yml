@@ -47,17 +47,17 @@ jobs:
           command: build
           args: --workspace --all-features
 
+      - name: Run no_std tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --no-default-features
+
       - name: Run default tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --workspace --features default
-
-      - name: Run no_std tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --no-default-features
 
       - name: Run tests (db-postgres)
         uses: actions-rs/cargo@v1
