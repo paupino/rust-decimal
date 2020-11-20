@@ -1,0 +1,71 @@
+[config]
+default_to_workspace = false
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+
+[tasks.format]
+workspace = true
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--emit=files"]
+
+[tasks.outdated]
+install_crate = "cargo-outdated"
+command = "cargo"
+args = ["outdated", "-R"]
+
+[tasks.test-all]
+dependencies = [
+    "test-no-std",
+    "test-default",
+    "test-db",
+    "test-serde"
+]
+
+[tasks.test-db]
+dependencies = [
+    "test-db-postgres",
+    "test-db-tokio-postgres",
+    "test-db-diesel-postgres"
+]
+
+[tasks.test-serde]
+dependencies = [
+    "test-serde-float",
+    "test-serde-bincode",
+    "test-serde-bincode-float"
+]
+
+[tasks.test-no-std]
+command = "cargo"
+args = ["test", "--no-default-features"]
+
+[tasks.test-default]
+command = "cargo"
+args = ["test", "--workspace", "--features=default"]
+
+[tasks.test-db-postgres]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-postgres"]
+
+[tasks.test-db-tokio-postgres]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres"]
+
+[tasks.test-db-diesel-postgres]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres"]
+
+[tasks.test-serde-float]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=serde-float"]
+
+[tasks.test-serde-bincode]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=serde-bincode"]
+
+[tasks.test-serde-bincode-float]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=serde-bincode,serde-float"]
