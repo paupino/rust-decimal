@@ -473,7 +473,7 @@ mod diesel {
 #[cfg(feature = "postgres")]
 mod postgres {
     use super::*;
-    use ::postgres::types::*;
+    use ::postgres::types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
     use byteorder::{BigEndian, ReadBytesExt};
     use bytes::{BufMut, BytesMut};
     use std::io::Cursor;

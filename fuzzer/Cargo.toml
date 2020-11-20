@@ -11,7 +11,7 @@ path = "src/main.rs"
 [dependencies]
 clap = "2.32.0"
 decimal = "2.0.4"
-rand = "0.5"
+rand = "0.7"
 rust_decimal = { path = "../" }
 serde = "1.0"
 serde_derive = "1.0"
