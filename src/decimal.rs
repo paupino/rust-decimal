@@ -1584,7 +1584,7 @@ impl Decimal {
             2 => self * self,
             _ => {
                 // Square self once and make an infinite sized iterator of the square.
-                let i = std::iter::repeat(self * self);
+                let i = core::iter::repeat(self * self);
 
                 // We then take half of the exponent to create a finite iterator and then multiply those together.
                 let product = i
@@ -3369,7 +3369,7 @@ mod test {
 
     #[test]
     fn test_powi() {
-        let test_cases = vec![
+        let test_cases = &[
             (Decimal::new(4, 0), 3_u64, Decimal::new(64, 0)),
             (
                 Decimal::from_str("3.222").unwrap(),
@@ -3399,7 +3399,7 @@ mod test {
 
     #[test]
     fn test_sqrt() {
-        let test_cases = vec![
+        let test_cases = &[
             (Decimal::new(4, 0), Decimal::new(2, 0)),
             (
                 Decimal::new(3222, 3),
@@ -3427,7 +3427,7 @@ mod test {
 
     #[test]
     fn test_exp() {
-        let test_cases = vec![
+        let test_cases = &[
             (Decimal::new(10, 0), Decimal::from_str("22023.81992829").unwrap()),
             (Decimal::new(11, 0), Decimal::from_str("59846.36875797").unwrap()),
             (Decimal::new(3, 0), Decimal::from_str("20.08553690").unwrap()),
@@ -3451,7 +3451,7 @@ mod test {
 
     #[test]
     fn test_exp_with_tolerance() {
-        let test_cases = vec![
+        let test_cases = &[
             (
                 Decimal::new(10, 0),
                 Decimal::new(3, 2),
@@ -3490,7 +3490,7 @@ mod test {
 
     #[test]
     fn test_norm_cdf() {
-        let test_cases = vec![
+        let test_cases = &[
             (
                 Decimal::from_str("-0.4").unwrap(),
                 Decimal::from_str("0.3445781286821245037094401728").unwrap(),
@@ -3519,7 +3519,7 @@ mod test {
 
     #[test]
     fn test_norm_pdf() {
-        let test_cases = vec![
+        let test_cases = &[
             (
                 Decimal::from_str("-2.0").unwrap(),
                 Decimal::from_str("0.0539909771902348159131327614").unwrap(),
@@ -3552,7 +3552,7 @@ mod test {
 
     #[test]
     fn test_ln() {
-        let test_cases = vec![
+        let test_cases = &[
             (Decimal::from_str("1").unwrap(), Decimal::from_str("0").unwrap()),
             (Decimal::from_str("-2.0").unwrap(), Decimal::from_str("0").unwrap()),
             (
@@ -3579,7 +3579,7 @@ mod test {
 
     #[test]
     fn test_erf() {
-        let test_cases = vec![
+        let test_cases = &[
             (
                 Decimal::from_str("-2.0").unwrap(),
                 // Wolfram give -0.9953222650189527
@@ -3609,7 +3609,7 @@ mod test {
 
     #[test]
     fn test_geo_mean_of_2() {
-        let test_cases = vec![
+        let test_cases = &[
             (
                 Decimal::from_str("2").unwrap(),
                 Decimal::from_str("2").unwrap(),
@@ -3634,7 +3634,7 @@ mod test {
 
     #[test]
     fn test_mean_of_2() {
-        let test_cases = vec![
+        let test_cases = &[
             (
                 Decimal::from_str("2").unwrap(),
                 Decimal::from_str("2").unwrap(),
