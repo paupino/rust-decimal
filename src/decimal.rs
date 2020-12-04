@@ -13,7 +13,6 @@ use diesel::sql_types::Numeric;
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
-use serde::export::Formatter;
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
@@ -2916,7 +2915,7 @@ impl fmt::Debug for Decimal {
     }
 }
 
-fn fmt_scientific_notation(value: &Decimal, exponent_symbol: &str, f: &mut Formatter<'_>) -> fmt::Result {
+fn fmt_scientific_notation(value: &Decimal, exponent_symbol: &str, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     // Get the scale - this is the e value. With multiples of 10 this may get bigger.
     let mut exponent = -(value.scale() as isize);
 
@@ -2955,13 +2954,13 @@ fn fmt_scientific_notation(value: &Decimal, exponent_symbol: &str, f: &mut Forma
 }
 
 impl fmt::LowerExp for Decimal {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt_scientific_notation(self, "e", f)
     }
 }
 
 impl fmt::UpperExp for Decimal {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt_scientific_notation(self, "E", f)
     }
 }
