@@ -5,6 +5,12 @@ default_to_workspace = false
 command = "cargo"
 args = ["build"]
 
+# Always test no-std with std tests
+[tasks.test]
+dependencies = ["test-no-std"]
+command = "cargo"
+args = ["test"]
+
 [tasks.format]
 workspace = true
 install_crate = "rustfmt"
