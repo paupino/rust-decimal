@@ -2916,6 +2916,9 @@ impl fmt::Debug for Decimal {
 }
 
 fn fmt_scientific_notation(value: &Decimal, exponent_symbol: &str, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    #[cfg(not(feature = "std"))]
+    use alloc::string::ToString;
+
     // Get the scale - this is the e value. With multiples of 10 this may get bigger.
     let mut exponent = -(value.scale() as isize);
 
@@ -2949,7 +2952,7 @@ fn fmt_scientific_notation(value: &Decimal, exponent_symbol: &str, f: &mut fmt::
     }
 
     rep.push_str(exponent_symbol);
-    rep.push_str(&format!("{}", exponent));
+    rep.push_str(&exponent.to_string());
     f.pad_integral(value.is_sign_positive(), "", &rep)
 }
 
