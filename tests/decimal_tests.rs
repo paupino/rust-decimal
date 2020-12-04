@@ -165,6 +165,7 @@ fn it_formats_zero() {
     assert_eq!(format!("{:010.2}", a), "0000000.00");
     assert_eq!(format!("{:0<10.2}", a), "0.00000000");
 }
+
 #[test]
 fn it_formats_int() {
     let a = Decimal::from_str("5").unwrap();
@@ -174,6 +175,36 @@ fn it_formats_int() {
     assert_eq!(format!("{:.2}", a), "5.00");
     assert_eq!(format!("{:010.2}", a), "0000005.00");
     assert_eq!(format!("{:0<10.2}", a), "5.00000000");
+}
+
+#[test]
+fn it_formats_lower_exp() {
+    let tests = [
+        ("0.00001", "1e-5"),
+        ("-0.00001", "-1e-5"),
+        ("42.123", "4.2123e1"),
+        ("-42.123", "-4.2123e1"),
+        ("100", "1e2"),
+    ];
+    for (value, expected) in &tests {
+        let a = Decimal::from_str(value).unwrap();
+        assert_eq!(&format!("{:e}", a), *expected, "format!(\"{{:e}}\", {})", a);
+    }
+}
+
+#[test]
+fn it_formats_lower_exp_padding() {
+    let tests = [
+        ("0.00001", "01e-5"),
+        ("-0.00001", "-1e-5"),
+        ("42.123", "4.2123e1"),
+        ("-42.123", "-4.2123e1"),
+        ("100", "001e2"),
+    ];
+    for (value, expected) in &tests {
+        let a = Decimal::from_str(value).unwrap();
+        assert_eq!(&format!("{:05e}", a), *expected, "format!(\"{{:05e}}\", {})", a);
+    }
 }
 
 // Negation
