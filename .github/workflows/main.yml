@@ -83,14 +83,14 @@ jobs:
           command: test
           args: --workspace --tests --features serde-float
 
-      - name: Run tests (serde-bincode)
+      - name: Run tests (serde-str)
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --tests --features serde-bincode
+          args: --workspace --tests --features serde-str
 
-      - name: Run tests (serde-bincode + serde-float)
+      - name: Run tests (serde-str + serde-float)
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --tests --features serde-bincode,serde-float
+          args: --workspace --tests --features serde-str,serde-float

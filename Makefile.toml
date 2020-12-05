@@ -40,8 +40,8 @@ dependencies = [
 [tasks.test-serde]
 dependencies = [
     "test-serde-float",
-    "test-serde-bincode",
-    "test-serde-bincode-float"
+    "test-serde-str",
+    "test-serde-str-float"
 ]
 
 [tasks.test-no-std]
@@ -68,10 +68,10 @@ args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres"]
 command = "cargo"
 args = ["test", "--workspace", "--tests", "--features=serde-float"]
 
-[tasks.test-serde-bincode]
+[tasks.test-serde-str]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-bincode"]
+args = ["test", "--workspace", "--tests", "--features=serde-str"]
 
-[tasks.test-serde-bincode-float]
+[tasks.test-serde-str-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-bincode,serde-float"]
+args = ["test", "--workspace", "--tests", "--features=serde-str,serde-float"]
