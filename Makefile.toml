@@ -42,7 +42,8 @@ dependencies = [
     "test-serde-float",
     "test-serde-str",
     "test-serde-str-float",
-    "test-serde-arbitrary-precision"
+    "test-serde-arbitrary-precision",
+    "test-serde-arbitrary-precision-float"
 ]
 
 [tasks.test-no-std]
@@ -80,3 +81,7 @@ args = ["test", "--workspace", "--tests", "--features=serde-str,serde-float"]
 [tasks.test-serde-arbitrary-precision]
 command = "cargo"
 args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision"]
+
+[tasks.test-serde-arbitrary-precision-float]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision,serde-float"]

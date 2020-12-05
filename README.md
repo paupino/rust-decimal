@@ -89,7 +89,9 @@ converting to `f64` _loses_ precision, it's highly recommended that you do NOT e
 ## `serde-arbitrary-precision`
 
 This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the 
-`arbitrary_precision` feature inside `serde_json` when parsing decimals.
+`arbitrary_precision` feature inside `serde_json` when parsing decimals. 
+
+This is recommended when parsing "float" looking data as it will prevent data loss.
 
 ## `std`
 
