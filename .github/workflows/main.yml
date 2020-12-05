@@ -96,13 +96,13 @@ jobs:
           args: --workspace --tests --features serde-str,serde-float
 
       - name: Run tests (serde-arbitrary-precision)
-          uses: actions-rs/cargo@v1
-          with:
-            command: test
-            args: --workspace --tests --features serde-arbitrary-precision
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features serde-arbitrary-precision
 
       - name: Run tests (serde-arbitrary-precision + serde-float)
-          uses: actions-rs/cargo@v1
-          with:
-            command: test
-            args: --workspace --tests --features serde-arbitrary-precision,serde-float
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --tests --features serde-arbitrary-precision,serde-float
