@@ -1183,6 +1183,45 @@ fn it_converts_to_u64() {
 }
 
 #[test]
+fn it_converts_to_i128() {
+    assert_eq!(5i128, Decimal::from_str("5").unwrap().to_i128().unwrap());
+    assert_eq!(-5i128, Decimal::from_str("-5").unwrap().to_i128().unwrap());
+    assert_eq!(5i128, Decimal::from_str("5.12345").unwrap().to_i128().unwrap());
+    assert_eq!(-5i128, Decimal::from_str("-5.12345").unwrap().to_i128().unwrap());
+    assert_eq!(
+        0x7FFF_FFFF_FFFF_FFFF,
+        Decimal::from_str("9223372036854775807").unwrap().to_i128().unwrap()
+    );
+    assert_eq!(
+        92233720368547758089i128,
+        Decimal::from_str("92233720368547758089").unwrap().to_i128().unwrap()
+    );
+    assert_eq!(
+        79_228_162_514_264_337_593_543_950_335_i128,
+        Decimal::max_value().to_i128().unwrap()
+    );
+}
+
+#[test]
+fn it_converts_to_u128() {
+    assert_eq!(5u128, Decimal::from_str("5").unwrap().to_u128().unwrap());
+    assert_eq!(None, Decimal::from_str("-5").unwrap().to_u128());
+    assert_eq!(5u128, Decimal::from_str("5.12345").unwrap().to_u128().unwrap());
+    assert_eq!(
+        0xFFFF_FFFF_FFFF_FFFF,
+        Decimal::from_str("18446744073709551615").unwrap().to_u128().unwrap()
+    );
+    assert_eq!(
+        18446744073709551616u128,
+        Decimal::from_str("18446744073709551616").unwrap().to_u128().unwrap()
+    );
+    assert_eq!(
+        79_228_162_514_264_337_593_543_950_335_u128,
+        Decimal::max_value().to_u128().unwrap()
+    );
+}
+
+#[test]
 fn it_converts_from_f32() {
     fn from_f32(f: f32) -> Option<Decimal> {
         num_traits::FromPrimitive::from_f32(f)

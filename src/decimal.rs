@@ -2851,6 +2851,25 @@ impl ToPrimitive for Decimal {
             Some(value * round_to / round_to)
         }
     }
+
+    fn to_i128(&self) -> Option<i128> {
+        let d = self.trunc();
+        let raw: i128 = ((i128::from(d.hi) << 64) | i128::from(d.mid) << 32) | i128::from(d.lo);
+        if self.is_sign_negative() {
+            Some(-raw)
+        } else {
+            Some(raw)
+        }
+    }
+
+    fn to_u128(&self) -> Option<u128> {
+        if self.is_sign_negative() {
+            return None;
+        }
+
+        let d = self.trunc();
+        Some((u128::from(d.hi) << 64) | (u128::from(d.mid) << 32) | u128::from(d.lo))
+    }
 }
 
 impl fmt::Display for Decimal {
