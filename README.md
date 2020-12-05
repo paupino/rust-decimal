@@ -86,6 +86,13 @@ If, for some reason, you also have `serde-float` enabled then this will use `des
 converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with 
 `bincode`. That being said, this will only use 8 bytes so is slightly more efficient in regards to storage size.
 
+## `serde-arbitrary-precision`
+
+This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the 
+`arbitrary_precision` feature inside `serde_json` when parsing decimals. 
+
+This is recommended when parsing "float" looking data as it will prevent data loss.
+
 ## `std`
 
 Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to support `no_std`

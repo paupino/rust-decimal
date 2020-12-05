@@ -18,6 +18,7 @@ diesel = { default-features = false, features = ["postgres"], optional = true, v
 num-traits = { default-features = false, version = "0.2" }
 postgres = { default-features = false, optional = true, version = "0.18" }
 serde = { default-features = false, optional = true, version = "1.0" }
+serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.6" }
 
 [dev-dependencies]
@@ -37,6 +38,7 @@ default = ["serde", "std"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde"]
 serde-str = ["serde"]
+serde-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
 std = []
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
