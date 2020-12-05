@@ -4,7 +4,7 @@ use core::{fmt, str::FromStr};
 use num_traits::FromPrimitive;
 use serde::{self, de::Unexpected};
 
-#[cfg(not(feature = "serde-bincode"))]
+#[cfg(not(feature = "serde-str"))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
     where
@@ -14,7 +14,7 @@ impl<'de> serde::Deserialize<'de> for Decimal {
     }
 }
 
-#[cfg(all(feature = "serde-bincode", not(feature = "serde-float")))]
+#[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
     where
@@ -24,7 +24,7 @@ impl<'de> serde::Deserialize<'de> for Decimal {
     }
 }
 
-#[cfg(all(feature = "serde-bincode", feature = "serde-float"))]
+#[cfg(all(feature = "serde-str", feature = "serde-float"))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
     where
@@ -112,7 +112,7 @@ mod test {
     }
 
     #[test]
-    #[cfg(not(feature = "serde-bincode"))]
+    #[cfg(not(feature = "serde-str"))]
     fn deserialize_valid_decimal() {
         let data = [
             ("{\"amount\":\"1.234\"}", "1.234"),
@@ -168,7 +168,7 @@ mod test {
     }
 
     #[test]
-    #[cfg(all(feature = "serde-bincode", not(feature = "serde-float")))]
+    #[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
     fn bincode_serialization() {
         use bincode::{deserialize, serialize};
 
@@ -190,7 +190,7 @@ mod test {
     }
 
     #[test]
-    #[cfg(all(feature = "serde-bincode", feature = "serde-float"))]
+    #[cfg(all(feature = "serde-str", feature = "serde-float"))]
     fn bincode_serialization() {
         use bincode::{deserialize, serialize};
 

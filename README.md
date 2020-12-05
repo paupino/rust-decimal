@@ -47,7 +47,7 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 * [db-tokio-postgres](#db-tokio-postgres)
 * [db-diesel-postgres](#db-diesel-postgres)
 * [serde-float](#serde-float)
-* [serde-bincode](#serde-bincode)
+* [serde-str](#serde-str)
 * [std](#std)
 
 ## `db-postgres`
@@ -74,7 +74,9 @@ e.g. with this turned on, JSON serialization would output:
 }
 ```
 
-## `serde-bincode`
+## `serde-str`
+
+This is typically useful for `bincode` or `csv` like implementations.
 
 Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to 
 correctly be able to deserialize. Enabling this feature on it's own will force deserialization to use `deserialize_str` 

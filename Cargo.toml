@@ -34,8 +34,9 @@ db-diesel-postgres = ["diesel", "std"]
 db-postgres = ["byteorder", "bytes", "postgres", "std"]
 db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
 default = ["serde", "std"]
-serde-bincode = ["serde"]
+serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde"]
+serde-str = ["serde"]
 std = []
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
