@@ -37,7 +37,7 @@ pub(crate) const MAX_PRECISION: u32 = 28;
 // 79,228,162,514,264,337,593,543,950,335
 const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
 
-static ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
+const ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
 
 const MIN: Decimal = Decimal {
     flags: 2_147_483_648,
@@ -54,7 +54,7 @@ const MAX: Decimal = Decimal {
 };
 
 // Fast access for 10^n where n is 0-9
-static POWERS_10: [u32; 10] = [
+const POWERS_10: [u32; 10] = [
     1,
     10,
     100,
@@ -68,7 +68,7 @@ static POWERS_10: [u32; 10] = [
 ];
 // Fast access for 10^n where n is 10-19
 #[allow(dead_code)]
-static BIG_POWERS_10: [u64; 10] = [
+const BIG_POWERS_10: [u64; 10] = [
     10_000_000_000,
     100_000_000_000,
     1_000_000_000_000,
@@ -950,12 +950,12 @@ impl Decimal {
     /// ```
 
     #[inline(always)]
-    pub(crate) fn mantissa_array3(&self) -> [u32; 3] {
+    pub(crate) const fn mantissa_array3(&self) -> [u32; 3] {
         [self.lo, self.mid, self.hi]
     }
 
     #[inline(always)]
-    pub(crate) fn mantissa_array4(&self) -> [u32; 4] {
+    pub(crate) const fn mantissa_array4(&self) -> [u32; 4] {
         [self.lo, self.mid, self.hi, 0]
     }
 
@@ -1662,8 +1662,7 @@ impl Decimal {
 
     /// The Cumulative distribution function for a Normal distribution
     pub fn norm_cdf(&self) -> Decimal {
-        (Decimal::one() + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf())
-            / Decimal::from_str("2").unwrap()
+        (Decimal::one() + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf()) / TWO
     }
 
     /// The Probability density function for a Normal distribution
@@ -1794,7 +1793,7 @@ fn copy_array_diff_lengths(into: &mut [u32], from: &[u32]) {
 }
 
 #[inline]
-fn u64_to_array(value: u64) -> [u32; 2] {
+const fn u64_to_array(value: u64) -> [u32; 2] {
     [(value & U32_MASK) as u32, (value >> 32 & U32_MASK) as u32]
 }
 
@@ -2242,17 +2241,17 @@ fn mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
 fn geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
     (a * b).sqrt().unwrap()
 }
+
 macro_rules! impl_from {
     ($T:ty, $from_ty:path) => {
-        impl From<$T> for Decimal {
+        impl core::convert::From<$T> for Decimal {
             #[inline]
-            fn from(t: $T) -> Decimal {
+            fn from(t: $T) -> Self {
                 $from_ty(t).unwrap()
             }
         }
     };
 }
-
 impl_from!(isize, FromPrimitive::from_isize);
 impl_from!(i8, FromPrimitive::from_i8);
 impl_from!(i16, FromPrimitive::from_i16);
@@ -2263,6 +2262,11 @@ impl_from!(u8, FromPrimitive::from_u8);
 impl_from!(u16, FromPrimitive::from_u16);
 impl_from!(u32, FromPrimitive::from_u32);
 impl_from!(u64, FromPrimitive::from_u64);
+
+#[cfg(has_i128)]
+impl_from!(i128, FromPrimitive::from_i28);
+#[cfg(has_i128)]
+impl_from!(u128, FromPrimitive::from_u28);
 
 macro_rules! forward_val_val_binop {
     (impl $imp:ident for $res:ty, $method:ident) => {
