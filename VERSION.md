@@ -1,5 +1,19 @@
 # Version History
 
+## 1.9.0
+
+* Added arbitrary precision support for `serde_json` deserialization (#283)
+* Add `u128` and `i128` `FromPrimitive` overrides to prevent default implementation kicking in. Also adds default `From`
+  interceptors to avoid having to use trait directly. (#282)
+* Alias `serde-bincode` as `serde-str` to make usage clearer (#279)
+* Adds scientific notation to format strings via `UpperExp` and `LowerExp` traits. (#271)
+* Upgrade `tokio-postgres` and `postgres` libraries.
+* Add statistical function support for `powi`, `sqrt`, `exp`, `norm_cdf`, `norm_pdf`, `ln` & `erf` (#281, #287)
+* Allow `sum` across immutable references (#280)
+
+Thank you for all the community help and support with this release, in particular [xilec](https://github.com/xilec), 
+[remkade](https://github.com/remkade) and [Anders429](https://github.com/Anders429).
+
 ## 1.8.1
 
 Make `std` support the default to prevent breaking downstream library dependencies. To enable `no_std` support please set 
