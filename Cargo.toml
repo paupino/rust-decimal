@@ -43,4 +43,4 @@ std = []
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [workspace]
-members = [".", "./macros", "./fuzzer"]
+members = [".", "./macros"]
