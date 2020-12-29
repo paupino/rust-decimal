@@ -1,5 +1,6 @@
 use crate::Error;
 use alloc::{string::String, vec::Vec};
+use arrayvec::{ArrayString, ArrayVec};
 use core::{
     cmp::{Ordering::Equal, *},
     fmt,
@@ -13,7 +14,6 @@ use diesel::sql_types::Numeric;
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
-use arrayvec::{ArrayVec, ArrayString};
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
