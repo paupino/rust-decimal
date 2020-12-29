@@ -4,7 +4,7 @@ use core::{
     cmp::{Ordering::Equal, *},
     fmt,
     hash::{Hash, Hasher},
-    iter::{repeat, Sum},
+    iter::Sum,
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign},
     str::FromStr,
 };
@@ -13,6 +13,7 @@ use diesel::sql_types::Numeric;
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
+use arrayvec::{ArrayVec, ArrayString};
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
@@ -2375,12 +2376,233 @@ impl Signed for Decimal {
     }
 }
 
+// dedicated implementation for the most common case.
+fn parse_str_radix_10(str: &str) -> Result<Decimal, Error> {
+    if str.is_empty() {
+        return Err(Error::new("Invalid decimal: empty"));
+    }
+
+    let mut offset = 0;
+    let mut len = str.len();
+    let bytes = str.as_bytes();
+    let mut negative = false; // assume positive
+
+    // handle the sign
+    if bytes[offset] == b'-' {
+        negative = true; // leading minus means negative
+        offset += 1;
+        len -= 1;
+    } else if bytes[offset] == b'+' {
+        // leading + allowed
+        offset += 1;
+        len -= 1;
+    }
+
+    // should now be at numeric part of the significand
+    let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
+                                         // integer significand array
+    let mut coeff = ArrayVec::<[_; 30]>::new();
+
+    // Supporting different radix
+    let (max_n, max_alpha_lower, max_alpha_upper) = (b'0' + 9 as u8, 0, 0);
+
+    // Estimate the max precision. All in all, it needs to fit into 96 bits.
+    // Rather than try to estimate, I've included the constants directly in here. We could,
+    // perhaps, replace this with a formula if it's faster - though it does appear to be log2.
+    let estimated_max_precision = 29;
+
+    let mut maybe_round = false;
+    while len > 0 {
+        let b = bytes[offset];
+        match b {
+            b'0'..=b'9' => {
+                if b > max_n {
+                    return Err(Error::new("Invalid decimal: invalid character"));
+                }
+                coeff.push(u32::from(b - b'0'));
+                offset += 1;
+                len -= 1;
+
+                // If the coefficient is longer than the max, exit early
+                if coeff.len() as u32 > estimated_max_precision {
+                    maybe_round = true;
+                    break;
+                }
+            }
+            b'a'..=b'z' => {
+                if b > max_alpha_lower {
+                    return Err(Error::new("Invalid decimal: invalid character"));
+                }
+                coeff.push(u32::from(b - b'a') + 10);
+                offset += 1;
+                len -= 1;
+
+                if coeff.len() as u32 > estimated_max_precision {
+                    maybe_round = true;
+                    break;
+                }
+            }
+            b'A'..=b'Z' => {
+                if b > max_alpha_upper {
+                    return Err(Error::new("Invalid decimal: invalid character"));
+                }
+                coeff.push(u32::from(b - b'A') + 10);
+                offset += 1;
+                len -= 1;
+
+                if coeff.len() as u32 > estimated_max_precision {
+                    maybe_round = true;
+                    break;
+                }
+            }
+            b'.' => {
+                if digits_before_dot >= 0 {
+                    return Err(Error::new("Invalid decimal: two decimal points"));
+                }
+                digits_before_dot = coeff.len() as i32;
+                offset += 1;
+                len -= 1;
+            }
+            b'_' => {
+                // Must start with a number...
+                if coeff.is_empty() {
+                    return Err(Error::new("Invalid decimal: must start lead with a number"));
+                }
+                offset += 1;
+                len -= 1;
+            }
+            _ => return Err(Error::new("Invalid decimal: unknown character")),
+        }
+    }
+
+    // If we exited before the end of the string then do some rounding if necessary
+    if maybe_round && offset < bytes.len() {
+        let next_byte = bytes[offset];
+        let digit = match next_byte {
+            b'0'..=b'9' => {
+                if next_byte > max_n {
+                    return Err(Error::new("Invalid decimal: invalid character"));
+                }
+                u32::from(next_byte - b'0')
+            }
+            b'a'..=b'z' => {
+                if next_byte > max_alpha_lower {
+                    return Err(Error::new("Invalid decimal: invalid character"));
+                }
+                u32::from(next_byte - b'a') + 10
+            }
+            b'A'..=b'Z' => {
+                if next_byte > max_alpha_upper {
+                    return Err(Error::new("Invalid decimal: invalid character"));
+                }
+                u32::from(next_byte - b'A') + 10
+            }
+            b'_' => 0,
+            b'.' => {
+                // Still an error if we have a second dp
+                if digits_before_dot >= 0 {
+                    return Err(Error::new("Invalid decimal: two decimal points"));
+                }
+                0
+            }
+            _ => return Err(Error::new("Invalid decimal: unknown character")),
+        };
+
+        // Round at midpoint
+        let midpoint = 5;
+        if digit >= midpoint {
+            let mut index = coeff.len() - 1;
+            loop {
+                let new_digit = coeff[index] + 1;
+                if new_digit <= 9 {
+                    coeff[index] = new_digit;
+                    break;
+                } else {
+                    coeff[index] = 0;
+                    if index == 0 {
+                        coeff.insert(0, 1u32);
+                        digits_before_dot += 1;
+                        coeff.pop();
+                        break;
+                    }
+                }
+                index -= 1;
+            }
+        }
+    }
+
+    // here when no characters left
+    if coeff.is_empty() {
+        return Err(Error::new("Invalid decimal: no digits found"));
+    }
+
+    let mut scale = if digits_before_dot >= 0 {
+        // we had a decimal place so set the scale
+        (coeff.len() as u32) - (digits_before_dot as u32)
+    } else {
+        0
+    };
+
+    let mut data = [0u32, 0u32, 0u32];
+    let mut tmp = [0u32, 0u32, 0u32];
+    let len = coeff.len();
+    for (i, digit) in coeff.iter().enumerate() {
+        // If the data is going to overflow then we should go into recovery mode
+        tmp[0] = data[0];
+        tmp[1] = data[1];
+        tmp[2] = data[2];
+        let overflow = mul_by_10(&mut tmp);
+        if overflow > 0 {
+            // This means that we have more data to process, that we're not sure what to do with.
+            // This may or may not be an issue - depending on whether we're past a decimal point
+            // or not.
+            if (i as i32) < digits_before_dot && i + 1 < len {
+                return Err(Error::new("Invalid decimal: overflow from too many digits"));
+            }
+
+            if *digit >= 5 {
+                let carry = add_internal(&mut data, &ONE_INTERNAL_REPR);
+                if carry > 0 {
+                    // Highly unlikely scenario which is more indicative of a bug
+                    return Err(Error::new("Invalid decimal: overflow when rounding"));
+                }
+            }
+            // We're also one less digit so reduce the scale
+            let diff = (len - i) as u32;
+            if diff > scale {
+                return Err(Error::new("Invalid decimal: overflow from scale mismatch"));
+            }
+            scale -= diff;
+            break;
+        } else {
+            data[0] = tmp[0];
+            data[1] = tmp[1];
+            data[2] = tmp[2];
+            let carry = add_internal(&mut data, &[*digit]);
+            if carry > 0 {
+                // Highly unlikely scenario which is more indicative of a bug
+                return Err(Error::new("Invalid decimal: overflow from carry"));
+            }
+        }
+    }
+
+    Ok(Decimal {
+        lo: data[0],
+        mid: data[1],
+        hi: data[2],
+        flags: flags(negative, scale),
+    })
+}
+
 impl Num for Decimal {
     type FromStrRadixErr = Error;
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         if str.is_empty() {
             return Err(Error::new("Invalid decimal: empty"));
+        }
+        if radix == 10 {
+            return parse_str_radix_10(str);
         }
         if radix < 2 {
             return Err(Error::new("Unsupported radix < 2"));
@@ -2392,7 +2614,7 @@ impl Num for Decimal {
 
         let mut offset = 0;
         let mut len = str.len();
-        let bytes: Vec<u8> = str.bytes().collect();
+        let bytes = str.as_bytes();
         let mut negative = false; // assume positive
 
         // handle the sign
@@ -2408,7 +2630,8 @@ impl Num for Decimal {
 
         // should now be at numeric part of the significand
         let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-        let mut coeff = Vec::new(); // integer significand array
+                                             // integer significand array
+        let mut coeff = ArrayVec::<[_; 96]>::new();
 
         // Supporting different radix
         let (max_n, max_alpha_lower, max_alpha_upper) = if radix <= 10 {
@@ -2649,7 +2872,7 @@ impl FromStr for Decimal {
     type Err = Error;
 
     fn from_str(value: &str) -> Result<Decimal, Self::Err> {
-        Decimal::from_str_radix(value, 10)
+        parse_str_radix_10(value)
     }
 }
 
@@ -2876,56 +3099,92 @@ impl ToPrimitive for Decimal {
     }
 }
 
-impl fmt::Display for Decimal {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+// TODO add tests
+impl Decimal {
+    // impl that doesn't allocate for serialization purposes.
+    pub(crate) fn to_array_str(&self) -> impl AsRef<str> {
         // Get the scale - where we need to put the decimal point
-        let mut scale = self.scale() as usize;
+        let scale = self.scale() as usize;
 
         // Convert to a string and manipulate that (neg at front, inject decimal)
-        let mut chars = Vec::new();
+        let mut chars = ArrayVec::<[_; 30]>::new();
         let mut working = [self.lo, self.mid, self.hi];
         while !is_all_zero(&working) {
-            let remainder = div_by_u32(&mut working, 10u32);
+            let remainder = div_by_10(&mut working);
             chars.push(char::from(b'0' + remainder as u8));
         }
         while scale > chars.len() {
             chars.push('0');
         }
 
-        let mut rep = chars.iter().rev().collect::<String>();
-        let len = rep.len();
-
-        if let Some(n_dp) = f.precision() {
-            if n_dp < scale {
-                rep.truncate(len - scale + n_dp)
-            } else {
-                let zeros = repeat("0").take(n_dp - scale).collect::<String>();
-                rep.push_str(&zeros[..]);
-            }
-            scale = n_dp;
+        let len = chars.len();
+        let mut rep = ArrayString::<[_; 30]>::new();
+        if !self.is_sign_positive() {
+            rep.push('-');
         }
-        let len = rep.len();
-
-        // Inject the decimal point
-        if scale > 0 {
-            // Must be a low fractional
-            // TODO: Remove this condition as it's no longer possible for `scale > len`
-            if scale > len {
-                let mut new_rep = String::new();
-                let zeros = repeat("0").take(scale as usize - len).collect::<String>();
-                new_rep.push_str("0.");
-                new_rep.push_str(&zeros[..]);
-                new_rep.push_str(&rep[..]);
-                rep = new_rep;
-            } else if scale == len {
-                rep.insert(0, '.');
-                rep.insert(0, '0');
-            } else {
-                rep.insert(len - scale as usize, '.');
+        for i in 0..len {
+            if i == len - scale {
+                if i == 0 {
+                    rep.push('0');
+                }
+                rep.push('.');
             }
-        } else if rep.is_empty() {
-            // corner case for when we truncated everything in a low fractional
-            rep.insert(0, '0');
+
+            let c = chars[len - i - 1];
+            rep.push(c);
+        }
+
+        if rep.is_empty() {
+            rep.push('0');
+        }
+
+        rep
+    }
+}
+
+impl fmt::Display for Decimal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        // Get the scale - where we need to put the decimal point
+        let scale = self.scale() as usize;
+
+        // Convert to a string and manipulate that (neg at front, inject decimal)
+        let mut chars = ArrayVec::<[_; 30]>::new();
+        let mut working = [self.lo, self.mid, self.hi];
+        while !is_all_zero(&working) {
+            let remainder = div_by_10(&mut working);
+            chars.push(char::from(b'0' + remainder as u8));
+        }
+        while scale > chars.len() {
+            chars.push('0');
+        }
+
+        let prec = match f.precision() {
+            Some(prec) => prec,
+            None => scale,
+        };
+
+        let len = chars.len();
+        let whole_len = len - scale;
+        let mut rep = ArrayString::<[_; 30]>::new();
+        for i in 0..whole_len + prec {
+            if i == len - scale {
+                if i == 0 {
+                    rep.push('0');
+                }
+                rep.push('.');
+            }
+
+            if i >= len {
+                rep.push('0');
+            } else {
+                let c = chars[len - i - 1];
+                rep.push(c);
+            }
+        }
+
+        // corner case for when we truncated everything in a low fractional
+        if rep.is_empty() {
+            rep.push('0');
         }
 
         f.pad_integral(self.is_sign_positive(), "", &rep)

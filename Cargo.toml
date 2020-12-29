@@ -20,6 +20,7 @@ postgres = { default-features = false, optional = true, version = "0.18" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.6" }
+arrayvec = "0.5.2"
 
 [dev-dependencies]
 bincode = "1.3"
