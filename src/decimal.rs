@@ -1010,7 +1010,7 @@ impl Decimal {
                 // No far left bit, the mantissa can withstand a shift-left without overflowing
                 exponent10 -= 1;
                 exponent5 += 1;
-                shl_internal(bits, 1, 0);
+                shl1_internal(bits, 0);
             } else {
                 // The mantissa would overflow if shifted. Therefore it should be
                 // directly divided by 5. This will lose significant digits, unless
@@ -2105,8 +2105,11 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
     // If we have nothing in our hi+ block then shift over till we do
     let mut blocks_to_process = 0;
     while blocks_to_process < 4 && quotient[3] == 0 {
-        // Shift whole blocks to the "left"
-        shl_internal(quotient, 32, 0);
+        // memcpy would be useful here
+        quotient[3] = quotient[2];
+        quotient[2] = quotient[1];
+        quotient[1] = quotient[0];
+        quotient[0] = 0;
 
         // Incremember the counter
         blocks_to_process += 1;
@@ -2116,9 +2119,10 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
     let mut block = blocks_to_process << 5;
     let mut working = [0u32, 0u32, 0u32, 0u32];
     while block < 128 {
-        // << 1 for quotient AND remainder
-        let carry = shl_internal(quotient, 1, 0);
-        shl_internal(remainder, 1, carry);
+        // << 1 for quotient AND remainder. Moving the carry from the quotient to the bottom of the
+        // remainder.
+        let carry = shl1_internal(quotient, 0);
+        shl1_internal(remainder, carry);
 
         // Copy the remainder of working into sub
         working.copy_from_slice(remainder);
@@ -2172,31 +2176,14 @@ fn div_by_10(bits: &mut [u32; 3]) -> u32 {
 }
 
 #[inline]
-fn shl_internal(bits: &mut [u32], shift: u32, carry: u32) -> u32 {
-    let mut shift = shift;
-
-    // Whole blocks first
-    while shift >= 32 {
-        // memcpy would be useful here
-        for i in (1..bits.len()).rev() {
-            bits[i] = bits[i - 1];
-        }
-        bits[0] = 0;
-        shift -= 32;
+fn shl1_internal(bits: &mut [u32], carry: u32) -> u32 {
+    let mut carry = carry;
+    for part in bits.iter_mut() {
+        let b = *part >> 31;
+        *part = (*part << 1) | carry;
+        carry = b;
     }
-
-    // Continue with the rest
-    if shift > 0 {
-        let mut carry = carry;
-        for part in bits.iter_mut() {
-            let b = *part >> (32 - shift);
-            *part = (*part << shift) | carry;
-            carry = b;
-        }
-        carry
-    } else {
-        0
-    }
+    carry
 }
 
 #[inline]
@@ -3730,6 +3717,47 @@ mod test {
 
         for case in test_cases {
             assert_eq!(case.2, mean_of_2(&case.0, &case.1));
+        }
+    }
+
+    #[test]
+    fn test_shl1_internal() {
+        struct TestCase {
+            // One thing to be cautious of is that the structure of a number here for shifting left is
+            // the reverse of how you may conceive this mentally. i.e. a[2] contains the higher order
+            // bits: a[2] a[1] a[0]
+            given: [u32; 3],
+            given_carry: u32,
+            expected: [u32; 3],
+            expected_carry: u32,
+        }
+        let tests = [
+            TestCase {
+                given: [1, 0, 0],
+                given_carry: 0,
+                expected: [2, 0, 0],
+                expected_carry: 0,
+            },
+            TestCase {
+                given: [1, 0, 2147483648],
+                given_carry: 1,
+                expected: [3, 0, 0],
+                expected_carry: 1,
+            },
+        ];
+        for case in &tests {
+            let mut test = [case.given[0], case.given[1], case.given[2]];
+            let carry = shl1_internal(&mut test, case.given_carry);
+            assert_eq!(
+                test, case.expected,
+                "Bits: {:?} << 1 | {}",
+                case.given, case.given_carry
+            );
+            assert_eq!(
+                carry, case.expected_carry,
+                "Carry: {:?} << 1 | {}",
+                case.given, case.given_carry
+            )
         }
     }
 }
