@@ -4,6 +4,7 @@ extern crate test;
 
 use core::str::FromStr;
 use rust_decimal::Decimal;
+use bincode::Options as _;
 
 macro_rules! bench_decimal_op {
     ($name:ident, $op:tt, $y:expr) => {
@@ -126,30 +127,70 @@ fn iterator_sum(b: &mut ::test::Bencher) {
     });
 }
 
+const SAMPLE_STRS: &[&str] = &[
+    "3950.123456",
+    "3950",
+    "0.1",
+    "0.01",
+    "0.001",
+    "0.0001",
+    "0.00001",
+    "0.000001",
+    "1",
+    "-100",
+    "-123.456",
+    "119996.25",
+    "1000000",
+    "9999999.99999",
+    "12340.56789",
+];
+
 #[bench]
-fn decimal_from_str(b: &mut test::Bencher) {
-    let samples_strs = &[
-        "3950.123456",
-        "3950",
-        "0.1",
-        "0.01",
-        "0.001",
-        "0.0001",
-        "0.00001",
-        "0.000001",
-        "1",
-        "-100",
-        "-123.456",
-        "119996.25",
-        "1000000",
-        "9999999.99999",
-        "12340.56789",
-    ];
+fn serialize_bincode(b: &mut test::Bencher) {
+    let decimals: Vec<Decimal> = SAMPLE_STRS.iter().map(|s| Decimal::from_str(s).unwrap()).collect();
 
     b.iter(|| {
-        for s in samples_strs {
+        for d in &decimals {
+            let bytes = bincode::options().serialize(d).unwrap();
+            test::black_box(bytes);
+        }
+    })
+}
+
+#[cfg(feature = "serde-str")]
+#[bench]
+fn deserialize_bincode(b: &mut test::Bencher) {
+    let payloads: Vec<Vec<u8>> = SAMPLE_STRS
+        .iter()
+        .map(|s| bincode::options().serialize(&Decimal::from_str(s).unwrap()).unwrap())
+        .collect();
+
+    b.iter(|| {
+        for payload in &payloads {
+            let decimal: Decimal = bincode::options().deserialize(payload).unwrap();
+            test::black_box(decimal);
+        }
+    })
+}
+
+#[bench]
+fn decimal_from_str(b: &mut test::Bencher) {
+    b.iter(|| {
+        for s in SAMPLE_STRS {
             let result = Decimal::from_str(s).unwrap();
             test::black_box(result);
+        }
+    })
+}
+
+#[bench]
+fn decimal_to_string(b: &mut test::Bencher) {
+    let decimals: Vec<Decimal> = SAMPLE_STRS.iter().map(|s| Decimal::from_str(s).unwrap()).collect();
+
+    b.iter(|| {
+        for s in decimals.iter() {
+            let string = s.to_string();
+            test::black_box(string);
         }
     })
 }
@@ -159,25 +200,7 @@ fn decimal_from_str(b: &mut test::Bencher) {
 fn to_from_sql(b: &mut ::test::Bencher) {
     use postgres::types::{FromSql, Kind, ToSql, Type};
 
-    let samples_strs = &[
-        "3950.123456",
-        "3950",
-        "0.1",
-        "0.01",
-        "0.001",
-        "0.0001",
-        "0.00001",
-        "0.000001",
-        "1",
-        "-100",
-        "-123.456",
-        "119996.25",
-        "1000000",
-        "9999999.99999",
-        "12340.56789",
-    ];
-
-    let samples: Vec<Decimal> = test::black_box(samples_strs.iter().map(|x| Decimal::from_str(x).unwrap()).collect());
+    let samples: Vec<Decimal> = test::black_box(SAMPLE_STRS.iter().map(|x| Decimal::from_str(x).unwrap()).collect());
     let t = Type::new("".into(), 0, Kind::Simple, "".into());
     let mut bytes: BytesMut = BytesMut::with_capacity(100).into();
 
