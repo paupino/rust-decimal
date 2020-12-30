@@ -198,6 +198,7 @@ fn decimal_to_string(b: &mut test::Bencher) {
 #[cfg(feature = "postgres")]
 #[bench]
 fn to_from_sql(b: &mut ::test::Bencher) {
+    use bytes::BytesMut;
     use postgres::types::{FromSql, Kind, ToSql, Type};
 
     let samples: Vec<Decimal> = test::black_box(SAMPLE_STRS.iter().map(|x| Decimal::from_str(x).unwrap()).collect());

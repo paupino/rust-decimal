@@ -5,6 +5,11 @@ default_to_workspace = false
 command = "cargo"
 args = ["build"]
 
+[tasks.bench]
+toolchain = "nightly"
+command = "cargo"
+args = ["bench", "${@}"]
+
 # Always test no-std with std tests
 [tasks.test]
 dependencies = ["test-no-std"]
