@@ -3005,6 +3005,16 @@ impl ToPrimitive for Decimal {
         }
     }
 
+    fn to_i128(&self) -> Option<i128> {
+        let d = self.trunc();
+        let raw: i128 = ((i128::from(d.hi) << 64) | i128::from(d.mid) << 32) | i128::from(d.lo);
+        if self.is_sign_negative() {
+            Some(-raw)
+        } else {
+            Some(raw)
+        }
+    }
+
     fn to_u64(&self) -> Option<u64> {
         if self.is_sign_negative() {
             return None;
@@ -3017,6 +3027,15 @@ impl ToPrimitive for Decimal {
         }
 
         Some((u64::from(d.mid) << 32) | u64::from(d.lo))
+    }
+
+    fn to_u128(&self) -> Option<u128> {
+        if self.is_sign_negative() {
+            return None;
+        }
+
+        let d = self.trunc();
+        Some((u128::from(d.hi) << 64) | (u128::from(d.mid) << 32) | u128::from(d.lo))
     }
 
     fn to_f64(&self) -> Option<f64> {
@@ -3042,116 +3061,63 @@ impl ToPrimitive for Decimal {
             Some(value * round_to / round_to)
         }
     }
-
-    fn to_i128(&self) -> Option<i128> {
-        let d = self.trunc();
-        let raw: i128 = ((i128::from(d.hi) << 64) | i128::from(d.mid) << 32) | i128::from(d.lo);
-        if self.is_sign_negative() {
-            Some(-raw)
-        } else {
-            Some(raw)
-        }
-    }
-
-    fn to_u128(&self) -> Option<u128> {
-        if self.is_sign_negative() {
-            return None;
-        }
-
-        let d = self.trunc();
-        Some((u128::from(d.hi) << 64) | (u128::from(d.mid) << 32) | u128::from(d.lo))
-    }
 }
 
-#[cfg(all(feature = "serde", not(feature = "serde-float")))]
-impl Decimal {
-    // impl that doesn't allocate for serialization purposes.
-    pub(crate) fn to_array_str(&self) -> impl AsRef<str> {
-        // Get the scale - where we need to put the decimal point
-        let scale = self.scale() as usize;
+// impl that doesn't allocate for serialization purposes.
+pub(crate) fn to_str_internal(value: &Decimal, append_sign: bool, precision: Option<usize>) -> ArrayString<[u8; 30]> {
+    // Get the scale - where we need to put the decimal point
+    let scale = value.scale() as usize;
 
-        // Convert to a string and manipulate that (neg at front, inject decimal)
-        let mut chars = ArrayVec::<[_; 30]>::new();
-        let mut working = [self.lo, self.mid, self.hi];
-        while !is_all_zero(&working) {
-            let remainder = div_by_10(&mut working);
-            chars.push(char::from(b'0' + remainder as u8));
-        }
-        while scale > chars.len() {
-            chars.push('0');
-        }
+    // Convert to a string and manipulate that (neg at front, inject decimal)
+    let mut chars = ArrayVec::<[_; 30]>::new();
+    let mut working = [value.lo, value.mid, value.hi];
+    while !is_all_zero(&working) {
+        let remainder = div_by_u32(&mut working, 10u32);
+        chars.push(char::from(b'0' + remainder as u8));
+    }
+    while scale > chars.len() {
+        chars.push('0');
+    }
 
-        let len = chars.len();
-        let mut rep = ArrayString::<[_; 30]>::new();
-        if !self.is_sign_positive() {
-            rep.push('-');
-        }
-        for i in 0..len {
-            if i == len - scale {
-                if i == 0 {
-                    rep.push('0');
-                }
-                rep.push('.');
+    let prec = match precision {
+        Some(prec) => prec,
+        None => scale,
+    };
+
+    let len = chars.len();
+    let whole_len = len - scale;
+    let mut rep = ArrayString::new();
+    if append_sign && value.is_sign_negative() {
+        rep.push('-');
+    }
+    for i in 0..whole_len + prec {
+        if i == len - scale {
+            if i == 0 {
+                rep.push('0');
             }
+            rep.push('.');
+        }
 
+        if i >= len {
+            rep.push('0');
+        } else {
             let c = chars[len - i - 1];
             rep.push(c);
         }
-
-        if rep.is_empty() {
-            rep.push('0');
-        }
-
-        rep
     }
+
+    // corner case for when we truncated everything in a low fractional
+    if rep.is_empty() {
+        rep.push('0');
+    }
+
+    rep
 }
 
 impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        // Get the scale - where we need to put the decimal point
-        let scale = self.scale() as usize;
-
-        // Convert to a string and manipulate that (neg at front, inject decimal)
-        let mut chars = ArrayVec::<[_; 30]>::new();
-        let mut working = [self.lo, self.mid, self.hi];
-        while !is_all_zero(&working) {
-            let remainder = div_by_u32(&mut working, 10u32);
-            chars.push(char::from(b'0' + remainder as u8));
-        }
-        while scale > chars.len() {
-            chars.push('0');
-        }
-
-        let prec = match f.precision() {
-            Some(prec) => prec,
-            None => scale,
-        };
-
-        let len = chars.len();
-        let whole_len = len - scale;
-        let mut rep = ArrayString::<[_; 30]>::new();
-        for i in 0..whole_len + prec {
-            if i == len - scale {
-                if i == 0 {
-                    rep.push('0');
-                }
-                rep.push('.');
-            }
-
-            if i >= len {
-                rep.push('0');
-            } else {
-                let c = chars[len - i - 1];
-                rep.push(c);
-            }
-        }
-
-        // corner case for when we truncated everything in a low fractional
-        if rep.is_empty() {
-            rep.push('0');
-        }
-
-        f.pad_integral(self.is_sign_positive(), "", &rep)
+        let rep = to_str_internal(self, false, f.precision());
+        f.pad_integral(self.is_sign_positive(), "", rep.as_str())
     }
 }
 
