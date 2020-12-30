@@ -11,6 +11,7 @@ use core::{
 };
 #[cfg(feature = "diesel")]
 use diesel::sql_types::Numeric;
+#[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
