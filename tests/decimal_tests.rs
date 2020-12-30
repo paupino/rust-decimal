@@ -1437,8 +1437,6 @@ fn it_can_parse_scientific_notation() {
 
 #[test]
 fn it_can_parse_different_radix() {
-    use num_traits::Num;
-
     let tests = &[
         // Input, Radix, Success, to_string()
         ("123", 10, true, "123"),
