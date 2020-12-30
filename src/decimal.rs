@@ -2496,7 +2496,9 @@ fn parse_str_radix_10(str: &str) -> Result<Decimal, Error> {
         };
 
         // Round at midpoint
-        let midpoint = 5;
+        // FIXME shouldn't this be
+        //let midpoint = 5;
+        let midpoint = 10;
         if digit >= midpoint {
             let mut index = coeff.len() - 1;
             loop {
@@ -2768,7 +2770,9 @@ impl Num for Decimal {
             };
 
             // Round at midpoint
-            let midpoint = if radix & 0x1 == 1 { radix / 2 } else { (radix + 1) / 2 };
+            // FIXME shouldn't this be
+            //let midpoint = if radix & 0x1 == 1 { radix / 2 } else { (radix + 1) / 2 };
+            let midpoint = if radix & 0x1 == 1 { radix / 2 } else { radix };
             if digit >= midpoint {
                 let mut index = coeff.len() - 1;
                 loop {
@@ -3139,7 +3143,7 @@ impl fmt::Display for Decimal {
         let mut chars = ArrayVec::<[_; 30]>::new();
         let mut working = [self.lo, self.mid, self.hi];
         while !is_all_zero(&working) {
-            let remainder = div_by_10(&mut working);
+            let remainder = div_by_u32(&mut working, 10u32);
             chars.push(char::from(b'0' + remainder as u8));
         }
         while scale > chars.len() {
