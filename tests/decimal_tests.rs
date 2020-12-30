@@ -1323,6 +1323,7 @@ fn it_can_parse_highly_significant_numbers() {
             "8097370036018690744.2590371159596744091",
             "8097370036018690744.259037116",
         ),
+        ("1.234567890123456789012345678949999", "1.2345678901234567890123456789"),
     ];
     for &(value, expected) in tests {
         assert_eq!(expected, Decimal::from_str(value).unwrap().to_string());
