@@ -34,7 +34,7 @@
 //! let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 //! ```
 //!
-
+#![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 

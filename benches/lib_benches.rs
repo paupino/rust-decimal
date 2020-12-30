@@ -7,10 +7,10 @@ use core::str::FromStr;
 use rust_decimal::Decimal;
 
 macro_rules! bench_decimal_op {
-    ($name:ident, $op:tt, $y:expr) => {
+    ($name:ident, $op:tt, $x:expr, $y:expr) => {
         #[bench]
         fn $name(b: &mut ::test::Bencher) {
-            let x = Decimal::from_str("2.01").unwrap();
+            let x = Decimal::from_str($x).unwrap();
             let y = Decimal::from_str($y).unwrap();
             b.iter(|| {
                 let result = x $op y;
@@ -42,44 +42,45 @@ macro_rules! bench_fold_op {
 }
 
 /* Add */
-bench_decimal_op!(add_one, +, "1");
-bench_decimal_op!(add_two, +, "2");
-bench_decimal_op!(add_one_hundred, +, "100");
-bench_decimal_op!(add_point_zero_one, +, "0.01");
-bench_decimal_op!(add_negative_point_five, +, "-0.5");
-bench_decimal_op!(add_pi, +, "3.1415926535897932384626433832");
-bench_decimal_op!(add_negative_pi, +, "-3.1415926535897932384626433832");
+bench_decimal_op!(add_one, +, "2.01", "1");
+bench_decimal_op!(add_two, +, "2.01", "2");
+bench_decimal_op!(add_one_hundred, +, "2.01", "100");
+bench_decimal_op!(add_point_zero_one, +, "2.01", "0.01");
+bench_decimal_op!(add_negative_point_five, +, "2.01", "-0.5");
+bench_decimal_op!(add_pi, +, "2.01", "3.1415926535897932384626433832");
+bench_decimal_op!(add_negative_pi, +, "2.01", "-3.1415926535897932384626433832");
 
 bench_fold_op!(add_10k, +, 0, 10_000);
 
 /* Sub */
-bench_decimal_op!(sub_one, -, "1");
-bench_decimal_op!(sub_two, -, "2");
-bench_decimal_op!(sub_one_hundred, -, "100");
-bench_decimal_op!(sub_point_zero_one, -, "0.01");
-bench_decimal_op!(sub_negative_point_five, -, "-0.5");
-bench_decimal_op!(sub_pi, -, "3.1415926535897932384626433832");
-bench_decimal_op!(sub_negative_pi, -, "-3.1415926535897932384626433832");
+bench_decimal_op!(sub_one, -, "2.01", "1");
+bench_decimal_op!(sub_two, -, "2.01", "2");
+bench_decimal_op!(sub_one_hundred, -, "2.01", "100");
+bench_decimal_op!(sub_point_zero_one, -, "2.01", "0.01");
+bench_decimal_op!(sub_negative_point_five, -, "2.01", "-0.5");
+bench_decimal_op!(sub_pi, -, "2.01", "3.1415926535897932384626433832");
+bench_decimal_op!(sub_negative_pi, -, "2.01", "-3.1415926535897932384626433832");
 
 bench_fold_op!(sub_10k, -, 5_000_000, 10_000);
 
 /* Mul */
-bench_decimal_op!(mul_one, *, "1");
-bench_decimal_op!(mul_two, *, "2");
-bench_decimal_op!(mul_one_hundred, *, "100");
-bench_decimal_op!(mul_point_zero_one, *, "0.01");
-bench_decimal_op!(mul_negative_point_five, *, "-0.5");
-bench_decimal_op!(mul_pi, *, "3.1415926535897932384626433832");
-bench_decimal_op!(mul_negative_pi, *, "-3.1415926535897932384626433832");
+bench_decimal_op!(mul_one, *, "2.01", "1");
+bench_decimal_op!(mul_two, *, "2.01", "2");
+bench_decimal_op!(mul_one_hundred, *, "2.01", "100");
+bench_decimal_op!(mul_point_zero_one, *, "2.01", "0.01");
+bench_decimal_op!(mul_negative_point_five, *, "2.01", "-0.5");
+bench_decimal_op!(mul_pi, *, "2.01", "3.1415926535897932384626433832");
+bench_decimal_op!(mul_negative_pi, *, "2.01", "-3.1415926535897932384626433832");
 
 /* Div */
-bench_decimal_op!(div_one, /, "1");
-bench_decimal_op!(div_two, /, "2");
-bench_decimal_op!(div_one_hundred, /, "100");
-bench_decimal_op!(div_point_zero_one, /, "0.01");
-bench_decimal_op!(div_negative_point_five, /, "-0.5");
-bench_decimal_op!(div_pi, /, "3.1415926535897932384626433832");
-bench_decimal_op!(div_negative_pi, /, "-3.1415926535897932384626433832");
+bench_decimal_op!(div_one, /, "2.01", "1");
+bench_decimal_op!(div_two, /, "2.01", "2");
+bench_decimal_op!(div_one_hundred, /, "2.01", "100");
+bench_decimal_op!(div_point_zero_one, /, "2.01", "0.01");
+bench_decimal_op!(div_negative_point_five, /, "2.01", "-0.5");
+bench_decimal_op!(div_pi, /, "2.01", "3.1415926535897932384626433832");
+bench_decimal_op!(div_negative_pi, /, "2.01", "-3.1415926535897932384626433832");
+bench_decimal_op!(div_no_underflow, /, "1.02343545345", "0.35454343453");
 
 bench_fold_op!(div_10k, /, Decimal::max_value(), 10_000);
 
