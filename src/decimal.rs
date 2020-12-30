@@ -2768,7 +2768,7 @@ impl Num for Decimal {
             };
 
             // Round at midpoint
-            let midpoint = if radix & 0x1 == 1 { radix / 2 } else { radix + 1 / 2 };
+            let midpoint = if radix & 0x1 == 1 { radix / 2 } else { (radix + 1) / 2 };
             if digit >= midpoint {
                 let mut index = coeff.len() - 1;
                 loop {
@@ -3089,6 +3089,7 @@ impl ToPrimitive for Decimal {
 // TODO add tests
 impl Decimal {
     // impl that doesn't allocate for serialization purposes.
+    #[cfg(not(feature = "serde-float"))]
     pub(crate) fn to_array_str(&self) -> impl AsRef<str> {
         // Get the scale - where we need to put the decimal point
         let scale = self.scale() as usize;
