@@ -157,6 +157,7 @@ fn decimal_from_str(b: &mut test::Bencher) {
 #[cfg(feature = "postgres")]
 #[bench]
 fn to_from_sql(b: &mut ::test::Bencher) {
+    use bytes::BytesMut;
     use postgres::types::{FromSql, Kind, ToSql, Type};
 
     let samples_strs = &[
