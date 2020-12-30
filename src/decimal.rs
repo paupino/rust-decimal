@@ -3063,10 +3063,9 @@ impl ToPrimitive for Decimal {
     }
 }
 
-// TODO add tests
+#[cfg(all(feature = "serde", not(feature = "serde-float")))]
 impl Decimal {
     // impl that doesn't allocate for serialization purposes.
-    #[cfg(not(feature = "serde-float"))]
     pub(crate) fn to_array_str(&self) -> impl AsRef<str> {
         // Get the scale - where we need to put the decimal point
         let scale = self.scale() as usize;
