@@ -39,8 +39,6 @@ pub(crate) const MAX_PRECISION: u32 = 28;
 // 79,228,162,514,264,337,593,543,950,335
 const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
 
-const ONE_INTERNAL_REPR: [u32; 3] = [1, 0, 0];
-
 const MIN: Decimal = Decimal {
     flags: 2_147_483_648,
     lo: 4_294_967_295,
@@ -824,7 +822,7 @@ impl Decimal {
         }
 
         let mut decimal_portion = [self.lo, self.mid, self.hi];
-        sub_internal(&mut decimal_portion, &offset);
+        sub_by_internal(&mut decimal_portion, &offset);
 
         // If the decimal_portion is zero then we round based on the other data
         let mut cap = [5, 0, 0];
@@ -838,19 +836,19 @@ impl Decimal {
                 match order {
                     Ordering::Equal => {
                         if (value[0] & 1) == 1 {
-                            add_internal(&mut value, &ONE_INTERNAL_REPR);
+                            add_one_internal(&mut value);
                         }
                     }
                     Ordering::Greater => {
                         // Doesn't matter about the decimal portion
-                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                        add_one_internal(&mut value);
                     }
                     _ => {}
                 }
             }
             RoundingStrategy::RoundHalfDown => {
                 if let Ordering::Greater = order {
-                    add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    add_one_internal(&mut value);
                 }
             }
             RoundingStrategy::RoundHalfUp => {
@@ -858,18 +856,18 @@ impl Decimal {
                 // when Ordering::Greater, decimal_portion is > 0.5
                 match order {
                     Ordering::Equal => {
-                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                        add_one_internal(&mut value);
                     }
                     Ordering::Greater => {
                         // Doesn't matter about the decimal portion
-                        add_internal(&mut value, &ONE_INTERNAL_REPR);
+                        add_one_internal(&mut value);
                     }
                     _ => {}
                 }
             }
             RoundingStrategy::RoundUp => {
                 if !is_all_zero(&decimal_portion) {
-                    add_internal(&mut value, &ONE_INTERNAL_REPR);
+                    add_one_internal(&mut value);
                 }
             }
             RoundingStrategy::RoundDown => (),
@@ -1048,7 +1046,7 @@ impl Decimal {
                 // Underflow, unable to keep dividing
                 exponent10 = 0;
             } else if rem10 >= 5 {
-                add_internal(bits, &ONE_INTERNAL_REPR);
+                add_one_internal(bits);
             }
         }
 
@@ -1061,7 +1059,7 @@ impl Decimal {
                 let rem10 = div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {
-                    add_internal(bits, &ONE_INTERNAL_REPR);
+                    add_one_internal(bits);
                 }
             }
         } else {
@@ -1072,7 +1070,7 @@ impl Decimal {
                 let rem10 = div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {
-                    add_internal(bits, &ONE_INTERNAL_REPR);
+                    add_one_internal(bits);
                 }
             }
         }
@@ -1117,7 +1115,7 @@ impl Decimal {
         let carry;
         if !(my_negative ^ other_negative) {
             negative = my_negative;
-            carry = add3_internal(&mut my, &ot);
+            carry = add_by_internal3(&mut my, &ot);
         } else {
             let cmp = cmp_internal(&my, &ot);
             // -x + y
@@ -1125,14 +1123,14 @@ impl Decimal {
             match cmp {
                 Ordering::Less => {
                     negative = other_negative;
-                    sub3_internal(&mut ot, &my);
+                    sub_by_internal3(&mut ot, &my);
                     my[0] = ot[0];
                     my[1] = ot[1];
                     my[2] = ot[2];
                 }
                 Ordering::Greater => {
                     negative = my_negative;
-                    sub3_internal(&mut my, &ot);
+                    sub_by_internal3(&mut my, &ot);
                 }
                 Ordering::Equal => {
                     // -2 + 2
@@ -1807,7 +1805,7 @@ const fn u64_to_array(value: u64) -> [u32; 2] {
     [(value & U32_MASK) as u32, (value >> 32 & U32_MASK) as u32]
 }
 
-fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
+fn add_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
     let mut carry: u64 = 0;
     let vl = value.len();
     let bl = by.len();
@@ -1846,7 +1844,33 @@ fn add_internal(value: &mut [u32], by: &[u32]) -> u32 {
 }
 
 #[inline]
-fn add3_internal(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
+fn add_one_internal(value: &mut [u32]) -> u32 {
+    let mut carry: u64 = 1; // Start with one, since adding one
+    let mut sum: u64;
+    for i in value.iter_mut() {
+        sum = (*i as u64) + carry;
+        *i = (sum & U32_MASK) as u32;
+        carry = sum >> 32;
+    }
+
+    carry as u32
+}
+
+#[inline]
+fn add_one_internal4(value: &mut [u32; 4]) -> u32 {
+    let mut carry: u64 = 1; // Start with one, since adding one
+    let mut sum: u64;
+    for i in value.iter_mut() {
+        sum = (*i as u64) + carry;
+        *i = (sum & U32_MASK) as u32;
+        carry = sum >> 32;
+    }
+
+    carry as u32
+}
+
+#[inline]
+fn add_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
     let mut carry: u32 = 0;
     let bl = by.len();
     for i in 0..bl {
@@ -1970,7 +1994,7 @@ fn add_with_scale_internal(
             temp.copy_from_slice(quotient);
 
             // Add the working quotient
-            let overflow = add_internal(&mut temp, working_quotient);
+            let overflow = add_by_internal(&mut temp, working_quotient);
             if overflow == 0 {
                 // addition was successful
                 quotient.copy_from_slice(&temp);
@@ -1999,7 +2023,7 @@ fn add_part(left: u32, right: u32) -> (u32, u32) {
 }
 
 #[inline(always)]
-fn sub3_internal(value: &mut [u32; 3], by: &[u32; 3]) {
+fn sub_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) {
     let mut overflow = 0;
     let vl = value.len();
     for i in 0..vl {
@@ -2009,7 +2033,7 @@ fn sub3_internal(value: &mut [u32; 3], by: &[u32; 3]) {
     }
 }
 
-fn sub_internal(value: &mut [u32], by: &[u32]) -> u32 {
+fn sub_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
     // The way this works is similar to long subtraction
     // Let's assume we're working with bytes for simpliciy in an example:
     //   257 - 8 = 249
@@ -2107,7 +2131,7 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
     ];
 
     // Add one onto the complement
-    add_internal(&mut complement, &[1u32]);
+    add_one_internal4(&mut complement);
 
     // Make sure the remainder is 0
     remainder.iter_mut().for_each(|x| *x = 0);
@@ -2138,7 +2162,7 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
         working.copy_from_slice(remainder);
 
         // Add the remainder with the complement
-        add_internal(&mut working, &complement);
+        add_by_internal(&mut working, &complement);
 
         // Check for the significant bit - move over to the quotient
         // as necessary
@@ -2501,7 +2525,7 @@ fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             }
 
             if *digit >= 5 {
-                let carry = add_internal(&mut data, &ONE_INTERNAL_REPR);
+                let carry = add_one_internal(&mut data);
                 if carry > 0 {
                     // Highly unlikely scenario which is more indicative of a bug
                     return Err(Error::new("Invalid decimal: overflow when rounding"));
@@ -2518,7 +2542,7 @@ fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             data[0] = tmp[0];
             data[1] = tmp[1];
             data[2] = tmp[2];
-            let carry = add_internal(&mut data, &[*digit]);
+            let carry = add_by_internal(&mut data, &[*digit]);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
                 return Err(Error::new("Invalid decimal: overflow from carry"));
@@ -2767,7 +2791,7 @@ pub fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::Error>
             }
 
             if *digit >= 5 {
-                let carry = add_internal(&mut data, &ONE_INTERNAL_REPR);
+                let carry = add_one_internal(&mut data);
                 if carry > 0 {
                     // Highly unlikely scenario which is more indicative of a bug
                     return Err(Error::new("Invalid decimal: overflow when rounding"));
@@ -2784,7 +2808,7 @@ pub fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::Error>
             data[0] = tmp[0];
             data[1] = tmp[1];
             data[2] = tmp[2];
-            let carry = add_internal(&mut data, &[*digit]);
+            let carry = add_by_internal(&mut data, &[*digit]);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
                 return Err(Error::new("Invalid decimal: overflow from carry"));
