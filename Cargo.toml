@@ -36,6 +36,7 @@ db-diesel-postgres = ["diesel", "std"]
 db-postgres = ["byteorder", "bytes", "postgres", "std"]
 db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
 default = ["serde", "std"]
+fast-div = []
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde"]
 serde-str = ["serde"]

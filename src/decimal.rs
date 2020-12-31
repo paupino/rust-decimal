@@ -1362,131 +1362,11 @@ impl Decimal {
     /// Checked division. Computes `self / other`, returning `None` if `other == 0.0` or the
     /// division results in overflow.
     pub fn checked_div(self, other: Decimal) -> Option<Decimal> {
-        match self.div_impl(other) {
+        match div_impl(&self, &other) {
             DivResult::Ok(quot) => Some(quot),
             DivResult::Overflow => None,
             DivResult::DivByZero => None,
         }
-    }
-
-    fn div_impl(self, other: Decimal) -> DivResult {
-        if other.is_zero() {
-            return DivResult::DivByZero;
-        }
-        if self.is_zero() {
-            return DivResult::Ok(Decimal::zero());
-        }
-
-        let dividend = [self.lo, self.mid, self.hi];
-        let divisor = [other.lo, other.mid, other.hi];
-        let mut quotient = [0u32, 0u32, 0u32];
-        let mut quotient_scale: i32 = self.scale() as i32 - other.scale() as i32;
-
-        // We supply an extra overflow word for each of the dividend and the remainder
-        let mut working_quotient = [dividend[0], dividend[1], dividend[2], 0u32];
-        let mut working_remainder = [0u32, 0u32, 0u32, 0u32];
-        let mut working_scale = quotient_scale;
-        let mut remainder_scale = quotient_scale;
-        let mut underflow;
-
-        loop {
-            div_internal(&mut working_quotient, &mut working_remainder, &divisor);
-            underflow = add_with_scale_internal(
-                &mut quotient,
-                &mut quotient_scale,
-                &mut working_quotient,
-                &mut working_scale,
-            );
-
-            // Multiply the remainder by 10
-            let mut overflow = 0;
-            for part in working_remainder.iter_mut() {
-                let (lo, hi) = mul_part(*part, 10, overflow);
-                *part = lo;
-                overflow = hi;
-            }
-            // Copy temp remainder into the temp quotient section
-            working_quotient.copy_from_slice(&working_remainder);
-
-            remainder_scale += 1;
-            working_scale = remainder_scale;
-
-            if underflow || is_all_zero(&working_remainder) {
-                break;
-            }
-        }
-
-        // If we have a really big number try to adjust the scale to 0
-        while quotient_scale < 0 {
-            copy_array_diff_lengths(&mut working_quotient, &quotient);
-            working_quotient[3] = 0;
-            working_remainder.iter_mut().for_each(|x| *x = 0);
-
-            // Mul 10
-            let mut overflow = 0;
-            for part in &mut working_quotient {
-                let (lo, hi) = mul_part(*part, 10, overflow);
-                *part = lo;
-                overflow = hi;
-            }
-            for part in &mut working_remainder {
-                let (lo, hi) = mul_part(*part, 10, overflow);
-                *part = lo;
-                overflow = hi;
-            }
-            if working_quotient[3] == 0 && is_all_zero(&working_remainder) {
-                quotient_scale += 1;
-                quotient[0] = working_quotient[0];
-                quotient[1] = working_quotient[1];
-                quotient[2] = working_quotient[2];
-            } else {
-                // Overflow
-                return DivResult::Overflow;
-            }
-        }
-
-        if quotient_scale > 255 {
-            quotient[0] = 0;
-            quotient[1] = 0;
-            quotient[2] = 0;
-            quotient_scale = 0;
-        }
-
-        let mut quotient_negative = self.is_sign_negative() ^ other.is_sign_negative();
-
-        // Check for underflow
-        let mut final_scale: u32 = quotient_scale as u32;
-        if final_scale > MAX_PRECISION {
-            let mut remainder = 0;
-
-            // Division underflowed. We must remove some significant digits over using
-            //  an invalid scale.
-            while final_scale > MAX_PRECISION && !is_all_zero(&quotient) {
-                remainder = div_by_u32(&mut quotient, 10);
-                final_scale -= 1;
-            }
-            if final_scale > MAX_PRECISION {
-                // Result underflowed so set to zero
-                final_scale = 0;
-                quotient_negative = false;
-            } else if remainder >= 5 {
-                for part in &mut quotient {
-                    if remainder == 0 {
-                        break;
-                    }
-                    let digit: u64 = u64::from(*part) + 1;
-                    remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
-                    *part = (digit & 0xFFFF_FFFF) as u32;
-                }
-            }
-        }
-
-        DivResult::Ok(Decimal {
-            lo: quotient[0],
-            mid: quotient[1],
-            hi: quotient[2],
-            flags: flags(quotient_negative, final_scale),
-        })
     }
 
     /// Checked remainder. Computes `self % other`, returning `None` if `other == 0.0`.
@@ -1790,6 +1670,7 @@ fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32)
 }
 
 // This method should only be used where copy from slice cannot be
+#[cfg(not(feature = "fast-div"))]
 #[inline]
 fn copy_array_diff_lengths(into: &mut [u32], from: &[u32]) {
     for i in 0..into.len() {
@@ -1882,6 +1763,7 @@ fn add_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
     carry
 }
 
+#[cfg(not(feature = "fast-div"))]
 fn add_with_scale_internal(
     quotient: &mut [u32; 3],
     quotient_scale: &mut i32,
@@ -2173,6 +2055,273 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
 
         // Increment our pointer
         block += 1;
+    }
+}
+
+#[cfg(not(feature = "fast-div"))]
+fn div_impl(d1: &Decimal, d2: &Decimal) -> DivResult {
+    if d2.is_zero() {
+        return DivResult::DivByZero;
+    }
+    if d1.is_zero() {
+        return DivResult::Ok(Decimal::zero());
+    }
+
+    let dividend = [d1.lo, d1.mid, d1.hi];
+    let divisor = [d2.lo, d2.mid, d2.hi];
+    let mut quotient = [0u32, 0u32, 0u32];
+    let mut quotient_scale: i32 = d1.scale() as i32 - d2.scale() as i32;
+
+    // We supply an extra overflow word for each of the dividend and the remainder
+    let mut working_quotient = [dividend[0], dividend[1], dividend[2], 0u32];
+    let mut working_remainder = [0u32, 0u32, 0u32, 0u32];
+    let mut working_scale = quotient_scale;
+    let mut remainder_scale = quotient_scale;
+    let mut underflow;
+
+    loop {
+        div_internal(&mut working_quotient, &mut working_remainder, &divisor);
+        underflow = add_with_scale_internal(
+            &mut quotient,
+            &mut quotient_scale,
+            &mut working_quotient,
+            &mut working_scale,
+        );
+
+        // Multiply the remainder by 10
+        let mut overflow = 0;
+        for part in working_remainder.iter_mut() {
+            let (lo, hi) = mul_part(*part, 10, overflow);
+            *part = lo;
+            overflow = hi;
+        }
+        // Copy temp remainder into the temp quotient section
+        working_quotient.copy_from_slice(&working_remainder);
+
+        remainder_scale += 1;
+        working_scale = remainder_scale;
+
+        if underflow || is_all_zero(&working_remainder) {
+            break;
+        }
+    }
+
+    // If we have a really big number try to adjust the scale to 0
+    while quotient_scale < 0 {
+        copy_array_diff_lengths(&mut working_quotient, &quotient);
+        working_quotient[3] = 0;
+        working_remainder.iter_mut().for_each(|x| *x = 0);
+
+        // Mul 10
+        let mut overflow = 0;
+        for part in &mut working_quotient {
+            let (lo, hi) = mul_part(*part, 10, overflow);
+            *part = lo;
+            overflow = hi;
+        }
+        for part in &mut working_remainder {
+            let (lo, hi) = mul_part(*part, 10, overflow);
+            *part = lo;
+            overflow = hi;
+        }
+        if working_quotient[3] == 0 && is_all_zero(&working_remainder) {
+            quotient_scale += 1;
+            quotient[0] = working_quotient[0];
+            quotient[1] = working_quotient[1];
+            quotient[2] = working_quotient[2];
+        } else {
+            // Overflow
+            return DivResult::Overflow;
+        }
+    }
+
+    if quotient_scale > 255 {
+        quotient[0] = 0;
+        quotient[1] = 0;
+        quotient[2] = 0;
+        quotient_scale = 0;
+    }
+
+    let mut quotient_negative = d1.is_sign_negative() ^ d2.is_sign_negative();
+
+    // Check for underflow
+    let mut final_scale: u32 = quotient_scale as u32;
+    if final_scale > MAX_PRECISION {
+        let mut remainder = 0;
+
+        // Division underflowed. We must remove some significant digits over using
+        //  an invalid scale.
+        while final_scale > MAX_PRECISION && !is_all_zero(&quotient) {
+            remainder = div_by_u32(&mut quotient, 10);
+            final_scale -= 1;
+        }
+        if final_scale > MAX_PRECISION {
+            // Result underflowed so set to zero
+            final_scale = 0;
+            quotient_negative = false;
+        } else if remainder >= 5 {
+            for part in &mut quotient {
+                if remainder == 0 {
+                    break;
+                }
+                let digit: u64 = u64::from(*part) + 1;
+                remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
+                *part = (digit & 0xFFFF_FFFF) as u32;
+            }
+        }
+    }
+
+    DivResult::Ok(Decimal {
+        lo: quotient[0],
+        mid: quotient[1],
+        hi: quotient[2],
+        flags: flags(quotient_negative, final_scale),
+    })
+}
+
+// Trying to represent a union like type
+#[cfg(feature = "fast-div")]
+struct Dec64 {
+    lo: u32,
+    mid: u32,
+    hi: u32,
+}
+#[cfg(feature = "fast-div")]
+impl Dec64 {
+    const fn new(value: &Decimal) -> Self {
+        Dec64 {
+            lo: value.lo,
+            mid: value.mid,
+            hi: value.hi,
+        }
+    }
+
+    const fn zero() -> Self {
+        Dec64 { lo: 0, mid: 0, hi: 0 }
+    }
+
+    // lo + mid combined
+    const fn low64(&self) -> u64 {
+        ((self.mid as u64) << 32) | (self.lo as u64)
+    }
+    fn set_low64(&mut self, value: u64) {
+        self.mid = (value >> 32) as u32;
+        self.lo = value as u32;
+    }
+    // mid + hi combined
+    const fn high64(&self) -> u64 {
+        ((self.hi as u64) << 32) | (self.mid as u64)
+    }
+    fn set_high64(&mut self, value: u64) {
+        self.hi = (value >> 32) as u32;
+        self.mid = value as u32;
+    }
+}
+
+// This code (in fact, this library) is heavily inspired by the dotnet Decimal number library
+// implementation. Consequently, a huge thank you for to all the contributors to that project
+// which has also found it's way into here.
+#[cfg(feature = "fast-div")]
+fn div_impl(dividend: &Decimal, divisor: &Decimal) -> DivResult {
+    if divisor.is_zero() {
+        return DivResult::DivByZero;
+    }
+    if dividend.is_zero() {
+        return DivResult::Ok(Decimal::zero());
+    }
+
+    // Pre calculate the scale and the sign
+    let scale = (dividend.scale() as i32) - (divisor.scale() as i32);
+    let sign_negative = dividend.is_sign_negative() ^ divisor.is_sign_negative();
+
+    // Set up some variables for modification throughout
+    let mut unscale = false;
+    let mut quotient = Dec64::new(&dividend);
+    let divisor = Dec64::new(&divisor);
+
+    // Branch depending on the complexity of the divisor
+    if divisor.hi | divisor.mid == 0 {
+        // We have a simple(r) divisor (32 bit)
+        let divisor32 = divisor.lo;
+
+        // Remainder can only be 32 bits since the divisor is 32 bits.
+        let remainder = div64_by_u32(&mut quotient, divisor32);
+
+        // Figure out how to apply the remainder (i.e. we may have performed something like 10/3 or 8/5)
+        loop {
+            // Remainder is 0 so we actually have a simple situation
+            if remainder == 0 {
+                // If the scale is positive then we're actually done
+                if scale >= 0 {
+                    break;
+                }
+            } else {
+                // We may need to normalize.
+                unscale = true;
+            }
+
+            break;
+        }
+    } else {
+        // We have a divisor greater than 32 bits. Both of these share some quick calculation wins
+        // so we'll do those before branching into separate logic.
+        // The win we can do is shifting the bits to the left as much as possible. We do this to both
+        // the dividend and the divisor to ensure the quotient is not changed.
+        // As a simple contrived example: if we have 4 / 2 then we could bit shift all the way to the
+        // left meaning that the lo portion would have nothing inside of it. Of course, shifting these
+        // left one has the same result (8/4) etc.
+        // The advantage is that we may be able to write off lower portions of the number making things
+        // easier.
+        let shift = if divisor.hi == 0 {
+            divisor.mid.leading_zeros()
+        } else {
+            divisor.hi.leading_zeros()
+        };
+        let mut remainder = Dec64::zero();
+        remainder.set_low64(quotient.low64() << shift);
+        remainder.set_high64(((quotient.mid as u64) + ((quotient.hi as u64) << 32)) >> (32 - shift));
+    }
+
+    // TODO unscale
+    DivResult::Ok(Decimal {
+        lo: quotient.lo,
+        mid: quotient.mid,
+        hi: quotient.hi,
+        flags: flags(sign_negative, scale as u32),
+    })
+}
+
+#[cfg(feature = "fast-div")]
+/// Divide a Decimal union by a 32 bit divisor.
+/// Returns a 32 bit remainder.
+fn div64_by_u32(num: &mut Dec64, divisor: u32) -> u32 {
+    let divisor64 = divisor as u64;
+    // See if we can get by using a simple u64 division
+    if num.hi != 0 {
+        let mut temp = num.high64();
+        let q64 = temp / divisor64;
+        num.set_high64(q64);
+
+        // Calculate the "remainder"
+        temp = ((temp - q64 * divisor64) << 32) | (num.lo as u64);
+        if temp == 0 {
+            return 0;
+        }
+        let q32 = (temp / divisor64) as u32;
+        num.lo = q32;
+        ((temp as u32) - (q32 * divisor)) as u32
+    } else {
+        // Super easy divisor
+        let low64 = num.low64();
+        if low64 == 0 {
+            // Nothing to do
+            return 0;
+        }
+        // Do the calc
+        let quotient = low64 / divisor64;
+        num.set_low64(quotient);
+        // Remainder is the leftover that wasn't used
+        (low64 - (quotient * divisor64)) as u32
     }
 }
 
@@ -3333,7 +3482,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
     fn div(self, other: &Decimal) -> Decimal {
-        match self.div_impl(*other) {
+        match div_impl(&self, other) {
             DivResult::Ok(quot) => quot,
             DivResult::Overflow => panic!("Division overflowed"),
             DivResult::DivByZero => panic!("Division by zero"),
