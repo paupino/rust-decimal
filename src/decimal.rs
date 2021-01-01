@@ -1488,7 +1488,7 @@ impl Decimal {
             return None;
         }
 
-        if self == &Decimal::zero() {
+        if self.is_zero() {
             return Some(Decimal::zero());
         }
 
@@ -1497,7 +1497,13 @@ impl Decimal {
         let mut last = result + Decimal::one();
 
         // Keep going while the difference is larger than the tolerance
-        while last != result {
+        const TOLERANCE: Decimal = Decimal {
+            flags: flags(false, 7),
+            lo: 5,
+            mid: 0,
+            hi: 0,
+        };
+        while (last - result).abs() > TOLERANCE {
             last = result;
             result = (result + self / result) / TWO;
         }
@@ -2189,66 +2195,62 @@ mod division {
     // This is a table of the largest values that can be in the upper two
     // u32s of a 96-bit number that will not overflow when multiplied
     // by a given power as represented by the index.
-    static POWER_OVERFLOW_VALUES: [Dec64; 8] = [
-        Dec64 {
+    static POWER_OVERFLOW_VALUES: [Dec12; 8] = [
+        Dec12 {
             hi: 429496729,
             mid: 2576980377,
             lo: 2576980377,
         },
-        Dec64 {
+        Dec12 {
             hi: 42949672,
             mid: 4123168604,
             lo: 687194767,
         },
-        Dec64 {
+        Dec12 {
             hi: 4294967,
             mid: 1271310319,
             lo: 2645699854,
         },
-        Dec64 {
+        Dec12 {
             hi: 429496,
             mid: 3133608139,
             lo: 694066715,
         },
-        Dec64 {
+        Dec12 {
             hi: 42949,
             mid: 2890341191,
             lo: 2216890319,
         },
-        Dec64 {
+        Dec12 {
             hi: 4294,
             mid: 4154504685,
             lo: 2369172679,
         },
-        Dec64 {
+        Dec12 {
             hi: 429,
             mid: 2133437386,
             lo: 4102387834,
         },
-        Dec64 {
+        Dec12 {
             hi: 42,
             mid: 4078814305,
             lo: 410238783,
         },
     ];
 
-    struct Dec64 {
+    struct Dec12 {
         lo: u32,
         mid: u32,
         hi: u32,
     }
 
-    impl Dec64 {
+    impl Dec12 {
         const fn new(value: &Decimal) -> Self {
-            Dec64 {
+            Dec12 {
                 lo: value.lo,
                 mid: value.mid,
                 hi: value.hi,
             }
-        }
-
-        const fn zero() -> Self {
-            Dec64 { lo: 0, mid: 0, hi: 0 }
         }
 
         // lo + mid combined
@@ -2284,7 +2286,8 @@ mod division {
         }
 
         // Divide a Decimal union by a 32 bit divisor.
-        // Returns a 32 bit remainder.
+        // Self is overwritten with the quotient.
+        // Return value is a 32 bit remainder.
         fn div32(&mut self, divisor: u32) -> u32 {
             let divisor64 = divisor as u64;
             // See if we can get by using a simple u64 division
@@ -2300,7 +2303,7 @@ mod division {
                 }
                 let q32 = (temp / divisor64) as u32;
                 self.lo = q32;
-                ((temp as u32) - (q32 * divisor)) as u32
+                ((temp as u32) - q32.wrapping_mul(divisor)) as u32
             } else {
                 // Super easy divisor
                 let low64 = self.low64();
@@ -2316,20 +2319,203 @@ mod division {
             }
         }
 
-        // Returns true if changed
+        // Divide the number by a power constant
+        // Returns true if division was successful
         fn div32_const(&mut self, pow: u32) -> bool {
-            let pow = pow as u64;
+            let pow64 = pow as u64;
             let high64 = self.high64();
-            let low = self.lo as u64;
-            let div64: u64 = high64 / pow;
-            let div = (((high64 - div64 * pow) << 32) + low) / pow;
-            if low == div * pow {
+            let lo = self.lo as u64;
+            let div64: u64 = high64 / pow64;
+            let div = ((((high64 - div64 * pow64) << 32) + lo) / pow64) as u32;
+            if self.lo == div.wrapping_mul(pow) {
                 self.set_high64(div64);
-                self.lo = div as u32;
+                self.lo = div;
                 true
             } else {
                 false
             }
+        }
+    }
+
+    struct Dec16 {
+        lo: u32,
+        mid: u32,
+        hi: u32,
+        overflow: u32,
+    }
+
+    impl Dec16 {
+        const fn zero() -> Self {
+            Dec16 {
+                lo: 0,
+                mid: 0,
+                hi: 0,
+                overflow: 0,
+            }
+        }
+
+        // lo + mid combined
+        const fn low64(&self) -> u64 {
+            ((self.mid as u64) << 32) | (self.lo as u64)
+        }
+        fn set_low64(&mut self, value: u64) {
+            self.mid = (value >> 32) as u32;
+            self.lo = value as u32;
+        }
+
+        // Equivalent to Dec12 high64 (i.e. mid + hi)
+        const fn mid64(&self) -> u64 {
+            ((self.hi as u64) << 32) | (self.mid as u64)
+        }
+        fn set_mid64(&mut self, value: u64) {
+            self.hi = (value >> 32) as u32;
+            self.mid = value as u32;
+        }
+
+        // hi + overflow combined
+        const fn high64(&self) -> u64 {
+            ((self.overflow as u64) << 32) | (self.hi as u64)
+        }
+        fn set_high64(&mut self, value: u64) {
+            self.overflow = (value >> 32) as u32;
+            self.hi = value as u32;
+        }
+
+        // Does a partial divide with a 64 bit divisor. The divisor in this case must require 64 bits
+        // otherwise various assumptions fail (e.g. 32 bit quotient).
+        // To assist, the upper 64 bits must be greater than the divisor for this to succeed.
+        // Consequently, it will return the quotient as a 32 bit number and overwrite self with the
+        // 64 bit remainder.
+        fn partial_divide_64(&mut self, divisor: u64) -> u32 {
+            // We make this assertion here, however below we pivot based on the data
+            debug_assert!(divisor > self.mid64());
+
+            // If we have an empty high bit, then divisor must be greater than the dividend due to
+            // the assumption that the divisor REQUIRES 64 bits.
+            if self.hi == 0 {
+                let low64 = self.low64();
+                if low64 < divisor {
+                    // We can't divide at at all so result is 0. The dividend remains untouched since
+                    // the full amount is the remainder.
+                    return 0;
+                }
+
+                let quotient = low64 / divisor;
+                self.set_low64(low64 - (quotient * divisor));
+                return quotient as u32;
+            }
+
+            // Do a simple check to see if the hi portion of the dividend is greater than the hi
+            // portion of the divisor.
+            let divisor_hi32 = (divisor >> 32) as u32;
+            if self.hi >= divisor_hi32 {
+                // We know that the divisor goes into this at MOST u32::max times.
+                // So we kick things off, with that assumption
+                let mut low64 = self.low64();
+                low64 = low64 - (divisor << 32) + divisor;
+                let mut quotient = u32::max_value();
+
+                // If we went negative then keep adding it back in
+                loop {
+                    if low64 < divisor {
+                        break;
+                    }
+                    quotient -= 1;
+                    low64 += divisor;
+                }
+                self.set_low64(low64);
+                return quotient;
+            }
+
+            let mid64 = self.mid64();
+            let divisor_hi32_64 = divisor_hi32 as u64;
+            if mid64 < divisor_hi32_64 as u64 {
+                // similar situation as above where we've got nothing left to divide
+                return 0;
+            }
+
+            let mut quotient = mid64 / divisor_hi32_64;
+            let mut remainder = self.lo as u64 | ((mid64 - quotient * divisor_hi32_64) << 32);
+
+            // Do quotient * lo divisor
+            let product = quotient * (divisor & 0xFFFF_FFFF);
+            remainder = remainder.wrapping_sub(product);
+
+            // Check if we've gone negative. If so, add it back
+            if remainder > product.reverse_bits() {
+                loop {
+                    if remainder < divisor {
+                        break;
+                    }
+                    quotient -= 1;
+                    remainder = remainder.wrapping_add(divisor);
+                }
+            }
+
+            self.set_low64(remainder);
+            quotient as u32
+        }
+
+        // Does a partial divide with a 96 bit divisor. The divisor in this case must require 96 bits
+        // otherwise various assumptions fail (e.g. 32 bit quotient).
+        fn partial_divide_96(&mut self, divisor: &Dec12) -> u32 {
+            let dividend = self.high64();
+            let divisor_hi = divisor.hi;
+            if dividend < divisor_hi as u64 {
+                // Dividend is too small - entire number is remainder
+                return 0;
+            }
+
+            let mut quo = (dividend / divisor_hi as u64) as u32;
+            let mut remainder = (dividend as u32).wrapping_sub(quo.wrapping_mul(divisor_hi));
+
+            // Compute full remainder
+            let mut prod1 = quo as u64 * divisor.lo as u64;
+            let mut prod2 = quo as u64 * divisor.mid as u64;
+            prod2 += prod1 >> 32;
+            prod1 = (prod1 & 0xFFFF_FFFF) | (prod2 << 32);
+            prod2 >>= 32;
+
+            let mut num = self.low64();
+            num = num.wrapping_sub(prod1);
+            remainder = remainder.wrapping_sub(prod2 as u32);
+
+            if num > prod1.reverse_bits() {
+                remainder = remainder.wrapping_sub(1);
+                if remainder < (prod2 as u32).reverse_bits() {
+                    self.set_low64(num);
+                    self.hi = remainder;
+                    return quo;
+                }
+            } else if remainder <= (prod2 as u32).reverse_bits() {
+                self.set_low64(num);
+                self.hi = remainder;
+                return quo;
+            }
+
+            // Remainder went negative, add divisor back until it's positive
+            prod1 = divisor.low64();
+            loop {
+                quo = quo.wrapping_sub(1);
+                num = num.wrapping_add(prod1);
+                remainder = remainder.wrapping_add(divisor_hi);
+
+                if num < prod1 {
+                    // Detected carry.
+                    let tmp = remainder;
+                    remainder += 1;
+                    if tmp < divisor_hi {
+                        break;
+                    }
+                }
+                if remainder < divisor_hi {
+                    break; // detected carry
+                }
+            }
+
+            self.set_low64(num);
+            self.hi = remainder;
+            quo
         }
     }
 
@@ -2354,8 +2540,8 @@ mod division {
 
         // Set up some variables for modification throughout
         let mut require_unscale = false;
-        let mut quotient = Dec64::new(&dividend);
-        let divisor = Dec64::new(&divisor);
+        let mut quotient = Dec12::new(&dividend);
+        let divisor = Dec12::new(&divisor);
 
         // Branch depending on the complexity of the divisor
         if divisor.hi | divisor.mid == 0 {
@@ -2461,9 +2647,10 @@ mod division {
             } else {
                 divisor.hi.leading_zeros()
             } as usize;
-            let mut remainder = Dec64::zero();
+            let mut remainder = Dec16::zero();
             remainder.set_low64(quotient.low64() << power_scale);
-            remainder.set_high64(((quotient.mid as u64) + ((quotient.hi as u64) << 32)) >> (32 - power_scale));
+            let tmp_high = ((quotient.mid as u64) + ((quotient.hi as u64) << 32)) >> (32 - power_scale);
+            remainder.set_high64(tmp_high);
 
             // Work out the divisor after it's shifted
             let divisor64 = divisor.low64() << power_scale;
@@ -2471,10 +2658,215 @@ mod division {
             if divisor.hi == 0 {
                 // It's 64 bits
                 quotient.hi = 0;
-                unimplemented!("64 bit divisor")
+
+                // Calc mid/lo by shifting accordingly
+                let rem_lo = remainder.lo;
+                remainder.lo = remainder.mid;
+                remainder.mid = remainder.hi;
+                remainder.hi = 0;
+                quotient.mid = remainder.partial_divide_64(divisor64);
+
+                remainder.hi = remainder.mid;
+                remainder.mid = remainder.lo;
+                remainder.lo = rem_lo;
+                quotient.lo = remainder.partial_divide_64(divisor64);
+
+                loop {
+                    let rem_low64 = remainder.low64();
+                    if rem_low64 == 0 {
+                        // If the scale is positive then we're actually done
+                        if scale >= 0 {
+                            break;
+                        }
+                        power_scale = 9usize.min((-scale) as usize);
+                    } else {
+                        // We may need to normalize later, so set the flag appropriately
+                        require_unscale = true;
+
+                        // We have a remainder so we effectively want to try to adjust the quotient and add
+                        // the remainder into the quotient. We do this below, however first of all we want
+                        // to try to avoid overflowing so we do that check first.
+                        let will_overflow = if scale == MAX_PRECISION_I32 {
+                            true
+                        } else {
+                            // Figure out how much we can scale by
+                            if let Ok(s) = find_scale(&quotient, scale) {
+                                power_scale = s;
+                            } else {
+                                return DivResult::Overflow;
+                            }
+                            // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
+                            // we're doing nothing.
+                            power_scale == 0
+                        };
+                        if will_overflow {
+                            // No more scaling can be done, but remainder is non-zero so we round if necessary.
+                            let mut tmp = remainder.low64();
+                            let round = if (tmp as i64) < 0 {
+                                // We round if we wrapped around
+                                true
+                            } else {
+                                tmp <<= 1;
+                                if tmp > divisor64 {
+                                    true
+                                } else if tmp == divisor64 && quotient.lo & 0x1 != 0 {
+                                    true
+                                } else {
+                                    false
+                                }
+                            };
+
+                            // If we need to round, try to do so.
+                            if round {
+                                if let Ok(new_scale) = round_up(&mut quotient, scale) {
+                                    scale = new_scale;
+                                } else {
+                                    // Overflowed
+                                    return DivResult::Overflow;
+                                }
+                            }
+                            break;
+                        }
+                    }
+
+                    // Do some scaling
+                    let power = POWERS_10[power_scale];
+                    scale += power_scale as i32;
+
+                    // Increase the quotient by the power that was looked up
+                    let overflow = increase_scale(&mut quotient, power as u64);
+                    if overflow > 0 {
+                        return DivResult::Overflow;
+                    }
+                    increase_scale64(&mut remainder, power as u64);
+
+                    let tmp = remainder.partial_divide_64(divisor64);
+                    if let Err(DivError::Overflow) = quotient.add32(tmp) {
+                        if let Ok(adj) = unscale_from_overflow(&mut quotient, scale, remainder.low64() != 0) {
+                            scale = adj;
+                        } else {
+                            // Still overflowing
+                            return DivResult::Overflow;
+                        }
+                        break;
+                    }
+                }
             } else {
                 // It's 96 bits
-                unimplemented!("96 bit divisor")
+                // Start by finishing the shift left
+                let divisor_mid = divisor.mid;
+                let divisor_hi = divisor.hi;
+
+                // Overwrite it
+                let mut divisor = divisor;
+                divisor.set_low64(divisor64);
+                divisor.hi = ((divisor_mid as u64 + ((divisor_hi as u64) << 32)) >> (32 - power_scale)) as u32;
+
+                let quo = remainder.partial_divide_96(&divisor);
+                quotient.set_low64(quo as u64);
+                quotient.hi = 0;
+
+                loop {
+                    let mut rem_low64 = remainder.low64();
+                    if rem_low64 == 0 && remainder.hi == 0 {
+                        // If the scale is positive then we're actually done
+                        if scale >= 0 {
+                            break;
+                        }
+                        power_scale = 9usize.min((-scale) as usize);
+                    } else {
+                        // We may need to normalize later, so set the flag appropriately
+                        require_unscale = true;
+
+                        // We have a remainder so we effectively want to try to adjust the quotient and add
+                        // the remainder into the quotient. We do this below, however first of all we want
+                        // to try to avoid overflowing so we do that check first.
+                        let will_overflow = if scale == MAX_PRECISION_I32 {
+                            true
+                        } else {
+                            // Figure out how much we can scale by
+                            if let Ok(s) = find_scale(&quotient, scale) {
+                                power_scale = s;
+                            } else {
+                                return DivResult::Overflow;
+                            }
+                            // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
+                            // we're doing nothing.
+                            power_scale == 0
+                        };
+                        if will_overflow {
+                            // No more scaling can be done, but remainder is non-zero so we round if necessary.
+                            let round = if (remainder.hi as i32) < 0 {
+                                // We round if we wrapped around
+                                true
+                            } else {
+                                let tmp = remainder.mid >> 31;
+                                rem_low64 <<= 1;
+                                remainder.set_low64(rem_low64);
+                                remainder.hi = (remainder.hi << 1) + tmp;
+
+                                if remainder.hi > divisor.hi {
+                                    true
+                                } else if remainder.hi == divisor.hi {
+                                    let divisor_low64 = divisor.low64();
+                                    if rem_low64 > divisor_low64 {
+                                        true
+                                    } else if rem_low64 == divisor_low64 && (quotient.lo & 1) != 0 {
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                }
+                            };
+
+                            // If we need to round, try to do so.
+                            if round {
+                                if let Ok(new_scale) = round_up(&mut quotient, scale) {
+                                    scale = new_scale;
+                                } else {
+                                    // Overflowed
+                                    return DivResult::Overflow;
+                                }
+                            }
+                            break;
+                        }
+                    }
+
+                    // Do some scaling
+                    let power = POWERS_10[power_scale];
+                    scale += power_scale as i32;
+
+                    // Increase the quotient by the power that was looked up
+                    let overflow = increase_scale(&mut quotient, power as u64);
+                    if overflow > 0 {
+                        return DivResult::Overflow;
+                    }
+                    let mut tmp_remainder = Dec12 {
+                        lo: remainder.lo,
+                        mid: remainder.mid,
+                        hi: remainder.hi,
+                    };
+                    let overflow = increase_scale(&mut tmp_remainder, power as u64);
+                    remainder.lo = tmp_remainder.lo;
+                    remainder.mid = tmp_remainder.mid;
+                    remainder.hi = tmp_remainder.hi;
+                    remainder.overflow = overflow;
+
+                    let tmp = remainder.partial_divide_96(&divisor);
+                    if let Err(DivError::Overflow) = quotient.add32(tmp) {
+                        if let Ok(adj) =
+                            unscale_from_overflow(&mut quotient, scale, (remainder.low64() | remainder.high64()) != 0)
+                        {
+                            scale = adj;
+                        } else {
+                            // Still overflowing
+                            return DivResult::Overflow;
+                        }
+                        break;
+                    }
+                }
             }
         }
         if require_unscale {
@@ -2488,9 +2880,9 @@ mod division {
         })
     }
 
-    // Multiply num by power (multiple of 10).
+    // Multiply num by power (multiple of 10). Power must be 32 bits.
     // Returns the overflow, if any
-    fn increase_scale(num: &mut Dec64, power: u64) -> u32 {
+    fn increase_scale(num: &mut Dec12, power: u64) -> u32 {
         let mut tmp = (num.lo as u64) * power;
         num.lo = tmp as u32;
         tmp >>= 32;
@@ -2502,11 +2894,20 @@ mod division {
         (tmp >> 32) as u32
     }
 
+    // Multiply num by power (multiple of 10). Power must be 32 bits.
+    fn increase_scale64(num: &mut Dec16, power: u64) {
+        let mut tmp = (num.lo as u64) * power;
+        num.lo = tmp as u32;
+        tmp >>= 32;
+        tmp += (num.mid as u64) * power;
+        num.set_mid64(tmp)
+    }
+
     // Adjust the number to deal with an overflow. This function follows being scaled up (i.e. multiplied
     // by 10, so this effectively tries to reverse that by dividing by 10 then feeding in the high bit
     // to undo the overflow and rounding instead.
     // Returns the updated scale.
-    fn unscale_from_overflow(num: &mut Dec64, scale: i32, sticky: bool) -> Result<i32, DivError> {
+    fn unscale_from_overflow(num: &mut Dec12, scale: i32, sticky: bool) -> Result<i32, DivError> {
         let scale = scale - 1;
         if scale < 0 {
             return Err(DivError::Overflow);
@@ -2540,7 +2941,7 @@ mod division {
     // still fits in 96 bits. Ultimately, we want to make scale positive - if we can't then
     // we're going to overflow. Because x is ultimately used to lookup inside the POWERS array, it
     // must be a valid value 0 <= x <= 9
-    fn find_scale(num: &Dec64, scale: i32) -> Result<usize, DivError> {
+    fn find_scale(num: &Dec12, scale: i32) -> Result<usize, DivError> {
         const OVERFLOW_MAX_9_HI: u32 = 4;
         const OVERFLOW_MAX_8_HI: u32 = 42;
         const OVERFLOW_MAX_7_HI: u32 = 429;
@@ -2628,7 +3029,7 @@ mod division {
     }
 
     #[inline]
-    fn round_up(num: &mut Dec64, scale: i32) -> Result<i32, DivError> {
+    fn round_up(num: &mut Dec12, scale: i32) -> Result<i32, DivError> {
         let low64 = num.low64().wrapping_add(1);
         num.set_low64(low64);
         if low64 != 0 {
@@ -2642,7 +3043,7 @@ mod division {
         unscale_from_overflow(num, scale, true)
     }
 
-    fn unscale(num: &mut Dec64, scale: i32) -> i32 {
+    fn unscale(num: &mut Dec12, scale: i32) -> i32 {
         // Since 10 = 2 * 5, there must be a factor of 2 for every power of 10 we can extract.
         // We use this as a quick test on whether to try a given power.
         let mut scale = scale;
@@ -2732,10 +3133,15 @@ pub(crate) fn is_all_zero(bits: &[u32]) -> bool {
 /// Returns the convergence of both the arithmetic and geometric mean.
 /// Used internally.
 fn arithmetic_geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
-    let tolerance = Decimal::from_str("0.0000005").unwrap();
+    const TOLERANCE: Decimal = Decimal {
+        flags: flags(false, 7),
+        lo: 5,
+        mid: 0,
+        hi: 0,
+    };
     let diff = (a - b).abs();
 
-    if diff < tolerance {
+    if diff < TOLERANCE {
         a.clone()
     } else {
         arithmetic_geo_mean_of_2(&mean_of_2(a, b), &geo_mean_of_2(a, b))
@@ -2744,7 +3150,7 @@ fn arithmetic_geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
 
 /// The Arithmetic mean. Used internally.
 fn mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
-    (a + b) / Decimal::from_str("2").unwrap()
+    (a + b) / TWO
 }
 
 /// The geometric mean. Used internally.
@@ -4124,295 +4530,55 @@ mod test {
     }
 
     #[test]
-    fn test_powi() {
+    fn test_geo_mean_of_2() {
         let test_cases = &[
-            (Decimal::new(4, 0), 3_u64, Decimal::new(64, 0)),
             (
-                Decimal::from_str("3.222").unwrap(),
-                5_u64,
-                Decimal::from_str("347.238347228449632").unwrap(),
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
             ),
             (
-                Decimal::from_str("0.1").unwrap(),
-                0_u64,
-                Decimal::from_str("1").unwrap(),
+                Decimal::from_str("4").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("3.4641016094199609702357273804").unwrap(),
             ),
             (
-                Decimal::from_str("342.4").unwrap(),
-                1_u64,
-                Decimal::from_str("342.4").unwrap(),
-            ),
-            (
-                Decimal::from_str("2.0").unwrap(),
-                16_u64,
-                Decimal::from_str("65536").unwrap(),
+                Decimal::from_str("12").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("6.000000000000000008995482954").unwrap(),
             ),
         ];
+
         for case in test_cases {
-            assert_eq!(case.2, case.0.powi(case.1));
+            assert_eq!(case.2, geo_mean_of_2(&case.0, &case.1));
         }
     }
-    /*
-        #[test]
-        fn test_sqrt() {
-            let test_cases = &[
-                (Decimal::new(4, 0), Decimal::new(2, 0)),
-                (
-                    Decimal::new(3222, 3),
-                    Decimal::from_str("1.7949930361981909371487724124").unwrap(),
-                ),
-                (
-                    Decimal::new(19945, 2),
-                    Decimal::from_str("14.122676800097069416754994263").unwrap(),
-                ),
-                (
-                    Decimal::from_str("342.4").unwrap(),
-                    Decimal::from_str("18.504053609952604112132102540").unwrap(),
-                ),
-                (
-                    Decimal::new(2, 0),
-                    Decimal::from_str("1.414213562373095048801688724209698078569671875376948073176").unwrap(),
-                ),
-            ];
-            for case in test_cases {
-                assert_eq!(case.1, case.0.sqrt().unwrap());
-            }
 
-            assert_eq!(Decimal::new(-2, 0).sqrt(), None);
+    #[test]
+    fn test_mean_of_2() {
+        let test_cases = &[
+            (
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
+                Decimal::from_str("2").unwrap(),
+            ),
+            (
+                Decimal::from_str("4").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("3.5").unwrap(),
+            ),
+            (
+                Decimal::from_str("12").unwrap(),
+                Decimal::from_str("3").unwrap(),
+                Decimal::from_str("7.5").unwrap(),
+            ),
+        ];
+
+        for case in test_cases {
+            assert_eq!(case.2, mean_of_2(&case.0, &case.1));
         }
+    }
 
-        #[test]
-        fn test_exp() {
-            let test_cases = &[
-                (Decimal::new(10, 0), Decimal::from_str("22023.81992829").unwrap()),
-                (Decimal::new(11, 0), Decimal::from_str("59846.36875797").unwrap()),
-                (Decimal::new(3, 0), Decimal::from_str("20.08553690").unwrap()),
-                (
-                    Decimal::from_str("8").unwrap(),
-                    Decimal::from_str("2980.94688158").unwrap(),
-                ),
-                (
-                    Decimal::from_str("0.1").unwrap(),
-                    Decimal::from_str("1.10517092").unwrap(),
-                ),
-                (
-                    Decimal::from_str("2.0").unwrap(),
-                    Decimal::from_str("7.38905609").unwrap(),
-                ),
-            ];
-            for case in test_cases {
-                assert_eq!(case.1, case.0.exp());
-            }
-        }
-
-        #[test]
-        fn test_exp_with_tolerance() {
-            let test_cases = &[
-                (
-                    Decimal::new(10, 0),
-                    Decimal::new(3, 2),
-                    Decimal::from_str("22023.81992829").unwrap(),
-                ),
-                (
-                    Decimal::new(11, 0),
-                    Decimal::new(2, 4),
-                    Decimal::from_str("59846.36875797").unwrap(),
-                ),
-                (
-                    Decimal::new(3, 0),
-                    Decimal::new(2, 5),
-                    Decimal::from_str("20.08553442").unwrap(),
-                ),
-                (
-                    Decimal::from_str("8").unwrap(),
-                    Decimal::new(2, 4),
-                    Decimal::from_str("2980.94688158").unwrap(),
-                ),
-                (
-                    Decimal::from_str("0.1").unwrap(),
-                    Decimal::new(2, 4),
-                    Decimal::from_str("1.10516667").unwrap(),
-                ),
-                (
-                    Decimal::from_str("2.0").unwrap(),
-                    Decimal::new(2, 4),
-                    Decimal::from_str("7.38904603").unwrap(),
-                ),
-            ];
-            for case in test_cases {
-                assert_eq!(case.2, case.0.exp_with_tolerance(case.1));
-            }
-        }
-
-        #[test]
-        fn test_norm_cdf() {
-            let test_cases = &[
-                (
-                    Decimal::from_str("-0.4").unwrap(),
-                    Decimal::from_str("0.3445781286821245037094401728").unwrap(),
-                ),
-                (
-                    Decimal::from_str("-0.1").unwrap(),
-                    Decimal::from_str("0.4601722899186706579921922711").unwrap(),
-                ),
-                (
-                    Decimal::from_str("0.1").unwrap(),
-                    Decimal::from_str("0.5398277100813293420078077290").unwrap(),
-                ),
-                (
-                    Decimal::from_str("0.4").unwrap(),
-                    Decimal::from_str("0.6554218713178754962905598272").unwrap(),
-                ),
-                (
-                    Decimal::from_str("2.0").unwrap(),
-                    Decimal::from_str("0.9772497381095865280953380672").unwrap(),
-                ),
-            ];
-            for case in test_cases {
-                assert_eq!(case.1, case.0.norm_cdf());
-            }
-        }
-
-        #[test]
-        fn test_norm_pdf() {
-            let test_cases = &[
-                (
-                    Decimal::from_str("-2.0").unwrap(),
-                    Decimal::from_str("0.0539909771902348159131327614").unwrap(),
-                ),
-                (
-                    Decimal::from_str("-0.4").unwrap(),
-                    Decimal::from_str("0.3682701417448470684306485260").unwrap(),
-                ),
-                (
-                    Decimal::from_str("-0.1").unwrap(),
-                    Decimal::from_str("0.3969525477990849244300670202").unwrap(),
-                ),
-                (
-                    Decimal::from_str("0.1").unwrap(),
-                    Decimal::from_str("0.3969525477990849244300670202").unwrap(),
-                ),
-                (
-                    Decimal::from_str("0.4").unwrap(),
-                    Decimal::from_str("0.3682701417448470684306485260").unwrap(),
-                ),
-                (
-                    Decimal::from_str("2.0").unwrap(),
-                    Decimal::from_str("0.0539909771902348159131327614").unwrap(),
-                ),
-            ];
-            for case in test_cases {
-                assert_eq!(case.1, case.0.norm_pdf());
-            }
-        }
-
-        #[test]
-        fn test_ln() {
-            let test_cases = &[
-                (Decimal::from_str("1").unwrap(), Decimal::from_str("0").unwrap()),
-                (Decimal::from_str("-2.0").unwrap(), Decimal::from_str("0").unwrap()),
-                (
-                    Decimal::from_str("0.23").unwrap(),
-                    // Wolfram Alpha gives -1.46968
-                    Decimal::from_str("-1.4661188292208822723626471532").unwrap(),
-                ),
-                (
-                    Decimal::from_str("2").unwrap(),
-                    // Wolfram Alpha gives 0.693147180559945309417232121458176568075500134360255254120
-                    Decimal::from_str("0.6932271134541528994884316422").unwrap(),
-                ),
-                (
-                    Decimal::from_str("25").unwrap(),
-                    // Wolfram Alpha gives 3.218875824868200749201518666452375279051202708537035443825
-                    Decimal::from_str("3.218876058872673755992392564").unwrap(),
-                ),
-            ];
-
-            for case in test_cases {
-                assert_eq!(case.1, case.0.ln());
-            }
-        }
-
-        #[test]
-        fn test_erf() {
-            let test_cases = &[
-                (
-                    Decimal::from_str("-2.0").unwrap(),
-                    // Wolfram give -0.9953222650189527
-                    Decimal::from_str("-0.9953225170750043399400930073").unwrap(),
-                ),
-                (
-                    Decimal::from_str("-0.4").unwrap(),
-                    Decimal::from_str("-0.4283924127205154977961931420").unwrap(),
-                ),
-                (
-                    Decimal::from_str("0.4").unwrap(),
-                    Decimal::from_str("0.4283924127205154977961931420").unwrap(),
-                ),
-                (
-                    Decimal::one(),
-                    Decimal::from_str("0.8427010463338918630217928957").unwrap(),
-                ),
-                (
-                    Decimal::from_str("2").unwrap(),
-                    Decimal::from_str("0.9953225170750043399400930073").unwrap(),
-                ),
-            ];
-            for case in test_cases {
-                assert_eq!(case.1, case.0.erf());
-            }
-        }
-
-        #[test]
-        fn test_geo_mean_of_2() {
-            let test_cases = &[
-                (
-                    Decimal::from_str("2").unwrap(),
-                    Decimal::from_str("2").unwrap(),
-                    Decimal::from_str("2").unwrap(),
-                ),
-                (
-                    Decimal::from_str("4").unwrap(),
-                    Decimal::from_str("3").unwrap(),
-                    Decimal::from_str("3.4641016151377545870548926830").unwrap(),
-                ),
-                (
-                    Decimal::from_str("12").unwrap(),
-                    Decimal::from_str("3").unwrap(),
-                    Decimal::from_str("6").unwrap(),
-                ),
-            ];
-
-            for case in test_cases {
-                assert_eq!(case.2, geo_mean_of_2(&case.0, &case.1));
-            }
-        }
-
-        #[test]
-        fn test_mean_of_2() {
-            let test_cases = &[
-                (
-                    Decimal::from_str("2").unwrap(),
-                    Decimal::from_str("2").unwrap(),
-                    Decimal::from_str("2").unwrap(),
-                ),
-                (
-                    Decimal::from_str("4").unwrap(),
-                    Decimal::from_str("3").unwrap(),
-                    Decimal::from_str("3.5").unwrap(),
-                ),
-                (
-                    Decimal::from_str("12").unwrap(),
-                    Decimal::from_str("3").unwrap(),
-                    Decimal::from_str("7.5").unwrap(),
-                ),
-            ];
-
-            for case in test_cases {
-                assert_eq!(case.2, mean_of_2(&case.0, &case.1));
-            }
-        }
-    */
     #[test]
     fn test_shl1_internal() {
         struct TestCase {

@@ -2,7 +2,7 @@ use core::{
     cmp::{Ordering, Ordering::*},
     str::FromStr,
 };
-use num_traits::{Signed, ToPrimitive, Zero};
+use num_traits::{One, Signed, ToPrimitive, Zero};
 use rust_decimal::{Decimal, RoundingStrategy};
 
 // Parsing
@@ -1686,3 +1686,246 @@ fn it_can_rescale() {
         assert_eq!(new_value.to_string(), value.to_string());
     }
 }
+
+// TODO: Move these to a stats feature
+/*
+#[test]
+fn test_powi() {
+    let test_cases = &[
+        (Decimal::new(4, 0), 3_u64, Decimal::new(64, 0)),
+        (
+            Decimal::from_str("3.222").unwrap(),
+            5_u64,
+            Decimal::from_str("347.238347228449632").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.1").unwrap(),
+            0_u64,
+            Decimal::from_str("1").unwrap(),
+        ),
+        (
+            Decimal::from_str("342.4").unwrap(),
+            1_u64,
+            Decimal::from_str("342.4").unwrap(),
+        ),
+        (
+            Decimal::from_str("2.0").unwrap(),
+            16_u64,
+            Decimal::from_str("65536").unwrap(),
+        ),
+    ];
+    for case in test_cases {
+        assert_eq!(case.2, case.0.powi(case.1));
+    }
+}
+
+#[test]
+fn test_sqrt() {
+    let test_cases = &[
+        (Decimal::new(4, 0), Decimal::new(2, 0)),
+        (
+            Decimal::new(3222, 3),
+            Decimal::from_str("1.7949930361981909371487724124").unwrap(),
+        ),
+        (
+            Decimal::new(19945, 2),
+            Decimal::from_str("14.122676800097069416754994263").unwrap(),
+        ),
+        (
+            Decimal::from_str("342.4").unwrap(),
+            Decimal::from_str("18.504053609952604112132102540").unwrap(),
+        ),
+        (
+            Decimal::new(2, 0),
+            Decimal::from_str("1.414213562373095048801688724209698078569671875376948073176").unwrap(),
+        ),
+    ];
+    for case in test_cases {
+        assert_eq!(case.1, case.0.sqrt().unwrap());
+    }
+
+    assert_eq!(Decimal::new(-2, 0).sqrt(), None);
+}
+
+#[test]
+fn test_exp() {
+    let test_cases = &[
+        (Decimal::new(10, 0), Decimal::from_str("22023.81992829").unwrap()),
+        (Decimal::new(11, 0), Decimal::from_str("59846.36875797").unwrap()),
+        (Decimal::new(3, 0), Decimal::from_str("20.08553690").unwrap()),
+        (
+            Decimal::from_str("8").unwrap(),
+            Decimal::from_str("2980.94688158").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.1").unwrap(),
+            Decimal::from_str("1.10517092").unwrap(),
+        ),
+        (
+            Decimal::from_str("2.0").unwrap(),
+            Decimal::from_str("7.38905609").unwrap(),
+        ),
+    ];
+    for case in test_cases {
+        assert_eq!(case.1, case.0.exp());
+    }
+}
+
+#[test]
+fn test_exp_with_tolerance() {
+    let test_cases = &[
+        (
+            Decimal::new(10, 0),
+            Decimal::new(3, 2),
+            Decimal::from_str("22023.81992829").unwrap(),
+        ),
+        (
+            Decimal::new(11, 0),
+            Decimal::new(2, 4),
+            Decimal::from_str("59846.36875797").unwrap(),
+        ),
+        (
+            Decimal::new(3, 0),
+            Decimal::new(2, 5),
+            Decimal::from_str("20.08553442").unwrap(),
+        ),
+        (
+            Decimal::from_str("8").unwrap(),
+            Decimal::new(2, 4),
+            Decimal::from_str("2980.94688158").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.1").unwrap(),
+            Decimal::new(2, 4),
+            Decimal::from_str("1.10516667").unwrap(),
+        ),
+        (
+            Decimal::from_str("2.0").unwrap(),
+            Decimal::new(2, 4),
+            Decimal::from_str("7.38904603").unwrap(),
+        ),
+    ];
+    for case in test_cases {
+        assert_eq!(case.2, case.0.exp_with_tolerance(case.1));
+    }
+}
+
+#[test]
+fn test_norm_cdf() {
+    let test_cases = &[
+        (
+            Decimal::from_str("-0.4").unwrap(),
+            Decimal::from_str("0.3445781286821245037094401728").unwrap(),
+        ),
+        (
+            Decimal::from_str("-0.1").unwrap(),
+            Decimal::from_str("0.4601722899186706579921922711").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.1").unwrap(),
+            Decimal::from_str("0.5398277100813293420078077290").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.4").unwrap(),
+            Decimal::from_str("0.6554218713178754962905598272").unwrap(),
+        ),
+        (
+            Decimal::from_str("2.0").unwrap(),
+            Decimal::from_str("0.9772497381095865280953380672").unwrap(),
+        ),
+    ];
+    for case in test_cases {
+        assert_eq!(case.1, case.0.norm_cdf());
+    }
+}
+
+#[test]
+fn test_norm_pdf() {
+    let test_cases = &[
+        (
+            Decimal::from_str("-2.0").unwrap(),
+            Decimal::from_str("0.0539909771902348159131327614").unwrap(),
+        ),
+        (
+            Decimal::from_str("-0.4").unwrap(),
+            Decimal::from_str("0.3682701417448470684306485260").unwrap(),
+        ),
+        (
+            Decimal::from_str("-0.1").unwrap(),
+            Decimal::from_str("0.3969525477990849244300670202").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.1").unwrap(),
+            Decimal::from_str("0.3969525477990849244300670202").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.4").unwrap(),
+            Decimal::from_str("0.3682701417448470684306485260").unwrap(),
+        ),
+        (
+            Decimal::from_str("2.0").unwrap(),
+            Decimal::from_str("0.0539909771902348159131327614").unwrap(),
+        ),
+    ];
+    for case in test_cases {
+        assert_eq!(case.1, case.0.norm_pdf());
+    }
+}
+
+#[test]
+fn test_ln() {
+    let test_cases = &[
+        (Decimal::from_str("1").unwrap(), Decimal::from_str("0").unwrap()),
+        (Decimal::from_str("-2.0").unwrap(), Decimal::from_str("0").unwrap()),
+        (
+            Decimal::from_str("0.23").unwrap(),
+            // Wolfram Alpha gives -1.46968
+            Decimal::from_str("-1.4661188292208822723626471532").unwrap(),
+        ),
+        (
+            Decimal::from_str("2").unwrap(),
+            // Wolfram Alpha gives 0.693147180559945309417232121458176568075500134360255254120
+            Decimal::from_str("0.6932271134541528994884316422").unwrap(),
+        ),
+        (
+            Decimal::from_str("25").unwrap(),
+            // Wolfram Alpha gives 3.218875824868200749201518666452375279051202708537035443825
+            Decimal::from_str("3.218876058872673755992392564").unwrap(),
+        ),
+    ];
+
+    for case in test_cases {
+        assert_eq!(case.1, case.0.ln());
+    }
+}
+
+#[test]
+fn test_erf() {
+    let test_cases = &[
+        (
+            Decimal::from_str("-2.0").unwrap(),
+            // Wolfram give -0.9953222650189527
+            Decimal::from_str("-0.9953225170750043399400930073").unwrap(),
+        ),
+        (
+            Decimal::from_str("-0.4").unwrap(),
+            Decimal::from_str("-0.4283924127205154977961931420").unwrap(),
+        ),
+        (
+            Decimal::from_str("0.4").unwrap(),
+            Decimal::from_str("0.4283924127205154977961931420").unwrap(),
+        ),
+        (
+            Decimal::one(),
+            Decimal::from_str("0.8427010463338918630217928957").unwrap(),
+        ),
+        (
+            Decimal::from_str("2").unwrap(),
+            Decimal::from_str("0.9953225170750043399400930073").unwrap(),
+        ),
+    ];
+    for case in test_cases {
+        assert_eq!(case.1, case.0.erf());
+    }
+}
+*/
