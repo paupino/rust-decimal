@@ -2188,50 +2188,48 @@ mod division {
 
     // This is a table of the largest values that can be in the upper two
     // u32s of a 96-bit number that will not overflow when multiplied
-    // by a given power.  For the upper word, this is a table of
-    // 2^32 / 10^n for 1 <= n <= 8.  For the lower word, this is the
-    // remaining fraction part * 2^32.  2^32 = 4294967296.
+    // by a given power as represented by the index.
     static POWER_OVERFLOW_VALUES: [Dec64; 8] = [
         Dec64 {
             hi: 429496729,
             mid: 2576980377,
             lo: 2576980377,
-        }, // 10^1 remainder 0.6
+        },
         Dec64 {
             hi: 42949672,
             mid: 4123168604,
             lo: 687194767,
-        }, // 10^2 remainder 0.16
+        },
         Dec64 {
             hi: 4294967,
             mid: 1271310319,
             lo: 2645699854,
-        }, // 10^3 remainder 0.616
+        },
         Dec64 {
             hi: 429496,
             mid: 3133608139,
             lo: 694066715,
-        }, // 10^4 remainder 0.1616
+        },
         Dec64 {
             hi: 42949,
             mid: 2890341191,
             lo: 2216890319,
-        }, // 10^5 remainder 0.51616
+        },
         Dec64 {
             hi: 4294,
             mid: 4154504685,
             lo: 2369172679,
-        }, // 10^6 remainder 0.551616
+        },
         Dec64 {
             hi: 429,
             mid: 2133437386,
             lo: 4102387834,
-        }, // 10^7 remainder 0.9551616
+        },
         Dec64 {
             hi: 42,
             mid: 4078814305,
             lo: 410238783,
-        }, // 10^8 remainder 0.09991616
+        },
     ];
 
     struct Dec64 {

@@ -10,6 +10,11 @@ toolchain = "nightly"
 command = "cargo"
 args = ["bench", "${@}"]
 
+[tasks.bench-fast]
+toolchain = "nightly"
+command = "cargo"
+args = ["bench", "--features", "fast-div", "${@}"]
+
 # Always test no-std with std tests
 [tasks.test]
 dependencies = ["test-no-std"]
