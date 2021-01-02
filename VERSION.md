@@ -1,5 +1,15 @@
 # Version History
 
+## Unreleased
+
+* Upgrade `postgres` to `0.19` and `tokio-postgres` to `0.7`.
+* Faster `serde` serialization by preventing heap allocation.
+* Alternative division algorithm which provides significant speed improvements. The feature `fast-div` is enabled by 
+  default.
+
+Thank you for the the community help and support for making this release happen, in particular:
+[jean-airoldie](https://github.com/jean-airoldie) and [gakonst](https://github.com/gakonst).
+
 ## 1.9.0
 
 * Added arbitrary precision support for `serde_json` deserialization (#283)
