@@ -36,6 +36,7 @@ const SIGN_SHIFT: u32 = 31;
 
 // The maximum supported precision
 pub(crate) const MAX_PRECISION: u32 = 28;
+#[cfg(feature = "fast-div")]
 const MAX_PRECISION_I32: i32 = 28;
 // 79,228,162,514,264,337,593,543,950,335
 const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
@@ -1497,13 +1498,11 @@ impl Decimal {
         let mut last = result + Decimal::one();
 
         // Keep going while the difference is larger than the tolerance
-        const TOLERANCE: Decimal = Decimal {
-            flags: flags(false, 7),
-            lo: 5,
-            mid: 0,
-            hi: 0,
-        };
-        while (last - result).abs() > TOLERANCE {
+        let mut circuit_breaker = 0;
+        while last != result {
+            circuit_breaker += 1;
+            assert!(circuit_breaker < 1000, "geo mean circuit breaker");
+
             last = result;
             result = (result + self / result) / TWO;
         }
@@ -2187,13 +2186,15 @@ mod division {
     }
 }
 
-// Trying to represent a union like type
+// This code (in fact, this library) is heavily inspired by the dotnet Decimal number library
+// implementation. Consequently, a huge thank you for to all the contributors to that project
+// which has also found it's way into here.
 #[cfg(feature = "fast-div")]
 mod division {
     use super::*;
+    use std::ops::BitXor;
 
-    // This is a table of the largest values that can be in the upper two
-    // u32s of a 96-bit number that will not overflow when multiplied
+    // This is a table of the largest values that will not overflow when multiplied
     // by a given power as represented by the index.
     static POWER_OVERFLOW_VALUES: [Dec12; 8] = [
         Dec12 {
@@ -2238,6 +2239,8 @@ mod division {
         },
     ];
 
+    // A structure that is used for faking a union of the decimal type. This allows setting mid/hi
+    // with a u64, for example
     struct Dec12 {
         lo: u32,
         mid: u32,
@@ -2337,6 +2340,7 @@ mod division {
         }
     }
 
+    // A structure that is used for faking a union of the decimal type with an overflow word.
     struct Dec16 {
         lo: u32,
         mid: u32,
@@ -2442,13 +2446,13 @@ mod division {
             remainder = remainder.wrapping_sub(product);
 
             // Check if we've gone negative. If so, add it back
-            if remainder > product.reverse_bits() {
+            if remainder > product.bitxor(u64::max_value()) {
                 loop {
+                    quotient = quotient.wrapping_sub(1);
+                    remainder = remainder.wrapping_add(divisor);
                     if remainder < divisor {
                         break;
                     }
-                    quotient -= 1;
-                    remainder = remainder.wrapping_add(divisor);
                 }
             }
 
@@ -2480,14 +2484,15 @@ mod division {
             num = num.wrapping_sub(prod1);
             remainder = remainder.wrapping_sub(prod2 as u32);
 
-            if num > prod1.reverse_bits() {
+            // If there are carries make sure they are propogated
+            if num > prod1.bitxor(u64::max_value()) {
                 remainder = remainder.wrapping_sub(1);
-                if remainder < (prod2 as u32).reverse_bits() {
+                if remainder < (prod2 as u32).bitxor(u32::max_value()) {
                     self.set_low64(num);
                     self.hi = remainder;
                     return quo;
                 }
-            } else if remainder <= (prod2 as u32).reverse_bits() {
+            } else if remainder <= (prod2 as u32).bitxor(u32::max_value()) {
                 self.set_low64(num);
                 self.hi = remainder;
                 return quo;
@@ -2523,9 +2528,6 @@ mod division {
         Overflow,
     }
 
-    // This code (in fact, this library) is heavily inspired by the dotnet Decimal number library
-    // implementation. Consequently, a huge thank you for to all the contributors to that project
-    // which has also found it's way into here.
     pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> DivResult {
         if divisor.is_zero() {
             return DivResult::DivByZero;
@@ -2756,8 +2758,6 @@ mod division {
                 // Start by finishing the shift left
                 let divisor_mid = divisor.mid;
                 let divisor_hi = divisor.hi;
-
-                // Overwrite it
                 let mut divisor = divisor;
                 divisor.set_low64(divisor64);
                 divisor.hi = ((divisor_mid as u64 + ((divisor_hi as u64) << 32)) >> (32 - power_scale)) as u32;
@@ -4540,12 +4540,12 @@ mod test {
             (
                 Decimal::from_str("4").unwrap(),
                 Decimal::from_str("3").unwrap(),
-                Decimal::from_str("3.4641016094199609702357273804").unwrap(),
+                Decimal::from_str("3.4641016151377545870548926830").unwrap(),
             ),
             (
                 Decimal::from_str("12").unwrap(),
                 Decimal::from_str("3").unwrap(),
-                Decimal::from_str("6.000000000000000008995482954").unwrap(),
+                Decimal::from_str("6.000000000000000000000000000").unwrap(),
             ),
         ];
 
