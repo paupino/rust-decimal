@@ -1929,3 +1929,49 @@ fn test_erf() {
     }
 }
 */
+
+// Generated tests
+#[cfg(feature = "fast-div")]
+mod generated {
+    use rust_decimal::prelude::*;
+
+    macro_rules! gen_div_test {
+        ($name:ident, $csv:expr) => {
+            #[test]
+            fn $name() {
+                let path = std::env::current_dir().unwrap();
+                let mut rdr = csv::Reader::from_reader(
+                    std::fs::File::open(format!("{}/tests/generated/{}", path.display(), $csv)).unwrap(),
+                );
+                let mut row = 0;
+                for result in rdr.records() {
+                    let record = result.unwrap();
+                    row += 1;
+
+                    // Extract the data
+                    let d1 = record.get(0).unwrap();
+                    let d2 = record.get(1).unwrap();
+                    let result = record.get(2).unwrap();
+                    let error = record.get(3).unwrap();
+
+                    // Do the calc
+                    let d1 = Decimal::from_str(&d1).unwrap();
+                    let d2 = Decimal::from_str(&d2).unwrap();
+                    let expected = Decimal::from_str(&result).unwrap();
+                    match d1.checked_div(d2) {
+                        Some(v) => assert_eq!(expected, v, "Row {}", row),
+                        None => assert!(!error.is_empty()),
+                    }
+                }
+            }
+        };
+    }
+
+    gen_div_test!(test_div_001, "Div_001.csv");
+    gen_div_test!(test_div_010, "Div_010.csv");
+    gen_div_test!(test_div_011, "Div_011.csv");
+    gen_div_test!(test_div_100, "Div_100.csv");
+    gen_div_test!(test_div_101, "Div_101.csv");
+    gen_div_test!(test_div_110, "Div_110.csv");
+    gen_div_test!(test_div_111, "Div_111.csv");
+}
