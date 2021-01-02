@@ -46,6 +46,7 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 * [db-postgres](#db-postgres)
 * [db-tokio-postgres](#db-tokio-postgres)
 * [db-diesel-postgres](#db-diesel-postgres)
+* [fast-div](#fast-div)
 * [serde-float](#serde-float)
 * [serde-str](#serde-str)
 * [std](#std)
@@ -62,6 +63,12 @@ Enables the tokio postgres module allowing for async communication with PostgreS
 ## `db-diesel-postgres`
 
 Enable `diesel` PostgreSQL support. 
+
+## `fast-div`
+
+Alternative division algorithm which has significant speed improvements. This is enabled by default since it is both faster
+as well as fixes some minor division bugs, however to maintain backwards compatibility can be opted out of by disabling 
+default features.
 
 ## `serde-float`
 
