@@ -10,10 +10,10 @@ toolchain = "nightly"
 command = "cargo"
 args = ["bench", "${@}"]
 
-[tasks.bench-fast]
+[tasks.bench-slow]
 toolchain = "nightly"
 command = "cargo"
-args = ["bench", "--features", "fast-div", "${@}"]
+args = ["bench", "--no-default-features", "--features", "serde,std", "${@}"]
 
 # Always test no-std with std tests
 [tasks.test]
