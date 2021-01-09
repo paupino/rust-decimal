@@ -1971,8 +1971,8 @@ fn test_erf() {
 mod generated {
     use rust_decimal::prelude::*;
 
-    macro_rules! gen_div_test {
-        ($name:ident, $csv:expr) => {
+    macro_rules! gen_test {
+        ($name:ident, $csv:expr, $method:tt) => {
             #[test]
             fn $name() {
                 let path = std::env::current_dir().unwrap();
@@ -1994,7 +1994,7 @@ mod generated {
                     let d1 = Decimal::from_str(&d1).unwrap();
                     let d2 = Decimal::from_str(&d2).unwrap();
                     let expected = Decimal::from_str(&result).unwrap();
-                    match d1.checked_div(d2) {
+                    match d1.$method(d2) {
                         Some(v) => assert_eq!(expected, v, "Row {}", row),
                         None => assert!(!error.is_empty()),
                     }
@@ -2003,11 +2003,43 @@ mod generated {
         };
     }
 
-    gen_div_test!(test_div_001, "Div_001.csv");
-    gen_div_test!(test_div_010, "Div_010.csv");
-    gen_div_test!(test_div_011, "Div_011.csv");
-    gen_div_test!(test_div_100, "Div_100.csv");
-    gen_div_test!(test_div_101, "Div_101.csv");
-    gen_div_test!(test_div_110, "Div_110.csv");
-    gen_div_test!(test_div_111, "Div_111.csv");
+    gen_test!(test_add_001, "Add_001.csv", checked_add);
+    gen_test!(test_add_010, "Add_010.csv", checked_add);
+    gen_test!(test_add_011, "Add_011.csv", checked_add);
+    gen_test!(test_add_100, "Add_100.csv", checked_add);
+    gen_test!(test_add_101, "Add_101.csv", checked_add);
+    gen_test!(test_add_110, "Add_110.csv", checked_add);
+    gen_test!(test_add_111, "Add_111.csv", checked_add);
+
+    gen_test!(test_div_001, "Div_001.csv", checked_div);
+    gen_test!(test_div_010, "Div_010.csv", checked_div);
+    gen_test!(test_div_011, "Div_011.csv", checked_div);
+    gen_test!(test_div_100, "Div_100.csv", checked_div);
+    gen_test!(test_div_101, "Div_101.csv", checked_div);
+    gen_test!(test_div_110, "Div_110.csv", checked_div);
+    gen_test!(test_div_111, "Div_111.csv", checked_div);
+
+    gen_test!(test_mul_001, "Mul_001.csv", checked_mul);
+    gen_test!(test_mul_010, "Mul_010.csv", checked_mul);
+    gen_test!(test_mul_011, "Mul_011.csv", checked_mul);
+    gen_test!(test_mul_100, "Mul_100.csv", checked_mul);
+    gen_test!(test_mul_101, "Mul_101.csv", checked_mul);
+    gen_test!(test_mul_110, "Mul_110.csv", checked_mul);
+    gen_test!(test_mul_111, "Mul_111.csv", checked_mul);
+
+    gen_test!(test_rem_001, "Rem_001.csv", checked_rem);
+    gen_test!(test_rem_010, "Rem_010.csv", checked_rem);
+    gen_test!(test_rem_011, "Rem_011.csv", checked_rem);
+    gen_test!(test_rem_100, "Rem_100.csv", checked_rem);
+    gen_test!(test_rem_101, "Rem_101.csv", checked_rem);
+    gen_test!(test_rem_110, "Rem_110.csv", checked_rem);
+    gen_test!(test_rem_111, "Rem_111.csv", checked_rem);
+
+    gen_test!(test_sub_001, "Sub_001.csv", checked_sub);
+    gen_test!(test_sub_010, "Sub_010.csv", checked_sub);
+    gen_test!(test_sub_011, "Sub_011.csv", checked_sub);
+    gen_test!(test_sub_100, "Sub_100.csv", checked_sub);
+    gen_test!(test_sub_101, "Sub_101.csv", checked_sub);
+    gen_test!(test_sub_110, "Sub_110.csv", checked_sub);
+    gen_test!(test_sub_111, "Sub_111.csv", checked_sub);
 }

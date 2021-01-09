@@ -1102,78 +1102,11 @@ impl Decimal {
     /// Checked addition. Computes `self + other`, returning `None` if overflow occurred.
     #[inline(always)]
     pub fn checked_add(self, other: Decimal) -> Option<Decimal> {
-        // Convert to the same scale
-        let mut my = [self.lo, self.mid, self.hi];
-        let mut my_scale = self.scale();
-        let mut ot = [other.lo, other.mid, other.hi];
-        let mut other_scale = other.scale();
-        rescale_to_maximum_scale(&mut my, &mut my_scale, &mut ot, &mut other_scale);
-        let mut final_scale = my_scale.max(other_scale);
-
-        // Add the items together
-        let my_negative = self.is_sign_negative();
-        let other_negative = other.is_sign_negative();
-        let mut negative = false;
-        let carry;
-        if !(my_negative ^ other_negative) {
-            negative = my_negative;
-            carry = add_by_internal3(&mut my, &ot);
-        } else {
-            let cmp = cmp_internal(&my, &ot);
-            // -x + y
-            // if x > y then it's negative (i.e. -2 + 1)
-            match cmp {
-                Ordering::Less => {
-                    negative = other_negative;
-                    sub_by_internal3(&mut ot, &my);
-                    my[0] = ot[0];
-                    my[1] = ot[1];
-                    my[2] = ot[2];
-                }
-                Ordering::Greater => {
-                    negative = my_negative;
-                    sub_by_internal3(&mut my, &ot);
-                }
-                Ordering::Equal => {
-                    // -2 + 2
-                    my[0] = 0;
-                    my[1] = 0;
-                    my[2] = 0;
-                }
-            }
-            carry = 0;
+        match ops::add_impl(&self, &other) {
+            CalculationResult::Ok(result) => Some(result),
+            CalculationResult::Overflow => None,
+            _ => None,
         }
-
-        // If we have a carry we underflowed.
-        // We need to lose some significant digits (if possible)
-        if carry > 0 {
-            if final_scale == 0 {
-                return None;
-            }
-
-            // Copy it over to a temp array for modification
-            let mut temp = [my[0], my[1], my[2], carry];
-            while final_scale > 0 && temp[3] != 0 {
-                div_by_u32(&mut temp, 10);
-                final_scale -= 1;
-            }
-
-            // If we still have a carry bit then we overflowed
-            if temp[3] > 0 {
-                return None;
-            }
-
-            // Copy it back - we're done
-            my[0] = temp[0];
-            my[1] = temp[1];
-            my[2] = temp[2];
-        }
-        Some(Decimal {
-            lo: my[0],
-            mid: my[1],
-            hi: my[2],
-            flags: flags(negative, final_scale),
-        })
     }
 
     /// Checked subtraction. Computes `self - other`, returning `None` if overflow occurred.
@@ -1191,233 +1124,30 @@ impl Decimal {
     /// Checked multiplication. Computes `self * other`, returning `None` if overflow occurred.
     #[inline]
     pub fn checked_mul(self, other: Decimal) -> Option<Decimal> {
-        // Early exit if either is zero
-        if self.is_zero() || other.is_zero() {
-            return Some(Decimal::zero());
+        match ops::mul_impl(&self, &other) {
+            CalculationResult::Ok(result) => Some(result),
+            CalculationResult::Overflow => None,
+            _ => None,
         }
-
-        // We are only resulting in a negative if we have mismatched signs
-        let negative = self.is_sign_negative() ^ other.is_sign_negative();
-
-        // We get the scale of the result by adding the operands. This may be too big, however
-        //  we'll correct later
-        let mut final_scale = self.scale() + other.scale();
-
-        // First of all, if ONLY the lo parts of both numbers is filled
-        // then we can simply do a standard 64 bit calculation. It's a minor
-        // optimization however prevents the need for long form multiplication
-        if self.mid == 0 && self.hi == 0 && other.mid == 0 && other.hi == 0 {
-            // Simply multiplication
-            let mut u64_result = u64_to_array(u64::from(self.lo) * u64::from(other.lo));
-
-            // If we're above max precision then this is a very small number
-            if final_scale > MAX_PRECISION {
-                final_scale -= MAX_PRECISION;
-
-                // If the number is above 19 then this will equate to zero.
-                // This is because the max value in 64 bits is 1.84E19
-                if final_scale > 19 {
-                    return Some(Decimal::zero());
-                }
-
-                let mut rem_lo = 0;
-                let mut power;
-                if final_scale > 9 {
-                    // Since 10^10 doesn't fit into u32, we divide by 10^10/4
-                    // and multiply the next divisor by 4.
-                    rem_lo = div_by_u32(&mut u64_result, 2_500_000_000);
-                    power = POWERS_10[final_scale as usize - 10] << 2;
-                } else {
-                    power = POWERS_10[final_scale as usize];
-                }
-
-                // Divide fits in 32 bits
-                let rem_hi = div_by_u32(&mut u64_result, power);
-
-                // Round the result. Since the divisor is a power of 10
-                // we check to see if the remainder is >= 1/2 divisor
-                power >>= 1;
-                if rem_hi >= power && (rem_hi > power || (rem_lo | (u64_result[0] & 0x1)) != 0) {
-                    u64_result[0] += 1;
-                }
-
-                final_scale = MAX_PRECISION;
-            }
-            return Some(Decimal {
-                lo: u64_result[0],
-                mid: u64_result[1],
-                hi: 0,
-                flags: flags(negative, final_scale),
-            });
-        }
-
-        // We're using some of the high bits, so we essentially perform
-        // long form multiplication. We compute the 9 partial products
-        // into a 192 bit result array.
-        //
-        //                     [my-h][my-m][my-l]
-        //                  x  [ot-h][ot-m][ot-l]
-        // --------------------------------------
-        // 1.                        [r-hi][r-lo] my-l * ot-l [0, 0]
-        // 2.                  [r-hi][r-lo]       my-l * ot-m [0, 1]
-        // 3.                  [r-hi][r-lo]       my-m * ot-l [1, 0]
-        // 4.            [r-hi][r-lo]             my-m * ot-m [1, 1]
-        // 5.            [r-hi][r-lo]             my-l * ot-h [0, 2]
-        // 6.            [r-hi][r-lo]             my-h * ot-l [2, 0]
-        // 7.      [r-hi][r-lo]                   my-m * ot-h [1, 2]
-        // 8.      [r-hi][r-lo]                   my-h * ot-m [2, 1]
-        // 9.[r-hi][r-lo]                         my-h * ot-h [2, 2]
-        let my = [self.lo, self.mid, self.hi];
-        let ot = [other.lo, other.mid, other.hi];
-        let mut product = [0u32, 0u32, 0u32, 0u32, 0u32, 0u32];
-
-        // We can perform a minor short circuit here. If the
-        // high portions are both 0 then we can skip portions 5-9
-        let to = if my[2] == 0 && ot[2] == 0 { 2 } else { 3 };
-
-        for my_index in 0..to {
-            for ot_index in 0..to {
-                let (mut rlo, mut rhi) = mul_part(my[my_index], ot[ot_index], 0);
-
-                // Get the index for the lo portion of the product
-                for prod in product.iter_mut().skip(my_index + ot_index) {
-                    let (res, overflow) = add_part(rlo, *prod);
-                    *prod = res;
-
-                    // If we have something in rhi from before then promote that
-                    if rhi > 0 {
-                        // If we overflowed in the last add, add that with rhi
-                        if overflow > 0 {
-                            let (nlo, nhi) = add_part(rhi, overflow);
-                            rlo = nlo;
-                            rhi = nhi;
-                        } else {
-                            rlo = rhi;
-                            rhi = 0;
-                        }
-                    } else if overflow > 0 {
-                        rlo = overflow;
-                        rhi = 0;
-                    } else {
-                        break;
-                    }
-
-                    // If nothing to do next round then break out
-                    if rlo == 0 {
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If our result has used up the high portion of the product
-        // then we either have an overflow or an underflow situation
-        // Overflow will occur if we can't scale it back, whereas underflow
-        // with kick in rounding
-        let mut remainder = 0;
-        while final_scale > 0 && (product[3] != 0 || product[4] != 0 || product[5] != 0) {
-            remainder = div_by_u32(&mut product, 10u32);
-            final_scale -= 1;
-        }
-
-        // Round up the carry if we need to
-        if remainder >= 5 {
-            for part in product.iter_mut() {
-                if remainder == 0 {
-                    break;
-                }
-                let digit: u64 = u64::from(*part) + 1;
-                remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
-                *part = (digit & 0xFFFF_FFFF) as u32;
-            }
-        }
-
-        // If we're still above max precision then we'll try again to
-        // reduce precision - we may be dealing with a limit of "0"
-        if final_scale > MAX_PRECISION {
-            // We're in an underflow situation
-            // The easiest way to remove precision is to divide off the result
-            while final_scale > MAX_PRECISION && !is_all_zero(&product) {
-                div_by_u32(&mut product, 10);
-                final_scale -= 1;
-            }
-            // If we're still at limit then we can't represent any
-            // siginificant decimal digits and will return an integer only
-            // Can also be invoked while representing 0.
-            if final_scale > MAX_PRECISION {
-                final_scale = 0;
-            }
-        } else if !(product[3] == 0 && product[4] == 0 && product[5] == 0) {
-            // We're in an overflow situation - we're within our precision bounds
-            // but still have bits in overflow
-            return None;
-        }
-
-        Some(Decimal {
-            lo: product[0],
-            mid: product[1],
-            hi: product[2],
-            flags: flags(negative, final_scale),
-        })
     }
 
     /// Checked division. Computes `self / other`, returning `None` if `other == 0.0` or the
     /// division results in overflow.
     pub fn checked_div(self, other: Decimal) -> Option<Decimal> {
         match ops::div_impl(&self, &other) {
-            DivResult::Ok(quot) => Some(quot),
-            DivResult::Overflow => None,
-            DivResult::DivByZero => None,
+            CalculationResult::Ok(quot) => Some(quot),
+            CalculationResult::Overflow => None,
+            CalculationResult::DivByZero => None,
         }
     }
 
     /// Checked remainder. Computes `self % other`, returning `None` if `other == 0.0`.
     pub fn checked_rem(self, other: Decimal) -> Option<Decimal> {
-        if other.is_zero() {
-            return None;
+        match ops::rem_impl(&self, &other) {
+            CalculationResult::Ok(quot) => Some(quot),
+            CalculationResult::Overflow => None,
+            CalculationResult::DivByZero => None,
         }
-        if self.is_zero() {
-            return Some(Decimal::zero());
-        }
-
-        // Rescale so comparable
-        let initial_scale = self.scale();
-        let mut quotient = [self.lo, self.mid, self.hi];
-        let mut quotient_scale = initial_scale;
-        let mut divisor = [other.lo, other.mid, other.hi];
-        let mut divisor_scale = other.scale();
-        rescale_to_maximum_scale(&mut quotient, &mut quotient_scale, &mut divisor, &mut divisor_scale);
-
-        // Working is the remainder + the quotient
-        // We use an aligned array since we'll be using it a lot.
-        let mut working_quotient = [quotient[0], quotient[1], quotient[2], 0u32];
-        let mut working_remainder = [0u32, 0u32, 0u32, 0u32];
-        div_internal(&mut working_quotient, &mut working_remainder, &divisor);
-
-        // Round if necessary. This is for semantic correctness, but could feasibly be removed for
-        // performance improvements.
-        if quotient_scale > initial_scale {
-            let mut working = [
-                working_remainder[0],
-                working_remainder[1],
-                working_remainder[2],
-                working_remainder[3],
-            ];
-            while quotient_scale > initial_scale {
-                if div_by_u32(&mut working, 10) > 0 {
-                    break;
-                }
-                quotient_scale -= 1;
-                working_remainder.copy_from_slice(&working);
-            }
-        }
-
-        Some(Decimal {
-            lo: working_remainder[0],
-            mid: working_remainder[1],
-            hi: working_remainder[2],
-            flags: flags(self.is_sign_negative(), quotient_scale),
-        })
     }
 
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
@@ -1577,7 +1307,7 @@ impl Default for Decimal {
     }
 }
 
-pub(crate) enum DivResult {
+pub(crate) enum CalculationResult {
     Ok(Decimal),
     Overflow,
     DivByZero,
@@ -1675,11 +1405,6 @@ fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32)
     }
 }
 
-#[inline]
-const fn u64_to_array(value: u64) -> [u32; 2] {
-    [(value & U32_MASK) as u32, (value >> 32 & U32_MASK) as u32]
-}
-
 fn add_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
     let mut carry: u64 = 0;
     let vl = value.len();
@@ -1729,49 +1454,6 @@ fn add_one_internal(value: &mut [u32]) -> u32 {
     }
 
     carry as u32
-}
-
-#[inline]
-fn add_one_internal4(value: &mut [u32; 4]) -> u32 {
-    let mut carry: u64 = 1; // Start with one, since adding one
-    let mut sum: u64;
-    for i in value.iter_mut() {
-        sum = (*i as u64) + carry;
-        *i = (sum & U32_MASK) as u32;
-        carry = sum >> 32;
-    }
-
-    carry as u32
-}
-
-#[inline]
-fn add_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
-    let mut carry: u32 = 0;
-    let bl = by.len();
-    for i in 0..bl {
-        let res1 = value[i].overflowing_add(by[i]);
-        let res2 = res1.0.overflowing_add(carry);
-        value[i] = res2.0;
-        carry = (res1.1 | res2.1) as u32;
-    }
-    carry
-}
-
-#[inline]
-fn add_part(left: u32, right: u32) -> (u32, u32) {
-    let added = u64::from(left) + u64::from(right);
-    ((added & U32_MASK) as u32, (added >> 32 & U32_MASK) as u32)
-}
-
-#[inline(always)]
-fn sub_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) {
-    let mut overflow = 0;
-    let vl = value.len();
-    for i in 0..vl {
-        let part = (0x1_0000_0000u64 + u64::from(value[i])) - (u64::from(by[i]) + overflow);
-        value[i] = part as u32;
-        overflow = 1 - (part >> 32);
-    }
 }
 
 fn sub_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
@@ -1857,76 +1539,92 @@ fn mul_part(left: u32, right: u32, high: u32) -> (u32, u32) {
     (lo, hi)
 }
 
-fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u32; 3]) {
-    // There are a couple of ways to do division on binary numbers:
-    //   1. Using long division
-    //   2. Using the complement method
-    // ref: http://paulmason.me/dividing-binary-numbers-part-2/
-    // The complement method basically keeps trying to subtract the
-    // divisor until it can't anymore and placing the rest in remainder.
-    let mut complement = [
-        divisor[0] ^ 0xFFFF_FFFF,
-        divisor[1] ^ 0xFFFF_FFFF,
-        divisor[2] ^ 0xFFFF_FFFF,
-        0xFFFF_FFFF,
-    ];
-
-    // Add one onto the complement
-    add_one_internal4(&mut complement);
-
-    // Make sure the remainder is 0
-    remainder.iter_mut().for_each(|x| *x = 0);
-
-    // If we have nothing in our hi+ block then shift over till we do
-    let mut blocks_to_process = 0;
-    while blocks_to_process < 4 && quotient[3] == 0 {
-        // memcpy would be useful here
-        quotient[3] = quotient[2];
-        quotient[2] = quotient[1];
-        quotient[1] = quotient[0];
-        quotient[0] = 0;
-
-        // Incremember the counter
-        blocks_to_process += 1;
-    }
-
-    // Let's try and do the addition...
-    let mut block = blocks_to_process << 5;
-    let mut working = [0u32, 0u32, 0u32, 0u32];
-    while block < 128 {
-        // << 1 for quotient AND remainder. Moving the carry from the quotient to the bottom of the
-        // remainder.
-        let carry = shl1_internal(quotient, 0);
-        shl1_internal(remainder, carry);
-
-        // Copy the remainder of working into sub
-        working.copy_from_slice(remainder);
-
-        // Add the remainder with the complement
-        add_by_internal(&mut working, &complement);
-
-        // Check for the significant bit - move over to the quotient
-        // as necessary
-        if (working[3] & 0x8000_0000) == 0 {
-            remainder.copy_from_slice(&working);
-            quotient[0] |= 1;
-        }
-
-        // Increment our pointer
-        block += 1;
-    }
-}
-
 #[cfg(feature = "legacy-ops")]
 mod ops {
     use super::*;
 
-    pub(crate) fn div_impl(d1: &Decimal, d2: &Decimal) -> DivResult {
+    pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        // Convert to the same scale
+        let mut my = [d1.lo, d1.mid, d1.hi];
+        let mut my_scale = d1.scale();
+        let mut ot = [d2.lo, d2.mid, d2.hi];
+        let mut other_scale = d2.scale();
+        rescale_to_maximum_scale(&mut my, &mut my_scale, &mut ot, &mut other_scale);
+        let mut final_scale = my_scale.max(other_scale);
+
+        // Add the items together
+        let my_negative = d1.is_sign_negative();
+        let other_negative = d2.is_sign_negative();
+        let mut negative = false;
+        let carry;
+        if !(my_negative ^ other_negative) {
+            negative = my_negative;
+            carry = add_by_internal3(&mut my, &ot);
+        } else {
+            let cmp = cmp_internal(&my, &ot);
+            // -x + y
+            // if x > y then it's negative (i.e. -2 + 1)
+            match cmp {
+                Ordering::Less => {
+                    negative = other_negative;
+                    sub_by_internal3(&mut ot, &my);
+                    my[0] = ot[0];
+                    my[1] = ot[1];
+                    my[2] = ot[2];
+                }
+                Ordering::Greater => {
+                    negative = my_negative;
+                    sub_by_internal3(&mut my, &ot);
+                }
+                Ordering::Equal => {
+                    // -2 + 2
+                    my[0] = 0;
+                    my[1] = 0;
+                    my[2] = 0;
+                }
+            }
+            carry = 0;
+        }
+
+        // If we have a carry we underflowed.
+        // We need to lose some significant digits (if possible)
+        if carry > 0 {
+            if final_scale == 0 {
+                return CalculationResult::Overflow;
+            }
+
+            // Copy it over to a temp array for modification
+            let mut temp = [my[0], my[1], my[2], carry];
+            while final_scale > 0 && temp[3] != 0 {
+                div_by_u32(&mut temp, 10);
+                final_scale -= 1;
+            }
+
+            // If we still have a carry bit then we overflowed
+            if temp[3] > 0 {
+                return CalculationResult::Overflow;
+            }
+
+            // Copy it back - we're done
+            my[0] = temp[0];
+            my[1] = temp[1];
+            my[2] = temp[2];
+        }
+
+        CalculationResult::Ok(Decimal {
+            lo: my[0],
+            mid: my[1],
+            hi: my[2],
+            flags: flags(negative, final_scale),
+        })
+    }
+
+    pub(crate) fn div_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         if d2.is_zero() {
-            return DivResult::DivByZero;
+            return CalculationResult::DivByZero;
         }
         if d1.is_zero() {
-            return DivResult::Ok(Decimal::zero());
+            return CalculationResult::Ok(Decimal::zero());
         }
 
         let dividend = [d1.lo, d1.mid, d1.hi];
@@ -1993,7 +1691,7 @@ mod ops {
                 quotient[2] = working_quotient[2];
             } else {
                 // Overflow
-                return DivResult::Overflow;
+                return CalculationResult::Overflow;
             }
         }
 
@@ -2033,12 +1731,308 @@ mod ops {
             }
         }
 
-        DivResult::Ok(Decimal {
+        CalculationResult::Ok(Decimal {
             lo: quotient[0],
             mid: quotient[1],
             hi: quotient[2],
             flags: flags(quotient_negative, final_scale),
         })
+    }
+
+    pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        // Early exit if either is zero
+        if d1.is_zero() || d2.is_zero() {
+            return CalculationResult::Ok(Decimal::zero());
+        }
+
+        // We are only resulting in a negative if we have mismatched signs
+        let negative = d1.is_sign_negative() ^ d2.is_sign_negative();
+
+        // We get the scale of the result by adding the operands. This may be too big, however
+        //  we'll correct later
+        let mut final_scale = d1.scale() + d2.scale();
+
+        // First of all, if ONLY the lo parts of both numbers is filled
+        // then we can simply do a standard 64 bit calculation. It's a minor
+        // optimization however prevents the need for long form multiplication
+        if d1.mid == 0 && d1.hi == 0 && d2.mid == 0 && d2.hi == 0 {
+            // Simply multiplication
+            let mut u64_result = u64_to_array(u64::from(d1.lo) * u64::from(d2.lo));
+
+            // If we're above max precision then this is a very small number
+            if final_scale > MAX_PRECISION {
+                final_scale -= MAX_PRECISION;
+
+                // If the number is above 19 then this will equate to zero.
+                // This is because the max value in 64 bits is 1.84E19
+                if final_scale > 19 {
+                    return CalculationResult::Ok(Decimal::zero());
+                }
+
+                let mut rem_lo = 0;
+                let mut power;
+                if final_scale > 9 {
+                    // Since 10^10 doesn't fit into u32, we divide by 10^10/4
+                    // and multiply the next divisor by 4.
+                    rem_lo = div_by_u32(&mut u64_result, 2_500_000_000);
+                    power = POWERS_10[final_scale as usize - 10] << 2;
+                } else {
+                    power = POWERS_10[final_scale as usize];
+                }
+
+                // Divide fits in 32 bits
+                let rem_hi = div_by_u32(&mut u64_result, power);
+
+                // Round the result. Since the divisor is a power of 10
+                // we check to see if the remainder is >= 1/2 divisor
+                power >>= 1;
+                if rem_hi >= power && (rem_hi > power || (rem_lo | (u64_result[0] & 0x1)) != 0) {
+                    u64_result[0] += 1;
+                }
+
+                final_scale = MAX_PRECISION;
+            }
+            return CalculationResult::Ok(Decimal {
+                lo: u64_result[0],
+                mid: u64_result[1],
+                hi: 0,
+                flags: flags(negative, final_scale),
+            });
+        }
+
+        // We're using some of the high bits, so we essentially perform
+        // long form multiplication. We compute the 9 partial products
+        // into a 192 bit result array.
+        //
+        //                     [my-h][my-m][my-l]
+        //                  x  [ot-h][ot-m][ot-l]
+        // --------------------------------------
+        // 1.                        [r-hi][r-lo] my-l * ot-l [0, 0]
+        // 2.                  [r-hi][r-lo]       my-l * ot-m [0, 1]
+        // 3.                  [r-hi][r-lo]       my-m * ot-l [1, 0]
+        // 4.            [r-hi][r-lo]             my-m * ot-m [1, 1]
+        // 5.            [r-hi][r-lo]             my-l * ot-h [0, 2]
+        // 6.            [r-hi][r-lo]             my-h * ot-l [2, 0]
+        // 7.      [r-hi][r-lo]                   my-m * ot-h [1, 2]
+        // 8.      [r-hi][r-lo]                   my-h * ot-m [2, 1]
+        // 9.[r-hi][r-lo]                         my-h * ot-h [2, 2]
+        let my = [d1.lo, d1.mid, d1.hi];
+        let ot = [d2.lo, d2.mid, d2.hi];
+        let mut product = [0u32, 0u32, 0u32, 0u32, 0u32, 0u32];
+
+        // We can perform a minor short circuit here. If the
+        // high portions are both 0 then we can skip portions 5-9
+        let to = if my[2] == 0 && ot[2] == 0 { 2 } else { 3 };
+
+        for my_index in 0..to {
+            for ot_index in 0..to {
+                let (mut rlo, mut rhi) = mul_part(my[my_index], ot[ot_index], 0);
+
+                // Get the index for the lo portion of the product
+                for prod in product.iter_mut().skip(my_index + ot_index) {
+                    let (res, overflow) = add_part(rlo, *prod);
+                    *prod = res;
+
+                    // If we have something in rhi from before then promote that
+                    if rhi > 0 {
+                        // If we overflowed in the last add, add that with rhi
+                        if overflow > 0 {
+                            let (nlo, nhi) = add_part(rhi, overflow);
+                            rlo = nlo;
+                            rhi = nhi;
+                        } else {
+                            rlo = rhi;
+                            rhi = 0;
+                        }
+                    } else if overflow > 0 {
+                        rlo = overflow;
+                        rhi = 0;
+                    } else {
+                        break;
+                    }
+
+                    // If nothing to do next round then break out
+                    if rlo == 0 {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // If our result has used up the high portion of the product
+        // then we either have an overflow or an underflow situation
+        // Overflow will occur if we can't scale it back, whereas underflow
+        // with kick in rounding
+        let mut remainder = 0;
+        while final_scale > 0 && (product[3] != 0 || product[4] != 0 || product[5] != 0) {
+            remainder = div_by_u32(&mut product, 10u32);
+            final_scale -= 1;
+        }
+
+        // Round up the carry if we need to
+        if remainder >= 5 {
+            for part in product.iter_mut() {
+                if remainder == 0 {
+                    break;
+                }
+                let digit: u64 = u64::from(*part) + 1;
+                remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
+                *part = (digit & 0xFFFF_FFFF) as u32;
+            }
+        }
+
+        // If we're still above max precision then we'll try again to
+        // reduce precision - we may be dealing with a limit of "0"
+        if final_scale > MAX_PRECISION {
+            // We're in an underflow situation
+            // The easiest way to remove precision is to divide off the result
+            while final_scale > MAX_PRECISION && !is_all_zero(&product) {
+                div_by_u32(&mut product, 10);
+                final_scale -= 1;
+            }
+            // If we're still at limit then we can't represent any
+            // siginificant decimal digits and will return an integer only
+            // Can also be invoked while representing 0.
+            if final_scale > MAX_PRECISION {
+                final_scale = 0;
+            }
+        } else if !(product[3] == 0 && product[4] == 0 && product[5] == 0) {
+            // We're in an overflow situation - we're within our precision bounds
+            // but still have bits in overflow
+            return CalculationResult::Overflow;
+        }
+
+        CalculationResult::Ok(Decimal {
+            lo: product[0],
+            mid: product[1],
+            hi: product[2],
+            flags: flags(negative, final_scale),
+        })
+    }
+
+    pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        if d2.is_zero() {
+            return CalculationResult::DivByZero;
+        }
+        if d1.is_zero() {
+            return CalculationResult::Ok(Decimal::zero());
+        }
+
+        // Rescale so comparable
+        let initial_scale = d1.scale();
+        let mut quotient = [d1.lo, d1.mid, d1.hi];
+        let mut quotient_scale = initial_scale;
+        let mut divisor = [d2.lo, d2.mid, d2.hi];
+        let mut divisor_scale = d2.scale();
+        rescale_to_maximum_scale(&mut quotient, &mut quotient_scale, &mut divisor, &mut divisor_scale);
+
+        // Working is the remainder + the quotient
+        // We use an aligned array since we'll be using it a lot.
+        let mut working_quotient = [quotient[0], quotient[1], quotient[2], 0u32];
+        let mut working_remainder = [0u32, 0u32, 0u32, 0u32];
+        div_internal(&mut working_quotient, &mut working_remainder, &divisor);
+
+        // Round if necessary. This is for semantic correctness, but could feasibly be removed for
+        // performance improvements.
+        if quotient_scale > initial_scale {
+            let mut working = [
+                working_remainder[0],
+                working_remainder[1],
+                working_remainder[2],
+                working_remainder[3],
+            ];
+            while quotient_scale > initial_scale {
+                if div_by_u32(&mut working, 10) > 0 {
+                    break;
+                }
+                quotient_scale -= 1;
+                working_remainder.copy_from_slice(&working);
+            }
+        }
+
+        CalculationResult::Ok(Decimal {
+            lo: working_remainder[0],
+            mid: working_remainder[1],
+            hi: working_remainder[2],
+            flags: flags(d1.is_sign_negative(), quotient_scale),
+        })
+    }
+
+    #[inline]
+    fn add_part(left: u32, right: u32) -> (u32, u32) {
+        let added = u64::from(left) + u64::from(right);
+        ((added & U32_MASK) as u32, (added >> 32 & U32_MASK) as u32)
+    }
+
+    #[inline(always)]
+    fn sub_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) {
+        let mut overflow = 0;
+        let vl = value.len();
+        for i in 0..vl {
+            let part = (0x1_0000_0000u64 + u64::from(value[i])) - (u64::from(by[i]) + overflow);
+            value[i] = part as u32;
+            overflow = 1 - (part >> 32);
+        }
+    }
+
+    fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u32; 3]) {
+        // There are a couple of ways to do division on binary numbers:
+        //   1. Using long division
+        //   2. Using the complement method
+        // ref: http://paulmason.me/dividing-binary-numbers-part-2/
+        // The complement method basically keeps trying to subtract the
+        // divisor until it can't anymore and placing the rest in remainder.
+        let mut complement = [
+            divisor[0] ^ 0xFFFF_FFFF,
+            divisor[1] ^ 0xFFFF_FFFF,
+            divisor[2] ^ 0xFFFF_FFFF,
+            0xFFFF_FFFF,
+        ];
+
+        // Add one onto the complement
+        add_one_internal4(&mut complement);
+
+        // Make sure the remainder is 0
+        remainder.iter_mut().for_each(|x| *x = 0);
+
+        // If we have nothing in our hi+ block then shift over till we do
+        let mut blocks_to_process = 0;
+        while blocks_to_process < 4 && quotient[3] == 0 {
+            // memcpy would be useful here
+            quotient[3] = quotient[2];
+            quotient[2] = quotient[1];
+            quotient[1] = quotient[0];
+            quotient[0] = 0;
+
+            // Incremember the counter
+            blocks_to_process += 1;
+        }
+
+        // Let's try and do the addition...
+        let mut block = blocks_to_process << 5;
+        let mut working = [0u32, 0u32, 0u32, 0u32];
+        while block < 128 {
+            // << 1 for quotient AND remainder. Moving the carry from the quotient to the bottom of the
+            // remainder.
+            let carry = shl1_internal(quotient, 0);
+            shl1_internal(remainder, carry);
+
+            // Copy the remainder of working into sub
+            working.copy_from_slice(remainder);
+
+            // Add the remainder with the complement
+            add_by_internal(&mut working, &complement);
+
+            // Check for the significant bit - move over to the quotient
+            // as necessary
+            if (working[3] & 0x8000_0000) == 0 {
+                remainder.copy_from_slice(&working);
+                quotient[0] |= 1;
+            }
+
+            // Increment our pointer
+            block += 1;
+        }
     }
 
     #[inline]
@@ -2049,6 +2043,37 @@ mod ops {
             }
             into[i] = from[i];
         }
+    }
+
+    #[inline]
+    fn add_one_internal4(value: &mut [u32; 4]) -> u32 {
+        let mut carry: u64 = 1; // Start with one, since adding one
+        let mut sum: u64;
+        for i in value.iter_mut() {
+            sum = (*i as u64) + carry;
+            *i = (sum & U32_MASK) as u32;
+            carry = sum >> 32;
+        }
+
+        carry as u32
+    }
+
+    #[inline]
+    fn add_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
+        let mut carry: u32 = 0;
+        let bl = by.len();
+        for i in 0..bl {
+            let res1 = value[i].overflowing_add(by[i]);
+            let res2 = res1.0.overflowing_add(carry);
+            value[i] = res2.0;
+            carry = (res1.1 | res2.1) as u32;
+        }
+        carry
+    }
+
+    #[inline]
+    const fn u64_to_array(value: u64) -> [u32; 2] {
+        [(value & U32_MASK) as u32, (value >> 32 & U32_MASK) as u32]
     }
 
     fn add_with_scale_internal(
@@ -2528,12 +2553,16 @@ mod ops {
         Overflow,
     }
 
-    pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> DivResult {
+    pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        unimplemented!("add")
+    }
+
+    pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResult {
         if divisor.is_zero() {
-            return DivResult::DivByZero;
+            return CalculationResult::DivByZero;
         }
         if dividend.is_zero() {
-            return DivResult::Ok(Decimal::zero());
+            return CalculationResult::Ok(Decimal::zero());
         }
 
         // Pre calculate the scale and the sign
@@ -2577,7 +2606,7 @@ mod ops {
                         if let Ok(s) = find_scale(&quotient, scale) {
                             power_scale = s;
                         } else {
-                            return DivResult::Overflow;
+                            return CalculationResult::Overflow;
                         }
                         // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
                         // we're doing nothing.
@@ -2605,7 +2634,7 @@ mod ops {
                                 scale = new_scale;
                             } else {
                                 // Overflowed
-                                return DivResult::Overflow;
+                                return CalculationResult::Overflow;
                             }
                         }
                         break;
@@ -2618,7 +2647,7 @@ mod ops {
                 // Increase the quotient by the power that was looked up
                 let overflow = increase_scale(&mut quotient, power as u64);
                 if overflow > 0 {
-                    return DivResult::Overflow;
+                    return CalculationResult::Overflow;
                 }
 
                 let remainder_scaled = (remainder as u64) * (power as u64);
@@ -2629,7 +2658,7 @@ mod ops {
                         scale = adj;
                     } else {
                         // Still overflowing
-                        return DivResult::Overflow;
+                        return CalculationResult::Overflow;
                     }
                     break;
                 }
@@ -2695,7 +2724,7 @@ mod ops {
                             if let Ok(s) = find_scale(&quotient, scale) {
                                 power_scale = s;
                             } else {
-                                return DivResult::Overflow;
+                                return CalculationResult::Overflow;
                             }
                             // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
                             // we're doing nothing.
@@ -2724,7 +2753,7 @@ mod ops {
                                     scale = new_scale;
                                 } else {
                                     // Overflowed
-                                    return DivResult::Overflow;
+                                    return CalculationResult::Overflow;
                                 }
                             }
                             break;
@@ -2738,7 +2767,7 @@ mod ops {
                     // Increase the quotient by the power that was looked up
                     let overflow = increase_scale(&mut quotient, power as u64);
                     if overflow > 0 {
-                        return DivResult::Overflow;
+                        return CalculationResult::Overflow;
                     }
                     increase_scale64(&mut remainder, power as u64);
 
@@ -2748,7 +2777,7 @@ mod ops {
                             scale = adj;
                         } else {
                             // Still overflowing
-                            return DivResult::Overflow;
+                            return CalculationResult::Overflow;
                         }
                         break;
                     }
@@ -2788,7 +2817,7 @@ mod ops {
                             if let Ok(s) = find_scale(&quotient, scale) {
                                 power_scale = s;
                             } else {
-                                return DivResult::Overflow;
+                                return CalculationResult::Overflow;
                             }
                             // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
                             // we're doing nothing.
@@ -2827,7 +2856,7 @@ mod ops {
                                     scale = new_scale;
                                 } else {
                                     // Overflowed
-                                    return DivResult::Overflow;
+                                    return CalculationResult::Overflow;
                                 }
                             }
                             break;
@@ -2841,7 +2870,7 @@ mod ops {
                     // Increase the quotient by the power that was looked up
                     let overflow = increase_scale(&mut quotient, power as u64);
                     if overflow > 0 {
-                        return DivResult::Overflow;
+                        return CalculationResult::Overflow;
                     }
                     let mut tmp_remainder = Dec12 {
                         lo: remainder.lo,
@@ -2862,7 +2891,7 @@ mod ops {
                             scale = adj;
                         } else {
                             // Still overflowing
-                            return DivResult::Overflow;
+                            return CalculationResult::Overflow;
                         }
                         break;
                     }
@@ -2872,12 +2901,20 @@ mod ops {
         if require_unscale {
             scale = unscale(&mut quotient, scale);
         }
-        DivResult::Ok(Decimal {
+        CalculationResult::Ok(Decimal {
             lo: quotient.lo,
             mid: quotient.mid,
             hi: quotient.hi,
             flags: flags(sign_negative, scale as u32),
         })
+    }
+
+    pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        unimplemented!("mul")
+    }
+
+    pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        unimplemented!("rem")
     }
 
     // Multiply num by power (multiple of 10). Power must be 32 bits.
@@ -4231,9 +4268,9 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
 
     fn div(self, other: &Decimal) -> Decimal {
         match ops::div_impl(&self, other) {
-            DivResult::Ok(quot) => quot,
-            DivResult::Overflow => panic!("Division overflowed"),
-            DivResult::DivByZero => panic!("Division by zero"),
+            CalculationResult::Ok(quot) => quot,
+            CalculationResult::Overflow => panic!("Division overflowed"),
+            CalculationResult::DivByZero => panic!("Division by zero"),
         }
     }
 }
