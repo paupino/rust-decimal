@@ -36,7 +36,7 @@ const SIGN_SHIFT: u32 = 31;
 
 // The maximum supported precision
 pub(crate) const MAX_PRECISION: u32 = 28;
-#[cfg(feature = "fast-div")]
+#[cfg(not(feature = "legacy-ops"))]
 const MAX_PRECISION_I32: i32 = 28;
 // 79,228,162,514,264,337,593,543,950,335
 const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
@@ -1364,7 +1364,7 @@ impl Decimal {
     /// Checked division. Computes `self / other`, returning `None` if `other == 0.0` or the
     /// division results in overflow.
     pub fn checked_div(self, other: Decimal) -> Option<Decimal> {
-        match division::div_impl(&self, &other) {
+        match ops::div_impl(&self, &other) {
             DivResult::Ok(quot) => Some(quot),
             DivResult::Overflow => None,
             DivResult::DivByZero => None,
@@ -1917,8 +1917,8 @@ fn div_internal(quotient: &mut [u32; 4], remainder: &mut [u32; 4], divisor: &[u3
     }
 }
 
-#[cfg(not(feature = "fast-div"))]
-mod division {
+#[cfg(feature = "legacy-ops")]
+mod ops {
     use super::*;
 
     pub(crate) fn div_impl(d1: &Decimal, d2: &Decimal) -> DivResult {
@@ -2189,10 +2189,10 @@ mod division {
 // This code (in fact, this library) is heavily inspired by the dotnet Decimal number library
 // implementation. Consequently, a huge thank you for to all the contributors to that project
 // which has also found it's way into here.
-#[cfg(feature = "fast-div")]
-mod division {
+#[cfg(not(feature = "legacy-ops"))]
+mod ops {
     use super::*;
-    use std::ops::BitXor;
+    use core::ops::BitXor;
 
     // This is a table of the largest values that will not overflow when multiplied
     // by a given power as represented by the index.
@@ -4230,7 +4230,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
     fn div(self, other: &Decimal) -> Decimal {
-        match division::div_impl(&self, other) {
+        match ops::div_impl(&self, other) {
             DivResult::Ok(quot) => quot,
             DivResult::Overflow => panic!("Division overflowed"),
             DivResult::DivByZero => panic!("Division by zero"),

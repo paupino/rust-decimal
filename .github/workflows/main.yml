@@ -41,6 +41,12 @@ jobs:
           command: fmt
           args: --all -- --check
 
+      - name: Install cargo-make
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --debug cargo-make
+
       - name: Build rust-decimal
         uses: actions-rs/cargo@v1
         with:
@@ -50,59 +56,29 @@ jobs:
       - name: Run no_std tests
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --no-default-features
+          command: make
+          args: test-no-std
 
       - name: Run default tests
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --workspace --features default
+          command: make
+          args: test-default
 
-      - name: Run tests (db-postgres)
+      - name: Run legacy operation tests
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --workspace --tests --features db-postgres
+          command: make
+          args: test-legacy-ops
 
-      - name: Run tests (db-tokio-postgres)
+      - name: Run database tests
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --workspace --tests --features db-tokio-postgres
+          command: make
+          args: test-db
 
-      - name: Run tests (db-diesel-postgres)
+      - name: Run serde tests
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --workspace --tests --features db-diesel-postgres
-
-      - name: Run tests (serde-float)
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --tests --features serde-float
-
-      - name: Run tests (serde-str)
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --tests --features serde-str
-
-      - name: Run tests (serde-str + serde-float)
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --tests --features serde-str,serde-float
-
-      - name: Run tests (serde-arbitrary-precision)
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --tests --features serde-arbitrary-precision
-
-      - name: Run tests (serde-arbitrary-precision + serde-float)
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --tests --features serde-arbitrary-precision,serde-float
+          command: make
+          args: test-serde
