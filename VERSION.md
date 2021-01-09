@@ -4,8 +4,8 @@
 
 * Upgrade `postgres` to `0.19` and `tokio-postgres` to `0.7`.
 * Faster `serde` serialization by preventing heap allocation.
-* Alternative division algorithm which provides significant speed improvements. The feature `fast-div` is enabled by 
-  default.
+* Alternative division algorithm which provides significant speed improvements. The new algorithms are enabled by default,
+  but can be disabled with the feature: `legacy-ops`
 
 Thank you for the the community help and support for making this release happen, in particular:
 [jean-airoldie](https://github.com/jean-airoldie) and [gakonst](https://github.com/gakonst).

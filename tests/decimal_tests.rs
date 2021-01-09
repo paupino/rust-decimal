@@ -5,12 +5,12 @@ use core::{
 use num_traits::{One, Signed, ToPrimitive, Zero};
 use rust_decimal::{Decimal, RoundingStrategy};
 
-macro_rules! fast_div_fix {
-    ($fast_div_result:expr, $old_result:expr) => {
-        if cfg!(feature = "fast-div") {
-            $fast_div_result
+macro_rules! either {
+    ($result:expr, $legacy_result:expr) => {
+        if cfg!(feature = "legacy-ops") {
+            $legacy_result
         } else {
-            $old_result
+            $result
         }
     };
 }
@@ -536,7 +536,7 @@ fn it_divides_decimals() {
         (
             "1023427554493",
             "43432632",
-            fast_div_fix!("23563.562864276795382789603909", "23563.562864276795382789603908"),
+            either!("23563.562864276795382789603909", "23563.562864276795382789603908"),
         ),
         ("10000", "3", "3333.3333333333333333333333333"),
         ("2", "3", "0.6666666666666666666666666667"),
@@ -547,9 +547,14 @@ fn it_divides_decimals() {
         (
             "1234.5678",
             "0.1234567890123456",
-            fast_div_fix!("9999.99926999999982999953127", "9999.999269999999829999531269"),
+            either!("9999.99926999999982999953127", "9999.999269999999829999531269"),
         ),
         ("1234.567890123456789012345678", "1.234567890123456789012345678", "1000"),
+        (
+            "32.91625929004387114334488",
+            "3.27629537",
+            either!("10.046792359274942644546996384", "10.046792359274942644546996383"),
+        ),
     ];
     for &(a, b, c) in tests {
         div(a, b, c);
@@ -1839,7 +1844,7 @@ fn test_norm_cdf() {
         ),
         (
             Decimal::from_str("0.1").unwrap(),
-            Decimal::from_str(fast_div_fix!(
+            Decimal::from_str(either!(
                 "0.5398277100813293420078077289",
                 "0.5398277100813293420078077290"
             ))
@@ -1900,7 +1905,7 @@ fn test_ln() {
         (
             Decimal::from_str("0.23").unwrap(),
             // Wolfram Alpha gives -1.46968
-            Decimal::from_str(fast_div_fix!(
+            Decimal::from_str(either!(
                 "-1.4661188292208822723626471521",
                 "-1.4661188292208822723626471532"
             ))
@@ -1909,7 +1914,7 @@ fn test_ln() {
         (
             Decimal::from_str("2").unwrap(),
             // Wolfram Alpha gives 0.693147180559945309417232121458176568075500134360255254120
-            Decimal::from_str(fast_div_fix!(
+            Decimal::from_str(either!(
                 "0.6932271134541528994884316472",
                 "0.6932271134541528994884316422"
             ))
@@ -1918,7 +1923,7 @@ fn test_ln() {
         (
             Decimal::from_str("25").unwrap(),
             // Wolfram Alpha gives 3.218875824868200749201518666452375279051202708537035443825
-            Decimal::from_str(fast_div_fix!(
+            Decimal::from_str(either!(
                 "3.218876058872673755992392570",
                 "3.218876058872673755992392564"
             ))
@@ -1962,7 +1967,7 @@ fn test_erf() {
 }
 
 // Generated tests
-#[cfg(feature = "fast-div")]
+#[cfg(not(feature = "legacy-ops"))]
 mod generated {
     use rust_decimal::prelude::*;
 
