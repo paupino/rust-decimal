@@ -2306,7 +2306,7 @@ mod division {
                 }
                 let q32 = (temp / divisor64) as u32;
                 self.lo = q32;
-                ((temp as u32) - q32.wrapping_mul(divisor)) as u32
+                ((temp as u32).wrapping_sub(q32.wrapping_mul(divisor))) as u32
             } else {
                 // Super easy divisor
                 let low64 = self.low64();
@@ -2318,7 +2318,7 @@ mod division {
                 let quotient = low64 / divisor64;
                 self.set_low64(quotient);
                 // Remainder is the leftover that wasn't used
-                (low64 - (quotient * divisor64)) as u32
+                (low64.wrapping_sub(quotient.wrapping_mul(divisor64))) as u32
             }
         }
 
