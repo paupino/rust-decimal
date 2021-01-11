@@ -1,5 +1,6 @@
 use core::{
     cmp::{Ordering, Ordering::*},
+    convert::{TryFrom, TryInto},
     str::FromStr,
 };
 use num_traits::{One, Signed, ToPrimitive, Zero};
@@ -1182,6 +1183,33 @@ fn it_converts_to_f64() {
 }
 
 #[test]
+fn it_converts_to_f64_try() {
+    let tests = &[
+        ("5", Some(5f64)),
+        ("-5", Some(-5f64)),
+        ("0.1", Some(0.1f64)),
+        ("0.0", Some(0f64)),
+        ("-0.0", Some(0f64)),
+        ("0.0000000000025", Some(0.25e-11f64)),
+        ("1000000.0000000000025", Some(1e6f64)),
+        ("0.000000000000000000000000025", Some(0.25e-25_f64)),
+        (
+            "2.1234567890123456789012345678",
+            Some(2.1234567890123456789012345678_f64),
+        ),
+        (
+            "21234567890123456789012345678",
+            None, // Cannot be represented in an f64
+        ),
+        ("1.59283191", Some(1.59283191_f64)),
+    ];
+    for &(value, expected) in tests {
+        let value = Decimal::from_str(value).unwrap().try_into().ok();
+        assert_eq!(expected, value);
+    }
+}
+
+#[test]
 fn it_converts_to_i64() {
     assert_eq!(5i64, Decimal::from_str("5").unwrap().to_i64().unwrap());
     assert_eq!(-5i64, Decimal::from_str("-5").unwrap().to_i64().unwrap());
@@ -1273,6 +1301,38 @@ fn it_converts_from_f32() {
 }
 
 #[test]
+fn it_converts_from_f32_try() {
+    assert_eq!("1", Decimal::try_from(1f32).unwrap().to_string());
+    assert_eq!("0", Decimal::try_from(0f32).unwrap().to_string());
+    assert_eq!("0.12345", Decimal::try_from(0.12345f32).unwrap().to_string());
+    assert_eq!(
+        "0.12345678",
+        Decimal::try_from(0.1234567800123456789012345678f32)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0.12345679",
+        Decimal::try_from(0.12345678901234567890123456789f32)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0",
+        Decimal::try_from(0.00000000000000000000000000001f32)
+            .unwrap()
+            .to_string()
+    );
+
+    assert!(Decimal::try_from(core::f32::NAN).is_err());
+    assert!(Decimal::try_from(core::f32::INFINITY).is_err());
+
+    // These both overflow
+    assert!(Decimal::try_from(core::f32::MAX).is_err());
+    assert!(Decimal::try_from(core::f32::MIN).is_err());
+}
+
+#[test]
 fn it_converts_from_f64() {
     fn from_f64(f: f64) -> Option<Decimal> {
         num_traits::FromPrimitive::from_f64(f)
@@ -1300,6 +1360,44 @@ fn it_converts_from_f64() {
     // These both overflow
     assert!(from_f64(core::f64::MAX).is_none());
     assert!(from_f64(core::f64::MIN).is_none());
+}
+
+#[test]
+fn it_converts_from_f64_try() {
+    assert_eq!("1", Decimal::try_from(1f64).unwrap().to_string());
+    assert_eq!("0", Decimal::try_from(0f64).unwrap().to_string());
+    assert_eq!("0.12345", Decimal::try_from(0.12345f64).unwrap().to_string());
+    assert_eq!(
+        "0.1234567890123456",
+        Decimal::try_from(0.1234567890123456089012345678f64)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0.1234567890123457",
+        Decimal::try_from(0.12345678901234567890123456789f64)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!(
+        "0",
+        Decimal::try_from(0.00000000000000000000000000001f64)
+            .unwrap()
+            .to_string()
+    );
+    assert_eq!("0.6927", Decimal::try_from(0.6927f64).unwrap().to_string());
+    assert_eq!("0.00006927", Decimal::try_from(0.00006927f64).unwrap().to_string());
+    assert_eq!(
+        "0.000000006927",
+        Decimal::try_from(0.000000006927f64).unwrap().to_string()
+    );
+
+    assert!(Decimal::try_from(core::f64::NAN).is_err());
+    assert!(Decimal::try_from(core::f64::INFINITY).is_err());
+
+    // These both overflow
+    assert!(Decimal::try_from(core::f64::MAX).is_err());
+    assert!(Decimal::try_from(core::f64::MIN).is_err());
 }
 
 #[test]
