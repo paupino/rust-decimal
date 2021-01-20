@@ -654,7 +654,7 @@ impl Decimal {
     /// ```
     pub fn max(self, other: Decimal) -> Decimal {
         if self < other {
-            return other;
+            other
         } else {
             self
         }
@@ -671,7 +671,7 @@ impl Decimal {
     /// ```
     pub fn min(self, other: Decimal) -> Decimal {
         if self > other {
-            return other;
+            other
         } else {
             self
         }
@@ -1507,7 +1507,7 @@ impl Decimal {
             result = (result + self / result) / TWO;
         }
 
-        return Some(result);
+        Some(result)
     }
 
     /// The natural logarithm for a Decimal. Uses a [fast estimation algorithm](https://en.wikipedia.org/wiki/Natural_logarithm#High_precision)
@@ -2711,10 +2711,8 @@ mod ops {
                                 tmp <<= 1;
                                 if tmp > divisor64 {
                                     true
-                                } else if tmp == divisor64 && quotient.lo & 0x1 != 0 {
-                                    true
                                 } else {
-                                    false
+                                    tmp == divisor64 && quotient.lo & 0x1 != 0
                                 }
                             };
 
@@ -2811,10 +2809,8 @@ mod ops {
                                     let divisor_low64 = divisor.low64();
                                     if rem_low64 > divisor_low64 {
                                         true
-                                    } else if rem_low64 == divisor_low64 && (quotient.lo & 1) != 0 {
-                                        true
                                     } else {
-                                        false
+                                        rem_low64 == divisor_low64 && (quotient.lo & 1) != 0
                                     }
                                 } else {
                                     false
@@ -3142,7 +3138,7 @@ fn arithmetic_geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
     let diff = (a - b).abs();
 
     if diff < TOLERANCE {
-        a.clone()
+        *a
     } else {
         arithmetic_geo_mean_of_2(&mean_of_2(a, b), &geo_mean_of_2(a, b))
     }
@@ -3955,6 +3951,38 @@ impl ToPrimitive for Decimal {
             let round_to = 10f64.powi(self.scale() as i32);
             Some(value * round_to / round_to)
         }
+    }
+}
+
+impl core::convert::TryFrom<f32> for Decimal {
+    type Error = crate::Error;
+
+    fn try_from(value: f32) -> Result<Self, Error> {
+        Self::from_f32(value).ok_or_else(|| Error::new("Failed to convert to Decimal"))
+    }
+}
+
+impl core::convert::TryFrom<f64> for Decimal {
+    type Error = crate::Error;
+
+    fn try_from(value: f64) -> Result<Self, Error> {
+        Self::from_f64(value).ok_or_else(|| Error::new("Failed to convert to Decimal"))
+    }
+}
+
+impl core::convert::TryFrom<Decimal> for f32 {
+    type Error = crate::Error;
+
+    fn try_from(value: Decimal) -> Result<Self, Self::Error> {
+        Decimal::to_f32(&value).ok_or_else(|| Error::new("Failed to convert to f32"))
+    }
+}
+
+impl core::convert::TryFrom<Decimal> for f64 {
+    type Error = crate::Error;
+
+    fn try_from(value: Decimal) -> Result<Self, Self::Error> {
+        Decimal::to_f64(&value).ok_or_else(|| Error::new("Failed to convert to f64"))
     }
 }
 
