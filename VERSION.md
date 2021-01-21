@@ -1,14 +1,17 @@
 # Version History
 
-## Unreleased
+## 1.10.0
 
 * Upgrade `postgres` to `0.19` and `tokio-postgres` to `0.7`.
 * Faster `serde` serialization by preventing heap allocation.
 * Alternative division algorithm which provides significant speed improvements. The new algorithms are enabled by default,
-  but can be disabled with the feature: `legacy-ops`
+  but can be disabled with the feature: `legacy-ops`. Further work to improve other operations will 
+  be made available in future versions.
+* Add `TryFrom` for `f32`/`f64` to/from Decimal
 
 Thank you for the the community help and support for making this release happen, in particular:
-[jean-airoldie](https://github.com/jean-airoldie) and [gakonst](https://github.com/gakonst).
+[jean-airoldie](https://github.com/jean-airoldie), [gakonst](https://github.com/gakonst), [okaneco](https://github.com/okaneco) and
+[c410-f3r](https://github.com/c410-f3r).
 
 ## 1.9.0
 
