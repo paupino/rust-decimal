@@ -4108,7 +4108,7 @@ impl Neg for Decimal {
 
     fn neg(self) -> Decimal {
         let mut copy = self;
-        copy.set_sign_negative(true);
+        copy.set_sign_negative(self.is_sign_positive());
         copy
     }
 }
