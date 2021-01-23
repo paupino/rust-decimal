@@ -1,5 +1,11 @@
 # Version History
 
+## 1.10.1
+
+* Fixes bug introduced in `neg` whereby sign would always be turned negative as opposed to being correctly negated.
+
+Thank you [KonishchevDmitry](https://github.com/KonishchevDmitry) for finding and fixing this.
+
 ## 1.10.0
 
 * Upgrade `postgres` to `0.19` and `tokio-postgres` to `0.7`.
