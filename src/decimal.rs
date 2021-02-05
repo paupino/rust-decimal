@@ -2665,7 +2665,7 @@ mod ops {
                 let rem_lo = remainder.lo;
                 remainder.lo = remainder.mid;
                 remainder.mid = remainder.hi;
-                remainder.hi = 0;
+                remainder.hi = remainder.overflow;
                 quotient.mid = remainder.partial_divide_64(divisor64);
 
                 remainder.hi = remainder.mid;
