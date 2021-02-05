@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal_macros"
-version = "1.10.1"
+version = "1.10.2"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2018"
 description = "Shorthand macros to assist creating Decimal types."
@@ -12,7 +12,7 @@ categories = ["science","data-structures"]
 license = "MIT"
 
 [dependencies]
-rust_decimal = { path = "..", version = "1.10.1" }
+rust_decimal = { path = "..", version = "1.10.2" }
 quote = "1.0"
 
 [lib]

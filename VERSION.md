@@ -1,5 +1,9 @@
 # Version History
 
+## 1.10.2
+
+* Fixes a bug introduced in division whereby certain values when using a large remainder cause an incorrect results (#314). 
+
 ## 1.10.1
 
 * Fixes bug introduced in `neg` whereby sign would always be turned negative as opposed to being correctly negated.
