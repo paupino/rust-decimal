@@ -1,5 +1,9 @@
 # Version History
 
+## 1.10.3
+
+* Fixes bug in bincode serialization where a negative symbol causes a buffer overflow (#317).
+
 ## 1.10.2
 
 * Fixes a bug introduced in division whereby certain values when using a large remainder cause an incorrect results (#314). 

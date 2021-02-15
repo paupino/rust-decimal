@@ -34,6 +34,10 @@ const SCALE_SHIFT: u32 = 16;
 // Number of bits sign is shifted by.
 const SIGN_SHIFT: u32 = 31;
 
+// The maximum string buffer size used for serialization purposes. 31 is optimal, however we align
+// to the byte boundary for simplicity.
+const MAX_STR_BUFFER_SIZE: usize = 32;
+
 // The maximum supported precision
 pub(crate) const MAX_PRECISION: u32 = 28;
 #[cfg(not(feature = "legacy-ops"))]
@@ -3311,7 +3315,7 @@ fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 
     // should now be at numeric part of the significand
     let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-    let mut coeff = ArrayVec::<[_; 30]>::new(); // integer significand array
+    let mut coeff = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new(); // integer significand array
 
     let mut maybe_round = false;
     while len > 0 {
@@ -3987,12 +3991,16 @@ impl core::convert::TryFrom<Decimal> for f64 {
 }
 
 // impl that doesn't allocate for serialization purposes.
-pub(crate) fn to_str_internal(value: &Decimal, append_sign: bool, precision: Option<usize>) -> ArrayString<[u8; 30]> {
+pub(crate) fn to_str_internal(
+    value: &Decimal,
+    append_sign: bool,
+    precision: Option<usize>,
+) -> ArrayString<[u8; MAX_STR_BUFFER_SIZE]> {
     // Get the scale - where we need to put the decimal point
     let scale = value.scale() as usize;
 
     // Convert to a string and manipulate that (neg at front, inject decimal)
-    let mut chars = ArrayVec::<[_; 30]>::new();
+    let mut chars = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new();
     let mut working = [value.lo, value.mid, value.hi];
     while !is_all_zero(&working) {
         let remainder = div_by_u32(&mut working, 10u32);
