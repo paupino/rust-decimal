@@ -108,10 +108,17 @@ fn it_parses_big_float_string() {
 
 #[test]
 fn it_can_serialize_deserialize() {
-    let a = Decimal::from_str("12.3456789").unwrap();
-    let bytes = a.serialize();
-    let b = Decimal::deserialize(bytes);
-    assert_eq!("12.3456789", b.to_string());
+    let tests = [
+        "12.3456789",
+        "5233.9008808150288439427720175",
+        "-5233.9008808150288439427720175",
+    ];
+    for test in &tests {
+        let a = Decimal::from_str(test).unwrap();
+        let bytes = a.serialize();
+        let b = Decimal::deserialize(bytes);
+        assert_eq!(test.to_string(), b.to_string());
+    }
 }
 
 // Formatting
