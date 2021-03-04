@@ -1674,6 +1674,22 @@ fn test_zero_eq_negative_zero() {
     assert!(zero == -zero);
 }
 
+#[test]
+fn declarative_dec_sum() {
+    let vs = (0..10).map(|i| i.into()).collect::<Vec<Decimal>>();
+    let sum: Decimal = vs.iter().cloned().sum();
+
+    assert_eq!(sum, Decimal::from(45))
+}
+
+#[test]
+fn declarative_ref_dec_sum() {
+    let vs = (0..10).map(|i| i.into()).collect::<Vec<Decimal>>();
+    let sum: Decimal = vs.iter().sum();
+
+    assert_eq!(sum, Decimal::from(45))
+}
+
 #[cfg(feature = "postgres")]
 #[test]
 fn to_from_sql() {
