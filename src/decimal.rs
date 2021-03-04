@@ -34,6 +34,10 @@ const SCALE_SHIFT: u32 = 16;
 // Number of bits sign is shifted by.
 const SIGN_SHIFT: u32 = 31;
 
+// The maximum string buffer size used for serialization purposes. 31 is optimal, however we align
+// to the byte boundary for simplicity.
+const MAX_STR_BUFFER_SIZE: usize = 32;
+
 // The maximum supported precision
 pub(crate) const MAX_PRECISION: u32 = 28;
 #[cfg(not(feature = "legacy-ops"))]
@@ -654,7 +658,7 @@ impl Decimal {
     /// ```
     pub fn max(self, other: Decimal) -> Decimal {
         if self < other {
-            return other;
+            other
         } else {
             self
         }
@@ -671,7 +675,7 @@ impl Decimal {
     /// ```
     pub fn min(self, other: Decimal) -> Decimal {
         if self > other {
-            return other;
+            other
         } else {
             self
         }
@@ -1237,7 +1241,7 @@ impl Decimal {
             result = (result + self / result) / TWO;
         }
 
-        return Some(result);
+        Some(result)
     }
 
     /// The natural logarithm for a Decimal. Uses a [fast estimation algorithm](https://en.wikipedia.org/wiki/Natural_logarithm#High_precision)
@@ -2694,7 +2698,7 @@ mod ops {
                 let rem_lo = remainder.lo;
                 remainder.lo = remainder.mid;
                 remainder.mid = remainder.hi;
-                remainder.hi = 0;
+                remainder.hi = remainder.overflow;
                 quotient.mid = remainder.partial_divide_64(divisor64);
 
                 remainder.hi = remainder.mid;
@@ -2740,10 +2744,8 @@ mod ops {
                                 tmp <<= 1;
                                 if tmp > divisor64 {
                                     true
-                                } else if tmp == divisor64 && quotient.lo & 0x1 != 0 {
-                                    true
                                 } else {
-                                    false
+                                    tmp == divisor64 && quotient.lo & 0x1 != 0
                                 }
                             };
 
@@ -2840,10 +2842,8 @@ mod ops {
                                     let divisor_low64 = divisor.low64();
                                     if rem_low64 > divisor_low64 {
                                         true
-                                    } else if rem_low64 == divisor_low64 && (quotient.lo & 1) != 0 {
-                                        true
                                     } else {
-                                        false
+                                        rem_low64 == divisor_low64 && (quotient.lo & 1) != 0
                                     }
                                 } else {
                                     false
@@ -3179,7 +3179,7 @@ fn arithmetic_geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
     let diff = (a - b).abs();
 
     if diff < TOLERANCE {
-        a.clone()
+        *a
     } else {
         arithmetic_geo_mean_of_2(&mean_of_2(a, b), &geo_mean_of_2(a, b))
     }
@@ -3352,7 +3352,7 @@ fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 
     // should now be at numeric part of the significand
     let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-    let mut coeff = ArrayVec::<[_; 30]>::new(); // integer significand array
+    let mut coeff = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new(); // integer significand array
 
     let mut maybe_round = false;
     while len > 0 {
@@ -3995,13 +3995,49 @@ impl ToPrimitive for Decimal {
     }
 }
 
+impl core::convert::TryFrom<f32> for Decimal {
+    type Error = crate::Error;
+
+    fn try_from(value: f32) -> Result<Self, Error> {
+        Self::from_f32(value).ok_or_else(|| Error::new("Failed to convert to Decimal"))
+    }
+}
+
+impl core::convert::TryFrom<f64> for Decimal {
+    type Error = crate::Error;
+
+    fn try_from(value: f64) -> Result<Self, Error> {
+        Self::from_f64(value).ok_or_else(|| Error::new("Failed to convert to Decimal"))
+    }
+}
+
+impl core::convert::TryFrom<Decimal> for f32 {
+    type Error = crate::Error;
+
+    fn try_from(value: Decimal) -> Result<Self, Self::Error> {
+        Decimal::to_f32(&value).ok_or_else(|| Error::new("Failed to convert to f32"))
+    }
+}
+
+impl core::convert::TryFrom<Decimal> for f64 {
+    type Error = crate::Error;
+
+    fn try_from(value: Decimal) -> Result<Self, Self::Error> {
+        Decimal::to_f64(&value).ok_or_else(|| Error::new("Failed to convert to f64"))
+    }
+}
+
 // impl that doesn't allocate for serialization purposes.
-pub(crate) fn to_str_internal(value: &Decimal, append_sign: bool, precision: Option<usize>) -> ArrayString<[u8; 30]> {
+pub(crate) fn to_str_internal(
+    value: &Decimal,
+    append_sign: bool,
+    precision: Option<usize>,
+) -> ArrayString<[u8; MAX_STR_BUFFER_SIZE]> {
     // Get the scale - where we need to put the decimal point
     let scale = value.scale() as usize;
 
     // Convert to a string and manipulate that (neg at front, inject decimal)
-    let mut chars = ArrayVec::<[_; 30]>::new();
+    let mut chars = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new();
     let mut working = [value.lo, value.mid, value.hi];
     while !is_all_zero(&working) {
         let remainder = div_by_u32(&mut working, 10u32);
@@ -4117,7 +4153,7 @@ impl Neg for Decimal {
 
     fn neg(self) -> Decimal {
         let mut copy = self;
-        copy.set_sign_negative(true);
+        copy.set_sign_negative(self.is_sign_positive());
         copy
     }
 }
