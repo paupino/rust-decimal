@@ -218,123 +218,128 @@ fn to_from_sql(b: &mut ::test::Bencher) {
     });
 }
 
-#[bench]
-fn powi(b: &mut ::test::Bencher) {
-    // These exponents have to be fairly small because multiplcation overflows easily
-    let samples = &[
-        (Decimal::from_str("36.7").unwrap(), 5),
-        (Decimal::from_str("0.00000007").unwrap(), 5),
-        (Decimal::from(2), 64),
-        (Decimal::from_str("8819287.19276555").unwrap(), 3),
-        (Decimal::from_str("-8819287.19276555").unwrap(), 3),
-    ];
-    b.iter(|| {
-        for sample in samples.iter() {
-            let result = sample.0.powi(sample.1);
-            ::test::black_box(result);
-        }
-    });
-}
+#[cfg(feature = "maths")]
+mod maths {
+    use rust_decimal::prelude::*;
 
-#[bench]
-fn sqrt(b: &mut ::test::Bencher) {
-    let samples = &[
-        Decimal::from_str("36.7").unwrap(),
-        Decimal::from_str("0.00000007").unwrap(),
-        Decimal::from(2),
-        Decimal::from_str("8819287.19276555").unwrap(),
-        Decimal::from_str("-8819287.19276555").unwrap(),
-    ];
-    b.iter(|| {
-        for sample in samples.iter() {
-            let result = sample.sqrt();
-            ::test::black_box(result);
-        }
-    });
-}
+    #[bench]
+    fn powi(b: &mut ::test::Bencher) {
+        // These exponents have to be fairly small because multiplcation overflows easily
+        let samples = &[
+            (Decimal::from_str("36.7").unwrap(), 5),
+            (Decimal::from_str("0.00000007").unwrap(), 5),
+            (Decimal::from(2), 64),
+            (Decimal::from_str("8819287.19276555").unwrap(), 3),
+            (Decimal::from_str("-8819287.19276555").unwrap(), 3),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.0.powi(sample.1);
+                ::test::black_box(result);
+            }
+        });
+    }
 
-#[bench]
-fn exp(b: &mut ::test::Bencher) {
-    let samples = &[
-        Decimal::from_str("3.7").unwrap(),
-        Decimal::from_str("0.07").unwrap(),
-        Decimal::from(2),
-        Decimal::from_str("8.19").unwrap(),
-        Decimal::from_str("-8.19").unwrap(),
-    ];
-    b.iter(|| {
-        for sample in samples.iter() {
-            let result = sample.exp();
-            ::test::black_box(result);
-        }
-    });
-}
+    #[bench]
+    fn sqrt(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from_str("36.7").unwrap(),
+            Decimal::from_str("0.00000007").unwrap(),
+            Decimal::from(2),
+            Decimal::from_str("8819287.19276555").unwrap(),
+            Decimal::from_str("-8819287.19276555").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.sqrt();
+                ::test::black_box(result);
+            }
+        });
+    }
 
-#[bench]
-fn norm_cdf(b: &mut ::test::Bencher) {
-    let samples = &[
-        Decimal::from_str("3.7").unwrap(),
-        Decimal::from_str("0.007").unwrap(),
-        Decimal::from(2),
-        Decimal::from_str("1.19").unwrap(),
-        Decimal::from_str("-1.19").unwrap(),
-    ];
-    b.iter(|| {
-        for sample in samples.iter() {
-            let result = sample.norm_cdf();
-            ::test::black_box(result);
-        }
-    });
-}
+    #[bench]
+    fn exp(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from_str("3.7").unwrap(),
+            Decimal::from_str("0.07").unwrap(),
+            Decimal::from(2),
+            Decimal::from_str("8.19").unwrap(),
+            Decimal::from_str("-8.19").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.exp();
+                ::test::black_box(result);
+            }
+        });
+    }
 
-#[bench]
-fn norm_pdf(b: &mut ::test::Bencher) {
-    let samples = &[
-        Decimal::from_str("3.7").unwrap(),
-        Decimal::from_str("0.007").unwrap(),
-        Decimal::from(2),
-        Decimal::from_str("1.19").unwrap(),
-        Decimal::from_str("-1.19").unwrap(),
-    ];
-    b.iter(|| {
-        for sample in samples.iter() {
-            let result = sample.norm_pdf();
-            ::test::black_box(result);
-        }
-    });
-}
+    #[bench]
+    fn norm_cdf(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from_str("3.7").unwrap(),
+            Decimal::from_str("0.007").unwrap(),
+            Decimal::from(2),
+            Decimal::from_str("1.19").unwrap(),
+            Decimal::from_str("-1.19").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.norm_cdf();
+                ::test::black_box(result);
+            }
+        });
+    }
 
-#[bench]
-fn ln(b: &mut ::test::Bencher) {
-    let samples = &[
-        Decimal::from_str("36.7").unwrap(),
-        Decimal::from_str("0.00000007").unwrap(),
-        Decimal::from(2),
-        Decimal::from_str("8819287.19").unwrap(),
-        Decimal::from_str("-8819287.19").unwrap(),
-    ];
-    b.iter(|| {
-        for sample in samples.iter() {
-            let result = sample.ln();
-            ::test::black_box(result);
-        }
-    });
-}
+    #[bench]
+    fn norm_pdf(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from_str("3.7").unwrap(),
+            Decimal::from_str("0.007").unwrap(),
+            Decimal::from(2),
+            Decimal::from_str("1.19").unwrap(),
+            Decimal::from_str("-1.19").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.norm_pdf();
+                ::test::black_box(result);
+            }
+        });
+    }
 
-#[bench]
-fn erf(b: &mut ::test::Bencher) {
-    let samples = &[
-        Decimal::from(0),
-        Decimal::from(1),
-        Decimal::from_str("-0.98717").unwrap(),
-        Decimal::from_str("0.07").unwrap(),
-        Decimal::from_str("0.1111").unwrap(),
-        Decimal::from_str("0.4").unwrap(),
-    ];
-    b.iter(|| {
-        for sample in samples.iter() {
-            let result = sample.erf();
-            ::test::black_box(result);
-        }
-    });
+    #[bench]
+    fn ln(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from_str("36.7").unwrap(),
+            Decimal::from_str("0.00000007").unwrap(),
+            Decimal::from(2),
+            Decimal::from_str("8819287.19").unwrap(),
+            Decimal::from_str("-8819287.19").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.ln();
+                ::test::black_box(result);
+            }
+        });
+    }
+
+    #[bench]
+    fn erf(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from(0),
+            Decimal::from(1),
+            Decimal::from_str("-0.98717").unwrap(),
+            Decimal::from_str("0.07").unwrap(),
+            Decimal::from_str("0.1111").unwrap(),
+            Decimal::from_str("0.4").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.erf();
+                ::test::black_box(result);
+            }
+        });
+    }
 }

@@ -41,6 +41,8 @@ extern crate alloc;
 mod decimal;
 mod error;
 
+#[cfg(feature = "maths")]
+mod maths;
 #[cfg(any(feature = "postgres", feature = "diesel"))]
 mod postgres;
 #[cfg(feature = "serde")]
@@ -48,8 +50,12 @@ mod serde_types;
 
 pub use decimal::{Decimal, RoundingStrategy};
 pub use error::Error;
+#[cfg(feature = "maths")]
+pub use maths::MathematicalOps;
 
 pub mod prelude {
+    #[cfg(feature = "maths")]
+    pub use crate::maths::MathematicalOps;
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
     pub use num_traits::{FromPrimitive, One, ToPrimitive, Zero};

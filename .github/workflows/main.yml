@@ -71,6 +71,12 @@ jobs:
           command: make
           args: test-legacy-ops
 
+      - name: Run mathematical function tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-maths
+
       - name: Run database tests
         uses: actions-rs/cargo@v1
         with:
