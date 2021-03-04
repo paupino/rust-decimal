@@ -87,27 +87,6 @@ const BIG_POWERS_10: [u64; 10] = [
     10_000_000_000_000_000_000,
 ];
 
-pub const TWO: Decimal = Decimal {
-    flags: 0,
-    hi: 0,
-    lo: 2,
-    mid: 0,
-};
-
-pub const PI: Decimal = Decimal {
-    flags: 1835008,
-    hi: 1703060790,
-    mid: 185874565,
-    lo: 1102470953,
-};
-
-pub const LN2: Decimal = Decimal {
-    flags: 1900544,
-    hi: 3757558395,
-    mid: 328455696,
-    lo: 2831677809,
-};
-
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
 #[derive(Clone, Copy, Debug)]
@@ -265,6 +244,10 @@ impl Decimal {
             hi,
             flags: flags(negative, scale),
         }
+    }
+
+    pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
+        Decimal { lo, mid, hi, flags }
     }
 
     /// Returns a `Result` which if successful contains the `Decimal` constitution of
@@ -1422,148 +1405,6 @@ impl Decimal {
             hi: working_remainder[2],
             flags: flags(self.is_sign_negative(), quotient_scale),
         })
-    }
-
-    /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
-    /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
-    /// multiplication overflow.
-    pub fn exp(&self) -> Decimal {
-        let tolerance = Decimal::new(2, 7);
-        self.exp_with_tolerance(tolerance)
-    }
-
-    /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
-    /// calculating when it is within `tolerance`.
-    /// Multiplication overflows are likely if you are not careful with the size of `tolerance`.
-    /// It is recommended to set the `tolerance` larger for larger numbers and smaller for smaller
-    /// numbers to avoid multiplication overflow.
-    #[inline]
-    pub fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal {
-        if self == &Decimal::zero() {
-            return Decimal::one();
-        }
-
-        let mut term = *self;
-        let mut result = self + Decimal::one();
-        let mut prev_result = Decimal::zero();
-        let mut factorial = Decimal::one();
-        let mut n = TWO;
-        let twenty_four = Decimal::new(24, 0);
-
-        // Needs rounding because multiplication overflows otherwise.
-        while (result - prev_result).abs() > tolerance && n < twenty_four {
-            prev_result = result;
-            term = self * term.round_dp(8);
-            factorial *= n;
-            result += (term / factorial).round_dp(8);
-            n += Decimal::one();
-        }
-
-        result
-    }
-
-    /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
-    pub fn powi(&self, exp: u64) -> Decimal {
-        match exp {
-            0 => Decimal::one(),
-            1 => *self,
-            2 => self * self,
-            _ => {
-                // Square self once and make an infinite sized iterator of the square.
-                let i = core::iter::repeat(self * self);
-
-                // We then take half of the exponent to create a finite iterator and then multiply those together.
-                let product = i
-                    .take((exp / 2) as usize)
-                    .fold(Decimal::one(), |accumulator, x| accumulator * x);
-
-                // If the exponent is odd we still need to multiply once more
-                if exp % 2 > 0 {
-                    product * self
-                } else {
-                    product
-                }
-            }
-        }
-    }
-
-    /// The square root of a Decimal. Uses a standard Babylonian method.
-    pub fn sqrt(&self) -> Option<Decimal> {
-        if self.is_sign_negative() {
-            return None;
-        }
-
-        if self.is_zero() {
-            return Some(Decimal::zero());
-        }
-
-        // Start with an arbitrary number as the first guess
-        let mut result = self / TWO;
-        let mut last = result + Decimal::one();
-
-        // Keep going while the difference is larger than the tolerance
-        let mut circuit_breaker = 0;
-        while last != result {
-            circuit_breaker += 1;
-            assert!(circuit_breaker < 1000, "geo mean circuit breaker");
-
-            last = result;
-            result = (result + self / result) / TWO;
-        }
-
-        Some(result)
-    }
-
-    /// The natural logarithm for a Decimal. Uses a [fast estimation algorithm](https://en.wikipedia.org/wiki/Natural_logarithm#High_precision)
-    /// This is more accurate on larger numbers and less on numbers less than 1.
-    pub fn ln(&self) -> Decimal {
-        if self.is_sign_positive() {
-            if self == &Decimal::one() {
-                Decimal::zero()
-            } else {
-                let s = self * Decimal::new(256, 0);
-                let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::one(), &(Decimal::new(4, 0) / s));
-
-                PI / (arith_geo_mean * TWO) - (Decimal::new(8, 0) * LN2)
-            }
-        } else {
-            Decimal::zero()
-        }
-    }
-
-    /// Abramowitz Approximation of Error Function from [wikipedia](https://en.wikipedia.org/wiki/Error_function#Numerical_approximations)
-    pub fn erf(&self) -> Decimal {
-        if self.is_sign_positive() {
-            let one = &Decimal::one();
-
-            let xa1 = self * Decimal::from_str("0.0705230784").unwrap();
-            let xa2 = self.powi(2) * Decimal::from_str("0.0422820123").unwrap();
-            let xa3 = self.powi(3) * Decimal::from_str("0.0092705272").unwrap();
-            let xa4 = self.powi(4) * Decimal::from_str("0.0001520143").unwrap();
-            let xa5 = self.powi(5) * Decimal::from_str("0.0002765672").unwrap();
-            let xa6 = self.powi(6) * Decimal::from_str("0.0000430638").unwrap();
-
-            let sum = one + xa1 + xa2 + xa3 + xa4 + xa5 + xa6;
-            one - (one / sum.powi(16))
-        } else {
-            -self.abs().erf()
-        }
-    }
-
-    /// The Cumulative distribution function for a Normal distribution
-    pub fn norm_cdf(&self) -> Decimal {
-        (Decimal::one() + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf()) / TWO
-    }
-
-    /// The Probability density function for a Normal distribution
-    pub fn norm_pdf(&self) -> Decimal {
-        let sqrt2pi = Decimal {
-            flags: 1835008,
-            hi: 1358845910,
-            mid: 2079885984,
-            lo: 2133383024,
-        };
-        (-self.powi(2) / TWO).exp() / sqrt2pi
     }
 
     pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, crate::Error> {
@@ -3130,34 +2971,6 @@ pub(crate) fn is_all_zero(bits: &[u32]) -> bool {
     bits.iter().all(|b| *b == 0)
 }
 
-/// Returns the convergence of both the arithmetic and geometric mean.
-/// Used internally.
-fn arithmetic_geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
-    const TOLERANCE: Decimal = Decimal {
-        flags: flags(false, 7),
-        lo: 5,
-        mid: 0,
-        hi: 0,
-    };
-    let diff = (a - b).abs();
-
-    if diff < TOLERANCE {
-        *a
-    } else {
-        arithmetic_geo_mean_of_2(&mean_of_2(a, b), &geo_mean_of_2(a, b))
-    }
-}
-
-/// The Arithmetic mean. Used internally.
-fn mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
-    (a + b) / TWO
-}
-
-/// The geometric mean. Used internally.
-fn geo_mean_of_2(a: &Decimal, b: &Decimal) -> Decimal {
-    (a * b).sqrt().unwrap()
-}
-
 macro_rules! impl_from {
     ($T:ty, $from_ty:path) => {
         impl core::convert::From<$T> for Decimal {
@@ -4563,56 +4376,6 @@ mod test {
         let sum: Decimal = vs.iter().sum();
 
         assert_eq!(sum, Decimal::from(45))
-    }
-
-    #[test]
-    fn test_geo_mean_of_2() {
-        let test_cases = &[
-            (
-                Decimal::from_str("2").unwrap(),
-                Decimal::from_str("2").unwrap(),
-                Decimal::from_str("2").unwrap(),
-            ),
-            (
-                Decimal::from_str("4").unwrap(),
-                Decimal::from_str("3").unwrap(),
-                Decimal::from_str("3.4641016151377545870548926830").unwrap(),
-            ),
-            (
-                Decimal::from_str("12").unwrap(),
-                Decimal::from_str("3").unwrap(),
-                Decimal::from_str("6.000000000000000000000000000").unwrap(),
-            ),
-        ];
-
-        for case in test_cases {
-            assert_eq!(case.2, geo_mean_of_2(&case.0, &case.1));
-        }
-    }
-
-    #[test]
-    fn test_mean_of_2() {
-        let test_cases = &[
-            (
-                Decimal::from_str("2").unwrap(),
-                Decimal::from_str("2").unwrap(),
-                Decimal::from_str("2").unwrap(),
-            ),
-            (
-                Decimal::from_str("4").unwrap(),
-                Decimal::from_str("3").unwrap(),
-                Decimal::from_str("3.5").unwrap(),
-            ),
-            (
-                Decimal::from_str("12").unwrap(),
-                Decimal::from_str("3").unwrap(),
-                Decimal::from_str("7.5").unwrap(),
-            ),
-        ];
-
-        for case in test_cases {
-            assert_eq!(case.2, mean_of_2(&case.0, &case.1));
-        }
     }
 
     #[test]
