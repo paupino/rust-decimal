@@ -1099,13 +1099,11 @@ impl Decimal {
     /// Checked subtraction. Computes `self - other`, returning `None` if overflow occurred.
     #[inline(always)]
     pub fn checked_sub(self, other: Decimal) -> Option<Decimal> {
-        let negated_other = Decimal {
-            lo: other.lo,
-            mid: other.mid,
-            hi: other.hi,
-            flags: other.flags ^ SIGN_MASK,
-        };
-        self.checked_add(negated_other)
+        match ops::sub_impl(&self, &other) {
+            CalculationResult::Ok(result) => Some(result),
+            CalculationResult::Overflow => None,
+            _ => None,
+        }
     }
 
     /// Checked multiplication. Computes `self * other`, returning `None` if overflow occurred.
@@ -1462,6 +1460,16 @@ mod ops {
             hi: my[2],
             flags: flags(negative, final_scale),
         })
+    }
+
+    pub(crate) fn sub_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        let negated_d2 = Decimal {
+            lo: d2.lo,
+            mid: d2.mid,
+            hi: d2.hi,
+            flags: d2.flags ^ SIGN_MASK,
+        };
+        add_impl(d1, &negated_d2)
     }
 
     pub(crate) fn div_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
@@ -2394,12 +2402,98 @@ mod ops {
         }
     }
 
+    impl Decimal {
+        fn low64(&self) -> u64 {
+            ((self.mid as u64) << 32) | (self.lo as u64)
+        }
+
+        fn set_low64(&mut self, value: u64) {
+            self.mid = (value >> 32) as u32;
+            self.lo = value as u32;
+        }
+    }
+
     enum DivError {
         Overflow,
     }
 
     pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        add_sub_internal(d1, d2, false)
+    }
+
+    pub(crate) fn sub_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+        add_sub_internal(d1, d2, true)
+    }
+
+    fn add_sub_internal(d1: &Decimal, d2: &Decimal, sign: bool) -> CalculationResult {
+        let dec1 = Dec12::new(&d1);
+        let dec2 = Dec12::new(&d2);
+        let xor_flags = d1.flags ^ d2.flags;
+        let sign = sign ^ ((xor_flags & SIGN_MASK) != 0);
+
+        // If the scale of the XORd flags is 0 then that indicates that the scale is the same.
+        if xor_flags & SCALE_MASK == 0 {
+            return aligned_add(&dec1, &dec2, d1.flags, sign);
+        }
+
         unimplemented!("add")
+    }
+
+    fn aligned_add(d1: &Dec12, d2: &Dec12, flags: u32, sign: bool) -> CalculationResult {
+        let d1_low64 = d1.low64();
+        let d1_hi = d1.hi;
+
+        // May want to consider extending Decimal
+        let mut result = Decimal {
+            lo: d1.lo,
+            mid: d1.mid,
+            hi: d1.hi,
+            flags,
+        };
+
+        if sign {
+            // Signs differ meaning we need to subtract
+            let low64 = d1_low64.wrapping_sub(d2.low64());
+            result.set_low64(low64);
+            result.hi = d1_hi.wrapping_sub(d2.hi);
+
+            // Propagate the carry. Wrapping sub would cause low64 to be greater than d1_low64
+            if low64 > d1_low64 {
+                result.hi -= 1;
+                if result.hi >= d1_hi {
+                    flip_sign(&mut result);
+                }
+            } else if result.hi > d1_hi {
+                flip_sign(&mut result);
+            }
+        } else {
+            // Signs are the same meaning we need to add
+            let low64 = d1_low64.wrapping_add(d2.low64());
+            result.set_low64(low64);
+            result.hi = d1_hi.wrapping_add(d2.hi);
+
+            // Propagate the carry. Wrapping add would cause low64 to be less than d1_low64
+            if low64 < d1_low64 {
+                result.hi += 1;
+                if result.hi <= d1_hi {
+                    // Aligned scale
+                }
+            } else if result.hi < d1_hi {
+                // Aligned scale
+            }
+        }
+
+        CalculationResult::Ok(result)
+    }
+
+    fn flip_sign(result: &mut Decimal) {
+        result.flags ^= SIGN_MASK;
+        result.hi = !result.hi;
+        let low64 = (-(result.low64() as i64)) as u64;
+        if low64 == 0 {
+            result.hi += 1;
+        }
+        result.set_low64(low64);
     }
 
     pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResult {
