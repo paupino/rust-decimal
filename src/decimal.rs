@@ -455,7 +455,7 @@ impl Decimal {
     }
 
     /// Deserializes the given bytes into a decimal number.
-    /// The deserialized byte representation must be 16 bytes and adhere to the followign convention:
+    /// The deserialized byte representation must be 16 bytes and adhere to the following convention:
     ///
     /// * Bytes 1-4: flags
     /// * Bytes 5-8: lo portion of `m`
@@ -1301,7 +1301,7 @@ fn add_one_internal(value: &mut [u32]) -> u32 {
 
 fn sub_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
     // The way this works is similar to long subtraction
-    // Let's assume we're working with bytes for simpliciy in an example:
+    // Let's assume we're working with bytes for simplicity in an example:
     //   257 - 8 = 249
     //   0000_0001 0000_0001 - 0000_0000 0000_1000 = 0000_0000 1111_1001
     // We start by doing the first byte...
@@ -1744,7 +1744,7 @@ mod ops {
                 final_scale -= 1;
             }
             // If we're still at limit then we can't represent any
-            // siginificant decimal digits and will return an integer only
+            // significant decimal digits and will return an integer only
             // Can also be invoked while representing 0.
             if final_scale > MAX_PRECISION {
                 final_scale = 0;
@@ -1857,7 +1857,7 @@ mod ops {
             quotient[1] = quotient[0];
             quotient[0] = 0;
 
-            // Incremember the counter
+            // Increment the counter
             blocks_to_process += 1;
         }
 
@@ -2362,7 +2362,7 @@ mod ops {
             num = num.wrapping_sub(prod1);
             remainder = remainder.wrapping_sub(prod2 as u32);
 
-            // If there are carries make sure they are propogated
+            // If there are carries make sure they are propagated
             if num > prod1.bitxor(u64::max_value()) {
                 remainder = remainder.wrapping_sub(1);
                 if remainder < (prod2 as u32).bitxor(u32::max_value()) {
@@ -2425,6 +2425,7 @@ mod ops {
         add_sub_internal(d1, d2, true)
     }
 
+    #[inline]
     fn add_sub_internal(d1: &Decimal, d2: &Decimal, sign: bool) -> CalculationResult {
         let dec1 = Dec12::new(&d1);
         let dec2 = Dec12::new(&d2);
@@ -2436,6 +2437,10 @@ mod ops {
             return aligned_add(&dec1, &dec2, d1.flags, sign);
         }
 
+        // Since the scales are different, we effectively need to rescale the number with the lower
+        // scale up to the scale of the other number (if we can). The result should equal the greater
+        // of the two scales. We naturally assume that the larger scale is the smaller number, however
+        // this may not always be true.
         unimplemented!("add")
     }
 
@@ -2476,10 +2481,16 @@ mod ops {
             if low64 < d1_low64 {
                 result.hi += 1;
                 if result.hi <= d1_hi {
-                    // Aligned scale
+                    // The addition carried above 96 bits. Try to reduce scale factor.
+                    if descale(&mut result) {
+                        return CalculationResult::Overflow;
+                    }
                 }
             } else if result.hi < d1_hi {
-                // Aligned scale
+                // The addition carried above 96 bits. Try to reduce scale factor.
+                if descale(&mut result) {
+                    return CalculationResult::Overflow;
+                }
             }
         }
 
@@ -2487,13 +2498,48 @@ mod ops {
     }
 
     fn flip_sign(result: &mut Decimal) {
+        // Flip the sign mask
         result.flags ^= SIGN_MASK;
+        // Since we detected this by overflow, we also need to clean up
+        // the components to take into account this negation.
         result.hi = !result.hi;
         let low64 = (-(result.low64() as i64)) as u64;
         if low64 == 0 {
             result.hi += 1;
         }
         result.set_low64(low64);
+    }
+
+    fn descale(result: &mut Decimal) -> bool {
+        // This function attempts to reduce the scale by dividing by 10
+        // If the scale is already zero then we can't reduce it anymore. It's an overflow.
+        if (result.flags & SCALE_MASK) == 0 {
+            return true;
+        }
+
+        // Reduce the scale by one
+        result.flags -= (1 << SCALE_SHIFT);
+
+        // Divide by 10
+        let mut temp = Dec12::new(&result);
+        let remainder = temp.div32(10);
+
+        // See if we need to round up.
+        if remainder >= 5 && (remainder > 5 || (temp.lo & 1) != 0) {
+            let low64 = temp.low64().wrapping_add(1);
+            temp.set_low64(low64);
+            if low64 == 0 {
+                temp.hi += 1;
+            }
+        }
+
+        // Build the result
+        result.lo = temp.lo;
+        result.mid = temp.mid;
+        result.hi = temp.hi;
+
+        // No overflow, return false.
+        false
     }
 
     pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResult {
