@@ -40,6 +40,7 @@ extern crate alloc;
 
 mod decimal;
 mod error;
+mod ops;
 
 #[cfg(feature = "maths")]
 mod maths;
