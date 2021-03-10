@@ -17,28 +17,37 @@ Decimal numbers can be created in a few distinct ways. The easiest and most opti
 
 ```rust
 // Procedural macros need importing directly
-use rust_decimal_macros::*;
+use rust_decimal_macros::dec;
 
 let number = dec!(-1.23);
+assert_eq!("-1.23", number.to_string());
 ```
 
 Alternatively you can also use one of the Decimal number convenience functions:
 
 ```rust
+// Using the prelude can help importing trait based functions (e.g. core::str::FromStr).
 use rust_decimal::prelude::*;
 
 // Using an integer followed by the decimal points
 let scaled = Decimal::new(202, 2); // 2.02
+assert_eq!("2.02", scaled.to_string());
 
 // From a string representation
 let from_string = Decimal::from_str("2.02").unwrap(); // 2.02
+assert_eq!("2.02", from_string.to_string());
+
+// From a string representation in a different base
+let from_string_base16 = Decimal::from_str_radix("ffff.ff", 16).unwrap(); // 2.02
+assert_eq!("2.02", from_string_base16.to_string());
 
 // Using the `Into` trait
-let my_int : Decimal = 3i32.into();
+let my_int: Decimal = 3i32.into();
+assert_eq!("3", my_int.to_string());
 
 // Using the raw decimal representation
-// 3.1415926535897932384626433832
 let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
+assert_eq!("3.1415926535897932384626433832", pi.to_string());
 ```
 
 ## Features
