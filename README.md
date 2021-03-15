@@ -78,6 +78,10 @@ Enable `diesel` PostgreSQL support.
 As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed improvements. 
 To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
 
+## `maths`
+
+This feature enables mathematical functionality such as `pow`, `ln`, `enf` etc.
+
 ## `serde-float`
 
 Enable this so that JSON serialization of Decimal types are sent as a float instead of a string (default).
