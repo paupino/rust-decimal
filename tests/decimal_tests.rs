@@ -1251,18 +1251,18 @@ fn it_converts_to_u64() {
 
 #[test]
 fn it_converts_to_i128() {
-    assert_eq!(5i128, Decimal::from_str("5").unwrap().to_i128().unwrap());
-    assert_eq!(-5i128, Decimal::from_str("-5").unwrap().to_i128().unwrap());
-    assert_eq!(5i128, Decimal::from_str("5.12345").unwrap().to_i128().unwrap());
-    assert_eq!(-5i128, Decimal::from_str("-5.12345").unwrap().to_i128().unwrap());
-    assert_eq!(
-        0x7FFF_FFFF_FFFF_FFFF,
-        Decimal::from_str("9223372036854775807").unwrap().to_i128().unwrap()
-    );
-    assert_eq!(
-        92233720368547758089i128,
-        Decimal::from_str("92233720368547758089").unwrap().to_i128().unwrap()
-    );
+    let tests = &[
+        ("5", Some(5i128)),
+        ("-5", Some(-5i128)),
+        ("5.12345", Some(5i128)),
+        ("-5.12345", Some(-5i128)),
+        ("9223372036854775807", Some(0x7FFF_FFFF_FFFF_FFFF)),
+        ("92233720368547758089", Some(92233720368547758089i128)),
+    ];
+    for (dec, expected) in tests {
+        assert_eq!(Decimal::from_str(dec).unwrap().to_i128(), *expected);
+    }
+
     assert_eq!(
         79_228_162_514_264_337_593_543_950_335_i128,
         Decimal::max_value().to_i128().unwrap()
@@ -1271,21 +1271,55 @@ fn it_converts_to_i128() {
 
 #[test]
 fn it_converts_to_u128() {
-    assert_eq!(5u128, Decimal::from_str("5").unwrap().to_u128().unwrap());
-    assert_eq!(None, Decimal::from_str("-5").unwrap().to_u128());
-    assert_eq!(5u128, Decimal::from_str("5.12345").unwrap().to_u128().unwrap());
-    assert_eq!(
-        0xFFFF_FFFF_FFFF_FFFF,
-        Decimal::from_str("18446744073709551615").unwrap().to_u128().unwrap()
-    );
-    assert_eq!(
-        18446744073709551616u128,
-        Decimal::from_str("18446744073709551616").unwrap().to_u128().unwrap()
-    );
+    let tests = &[
+        ("5", Some(5u128)),
+        ("-5", None),
+        ("5.12345", Some(5u128)),
+        ("-5.12345", None),
+        ("18446744073709551615", Some(0xFFFF_FFFF_FFFF_FFFF)),
+        ("18446744073709551616", Some(18446744073709551616u128)),
+    ];
+    for (dec, expected) in tests {
+        assert_eq!(Decimal::from_str(dec).unwrap().to_u128(), *expected);
+    }
     assert_eq!(
         79_228_162_514_264_337_593_543_950_335_u128,
         Decimal::max_value().to_u128().unwrap()
     );
+}
+
+#[test]
+fn it_converts_from_i128() {
+    let tests: &[(i128, Option<&str>)] = &[
+        (5, Some("5")),
+        (-5, Some("-5")),
+        (0x7FFF_FFFF_FFFF_FFFF, Some("9223372036854775807")),
+        (92233720368547758089, Some("92233720368547758089")),
+        (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
+        (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
+    ];
+    for (value, expected) in tests {
+        if let Some(expected_value) = expected {
+            let decimal = Decimal::from_str(expected_value).unwrap();
+            assert_eq!(num_traits::FromPrimitive::from_i128(*value), Some(decimal));
+        }
+    }
+}
+
+#[test]
+fn it_converts_from_u128() {
+    let tests: &[(u128, Option<&str>)] = &[
+        (5, Some("5")),
+        (0xFFFF_FFFF_FFFF_FFFF, Some("18446744073709551615")),
+        (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
+        (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
+    ];
+    for (value, expected) in tests {
+        if let Some(expected_value) = expected {
+            let decimal = Decimal::from_str(expected_value).unwrap();
+            assert_eq!(num_traits::FromPrimitive::from_u128(*value), Some(decimal));
+        }
+    }
 }
 
 #[test]
