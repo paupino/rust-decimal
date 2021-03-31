@@ -2992,10 +2992,8 @@ impl_from!(u16, FromPrimitive::from_u16);
 impl_from!(u32, FromPrimitive::from_u32);
 impl_from!(u64, FromPrimitive::from_u64);
 
-#[cfg(has_i128)]
-impl_from!(i128, FromPrimitive::from_i28);
-#[cfg(has_i128)]
-impl_from!(u128, FromPrimitive::from_u28);
+impl_from!(i128, FromPrimitive::from_i128);
+impl_from!(u128, FromPrimitive::from_u128);
 
 macro_rules! forward_val_val_binop {
     (impl $imp:ident for $res:ty, $method:ident) => {
@@ -3585,6 +3583,28 @@ impl FromPrimitive for Decimal {
         })
     }
 
+    fn from_i128(n: i128) -> Option<Decimal> {
+        let flags;
+        let unsigned;
+        if n >= 0 {
+            unsigned = n as u128;
+            flags = 0;
+        } else {
+            unsigned = -n as u128;
+            flags = SIGN_MASK;
+        };
+        // Check if we overflow
+        if unsigned >> 96 != 0 {
+            return None;
+        }
+        Some(Decimal {
+            flags,
+            lo: unsigned as u32,
+            mid: (unsigned >> 32) as u32,
+            hi: (unsigned >> 64) as u32,
+        })
+    }
+
     fn from_u32(n: u32) -> Option<Decimal> {
         Some(Decimal {
             flags: 0,
@@ -3600,6 +3620,19 @@ impl FromPrimitive for Decimal {
             lo: n as u32,
             mid: (n >> 32) as u32,
             hi: 0,
+        })
+    }
+
+    fn from_u128(n: u128) -> Option<Decimal> {
+        // Check if we overflow
+        if n >> 96 != 0 {
+            return None;
+        }
+        Some(Decimal {
+            flags: 0,
+            lo: n as u32,
+            mid: (n >> 32) as u32,
+            hi: (n >> 64) as u32,
         })
     }
 
