@@ -14,7 +14,9 @@ use diesel::sql_types::Numeric;
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
-use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
+use num_traits::{
+    CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, FromPrimitive, Num, One, Signed, ToPrimitive, Zero,
+};
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
@@ -3102,6 +3104,41 @@ impl Signed for Decimal {
     }
 }
 
+impl CheckedAdd for Decimal {
+    #[inline]
+    fn checked_add(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_add(*self, *v)
+    }
+}
+
+impl CheckedSub for Decimal {
+    #[inline]
+    fn checked_sub(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_sub(*self, *v)
+    }
+}
+
+impl CheckedMul for Decimal {
+    #[inline]
+    fn checked_mul(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_mul(*self, *v)
+    }
+}
+
+impl CheckedDiv for Decimal {
+    #[inline]
+    fn checked_div(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_div(*self, *v)
+    }
+}
+
+impl CheckedRem for Decimal {
+    #[inline]
+    fn checked_rem(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_rem(*self, *v)
+    }
+}
+
 // dedicated implementation for the most common case.
 fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
     if str.is_empty() {
@@ -3987,7 +4024,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn add(self, other: &Decimal) -> Decimal {
-        match self.checked_add(*other) {
+        match self.checked_add(other) {
             Some(sum) => sum,
             None => panic!("Addition overflowed"),
         }
@@ -4029,7 +4066,7 @@ impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn sub(self, other: &Decimal) -> Decimal {
-        match self.checked_sub(*other) {
+        match self.checked_sub(other) {
             Some(diff) => diff,
             None => panic!("Subtraction overflowed"),
         }
@@ -4071,7 +4108,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn mul(self, other: &Decimal) -> Decimal {
-        match self.checked_mul(*other) {
+        match self.checked_mul(other) {
             Some(prod) => prod,
             None => panic!("Multiplication overflowed"),
         }
@@ -4155,7 +4192,7 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn rem(self, other: &Decimal) -> Decimal {
-        match self.checked_rem(*other) {
+        match self.checked_rem(other) {
             Some(rem) => rem,
             None => panic!("Division by zero"),
         }
