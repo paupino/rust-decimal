@@ -860,6 +860,66 @@ fn it_can_round_to_2dp() {
 }
 
 #[test]
+fn it_can_round_using_basic_midpoint_rules() {
+    let tests = &[
+        ("3.5", RoundingStrategy::MidpointAwayFromZero, "4"),
+        ("2.8", RoundingStrategy::MidpointAwayFromZero, "3"),
+        ("2.5", RoundingStrategy::MidpointAwayFromZero, "3"),
+        ("2.1", RoundingStrategy::MidpointAwayFromZero, "2"),
+        ("-2.1", RoundingStrategy::MidpointAwayFromZero, "-2"),
+        ("-2.5", RoundingStrategy::MidpointAwayFromZero, "-3"),
+        ("-2.8", RoundingStrategy::MidpointAwayFromZero, "-3"),
+        ("-3.5", RoundingStrategy::MidpointAwayFromZero, "-4"),
+        ("3.5", RoundingStrategy::MidpointNearestEven, "4"),
+        ("2.8", RoundingStrategy::MidpointNearestEven, "3"),
+        ("2.5", RoundingStrategy::MidpointNearestEven, "2"),
+        ("2.1", RoundingStrategy::MidpointNearestEven, "2"),
+        ("-2.1", RoundingStrategy::MidpointNearestEven, "-2"),
+        ("-2.5", RoundingStrategy::MidpointNearestEven, "-2"),
+        ("-2.8", RoundingStrategy::MidpointNearestEven, "-3"),
+        ("-3.5", RoundingStrategy::MidpointNearestEven, "-4"),
+        ("3.5", RoundingStrategy::MidpointTowardZero, "3"),
+        ("2.8", RoundingStrategy::MidpointTowardZero, "3"),
+        ("2.5", RoundingStrategy::MidpointTowardZero, "2"),
+        ("2.1", RoundingStrategy::MidpointTowardZero, "2"),
+        ("-2.1", RoundingStrategy::MidpointTowardZero, "-2"),
+        ("-2.5", RoundingStrategy::MidpointTowardZero, "-2"),
+        ("-2.8", RoundingStrategy::MidpointTowardZero, "-3"),
+        ("-3.5", RoundingStrategy::MidpointTowardZero, "-3"),
+        ("2.8", RoundingStrategy::ToNegativeInfinity, "2"),
+        ("2.5", RoundingStrategy::ToNegativeInfinity, "2"),
+        ("2.1", RoundingStrategy::ToNegativeInfinity, "2"),
+        ("-2.1", RoundingStrategy::ToNegativeInfinity, "-3"),
+        ("-2.5", RoundingStrategy::ToNegativeInfinity, "-3"),
+        ("-2.8", RoundingStrategy::ToNegativeInfinity, "-3"),
+        ("2.8", RoundingStrategy::ToPositiveInfinity, "3"),
+        ("2.5", RoundingStrategy::ToPositiveInfinity, "3"),
+        ("2.1", RoundingStrategy::ToPositiveInfinity, "3"),
+        ("-2.1", RoundingStrategy::ToPositiveInfinity, "-2"),
+        ("-2.5", RoundingStrategy::ToPositiveInfinity, "-2"),
+        ("-2.8", RoundingStrategy::ToPositiveInfinity, "-2"),
+        ("2.8", RoundingStrategy::ToZero, "2"),
+        ("2.5", RoundingStrategy::ToZero, "2"),
+        ("2.1", RoundingStrategy::ToZero, "2"),
+        ("-2.1", RoundingStrategy::ToZero, "-2"),
+        ("-2.5", RoundingStrategy::ToZero, "-2"),
+        ("-2.8", RoundingStrategy::ToZero, "-2"),
+        ("2.8", RoundingStrategy::AwayFromZero, "3"),
+        ("2.5", RoundingStrategy::AwayFromZero, "3"),
+        ("2.1", RoundingStrategy::AwayFromZero, "3"),
+        ("-2.1", RoundingStrategy::AwayFromZero, "-3"),
+        ("-2.5", RoundingStrategy::AwayFromZero, "-3"),
+        ("-2.8", RoundingStrategy::AwayFromZero, "-3"),
+    ];
+
+    for &(input, strategy, expected) in tests {
+        let a = Decimal::from_str(input).unwrap();
+        let b = a.round_dp_with_strategy(0, strategy);
+        assert_eq!(expected, b.to_string(), "{} > {} for {:?}", input, expected, strategy);
+    }
+}
+
+#[test]
 fn it_can_round_using_bankers_rounding() {
     let tests = &[
         ("6.12345", 2, "6.12"),
@@ -879,8 +939,13 @@ fn it_can_round_using_bankers_rounding() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::BankersRounding);
-        assert_eq!(expected, b.to_string());
+        assert_eq!(expected, b.to_string(), "BankersRounding");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven);
+        assert_eq!(expected, b.to_string(), "MidpointNearestEven");
     }
 }
 
@@ -890,8 +955,14 @@ fn it_can_round_complex_numbers_using_bankers_rounding() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+
+    #[allow(deprecated)]
     let part = part.round_dp_with_strategy(2, RoundingStrategy::BankersRounding); // 0.16
-    assert_eq!("0.16", part.to_string());
+    assert_eq!("0.16", part.to_string(), "BankersRounding");
+
+    // Recommended replacement
+    let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointNearestEven); // 0.16
+    assert_eq!("0.16", part.to_string(), "MidpointNearestEven");
 }
 
 #[test]
@@ -910,8 +981,13 @@ fn it_can_round_using_round_half_up() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundHalfUp);
-        assert_eq!(expected, b.to_string());
+        assert_eq!(expected, b.to_string(), "RoundHalfUp");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointAwayFromZero);
+        assert_eq!(expected, b.to_string(), "MidpointAwayFromZero");
     }
 }
 
@@ -921,8 +997,13 @@ fn it_can_round_complex_numbers_using_round_half_up() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+    #[allow(deprecated)]
     let part = part.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp); // 0.16
-    assert_eq!("0.16", part.to_string());
+    assert_eq!("0.16", part.to_string(), "RoundHalfUp");
+
+    // Recommended replacement
+    let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero); // 0.16
+    assert_eq!("0.16", part.to_string(), "MidpointAwayFromZero");
 }
 
 #[test]
@@ -941,8 +1022,13 @@ fn it_can_round_using_round_half_down() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundHalfDown);
-        assert_eq!(expected, b.to_string());
+        assert_eq!(expected, b.to_string(), "RoundHalfDown");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointTowardZero);
+        assert_eq!(expected, b.to_string(), "MidpointTowardZero");
     }
 }
 
@@ -952,8 +1038,14 @@ fn it_can_round_complex_numbers_using_round_half_down() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+
+    #[allow(deprecated)]
     let part = part.round_dp_with_strategy(2, RoundingStrategy::RoundHalfDown); // 0.16
-    assert_eq!("0.16", part.to_string());
+    assert_eq!("0.16", part.to_string(), "RoundHalfDown");
+
+    // Recommended replacement
+    let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointTowardZero); // 0.16
+    assert_eq!("0.16", part.to_string(), "RoundHalfDown");
 }
 
 #[test]
@@ -1066,26 +1158,49 @@ fn it_can_round_complex_numbers() {
 
 #[test]
 fn it_can_round_down() {
-    let a = Decimal::new(470, 3).round_dp_with_strategy(1, RoundingStrategy::RoundDown);
-    assert_eq!("0.4", a.to_string());
-}
+    let tests = &[
+        ("0.470", 1, "0.4"),
+        ("-0.470", 1, "-0.4"), // Toward zero
+        ("0.400", 1, "0.4"),
+        ("-0.400", 1, "-0.4"),
+    ];
+    for &(input, dp, expected) in tests {
+        let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundDown);
+        assert_eq!(expected, b.to_string(), "RoundDown");
 
-#[test]
-fn it_only_rounds_down_when_needed() {
-    let a = Decimal::new(400, 3).round_dp_with_strategy(1, RoundingStrategy::RoundDown);
-    assert_eq!("0.4", a.to_string());
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::ToZero);
+        assert_eq!(expected, b.to_string(), "ToZero");
+    }
 }
 
 #[test]
 fn it_can_round_up() {
-    let a = Decimal::new(320, 3).round_dp_with_strategy(1, RoundingStrategy::RoundUp);
-    assert_eq!("0.4", a.to_string());
-}
+    let tests = &[
+        ("2.8", 0, "3"),
+        ("2.5", 0, "3"),
+        ("2.1", 0, "3"),
+        ("-2.1", 0, "-3"),
+        ("-2.5", 0, "-3"),
+        ("-2.8", 0, "-3"),
+        ("0.320", 1, "0.4"),
+        ("-0.320", 1, "-0.4"),
+        ("0.300", 1, "0.3"),
+        ("-0.300", 1, "-0.3"),
+    ];
 
-#[test]
-fn it_only_rounds_up_when_needed() {
-    let a = Decimal::new(300, 3).round_dp_with_strategy(1, RoundingStrategy::RoundUp);
-    assert_eq!("0.3", a.to_string());
+    for &(input, dp, expected) in tests {
+        let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundUp);
+        assert_eq!(expected, b.to_string(), "RoundUp");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::AwayFromZero);
+        assert_eq!(expected, b.to_string(), "AwayFromZero");
+    }
 }
 
 #[test]
