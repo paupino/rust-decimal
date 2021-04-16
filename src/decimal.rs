@@ -353,6 +353,26 @@ impl Decimal {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
     }
 
+    /// Returns the mantissa of the decimal number.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::prelude::*;
+    ///
+    /// let num = Decimal::from_str("-1.2345678").unwrap();
+    /// assert_eq!(num.mantissa(), -12345678i128);
+    /// assert_eq!(num.scale(), 7);
+    /// ```
+    pub const fn mantissa(&self) -> i128 {
+        let raw = (self.lo as i128) | ((self.mid as i128) << 32) | ((self.hi as i128) << 64);
+        if self.is_sign_negative() {
+            -raw
+        } else {
+            raw
+        }
+    }
+
     /// An optimized method for changing the sign of a decimal number.
     ///
     /// # Arguments
