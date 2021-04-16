@@ -4,6 +4,7 @@
 [actions]: https://actions-badge.atrox.dev/paupino/rust-decimal/goto
 [Latest Version]: https://img.shields.io/crates/v/rust-decimal.svg
 [crates.io]: https://crates.io/crates/rust-decimal
+[![Documentation](https://docs.rs/rust_decimal/badge.svg)](https://docs.rs/rust_decimal)
 
 A Decimal implementation written in pure Rust suitable for financial calculations that require significant integral and fractional digits with no round-off errors.
 
@@ -30,16 +31,16 @@ Alternatively you can also use one of the Decimal number convenience functions:
 use rust_decimal::prelude::*;
 
 // Using an integer followed by the decimal points
-let scaled = Decimal::new(202, 2); // 2.02
+let scaled = Decimal::new(202, 2);
 assert_eq!("2.02", scaled.to_string());
 
 // From a string representation
-let from_string = Decimal::from_str("2.02").unwrap(); // 2.02
+let from_string = Decimal::from_str("2.02").unwrap();
 assert_eq!("2.02", from_string.to_string());
 
 // From a string representation in a different base
-let from_string_base16 = Decimal::from_str_radix("ffff.ff", 16).unwrap(); // 2.02
-assert_eq!("2.02", from_string_base16.to_string());
+let from_string_base16 = Decimal::from_str_radix("ffff", 16).unwrap();
+assert_eq!("65535", from_string_base16.to_string());
 
 // Using the `Into` trait
 let my_int: Decimal = 3i32.into();
@@ -93,7 +94,7 @@ Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 Enable this so that JSON serialization of Decimal types are sent as a float instead of a string (default).
 
 e.g. with this turned on, JSON serialization would output:
-```
+```json
 {
   "value": 1.234
 }
