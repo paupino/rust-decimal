@@ -16,6 +16,20 @@ macro_rules! either {
     };
 }
 
+#[test]
+fn it_can_extract_the_mantissa() {
+    let tests = [
+        ("1", 1i128, 0),
+        ("1.123456", 1123456i128, 6),
+        ("-0.123456", -123456i128, 6),
+    ];
+    for &(input, mantissa, scale) in &tests {
+        let num = Decimal::from_str(input).unwrap();
+        assert_eq!(num.mantissa(), mantissa, "Mantissa for {}", input);
+        assert_eq!(num.scale(), scale, "Scale for {}", input);
+    }
+}
+
 // Parsing
 
 #[test]
