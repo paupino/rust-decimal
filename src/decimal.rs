@@ -126,22 +126,46 @@ pub struct Decimal {
     mid: u32,
 }
 
-/// `RoundingStrategy` represents the different strategies that can be used by
+/// `RoundingStrategy` represents the different midpoint rounding strategies that can be used by
 /// `round_dp_with_strategy`.
-///
-/// `RoundingStrategy::BankersRounding` - Rounds toward the nearest even number, e.g. 6.5 -> 6, 7.5 -> 8
-/// `RoundingStrategy::RoundHalfUp` - Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7,
-/// `RoundingStrategy::RoundHalfDown` - Rounds down if the value =< 5, otherwise rounds up, e.g.
-/// 6.5 -> 6, 6.51 -> 7
-/// 1.4999999 -> 1
-/// `RoundingStrategy::RoundDown` - Always round down.
-/// `RoundingStrategy::RoundUp` - Always round up.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RoundingStrategy {
+    /// When a number is halfway between two others, it is rounded toward the nearest even number.
+    /// Also known as "Bankers Rounding".
+    /// e.g.
+    /// 6.5 -> 6, 7.5 -> 8
+    NearestEven,
+    /// When a number is halfway between two others, it is rounded toward the nearest number that
+    /// is away from zero. e.g. 6.4 -> 6, 6.5 -> 7, -6.5 -> -7
+    MidpointAwayFromZero,
+    /// When a number is halfway between two others, it is rounded toward the nearest number that
+    /// is toward zero. e.g. 6.4 -> 6, 6.5 -> 7, -6.5 -> -6
+    MidpointTowardZero,
+    /// The number is always rounded toward zero. e.g. -6.8 -> -6, 6.8 -> 6
+    ToZero,
+    /// The number is always rounded away from zero. e.g. -6.8 -> -7, 6.8 -> 7
+    AwayFromZero,
+    /// The number is always rounded towards negative infinity. e.g. 6.8 -> 6, -6.8 -> -7
+    ToNegativeInfinity,
+    /// The number is always rounded towards positive infinity. e.g. 6.8 -> 7, -6.8 -> -6
+    ToPositiveInfinity,
+
+    /// When a number is halfway between two others, it is rounded toward the nearest even number.
+    /// e.g.
+    /// 6.5 -> 6, 7.5 -> 8
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::NearestEven instead")]
     BankersRounding,
+    /// Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointAwayFromZero instead")]
     RoundHalfUp,
+    /// Rounds down if the value =< 5, otherwise rounds up, e.g. 6.5 -> 6, 6.51 -> 7 1.4999999 -> 1
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointTowardZero instead")]
     RoundHalfDown,
+    /// Always round down.
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::ToZero instead")]
     RoundDown,
+    /// Always round up.
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::AwayFromZero instead")]
     RoundUp,
 }
 
@@ -153,6 +177,10 @@ impl Decimal {
     ///
     /// * `num` - An i64 that represents the `m` portion of the decimal number
     /// * `scale` - A u32 representing the `e` portion of the decimal number.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if `scale` is > 28.
     ///
     /// # Example
     ///
@@ -193,6 +221,10 @@ impl Decimal {
     ///
     /// * `num` - An i128 that represents the `m` portion of the decimal number
     /// * `scale` - A u32 representing the `e` portion of the decimal number.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if `scale` is > 28 or if `num` exceeds the maximum supported 96 bits.
     ///
     /// # Example
     ///
@@ -836,8 +868,9 @@ impl Decimal {
         }
         let order = cmp_internal(&decimal_portion, &cap);
 
+        #[allow(deprecated)]
         match strategy {
-            RoundingStrategy::BankersRounding => {
+            RoundingStrategy::BankersRounding | RoundingStrategy::NearestEven => {
                 match order {
                     Ordering::Equal => {
                         if (value[0] & 1) == 1 {
@@ -851,12 +884,12 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundHalfDown => {
+            RoundingStrategy::RoundHalfDown | RoundingStrategy::MidpointTowardZero => {
                 if let Ordering::Greater = order {
                     add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundHalfUp => {
+            RoundingStrategy::RoundHalfUp | RoundingStrategy::MidpointAwayFromZero => {
                 // when Ordering::Equal, decimal_portion is 0.5 exactly
                 // when Ordering::Greater, decimal_portion is > 0.5
                 match order {
@@ -870,12 +903,22 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundUp => {
+            RoundingStrategy::RoundUp | RoundingStrategy::AwayFromZero => {
                 if !is_all_zero(&decimal_portion) {
                     add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundDown => (),
+            RoundingStrategy::ToPositiveInfinity => {
+                if !negative && !is_all_zero(&decimal_portion) {
+                    add_one_internal(&mut value);
+                }
+            }
+            RoundingStrategy::ToNegativeInfinity => {
+                if negative && !is_all_zero(&decimal_portion) {
+                    add_one_internal(&mut value);
+                }
+            }
+            RoundingStrategy::RoundDown | RoundingStrategy::ToZero => (),
         }
 
         Decimal {
@@ -902,7 +945,7 @@ impl Decimal {
     /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
     /// ```
     pub fn round_dp(&self, dp: u32) -> Decimal {
-        self.round_dp_with_strategy(dp, RoundingStrategy::BankersRounding)
+        self.round_dp_with_strategy(dp, RoundingStrategy::NearestEven)
     }
 
     /// Convert `Decimal` to an internal representation of the underlying struct. This is useful
@@ -2278,7 +2321,7 @@ mod ops {
                 // So we kick things off, with that assumption
                 let mut low64 = self.low64();
                 low64 = low64 - (divisor << 32) + divisor;
-                let mut quotient = u32::max_value();
+                let mut quotient = u32::MAX;
 
                 // If we went negative then keep adding it back in
                 loop {
@@ -2346,14 +2389,14 @@ mod ops {
             remainder = remainder.wrapping_sub(prod2 as u32);
 
             // If there are carries make sure they are propogated
-            if num > prod1.bitxor(u64::max_value()) {
+            if num > prod1.bitxor(u64::MAX) {
                 remainder = remainder.wrapping_sub(1);
-                if remainder < (prod2 as u32).bitxor(u32::max_value()) {
+                if remainder < (prod2 as u32).bitxor(u32::MAX) {
                     self.set_low64(num);
                     self.hi = remainder;
                     return quo;
                 }
-            } else if remainder <= (prod2 as u32).bitxor(u32::max_value()) {
+            } else if remainder <= (prod2 as u32).bitxor(u32::MAX) {
                 self.set_low64(num);
                 self.hi = remainder;
                 return quo;
