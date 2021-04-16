@@ -2221,3 +2221,17 @@ mod generated {
     gen_div_test!(test_div_110, "Div_110.csv");
     gen_div_test!(test_div_111, "Div_111.csv");
 }
+
+#[cfg(feature = "rust-fuzz")]
+mod rust_fuzz {
+    use arbitrary::{Arbitrary, Unstructured};
+
+    use super::*;
+
+    #[test]
+    fn it_can_generate_arbitrary_decimals() {
+        let mut u = Unstructured::new(b"it_can_generate_arbitrary_decimals");
+        let d = Decimal::arbitrary(&mut u);
+        assert!(d.is_ok());
+    }
+}

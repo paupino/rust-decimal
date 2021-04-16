@@ -56,6 +56,8 @@ assert_eq!("3.1415926535897932384626433832", pi.to_string());
 * [db-tokio-postgres](#db-tokio-postgres)
 * [db-diesel-postgres](#db-diesel-postgres)
 * [legacy-ops](#legacy-ops)
+* [maths](#maths)
+* [rust-fuzz](#rust-fuzz)
 * [serde-float](#serde-float)
 * [serde-str](#serde-str)
 * [std](#std)
@@ -81,6 +83,10 @@ To maintain backwards compatibility this can be opted out of by enabling the `le
 ## `maths`
 
 This feature enables mathematical functionality such as `pow`, `ln`, `enf` etc.
+
+## `rust-fuzz`
+
+Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 
 ## `serde-float`
 

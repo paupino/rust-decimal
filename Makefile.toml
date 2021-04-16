@@ -38,6 +38,7 @@ dependencies = [
     "test-default",
     "test-legacy-ops",
     "test-maths",
+    "test-misc",
     "test-db",
     "test-serde"
 ]
@@ -72,7 +73,11 @@ args = ["test", "--workspace", "--features=legacy-ops"]
 
 [tasks.test-maths]
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=maths"]
+args = ["test", "--workspace", "--no-default-features", "--features=maths", "maths"]
+
+[tasks.test-misc]
+command = "cargo"
+args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", "rust_fuzz"]
 
 [tasks.test-db-postgres]
 command = "cargo"
