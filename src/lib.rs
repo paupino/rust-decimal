@@ -41,6 +41,8 @@ extern crate alloc;
 mod decimal;
 mod error;
 
+#[cfg(feature = "rust-fuzz")]
+mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
 #[cfg(any(feature = "postgres", feature = "diesel"))]
