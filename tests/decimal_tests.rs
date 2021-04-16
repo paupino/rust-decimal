@@ -28,12 +28,12 @@ fn it_creates_a_new_negative_decimal() {
 
 #[test]
 fn it_creates_a_new_decimal_using_numeric_boundaries() {
-    let a = Decimal::new(i64::max_value(), 2);
+    let a = Decimal::new(i64::MAX, 2);
     assert_eq!(a.is_sign_negative(), false);
     assert_eq!(a.scale(), 2);
     assert_eq!("92233720368547758.07", a.to_string());
 
-    let b = Decimal::new(i64::min_value(), 2);
+    let b = Decimal::new(i64::MIN, 2);
     assert_eq!(b.is_sign_negative(), true);
     assert_eq!(b.scale(), 2);
     assert_eq!("-92233720368547758.08", b.to_string());
@@ -800,8 +800,8 @@ fn it_can_parse_from_i32() {
         (0i32, "0"),
         (1i32, "1"),
         (-1i32, "-1"),
-        (i32::max_value(), "2147483647"),
-        (i32::min_value(), "-2147483648"),
+        (i32::MAX, "2147483647"),
+        (i32::MIN, "-2147483648"),
     ];
     for &(input, expected) in tests {
         let parsed = Decimal::from_i32(input).unwrap();
@@ -830,8 +830,8 @@ fn it_can_parse_from_i64() {
         (0i64, "0"),
         (1i64, "1"),
         (-1i64, "-1"),
-        (i64::max_value(), "9223372036854775807"),
-        (i64::min_value(), "-9223372036854775808"),
+        (i64::MAX, "9223372036854775807"),
+        (i64::MIN, "-9223372036854775808"),
     ];
     for &(input, expected) in tests {
         let parsed = Decimal::from_i64(input).unwrap();
@@ -1341,12 +1341,12 @@ fn it_converts_from_f32() {
     );
     assert_eq!("0", from_f32(0.00000000000000000000000000001f32).unwrap().to_string());
 
-    assert!(from_f32(core::f32::NAN).is_none());
-    assert!(from_f32(core::f32::INFINITY).is_none());
+    assert!(from_f32(f32::NAN).is_none());
+    assert!(from_f32(f32::INFINITY).is_none());
 
     // These both overflow
-    assert!(from_f32(core::f32::MAX).is_none());
-    assert!(from_f32(core::f32::MIN).is_none());
+    assert!(from_f32(f32::MAX).is_none());
+    assert!(from_f32(f32::MIN).is_none());
 }
 
 #[test]
@@ -1373,12 +1373,12 @@ fn it_converts_from_f32_try() {
             .to_string()
     );
 
-    assert!(Decimal::try_from(core::f32::NAN).is_err());
-    assert!(Decimal::try_from(core::f32::INFINITY).is_err());
+    assert!(Decimal::try_from(f32::NAN).is_err());
+    assert!(Decimal::try_from(f32::INFINITY).is_err());
 
     // These both overflow
-    assert!(Decimal::try_from(core::f32::MAX).is_err());
-    assert!(Decimal::try_from(core::f32::MIN).is_err());
+    assert!(Decimal::try_from(f32::MAX).is_err());
+    assert!(Decimal::try_from(f32::MIN).is_err());
 }
 
 #[test]
@@ -1403,12 +1403,12 @@ fn it_converts_from_f64() {
     assert_eq!("0.00006927", from_f64(0.00006927f64).unwrap().to_string());
     assert_eq!("0.000000006927", from_f64(0.000000006927f64).unwrap().to_string());
 
-    assert!(from_f64(core::f64::NAN).is_none());
-    assert!(from_f64(core::f64::INFINITY).is_none());
+    assert!(from_f64(f64::NAN).is_none());
+    assert!(from_f64(f64::INFINITY).is_none());
 
     // These both overflow
-    assert!(from_f64(core::f64::MAX).is_none());
-    assert!(from_f64(core::f64::MIN).is_none());
+    assert!(from_f64(f64::MAX).is_none());
+    assert!(from_f64(f64::MIN).is_none());
 }
 
 #[test]
@@ -1441,12 +1441,12 @@ fn it_converts_from_f64_try() {
         Decimal::try_from(0.000000006927f64).unwrap().to_string()
     );
 
-    assert!(Decimal::try_from(core::f64::NAN).is_err());
-    assert!(Decimal::try_from(core::f64::INFINITY).is_err());
+    assert!(Decimal::try_from(f64::NAN).is_err());
+    assert!(Decimal::try_from(f64::INFINITY).is_err());
 
     // These both overflow
-    assert!(Decimal::try_from(core::f64::MAX).is_err());
-    assert!(Decimal::try_from(core::f64::MIN).is_err());
+    assert!(Decimal::try_from(f64::MAX).is_err());
+    assert!(Decimal::try_from(f64::MIN).is_err());
 }
 
 #[test]
@@ -1703,9 +1703,9 @@ fn it_panics_when_scale_too_large() {
 fn test_zero_eq_negative_zero() {
     let zero: Decimal = 0.into();
 
-    assert!(zero == zero);
-    assert!(-zero == zero);
-    assert!(zero == -zero);
+    assert_eq!(zero, zero);
+    assert_eq!(-zero, zero);
+    assert_eq!(zero, -zero);
 }
 
 #[test]
@@ -1844,7 +1844,7 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 #[test]
 #[should_panic]
 fn it_handles_i128_min() {
-    Decimal::from_i128_with_scale(core::i128::MIN, 0);
+    Decimal::from_i128_with_scale(i128::MIN, 0);
 }
 
 #[test]
@@ -1908,6 +1908,44 @@ mod maths {
         ];
         for case in test_cases {
             assert_eq!(case.2, case.0.powi(case.1));
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_powi_panic() {
+        let two = Decimal::new(2, 0);
+        let _ = two.powi(128);
+    }
+
+    #[test]
+    fn test_checked_powi() {
+        let test_cases = &[
+            (Decimal::new(4, 0), 3_u64, Some(Decimal::new(64, 0))),
+            (
+                Decimal::from_str("3.222").unwrap(),
+                5_u64,
+                Some(Decimal::from_str("347.238347228449632").unwrap()),
+            ),
+            (
+                Decimal::from_str("0.1").unwrap(),
+                0_u64,
+                Some(Decimal::from_str("1").unwrap()),
+            ),
+            (
+                Decimal::from_str("342.4").unwrap(),
+                1_u64,
+                Some(Decimal::from_str("342.4").unwrap()),
+            ),
+            (
+                Decimal::from_str("2.0").unwrap(),
+                16_u64,
+                Some(Decimal::from_str("65536").unwrap()),
+            ),
+            (Decimal::from_str("2.0").unwrap(), 128_u64, None),
+        ];
+        for case in test_cases {
+            assert_eq!(case.2, case.0.checked_powi(case.1));
         }
     }
 

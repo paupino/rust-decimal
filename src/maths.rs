@@ -20,6 +20,10 @@ pub trait MathematicalOps {
     /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
     fn powi(&self, exp: u64) -> Decimal;
 
+    /// Raise self to the given unsigned integer exponent x<sup>y</sup> returning
+    /// `None` on overflow.
+    fn checked_powi(&self, exp: u64) -> Option<Decimal>;
+
     /// The square root of a Decimal. Uses a standard Babylonian method.
     fn sqrt(&self) -> Option<Decimal>;
 
@@ -78,24 +82,40 @@ impl MathematicalOps for Decimal {
 
     /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
     fn powi(&self, exp: u64) -> Decimal {
+        match self.checked_powi(exp) {
+            Some(result) => result,
+            None => panic!("Pow overflowed"),
+        }
+    }
+
+    fn checked_powi(&self, exp: u64) -> Option<Decimal> {
         match exp {
-            0 => Decimal::one(),
-            1 => *self,
-            2 => self * self,
+            0 => Some(Decimal::one()),
+            1 => Some(*self),
+            2 => self.checked_mul(*self),
             _ => {
+                // Get the squared value
+                let squared = match self.checked_mul(*self) {
+                    Some(s) => s,
+                    None => return None,
+                };
                 // Square self once and make an infinite sized iterator of the square.
-                let i = core::iter::repeat(self * self);
+                let iter = core::iter::repeat(squared);
 
                 // We then take half of the exponent to create a finite iterator and then multiply those together.
-                let product = i
-                    .take((exp / 2) as usize)
-                    .fold(Decimal::one(), |accumulator, x| accumulator * x);
+                let mut product = Decimal::one();
+                for x in iter.take((exp / 2) as usize) {
+                    match product.checked_mul(x) {
+                        Some(r) => product = r,
+                        None => return None,
+                    };
+                }
 
                 // If the exponent is odd we still need to multiply once more
                 if exp % 2 > 0 {
-                    product * self
+                    self.checked_mul(product)
                 } else {
-                    product
+                    Some(product)
                 }
             }
         }
