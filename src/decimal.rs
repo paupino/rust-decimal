@@ -134,7 +134,7 @@ pub enum RoundingStrategy {
     /// Also known as "Bankers Rounding".
     /// e.g.
     /// 6.5 -> 6, 7.5 -> 8
-    NearestEven,
+    MidpointNearestEven,
     /// When a number is halfway between two others, it is rounded toward the nearest number that
     /// is away from zero. e.g. 6.4 -> 6, 6.5 -> 7, -6.5 -> -7
     MidpointAwayFromZero,
@@ -153,7 +153,7 @@ pub enum RoundingStrategy {
     /// When a number is halfway between two others, it is rounded toward the nearest even number.
     /// e.g.
     /// 6.5 -> 6, 7.5 -> 8
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::NearestEven instead")]
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointNearestEven instead")]
     BankersRounding,
     /// Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7
     #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointAwayFromZero instead")]
@@ -870,7 +870,7 @@ impl Decimal {
 
         #[allow(deprecated)]
         match strategy {
-            RoundingStrategy::BankersRounding | RoundingStrategy::NearestEven => {
+            RoundingStrategy::BankersRounding | RoundingStrategy::MidpointNearestEven => {
                 match order {
                     Ordering::Equal => {
                         if (value[0] & 1) == 1 {
@@ -945,7 +945,7 @@ impl Decimal {
     /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
     /// ```
     pub fn round_dp(&self, dp: u32) -> Decimal {
-        self.round_dp_with_strategy(dp, RoundingStrategy::NearestEven)
+        self.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven)
     }
 
     /// Convert `Decimal` to an internal representation of the underlying struct. This is useful

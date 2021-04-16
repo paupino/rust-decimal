@@ -870,14 +870,14 @@ fn it_can_round_using_basic_midpoint_rules() {
         ("-2.5", RoundingStrategy::MidpointAwayFromZero, "-3"),
         ("-2.8", RoundingStrategy::MidpointAwayFromZero, "-3"),
         ("-3.5", RoundingStrategy::MidpointAwayFromZero, "-4"),
-        ("3.5", RoundingStrategy::NearestEven, "4"),
-        ("2.8", RoundingStrategy::NearestEven, "3"),
-        ("2.5", RoundingStrategy::NearestEven, "2"),
-        ("2.1", RoundingStrategy::NearestEven, "2"),
-        ("-2.1", RoundingStrategy::NearestEven, "-2"),
-        ("-2.5", RoundingStrategy::NearestEven, "-2"),
-        ("-2.8", RoundingStrategy::NearestEven, "-3"),
-        ("-3.5", RoundingStrategy::NearestEven, "-4"),
+        ("3.5", RoundingStrategy::MidpointNearestEven, "4"),
+        ("2.8", RoundingStrategy::MidpointNearestEven, "3"),
+        ("2.5", RoundingStrategy::MidpointNearestEven, "2"),
+        ("2.1", RoundingStrategy::MidpointNearestEven, "2"),
+        ("-2.1", RoundingStrategy::MidpointNearestEven, "-2"),
+        ("-2.5", RoundingStrategy::MidpointNearestEven, "-2"),
+        ("-2.8", RoundingStrategy::MidpointNearestEven, "-3"),
+        ("-3.5", RoundingStrategy::MidpointNearestEven, "-4"),
         ("3.5", RoundingStrategy::MidpointTowardZero, "3"),
         ("2.8", RoundingStrategy::MidpointTowardZero, "3"),
         ("2.5", RoundingStrategy::MidpointTowardZero, "2"),
@@ -944,8 +944,8 @@ fn it_can_round_using_bankers_rounding() {
         assert_eq!(expected, b.to_string(), "BankersRounding");
 
         // Recommended replacement
-        let b = a.round_dp_with_strategy(dp, RoundingStrategy::NearestEven);
-        assert_eq!(expected, b.to_string(), "NearestEven");
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven);
+        assert_eq!(expected, b.to_string(), "MidpointNearestEven");
     }
 }
 
@@ -961,8 +961,8 @@ fn it_can_round_complex_numbers_using_bankers_rounding() {
     assert_eq!("0.16", part.to_string(), "BankersRounding");
 
     // Recommended replacement
-    let part = part.round_dp_with_strategy(2, RoundingStrategy::NearestEven); // 0.16
-    assert_eq!("0.16", part.to_string(), "NearestEven");
+    let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointNearestEven); // 0.16
+    assert_eq!("0.16", part.to_string(), "MidpointNearestEven");
 }
 
 #[test]
