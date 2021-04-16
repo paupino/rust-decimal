@@ -10,6 +10,7 @@ name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
 version = "1.11.0"
+exclude = [ "tests/generated/*" ]
 
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
