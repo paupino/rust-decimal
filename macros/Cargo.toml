@@ -15,5 +15,9 @@ license = "MIT"
 rust_decimal = { path = "..", version = "1.10.3" }
 quote = "1.0"
 
+[features]
+default = []
+reexportable = []
+
 [lib]
 proc-macro = true

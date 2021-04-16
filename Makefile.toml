@@ -40,7 +40,8 @@ dependencies = [
     "test-maths",
     "test-misc",
     "test-db",
-    "test-serde"
+    "test-serde",
+    "test-macros"
 ]
 
 [tasks.test-db]
@@ -58,6 +59,9 @@ dependencies = [
     "test-serde-arbitrary-precision",
     "test-serde-arbitrary-precision-float"
 ]
+
+[tasks.test-macros]
+workspace = true
 
 [tasks.test-no-std]
 command = "cargo"
