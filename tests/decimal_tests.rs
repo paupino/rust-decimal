@@ -1942,11 +1942,7 @@ mod maths {
                 16_u64,
                 Some(Decimal::from_str("65536").unwrap()),
             ),
-            (
-                Decimal::from_str("2.0").unwrap(),
-                128_u64,
-                None,
-            ),
+            (Decimal::from_str("2.0").unwrap(), 128_u64, None),
         ];
         for case in test_cases {
             assert_eq!(case.2, case.0.checked_powi(case.1));
