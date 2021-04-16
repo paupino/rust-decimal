@@ -1,5 +1,9 @@
 use rust_decimal_macros::dec;
 
+// Require using for reexportable feature
+#[cfg(feature = "reexportable")]
+use rust_decimal::Decimal;
+
 #[test]
 fn it_can_parse_decimal() {
     let tests = &[
