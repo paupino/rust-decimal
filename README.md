@@ -1,10 +1,11 @@
-# Decimal &emsp; [![Build Status]][actions] [![Latest Version]][crates.io]
+# Decimal &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs Badge]][docs] 
 
 [Build Status]: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fpaupino%2Frust-decimal%2Fbadge&label=build&logo=none
 [actions]: https://actions-badge.atrox.dev/paupino/rust-decimal/goto
 [Latest Version]: https://img.shields.io/crates/v/rust-decimal.svg
 [crates.io]: https://crates.io/crates/rust-decimal
-[![Documentation](https://docs.rs/rust_decimal/badge.svg)](https://docs.rs/rust_decimal)
+[Docs Badge]: https://docs.rs/rust_decimal/badge.svg
+[docs]: https://docs.rs/rust_decimal
 
 A Decimal implementation written in pure Rust suitable for financial calculations that require significant integral and fractional digits with no round-off errors.
 
