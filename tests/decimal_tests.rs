@@ -1980,24 +1980,19 @@ mod maths {
     #[test]
     fn test_exp() {
         let test_cases = &[
-            (Decimal::new(10, 0), Decimal::from_str("22023.81992829").unwrap()),
-            (Decimal::new(11, 0), Decimal::from_str("59846.36875797").unwrap()),
-            (Decimal::new(3, 0), Decimal::from_str("20.08553690").unwrap()),
-            (
-                Decimal::from_str("8").unwrap(),
-                Decimal::from_str("2980.94688158").unwrap(),
-            ),
-            (
-                Decimal::from_str("0.1").unwrap(),
-                Decimal::from_str("1.10517092").unwrap(),
-            ),
-            (
-                Decimal::from_str("2.0").unwrap(),
-                Decimal::from_str("7.38905609").unwrap(),
-            ),
+            ("10", "22023.81992829"),
+            ("11", "59846.36875797"),
+            ("3", "20.08553690"),
+            ("8", "2980.94688158"),
+            ("0.1", "1.10517092"),
+            ("2.0", "7.38905609"),
+            ("-2", "0.13533531"),
+            ("-1", "0.36787944"),
         ];
         for case in test_cases {
-            assert_eq!(case.1, case.0.exp());
+            let x = Decimal::from_str(case.0).unwrap();
+            let expected = Decimal::from_str(case.1).unwrap();
+            assert_eq!(expected, x.exp());
         }
     }
 

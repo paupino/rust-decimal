@@ -61,6 +61,13 @@ const MAX: Decimal = Decimal {
     hi: 4_294_967_295,
 };
 
+pub(crate) const ONE: Decimal = Decimal {
+    flags: 0,
+    lo: 1,
+    mid: 0,
+    hi: 0,
+};
+
 // Fast access for 10^n where n is 0-9
 const POWERS_10: [u32; 10] = [
     1,
@@ -606,7 +613,7 @@ impl Decimal {
         // Opportunity for optimization here
         let floored = self.trunc();
         if self.is_sign_negative() && !self.fract().is_zero() {
-            floored - Decimal::one()
+            floored - ONE
         } else {
             floored
         }
@@ -633,7 +640,7 @@ impl Decimal {
 
         // Opportunity for optimization here
         if self.is_sign_positive() && !self.fract().is_zero() {
-            self.trunc() + Decimal::one()
+            self.trunc() + ONE
         } else {
             self.trunc()
         }
@@ -3068,12 +3075,7 @@ impl Zero for Decimal {
 
 impl One for Decimal {
     fn one() -> Decimal {
-        Decimal {
-            flags: 0,
-            hi: 0,
-            lo: 1,
-            mid: 0,
-        }
+        ONE
     }
 }
 
@@ -3094,7 +3096,7 @@ impl Signed for Decimal {
         if self.is_zero() {
             Decimal::zero()
         } else {
-            let mut value = Decimal::one();
+            let mut value = ONE;
             if self.is_sign_negative() {
                 value.set_sign_negative(true);
             }

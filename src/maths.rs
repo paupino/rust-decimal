@@ -3,10 +3,11 @@ use crate::prelude::*;
 const TWO: Decimal = Decimal::from_parts_raw(2, 0, 0, 0);
 const PI: Decimal = Decimal::from_parts_raw(1102470953, 185874565, 1703060790, 1835008);
 const LN2: Decimal = Decimal::from_parts_raw(2831677809, 328455696, 3757558395, 1900544);
+const EXP_TOLERANCE: Decimal = Decimal::from_parts(2, 0, 0, false, 7);
 
 pub trait MathematicalOps {
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
-    /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
+    /// calculating when it is within tolerance of roughly 0.000002 in order to prevent
     /// multiplication overflow.
     fn exp(&self) -> Decimal;
 
@@ -43,11 +44,10 @@ pub trait MathematicalOps {
 
 impl MathematicalOps for Decimal {
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
-    /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
+    /// calculating when it is within tolerance of roughly 0.000002 in order to prevent
     /// multiplication overflow.
     fn exp(&self) -> Decimal {
-        let tolerance = Decimal::new(2, 7);
-        self.exp_with_tolerance(tolerance)
+        self.exp_with_tolerance(EXP_TOLERANCE)
     }
 
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
@@ -63,14 +63,14 @@ impl MathematicalOps for Decimal {
 
         let mut term = *self;
         let mut result = self + Decimal::one();
-        let mut prev_result = Decimal::zero();
+        let mut prev_result: Option<Decimal> = None;
         let mut factorial = Decimal::one();
         let mut n = TWO;
         let twenty_four = Decimal::new(24, 0);
 
         // Needs rounding because multiplication overflows otherwise.
-        while (result - prev_result).abs() > tolerance && n < twenty_four {
-            prev_result = result;
+        while (prev_result.is_none() || (result - prev_result.unwrap()).abs() > tolerance) && n < twenty_four {
+            prev_result = Some(result);
             term = self * term.round_dp(8);
             factorial *= n;
             result += (term / factorial).round_dp(8);
