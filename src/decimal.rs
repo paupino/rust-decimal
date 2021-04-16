@@ -126,7 +126,7 @@ pub struct Decimal {
     mid: u32,
 }
 
-/// `RoundingStrategy` represents the different midpoint rounding strategies that can be used by
+/// `RoundingStrategy` represents the different rounding strategies that can be used by
 /// `round_dp_with_strategy`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RoundingStrategy {
