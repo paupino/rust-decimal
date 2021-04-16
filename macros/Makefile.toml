@@ -1,0 +1,13 @@
+[tasks.test-macros]
+dependencies = [
+"test-macros-default",
+"test-macros-reexportable"
+]
+
+[tasks.test-macros-default]
+command = "cargo"
+args = ["test", "--tests"]
+
+[tasks.test-macros-reexportable]
+command = "cargo"
+args = ["test", "--tests", "--features=reexportable"]

@@ -94,3 +94,9 @@ jobs:
         with:
           command: make
           args: test-serde
+
+      - name: Run macro tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-macros
