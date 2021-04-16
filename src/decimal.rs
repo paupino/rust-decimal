@@ -231,6 +231,13 @@ impl Decimal {
     /// * `negative` - `true` to indicate a negative number.
     /// * `scale` - A power of 10 ranging from 0 to 28.
     ///
+    /// # Caution: Undefined behavior
+    ///
+    /// While a scale greater than 28 can be passed in, it will be automatically capped by this
+    /// function at the maximum precision. The library opts towards this functionality as opposed
+    /// to a panic to ensure that the function can be treated as constant. This may lead to
+    /// undefined behavior in downstream applications and should be treated with caution.
+    ///
     /// # Example
     ///
     /// ```
@@ -244,7 +251,7 @@ impl Decimal {
             lo,
             mid,
             hi,
-            flags: flags(negative, scale),
+            flags: flags(negative, scale % (MAX_PRECISION + 1)),
         }
     }
 
