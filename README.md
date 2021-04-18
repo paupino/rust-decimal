@@ -1,9 +1,11 @@
-# Decimal &emsp; [![Build Status]][actions] [![Latest Version]][crates.io]
+# Decimal &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs Badge]][docs] 
 
 [Build Status]: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fpaupino%2Frust-decimal%2Fbadge&label=build&logo=none
 [actions]: https://actions-badge.atrox.dev/paupino/rust-decimal/goto
 [Latest Version]: https://img.shields.io/crates/v/rust-decimal.svg
 [crates.io]: https://crates.io/crates/rust-decimal
+[Docs Badge]: https://docs.rs/rust_decimal/badge.svg
+[docs]: https://docs.rs/rust_decimal
 
 A Decimal implementation written in pure Rust suitable for financial calculations that require significant integral and fractional digits with no round-off errors.
 
@@ -17,28 +19,37 @@ Decimal numbers can be created in a few distinct ways. The easiest and most opti
 
 ```rust
 // Procedural macros need importing directly
-use rust_decimal_macros::*;
+use rust_decimal_macros::dec;
 
 let number = dec!(-1.23);
+assert_eq!("-1.23", number.to_string());
 ```
 
 Alternatively you can also use one of the Decimal number convenience functions:
 
 ```rust
+// Using the prelude can help importing trait based functions (e.g. core::str::FromStr).
 use rust_decimal::prelude::*;
 
 // Using an integer followed by the decimal points
-let scaled = Decimal::new(202, 2); // 2.02
+let scaled = Decimal::new(202, 2);
+assert_eq!("2.02", scaled.to_string());
 
 // From a string representation
-let from_string = Decimal::from_str("2.02").unwrap(); // 2.02
+let from_string = Decimal::from_str("2.02").unwrap();
+assert_eq!("2.02", from_string.to_string());
+
+// From a string representation in a different base
+let from_string_base16 = Decimal::from_str_radix("ffff", 16).unwrap();
+assert_eq!("65535", from_string_base16.to_string());
 
 // Using the `Into` trait
-let my_int : Decimal = 3i32.into();
+let my_int: Decimal = 3i32.into();
+assert_eq!("3", my_int.to_string());
 
 // Using the raw decimal representation
-// 3.1415926535897932384626433832
 let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
+assert_eq!("3.1415926535897932384626433832", pi.to_string());
 ```
 
 ## Features
@@ -47,6 +58,8 @@ let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
 * [db-tokio-postgres](#db-tokio-postgres)
 * [db-diesel-postgres](#db-diesel-postgres)
 * [legacy-ops](#legacy-ops)
+* [maths](#maths)
+* [rust-fuzz](#rust-fuzz)
 * [serde-float](#serde-float)
 * [serde-str](#serde-str)
 * [std](#std)
@@ -69,12 +82,20 @@ Enable `diesel` PostgreSQL support.
 As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed improvements. 
 To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
 
+## `maths`
+
+This feature enables mathematical functionality such as `pow`, `ln`, `enf` etc.
+
+## `rust-fuzz`
+
+Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
+
 ## `serde-float`
 
 Enable this so that JSON serialization of Decimal types are sent as a float instead of a string (default).
 
 e.g. with this turned on, JSON serialization would output:
-```
+```json
 {
   "value": 1.234
 }

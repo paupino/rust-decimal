@@ -77,6 +77,12 @@ jobs:
           command: make
           args: test-maths
 
+      - name: Run miscellaneous tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-misc
+
       - name: Run database tests
         uses: actions-rs/cargo@v1
         with:
@@ -88,3 +94,9 @@ jobs:
         with:
           command: make
           args: test-serde
+
+      - name: Run macro tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-macros

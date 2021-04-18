@@ -3,10 +3,11 @@ use crate::prelude::*;
 const TWO: Decimal = Decimal::from_parts_raw(2, 0, 0, 0);
 const PI: Decimal = Decimal::from_parts_raw(1102470953, 185874565, 1703060790, 1835008);
 const LN2: Decimal = Decimal::from_parts_raw(2831677809, 328455696, 3757558395, 1900544);
+const EXP_TOLERANCE: Decimal = Decimal::from_parts(2, 0, 0, false, 7);
 
 pub trait MathematicalOps {
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
-    /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
+    /// calculating when it is within tolerance of roughly 0.000002 in order to prevent
     /// multiplication overflow.
     fn exp(&self) -> Decimal;
 
@@ -19,6 +20,10 @@ pub trait MathematicalOps {
 
     /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
     fn powi(&self, exp: u64) -> Decimal;
+
+    /// Raise self to the given unsigned integer exponent x<sup>y</sup> returning
+    /// `None` on overflow.
+    fn checked_powi(&self, exp: u64) -> Option<Decimal>;
 
     /// The square root of a Decimal. Uses a standard Babylonian method.
     fn sqrt(&self) -> Option<Decimal>;
@@ -39,11 +44,10 @@ pub trait MathematicalOps {
 
 impl MathematicalOps for Decimal {
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
-    /// calculating when it is within tolerance is roughly 0.000002 in order to prevent
+    /// calculating when it is within tolerance of roughly 0.000002 in order to prevent
     /// multiplication overflow.
     fn exp(&self) -> Decimal {
-        let tolerance = Decimal::new(2, 7);
-        self.exp_with_tolerance(tolerance)
+        self.exp_with_tolerance(EXP_TOLERANCE)
     }
 
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
@@ -59,14 +63,14 @@ impl MathematicalOps for Decimal {
 
         let mut term = *self;
         let mut result = self + Decimal::one();
-        let mut prev_result = Decimal::zero();
+        let mut prev_result: Option<Decimal> = None;
         let mut factorial = Decimal::one();
         let mut n = TWO;
         let twenty_four = Decimal::new(24, 0);
 
         // Needs rounding because multiplication overflows otherwise.
-        while (result - prev_result).abs() > tolerance && n < twenty_four {
-            prev_result = result;
+        while (prev_result.is_none() || (result - prev_result.unwrap()).abs() > tolerance) && n < twenty_four {
+            prev_result = Some(result);
             term = self * term.round_dp(8);
             factorial *= n;
             result += (term / factorial).round_dp(8);
@@ -78,24 +82,40 @@ impl MathematicalOps for Decimal {
 
     /// Raise self to the given unsigned integer exponent: x<sup>y</sup>
     fn powi(&self, exp: u64) -> Decimal {
+        match self.checked_powi(exp) {
+            Some(result) => result,
+            None => panic!("Pow overflowed"),
+        }
+    }
+
+    fn checked_powi(&self, exp: u64) -> Option<Decimal> {
         match exp {
-            0 => Decimal::one(),
-            1 => *self,
-            2 => self * self,
+            0 => Some(Decimal::one()),
+            1 => Some(*self),
+            2 => self.checked_mul(*self),
             _ => {
+                // Get the squared value
+                let squared = match self.checked_mul(*self) {
+                    Some(s) => s,
+                    None => return None,
+                };
                 // Square self once and make an infinite sized iterator of the square.
-                let i = core::iter::repeat(self * self);
+                let iter = core::iter::repeat(squared);
 
                 // We then take half of the exponent to create a finite iterator and then multiply those together.
-                let product = i
-                    .take((exp / 2) as usize)
-                    .fold(Decimal::one(), |accumulator, x| accumulator * x);
+                let mut product = Decimal::one();
+                for x in iter.take((exp / 2) as usize) {
+                    match product.checked_mul(x) {
+                        Some(r) => product = r,
+                        None => return None,
+                    };
+                }
 
                 // If the exponent is odd we still need to multiply once more
                 if exp % 2 > 0 {
-                    product * self
+                    self.checked_mul(product)
                 } else {
-                    product
+                    Some(product)
                 }
             }
         }

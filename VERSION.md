@@ -1,5 +1,39 @@
 # Version History
 
+## 1.11.0
+
+This release includes a number of bug fixes and ergonomic improvements.
+
+* Mathematical functionality is now behind a feature flag. This should help optimize library size when functions such as
+  `log` and `pow` are not required (e.g. simple financial applications). Mathematical functionality is now behind the `maths`
+  feature flag. [#321](https://github.com/paupino/rust-decimal/pull/321).
+* Numerous test coverage improvements to ensure broader coverage. [#322](https://github.com/paupino/rust-decimal/pull/322), 
+  [#323](https://github.com/paupino/rust-decimal/pull/323)
+* Various documentation improvements. [#324](https://github.com/paupino/rust-decimal/pull/324), [#342](https://github.com/paupino/rust-decimal/pull/342)
+* Fixes `u128` and `i128` parsing. [#332](https://github.com/paupino/rust-decimal/pull/332)
+* Implemented `Checked*` traits from `num_traits`. [#333](https://github.com/paupino/rust-decimal/pull/333). Thank you 
+  [@teoxoy](https://github.com/teoxoy)
+* Added `checked_powi` function to `maths` feature. [#336](https://github.com/paupino/rust-decimal/pull/336)
+* Updated `from_parts` to avoid accidental scale clobbering. [#337](https://github.com/paupino/rust-decimal/pull/337)
+* Added support for the `Arbitrary` trait for `rust-fuzz` support. This is behind the feature flag `rust-fuzz`. 
+  [#338](https://github.com/paupino/rust-decimal/pull/338)
+* Fixes `e^-1` returning an incorrect approximation. [#339](https://github.com/paupino/rust-decimal/pull/339)
+* Revamp of `RoundingStrategy` naming and documentation ([#340](https://github.com/paupino/rust-decimal/pull/340)). 
+  The old naming was ambiguous in interpretation - the new naming
+  convention follows guidance from other libraries to ensure an easy to follow scheme. The `RoundingStrategy` enum now 
+  includes:
+  * `MidpointNearestEven` (previously `BankersRounding`)
+  * `MidpointAwayFromZero` (previously `RoundHalfUp`)
+  * `MidpointTowardZero` (previously `RoundHalfDown`)
+  * `ToZero` (previously `RoundDown`)
+  * `AwayFromZero` (previously `RoundUp`)
+  * `ToNegativeInfinity` - new rounding strategy
+  * `ToPositiveInfinity` - new rounding strategy
+* Added function to access `mantissa` directly. [#341](https://github.com/paupino/rust-decimal/pull/341)
+* Added a feature to `rust_decimal_macros` to make re-exporting the macro from a downstream crate more approachable. 
+  Enabling the `reexportable` feature will ensure that the generated code doesn't require `rust_decimal` to be exposed at
+  the root level. [#343](https://github.com/paupino/rust-decimal/pull/343)
+
 ## 1.10.3
 
 * Fixes bug in bincode serialization where a negative symbol causes a buffer overflow (#317).

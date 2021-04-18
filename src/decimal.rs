@@ -16,7 +16,9 @@ use diesel::sql_types::Numeric;
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
-use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
+use num_traits::{
+    CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, FromPrimitive, Num, One, Signed, ToPrimitive, Zero,
+};
 
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
@@ -59,6 +61,13 @@ const MAX: Decimal = Decimal {
     lo: 4_294_967_295,
     mid: 4_294_967_295,
     hi: 4_294_967_295,
+};
+
+pub(crate) const ONE: Decimal = Decimal {
+    flags: 0,
+    lo: 1,
+    mid: 0,
+    hi: 0,
 };
 
 // Fast access for 10^n where n is 0-9
@@ -119,22 +128,46 @@ pub struct Decimal {
     mid: u32,
 }
 
-/// `RoundingStrategy` represents the different strategies that can be used by
+/// `RoundingStrategy` represents the different rounding strategies that can be used by
 /// `round_dp_with_strategy`.
-///
-/// `RoundingStrategy::BankersRounding` - Rounds toward the nearest even number, e.g. 6.5 -> 6, 7.5 -> 8
-/// `RoundingStrategy::RoundHalfUp` - Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7,
-/// `RoundingStrategy::RoundHalfDown` - Rounds down if the value =< 5, otherwise rounds up, e.g.
-/// 6.5 -> 6, 6.51 -> 7
-/// 1.4999999 -> 1
-/// `RoundingStrategy::RoundDown` - Always round down.
-/// `RoundingStrategy::RoundUp` - Always round up.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RoundingStrategy {
+    /// When a number is halfway between two others, it is rounded toward the nearest even number.
+    /// Also known as "Bankers Rounding".
+    /// e.g.
+    /// 6.5 -> 6, 7.5 -> 8
+    MidpointNearestEven,
+    /// When a number is halfway between two others, it is rounded toward the nearest number that
+    /// is away from zero. e.g. 6.4 -> 6, 6.5 -> 7, -6.5 -> -7
+    MidpointAwayFromZero,
+    /// When a number is halfway between two others, it is rounded toward the nearest number that
+    /// is toward zero. e.g. 6.4 -> 6, 6.5 -> 7, -6.5 -> -6
+    MidpointTowardZero,
+    /// The number is always rounded toward zero. e.g. -6.8 -> -6, 6.8 -> 6
+    ToZero,
+    /// The number is always rounded away from zero. e.g. -6.8 -> -7, 6.8 -> 7
+    AwayFromZero,
+    /// The number is always rounded towards negative infinity. e.g. 6.8 -> 6, -6.8 -> -7
+    ToNegativeInfinity,
+    /// The number is always rounded towards positive infinity. e.g. 6.8 -> 7, -6.8 -> -6
+    ToPositiveInfinity,
+
+    /// When a number is halfway between two others, it is rounded toward the nearest even number.
+    /// e.g.
+    /// 6.5 -> 6, 7.5 -> 8
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointNearestEven instead")]
     BankersRounding,
+    /// Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointAwayFromZero instead")]
     RoundHalfUp,
+    /// Rounds down if the value =< 5, otherwise rounds up, e.g. 6.5 -> 6, 6.51 -> 7 1.4999999 -> 1
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointTowardZero instead")]
     RoundHalfDown,
+    /// Always round down.
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::ToZero instead")]
     RoundDown,
+    /// Always round up.
+    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::AwayFromZero instead")]
     RoundUp,
 }
 
@@ -146,6 +179,10 @@ impl Decimal {
     ///
     /// * `num` - An i64 that represents the `m` portion of the decimal number
     /// * `scale` - A u32 representing the `e` portion of the decimal number.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if `scale` is > 28.
     ///
     /// # Example
     ///
@@ -186,6 +223,10 @@ impl Decimal {
     ///
     /// * `num` - An i128 that represents the `m` portion of the decimal number
     /// * `scale` - A u32 representing the `e` portion of the decimal number.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if `scale` is > 28 or if `num` exceeds the maximum supported 96 bits.
     ///
     /// # Example
     ///
@@ -231,6 +272,13 @@ impl Decimal {
     /// * `negative` - `true` to indicate a negative number.
     /// * `scale` - A power of 10 ranging from 0 to 28.
     ///
+    /// # Caution: Undefined behavior
+    ///
+    /// While a scale greater than 28 can be passed in, it will be automatically capped by this
+    /// function at the maximum precision. The library opts towards this functionality as opposed
+    /// to a panic to ensure that the function can be treated as constant. This may lead to
+    /// undefined behavior in downstream applications and should be treated with caution.
+    ///
     /// # Example
     ///
     /// ```
@@ -244,7 +292,7 @@ impl Decimal {
             lo,
             mid,
             hi,
-            flags: flags(negative, scale),
+            flags: flags(negative, scale % (MAX_PRECISION + 1)),
         }
     }
 
@@ -305,6 +353,26 @@ impl Decimal {
     #[inline]
     pub const fn scale(&self) -> u32 {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
+    }
+
+    /// Returns the mantissa of the decimal number.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::prelude::*;
+    ///
+    /// let num = Decimal::from_str("-1.2345678").unwrap();
+    /// assert_eq!(num.mantissa(), -12345678i128);
+    /// assert_eq!(num.scale(), 7);
+    /// ```
+    pub const fn mantissa(&self) -> i128 {
+        let raw = (self.lo as i128) | ((self.mid as i128) << 32) | ((self.hi as i128) << 64);
+        if self.is_sign_negative() {
+            -raw
+        } else {
+            raw
+        }
     }
 
     /// An optimized method for changing the sign of a decimal number.
@@ -599,7 +667,7 @@ impl Decimal {
         // Opportunity for optimization here
         let floored = self.trunc();
         if self.is_sign_negative() && !self.fract().is_zero() {
-            floored - Decimal::one()
+            floored - ONE
         } else {
             floored
         }
@@ -626,7 +694,7 @@ impl Decimal {
 
         // Opportunity for optimization here
         if self.is_sign_positive() && !self.fract().is_zero() {
-            self.trunc() + Decimal::one()
+            self.trunc() + ONE
         } else {
             self.trunc()
         }
@@ -822,8 +890,9 @@ impl Decimal {
         }
         let order = cmp_internal(&decimal_portion, &cap);
 
+        #[allow(deprecated)]
         match strategy {
-            RoundingStrategy::BankersRounding => {
+            RoundingStrategy::BankersRounding | RoundingStrategy::MidpointNearestEven => {
                 match order {
                     Ordering::Equal => {
                         if (value[0] & 1) == 1 {
@@ -837,12 +906,12 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundHalfDown => {
+            RoundingStrategy::RoundHalfDown | RoundingStrategy::MidpointTowardZero => {
                 if let Ordering::Greater = order {
                     add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundHalfUp => {
+            RoundingStrategy::RoundHalfUp | RoundingStrategy::MidpointAwayFromZero => {
                 // when Ordering::Equal, decimal_portion is 0.5 exactly
                 // when Ordering::Greater, decimal_portion is > 0.5
                 match order {
@@ -856,12 +925,22 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundUp => {
+            RoundingStrategy::RoundUp | RoundingStrategy::AwayFromZero => {
                 if !is_all_zero(&decimal_portion) {
                     add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundDown => (),
+            RoundingStrategy::ToPositiveInfinity => {
+                if !negative && !is_all_zero(&decimal_portion) {
+                    add_one_internal(&mut value);
+                }
+            }
+            RoundingStrategy::ToNegativeInfinity => {
+                if negative && !is_all_zero(&decimal_portion) {
+                    add_one_internal(&mut value);
+                }
+            }
+            RoundingStrategy::RoundDown | RoundingStrategy::ToZero => (),
         }
 
         Decimal {
@@ -888,7 +967,7 @@ impl Decimal {
     /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
     /// ```
     pub fn round_dp(&self, dp: u32) -> Decimal {
-        self.round_dp_with_strategy(dp, RoundingStrategy::BankersRounding)
+        self.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven)
     }
 
     /// Convert `Decimal` to an internal representation of the underlying struct. This is useful
@@ -1474,10 +1553,8 @@ impl_from!(u16, FromPrimitive::from_u16);
 impl_from!(u32, FromPrimitive::from_u32);
 impl_from!(u64, FromPrimitive::from_u64);
 
-#[cfg(has_i128)]
-impl_from!(i128, FromPrimitive::from_i28);
-#[cfg(has_i128)]
-impl_from!(u128, FromPrimitive::from_u28);
+impl_from!(i128, FromPrimitive::from_i128);
+impl_from!(u128, FromPrimitive::from_u128);
 
 macro_rules! forward_val_val_binop {
     (impl $imp:ident for $res:ty, $method:ident) => {
@@ -1543,12 +1620,7 @@ impl Zero for Decimal {
 
 impl One for Decimal {
     fn one() -> Decimal {
-        Decimal {
-            flags: 0,
-            hi: 0,
-            lo: 1,
-            mid: 0,
-        }
+        ONE
     }
 }
 
@@ -1569,7 +1641,7 @@ impl Signed for Decimal {
         if self.is_zero() {
             Decimal::zero()
         } else {
-            let mut value = Decimal::one();
+            let mut value = ONE;
             if self.is_sign_negative() {
                 value.set_sign_negative(true);
             }
@@ -1583,6 +1655,41 @@ impl Signed for Decimal {
 
     fn is_negative(&self) -> bool {
         self.is_sign_negative()
+    }
+}
+
+impl CheckedAdd for Decimal {
+    #[inline]
+    fn checked_add(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_add(*self, *v)
+    }
+}
+
+impl CheckedSub for Decimal {
+    #[inline]
+    fn checked_sub(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_sub(*self, *v)
+    }
+}
+
+impl CheckedMul for Decimal {
+    #[inline]
+    fn checked_mul(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_mul(*self, *v)
+    }
+}
+
+impl CheckedDiv for Decimal {
+    #[inline]
+    fn checked_div(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_div(*self, *v)
+    }
+}
+
+impl CheckedRem for Decimal {
+    #[inline]
+    fn checked_rem(&self, v: &Decimal) -> Option<Decimal> {
+        Decimal::checked_rem(*self, *v)
     }
 }
 
@@ -2067,6 +2174,28 @@ impl FromPrimitive for Decimal {
         })
     }
 
+    fn from_i128(n: i128) -> Option<Decimal> {
+        let flags;
+        let unsigned;
+        if n >= 0 {
+            unsigned = n as u128;
+            flags = 0;
+        } else {
+            unsigned = -n as u128;
+            flags = SIGN_MASK;
+        };
+        // Check if we overflow
+        if unsigned >> 96 != 0 {
+            return None;
+        }
+        Some(Decimal {
+            flags,
+            lo: unsigned as u32,
+            mid: (unsigned >> 32) as u32,
+            hi: (unsigned >> 64) as u32,
+        })
+    }
+
     fn from_u32(n: u32) -> Option<Decimal> {
         Some(Decimal {
             flags: 0,
@@ -2082,6 +2211,19 @@ impl FromPrimitive for Decimal {
             lo: n as u32,
             mid: (n >> 32) as u32,
             hi: 0,
+        })
+    }
+
+    fn from_u128(n: u128) -> Option<Decimal> {
+        // Check if we overflow
+        if n >> 96 != 0 {
+            return None;
+        }
+        Some(Decimal {
+            flags: 0,
+            lo: n as u32,
+            mid: (n >> 32) as u32,
+            hi: (n >> 64) as u32,
         })
     }
 
@@ -2436,7 +2578,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn add(self, other: &Decimal) -> Decimal {
-        match self.checked_add(*other) {
+        match self.checked_add(other) {
             Some(sum) => sum,
             None => panic!("Addition overflowed"),
         }
@@ -2478,7 +2620,7 @@ impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn sub(self, other: &Decimal) -> Decimal {
-        match self.checked_sub(*other) {
+        match self.checked_sub(other) {
             Some(diff) => diff,
             None => panic!("Subtraction overflowed"),
         }
@@ -2520,7 +2662,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn mul(self, other: &Decimal) -> Decimal {
-        match self.checked_mul(*other) {
+        match self.checked_mul(other) {
             Some(prod) => prod,
             None => panic!("Multiplication overflowed"),
         }
@@ -2604,7 +2746,7 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn rem(self, other: &Decimal) -> Decimal {
-        match self.checked_rem(*other) {
+        match self.checked_rem(other) {
             Some(rem) => rem,
             None => panic!("Division by zero"),
         }

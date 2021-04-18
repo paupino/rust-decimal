@@ -16,6 +16,20 @@ macro_rules! either {
     };
 }
 
+#[test]
+fn it_can_extract_the_mantissa() {
+    let tests = [
+        ("1", 1i128, 0),
+        ("1.123456", 1123456i128, 6),
+        ("-0.123456", -123456i128, 6),
+    ];
+    for &(input, mantissa, scale) in &tests {
+        let num = Decimal::from_str(input).unwrap();
+        assert_eq!(num.mantissa(), mantissa, "Mantissa for {}", input);
+        assert_eq!(num.scale(), scale, "Scale for {}", input);
+    }
+}
+
 // Parsing
 
 #[test]
@@ -28,12 +42,12 @@ fn it_creates_a_new_negative_decimal() {
 
 #[test]
 fn it_creates_a_new_decimal_using_numeric_boundaries() {
-    let a = Decimal::new(i64::max_value(), 2);
+    let a = Decimal::new(i64::MAX, 2);
     assert_eq!(a.is_sign_negative(), false);
     assert_eq!(a.scale(), 2);
     assert_eq!("92233720368547758.07", a.to_string());
 
-    let b = Decimal::new(i64::min_value(), 2);
+    let b = Decimal::new(i64::MIN, 2);
     assert_eq!(b.is_sign_negative(), true);
     assert_eq!(b.scale(), 2);
     assert_eq!("-92233720368547758.08", b.to_string());
@@ -800,8 +814,8 @@ fn it_can_parse_from_i32() {
         (0i32, "0"),
         (1i32, "1"),
         (-1i32, "-1"),
-        (i32::max_value(), "2147483647"),
-        (i32::min_value(), "-2147483648"),
+        (i32::MAX, "2147483647"),
+        (i32::MIN, "-2147483648"),
     ];
     for &(input, expected) in tests {
         let parsed = Decimal::from_i32(input).unwrap();
@@ -830,8 +844,8 @@ fn it_can_parse_from_i64() {
         (0i64, "0"),
         (1i64, "1"),
         (-1i64, "-1"),
-        (i64::max_value(), "9223372036854775807"),
-        (i64::min_value(), "-9223372036854775808"),
+        (i64::MAX, "9223372036854775807"),
+        (i64::MIN, "-9223372036854775808"),
     ];
     for &(input, expected) in tests {
         let parsed = Decimal::from_i64(input).unwrap();
@@ -860,6 +874,66 @@ fn it_can_round_to_2dp() {
 }
 
 #[test]
+fn it_can_round_using_basic_midpoint_rules() {
+    let tests = &[
+        ("3.5", RoundingStrategy::MidpointAwayFromZero, "4"),
+        ("2.8", RoundingStrategy::MidpointAwayFromZero, "3"),
+        ("2.5", RoundingStrategy::MidpointAwayFromZero, "3"),
+        ("2.1", RoundingStrategy::MidpointAwayFromZero, "2"),
+        ("-2.1", RoundingStrategy::MidpointAwayFromZero, "-2"),
+        ("-2.5", RoundingStrategy::MidpointAwayFromZero, "-3"),
+        ("-2.8", RoundingStrategy::MidpointAwayFromZero, "-3"),
+        ("-3.5", RoundingStrategy::MidpointAwayFromZero, "-4"),
+        ("3.5", RoundingStrategy::MidpointNearestEven, "4"),
+        ("2.8", RoundingStrategy::MidpointNearestEven, "3"),
+        ("2.5", RoundingStrategy::MidpointNearestEven, "2"),
+        ("2.1", RoundingStrategy::MidpointNearestEven, "2"),
+        ("-2.1", RoundingStrategy::MidpointNearestEven, "-2"),
+        ("-2.5", RoundingStrategy::MidpointNearestEven, "-2"),
+        ("-2.8", RoundingStrategy::MidpointNearestEven, "-3"),
+        ("-3.5", RoundingStrategy::MidpointNearestEven, "-4"),
+        ("3.5", RoundingStrategy::MidpointTowardZero, "3"),
+        ("2.8", RoundingStrategy::MidpointTowardZero, "3"),
+        ("2.5", RoundingStrategy::MidpointTowardZero, "2"),
+        ("2.1", RoundingStrategy::MidpointTowardZero, "2"),
+        ("-2.1", RoundingStrategy::MidpointTowardZero, "-2"),
+        ("-2.5", RoundingStrategy::MidpointTowardZero, "-2"),
+        ("-2.8", RoundingStrategy::MidpointTowardZero, "-3"),
+        ("-3.5", RoundingStrategy::MidpointTowardZero, "-3"),
+        ("2.8", RoundingStrategy::ToNegativeInfinity, "2"),
+        ("2.5", RoundingStrategy::ToNegativeInfinity, "2"),
+        ("2.1", RoundingStrategy::ToNegativeInfinity, "2"),
+        ("-2.1", RoundingStrategy::ToNegativeInfinity, "-3"),
+        ("-2.5", RoundingStrategy::ToNegativeInfinity, "-3"),
+        ("-2.8", RoundingStrategy::ToNegativeInfinity, "-3"),
+        ("2.8", RoundingStrategy::ToPositiveInfinity, "3"),
+        ("2.5", RoundingStrategy::ToPositiveInfinity, "3"),
+        ("2.1", RoundingStrategy::ToPositiveInfinity, "3"),
+        ("-2.1", RoundingStrategy::ToPositiveInfinity, "-2"),
+        ("-2.5", RoundingStrategy::ToPositiveInfinity, "-2"),
+        ("-2.8", RoundingStrategy::ToPositiveInfinity, "-2"),
+        ("2.8", RoundingStrategy::ToZero, "2"),
+        ("2.5", RoundingStrategy::ToZero, "2"),
+        ("2.1", RoundingStrategy::ToZero, "2"),
+        ("-2.1", RoundingStrategy::ToZero, "-2"),
+        ("-2.5", RoundingStrategy::ToZero, "-2"),
+        ("-2.8", RoundingStrategy::ToZero, "-2"),
+        ("2.8", RoundingStrategy::AwayFromZero, "3"),
+        ("2.5", RoundingStrategy::AwayFromZero, "3"),
+        ("2.1", RoundingStrategy::AwayFromZero, "3"),
+        ("-2.1", RoundingStrategy::AwayFromZero, "-3"),
+        ("-2.5", RoundingStrategy::AwayFromZero, "-3"),
+        ("-2.8", RoundingStrategy::AwayFromZero, "-3"),
+    ];
+
+    for &(input, strategy, expected) in tests {
+        let a = Decimal::from_str(input).unwrap();
+        let b = a.round_dp_with_strategy(0, strategy);
+        assert_eq!(expected, b.to_string(), "{} > {} for {:?}", input, expected, strategy);
+    }
+}
+
+#[test]
 fn it_can_round_using_bankers_rounding() {
     let tests = &[
         ("6.12345", 2, "6.12"),
@@ -879,8 +953,13 @@ fn it_can_round_using_bankers_rounding() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::BankersRounding);
-        assert_eq!(expected, b.to_string());
+        assert_eq!(expected, b.to_string(), "BankersRounding");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven);
+        assert_eq!(expected, b.to_string(), "MidpointNearestEven");
     }
 }
 
@@ -890,8 +969,14 @@ fn it_can_round_complex_numbers_using_bankers_rounding() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+
+    #[allow(deprecated)]
     let part = part.round_dp_with_strategy(2, RoundingStrategy::BankersRounding); // 0.16
-    assert_eq!("0.16", part.to_string());
+    assert_eq!("0.16", part.to_string(), "BankersRounding");
+
+    // Recommended replacement
+    let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointNearestEven); // 0.16
+    assert_eq!("0.16", part.to_string(), "MidpointNearestEven");
 }
 
 #[test]
@@ -910,8 +995,13 @@ fn it_can_round_using_round_half_up() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundHalfUp);
-        assert_eq!(expected, b.to_string());
+        assert_eq!(expected, b.to_string(), "RoundHalfUp");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointAwayFromZero);
+        assert_eq!(expected, b.to_string(), "MidpointAwayFromZero");
     }
 }
 
@@ -921,8 +1011,13 @@ fn it_can_round_complex_numbers_using_round_half_up() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+    #[allow(deprecated)]
     let part = part.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp); // 0.16
-    assert_eq!("0.16", part.to_string());
+    assert_eq!("0.16", part.to_string(), "RoundHalfUp");
+
+    // Recommended replacement
+    let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero); // 0.16
+    assert_eq!("0.16", part.to_string(), "MidpointAwayFromZero");
 }
 
 #[test]
@@ -941,8 +1036,13 @@ fn it_can_round_using_round_half_down() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundHalfDown);
-        assert_eq!(expected, b.to_string());
+        assert_eq!(expected, b.to_string(), "RoundHalfDown");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointTowardZero);
+        assert_eq!(expected, b.to_string(), "MidpointTowardZero");
     }
 }
 
@@ -952,8 +1052,14 @@ fn it_can_round_complex_numbers_using_round_half_down() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
+
+    #[allow(deprecated)]
     let part = part.round_dp_with_strategy(2, RoundingStrategy::RoundHalfDown); // 0.16
-    assert_eq!("0.16", part.to_string());
+    assert_eq!("0.16", part.to_string(), "RoundHalfDown");
+
+    // Recommended replacement
+    let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointTowardZero); // 0.16
+    assert_eq!("0.16", part.to_string(), "RoundHalfDown");
 }
 
 #[test]
@@ -1066,26 +1172,49 @@ fn it_can_round_complex_numbers() {
 
 #[test]
 fn it_can_round_down() {
-    let a = Decimal::new(470, 3).round_dp_with_strategy(1, RoundingStrategy::RoundDown);
-    assert_eq!("0.4", a.to_string());
-}
+    let tests = &[
+        ("0.470", 1, "0.4"),
+        ("-0.470", 1, "-0.4"), // Toward zero
+        ("0.400", 1, "0.4"),
+        ("-0.400", 1, "-0.4"),
+    ];
+    for &(input, dp, expected) in tests {
+        let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundDown);
+        assert_eq!(expected, b.to_string(), "RoundDown");
 
-#[test]
-fn it_only_rounds_down_when_needed() {
-    let a = Decimal::new(400, 3).round_dp_with_strategy(1, RoundingStrategy::RoundDown);
-    assert_eq!("0.4", a.to_string());
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::ToZero);
+        assert_eq!(expected, b.to_string(), "ToZero");
+    }
 }
 
 #[test]
 fn it_can_round_up() {
-    let a = Decimal::new(320, 3).round_dp_with_strategy(1, RoundingStrategy::RoundUp);
-    assert_eq!("0.4", a.to_string());
-}
+    let tests = &[
+        ("2.8", 0, "3"),
+        ("2.5", 0, "3"),
+        ("2.1", 0, "3"),
+        ("-2.1", 0, "-3"),
+        ("-2.5", 0, "-3"),
+        ("-2.8", 0, "-3"),
+        ("0.320", 1, "0.4"),
+        ("-0.320", 1, "-0.4"),
+        ("0.300", 1, "0.3"),
+        ("-0.300", 1, "-0.3"),
+    ];
 
-#[test]
-fn it_only_rounds_up_when_needed() {
-    let a = Decimal::new(300, 3).round_dp_with_strategy(1, RoundingStrategy::RoundUp);
-    assert_eq!("0.3", a.to_string());
+    for &(input, dp, expected) in tests {
+        let a = Decimal::from_str(input).unwrap();
+        #[allow(deprecated)]
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundUp);
+        assert_eq!(expected, b.to_string(), "RoundUp");
+
+        // Recommended replacement
+        let b = a.round_dp_with_strategy(dp, RoundingStrategy::AwayFromZero);
+        assert_eq!(expected, b.to_string(), "AwayFromZero");
+    }
 }
 
 #[test]
@@ -1251,18 +1380,18 @@ fn it_converts_to_u64() {
 
 #[test]
 fn it_converts_to_i128() {
-    assert_eq!(5i128, Decimal::from_str("5").unwrap().to_i128().unwrap());
-    assert_eq!(-5i128, Decimal::from_str("-5").unwrap().to_i128().unwrap());
-    assert_eq!(5i128, Decimal::from_str("5.12345").unwrap().to_i128().unwrap());
-    assert_eq!(-5i128, Decimal::from_str("-5.12345").unwrap().to_i128().unwrap());
-    assert_eq!(
-        0x7FFF_FFFF_FFFF_FFFF,
-        Decimal::from_str("9223372036854775807").unwrap().to_i128().unwrap()
-    );
-    assert_eq!(
-        92233720368547758089i128,
-        Decimal::from_str("92233720368547758089").unwrap().to_i128().unwrap()
-    );
+    let tests = &[
+        ("5", Some(5i128)),
+        ("-5", Some(-5i128)),
+        ("5.12345", Some(5i128)),
+        ("-5.12345", Some(-5i128)),
+        ("9223372036854775807", Some(0x7FFF_FFFF_FFFF_FFFF)),
+        ("92233720368547758089", Some(92233720368547758089i128)),
+    ];
+    for (dec, expected) in tests {
+        assert_eq!(Decimal::from_str(dec).unwrap().to_i128(), *expected);
+    }
+
     assert_eq!(
         79_228_162_514_264_337_593_543_950_335_i128,
         Decimal::max_value().to_i128().unwrap()
@@ -1271,21 +1400,55 @@ fn it_converts_to_i128() {
 
 #[test]
 fn it_converts_to_u128() {
-    assert_eq!(5u128, Decimal::from_str("5").unwrap().to_u128().unwrap());
-    assert_eq!(None, Decimal::from_str("-5").unwrap().to_u128());
-    assert_eq!(5u128, Decimal::from_str("5.12345").unwrap().to_u128().unwrap());
-    assert_eq!(
-        0xFFFF_FFFF_FFFF_FFFF,
-        Decimal::from_str("18446744073709551615").unwrap().to_u128().unwrap()
-    );
-    assert_eq!(
-        18446744073709551616u128,
-        Decimal::from_str("18446744073709551616").unwrap().to_u128().unwrap()
-    );
+    let tests = &[
+        ("5", Some(5u128)),
+        ("-5", None),
+        ("5.12345", Some(5u128)),
+        ("-5.12345", None),
+        ("18446744073709551615", Some(0xFFFF_FFFF_FFFF_FFFF)),
+        ("18446744073709551616", Some(18446744073709551616u128)),
+    ];
+    for (dec, expected) in tests {
+        assert_eq!(Decimal::from_str(dec).unwrap().to_u128(), *expected);
+    }
     assert_eq!(
         79_228_162_514_264_337_593_543_950_335_u128,
         Decimal::max_value().to_u128().unwrap()
     );
+}
+
+#[test]
+fn it_converts_from_i128() {
+    let tests: &[(i128, Option<&str>)] = &[
+        (5, Some("5")),
+        (-5, Some("-5")),
+        (0x7FFF_FFFF_FFFF_FFFF, Some("9223372036854775807")),
+        (92233720368547758089, Some("92233720368547758089")),
+        (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
+        (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
+    ];
+    for (value, expected) in tests {
+        if let Some(expected_value) = expected {
+            let decimal = Decimal::from_str(expected_value).unwrap();
+            assert_eq!(num_traits::FromPrimitive::from_i128(*value), Some(decimal));
+        }
+    }
+}
+
+#[test]
+fn it_converts_from_u128() {
+    let tests: &[(u128, Option<&str>)] = &[
+        (5, Some("5")),
+        (0xFFFF_FFFF_FFFF_FFFF, Some("18446744073709551615")),
+        (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
+        (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
+    ];
+    for (value, expected) in tests {
+        if let Some(expected_value) = expected {
+            let decimal = Decimal::from_str(expected_value).unwrap();
+            assert_eq!(num_traits::FromPrimitive::from_u128(*value), Some(decimal));
+        }
+    }
 }
 
 #[test]
@@ -1307,12 +1470,12 @@ fn it_converts_from_f32() {
     );
     assert_eq!("0", from_f32(0.00000000000000000000000000001f32).unwrap().to_string());
 
-    assert!(from_f32(core::f32::NAN).is_none());
-    assert!(from_f32(core::f32::INFINITY).is_none());
+    assert!(from_f32(f32::NAN).is_none());
+    assert!(from_f32(f32::INFINITY).is_none());
 
     // These both overflow
-    assert!(from_f32(core::f32::MAX).is_none());
-    assert!(from_f32(core::f32::MIN).is_none());
+    assert!(from_f32(f32::MAX).is_none());
+    assert!(from_f32(f32::MIN).is_none());
 }
 
 #[test]
@@ -1339,12 +1502,12 @@ fn it_converts_from_f32_try() {
             .to_string()
     );
 
-    assert!(Decimal::try_from(core::f32::NAN).is_err());
-    assert!(Decimal::try_from(core::f32::INFINITY).is_err());
+    assert!(Decimal::try_from(f32::NAN).is_err());
+    assert!(Decimal::try_from(f32::INFINITY).is_err());
 
     // These both overflow
-    assert!(Decimal::try_from(core::f32::MAX).is_err());
-    assert!(Decimal::try_from(core::f32::MIN).is_err());
+    assert!(Decimal::try_from(f32::MAX).is_err());
+    assert!(Decimal::try_from(f32::MIN).is_err());
 }
 
 #[test]
@@ -1369,12 +1532,12 @@ fn it_converts_from_f64() {
     assert_eq!("0.00006927", from_f64(0.00006927f64).unwrap().to_string());
     assert_eq!("0.000000006927", from_f64(0.000000006927f64).unwrap().to_string());
 
-    assert!(from_f64(core::f64::NAN).is_none());
-    assert!(from_f64(core::f64::INFINITY).is_none());
+    assert!(from_f64(f64::NAN).is_none());
+    assert!(from_f64(f64::INFINITY).is_none());
 
     // These both overflow
-    assert!(from_f64(core::f64::MAX).is_none());
-    assert!(from_f64(core::f64::MIN).is_none());
+    assert!(from_f64(f64::MAX).is_none());
+    assert!(from_f64(f64::MIN).is_none());
 }
 
 #[test]
@@ -1407,12 +1570,12 @@ fn it_converts_from_f64_try() {
         Decimal::try_from(0.000000006927f64).unwrap().to_string()
     );
 
-    assert!(Decimal::try_from(core::f64::NAN).is_err());
-    assert!(Decimal::try_from(core::f64::INFINITY).is_err());
+    assert!(Decimal::try_from(f64::NAN).is_err());
+    assert!(Decimal::try_from(f64::INFINITY).is_err());
 
     // These both overflow
-    assert!(Decimal::try_from(core::f64::MAX).is_err());
-    assert!(Decimal::try_from(core::f64::MIN).is_err());
+    assert!(Decimal::try_from(f64::MAX).is_err());
+    assert!(Decimal::try_from(f64::MIN).is_err());
 }
 
 #[test]
@@ -1669,9 +1832,9 @@ fn it_panics_when_scale_too_large() {
 fn test_zero_eq_negative_zero() {
     let zero: Decimal = 0.into();
 
-    assert!(zero == zero);
-    assert!(-zero == zero);
-    assert!(zero == -zero);
+    assert_eq!(zero, zero);
+    assert_eq!(-zero, zero);
+    assert_eq!(zero, -zero);
 }
 
 #[test]
@@ -1810,7 +1973,7 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 #[test]
 #[should_panic]
 fn it_handles_i128_min() {
-    Decimal::from_i128_with_scale(core::i128::MIN, 0);
+    Decimal::from_i128_with_scale(i128::MIN, 0);
 }
 
 #[test]
@@ -1878,6 +2041,44 @@ mod maths {
     }
 
     #[test]
+    #[should_panic]
+    fn test_powi_panic() {
+        let two = Decimal::new(2, 0);
+        let _ = two.powi(128);
+    }
+
+    #[test]
+    fn test_checked_powi() {
+        let test_cases = &[
+            (Decimal::new(4, 0), 3_u64, Some(Decimal::new(64, 0))),
+            (
+                Decimal::from_str("3.222").unwrap(),
+                5_u64,
+                Some(Decimal::from_str("347.238347228449632").unwrap()),
+            ),
+            (
+                Decimal::from_str("0.1").unwrap(),
+                0_u64,
+                Some(Decimal::from_str("1").unwrap()),
+            ),
+            (
+                Decimal::from_str("342.4").unwrap(),
+                1_u64,
+                Some(Decimal::from_str("342.4").unwrap()),
+            ),
+            (
+                Decimal::from_str("2.0").unwrap(),
+                16_u64,
+                Some(Decimal::from_str("65536").unwrap()),
+            ),
+            (Decimal::from_str("2.0").unwrap(), 128_u64, None),
+        ];
+        for case in test_cases {
+            assert_eq!(case.2, case.0.checked_powi(case.1));
+        }
+    }
+
+    #[test]
     fn test_sqrt() {
         let test_cases = &[
             (Decimal::new(4, 0), Decimal::new(2, 0)),
@@ -1908,24 +2109,19 @@ mod maths {
     #[test]
     fn test_exp() {
         let test_cases = &[
-            (Decimal::new(10, 0), Decimal::from_str("22023.81992829").unwrap()),
-            (Decimal::new(11, 0), Decimal::from_str("59846.36875797").unwrap()),
-            (Decimal::new(3, 0), Decimal::from_str("20.08553690").unwrap()),
-            (
-                Decimal::from_str("8").unwrap(),
-                Decimal::from_str("2980.94688158").unwrap(),
-            ),
-            (
-                Decimal::from_str("0.1").unwrap(),
-                Decimal::from_str("1.10517092").unwrap(),
-            ),
-            (
-                Decimal::from_str("2.0").unwrap(),
-                Decimal::from_str("7.38905609").unwrap(),
-            ),
+            ("10", "22023.81992829"),
+            ("11", "59846.36875797"),
+            ("3", "20.08553690"),
+            ("8", "2980.94688158"),
+            ("0.1", "1.10517092"),
+            ("2.0", "7.38905609"),
+            ("-2", "0.13533531"),
+            ("-1", "0.36787944"),
         ];
         for case in test_cases {
-            assert_eq!(case.1, case.0.exp());
+            let x = Decimal::from_str(case.0).unwrap();
+            let expected = Decimal::from_str(case.1).unwrap();
+            assert_eq!(expected, x.exp());
         }
     }
 
@@ -2181,4 +2377,18 @@ mod generated {
        gen_test!(test_sub_110, "Sub_110.csv", checked_sub);
        gen_test!(test_sub_111, "Sub_111.csv", checked_sub);
     */
+}
+
+#[cfg(feature = "rust-fuzz")]
+mod rust_fuzz {
+    use arbitrary::{Arbitrary, Unstructured};
+
+    use super::*;
+
+    #[test]
+    fn it_can_generate_arbitrary_decimals() {
+        let mut u = Unstructured::new(b"it_can_generate_arbitrary_decimals");
+        let d = Decimal::arbitrary(&mut u);
+        assert!(d.is_ok());
+    }
 }
