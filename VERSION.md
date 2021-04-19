@@ -1,5 +1,9 @@
 # Version History
 
+## 1.11.1
+
+This is a documentation only release and has no new functionality included. Thank you [@c410-f3r](https://github.com/c410-f3r) for the documentation fix.
+
 ## 1.11.0
 
 This release includes a number of bug fixes and ergonomic improvements.

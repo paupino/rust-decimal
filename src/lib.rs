@@ -145,6 +145,7 @@ pub use error::Error;
 #[cfg(feature = "maths")]
 pub use maths::MathematicalOps;
 
+/// A convenience module appropriate for glob imports (`use rust_decimal::prelude::*;`).
 pub mod prelude {
     #[cfg(feature = "maths")]
     pub use crate::maths::MathematicalOps;
