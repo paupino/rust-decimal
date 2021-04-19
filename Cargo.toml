@@ -50,3 +50,6 @@ tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [workspace]
 members = [".", "./macros"]
+
+[package.metadata.docs.rs]
+all-features = true
