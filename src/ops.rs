@@ -10,6 +10,11 @@ pub(crate) use legacy::{add_impl, div_impl, mul_impl, rem_impl, sub_impl};
 #[cfg(not(feature = "legacy-ops"))]
 mod div;
 #[cfg(not(feature = "legacy-ops"))]
+mod mul;
+
+#[cfg(not(feature = "legacy-ops"))]
 pub(crate) use div::div_impl;
 #[cfg(not(feature = "legacy-ops"))]
-pub(crate) use legacy::{add_impl, mul_impl, rem_impl, sub_impl};
+pub(crate) use legacy::{add_impl, rem_impl, sub_impl};
+#[cfg(not(feature = "legacy-ops"))]
+pub(crate) use mul::mul_impl;
