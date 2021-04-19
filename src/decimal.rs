@@ -523,7 +523,7 @@ impl Decimal {
     }
 
     /// Deserializes the given bytes into a decimal number.
-    /// The deserialized byte representation must be 16 bytes and adhere to the followign convention:
+    /// The deserialized byte representation must be 16 bytes and adhere to the following convention:
     ///
     /// * Bytes 1-4: flags
     /// * Bytes 5-8: lo portion of `m`

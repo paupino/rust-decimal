@@ -5,6 +5,8 @@ const PI: Decimal = Decimal::from_parts_raw(1102470953, 185874565, 1703060790, 1
 const LN2: Decimal = Decimal::from_parts_raw(2831677809, 328455696, 3757558395, 1900544);
 const EXP_TOLERANCE: Decimal = Decimal::from_parts(2, 0, 0, false, 7);
 
+/// Trait exposing various mathematical operations that can be applied using a Decimal. This is only
+/// present when the `maths` feature has been enabled.
 pub trait MathematicalOps {
     /// The estimated exponential function, e<sup>x</sup>, rounded to 8 decimal places. Stops
     /// calculating when it is within tolerance of roughly 0.000002 in order to prevent
