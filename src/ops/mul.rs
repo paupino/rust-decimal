@@ -1,13 +1,14 @@
 use crate::decimal::{CalculationResult, Decimal, BIG_POWERS_10, MAX_PRECISION};
-use crate::ops::common::MAX_I64_SCALE;
+use crate::ops::common::{Buf24, MAX_I64_SCALE};
 
 use num_traits::Zero;
 
 pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
-    let backup = d1.clone();
     let d1 = d1.unpack();
     let d2 = d2.unpack();
     let mut scale = d1.scale + d2.scale;
+    let negative = d1.negative ^ d2.negative;
+    let mut product = Buf24::zero();
 
     // See if we can optimize this calculation depending on whether the hi bits are set
     if d1.hi | d1.mid == 0 {
@@ -38,6 +39,7 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
                 scale = MAX_PRECISION;
             }
 
+            // Early exit
             return CalculationResult::Ok(Decimal::from_parts(
                 low64 as u32,
                 (low64 >> 32) as u32,
@@ -49,51 +51,102 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
         // We know that the left hand side is just 32 bits.
         let mut tmp = d1.lo as u64 * d2.lo as u64;
-        let lo = tmp as u32;
+        product.u0 = tmp as u32;
         tmp = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
-        let mut mid = tmp as u32;
+        product.u1 = tmp as u32;
         tmp = tmp >> 32;
 
         // Finally, depending on d2.hi determine if we scale before return
-        let mut hi = tmp as u32;
         if d2.hi != 0 {
             tmp = tmp.wrapping_add(d1.lo as u64 * d2.hi as u64);
             if tmp > u32::MAX as u64 {
-                mid = tmp as u32;
-                hi = (tmp >> 32) as u32;
-                // TODO: Skip scale
+                product.set_mid64(tmp);
             } else {
-                hi = tmp as u32;
+                product.u2 = tmp as u32;
             }
+        } else {
+            product.u2 = tmp as u32;
         }
-
-        // TODO: check leading zeros, and skip scale
-        return CalculationResult::Ok(Decimal::from_parts(lo, mid, hi, d1.negative ^ d2.negative, scale));
     } else if d2.mid | d2.hi == 0 {
-        // TODO: Generated tests don't cover this yet.
         // We know that the right hand side is just 32 bits.
         let mut tmp = d2.lo as u64 * d1.lo as u64;
-        let lo = tmp as u32;
+        product.u0 = tmp as u32;
         tmp = (d2.lo as u64 * d1.mid as u64).wrapping_add(tmp >> 32);
-        let mut mid = tmp as u32;
+        product.u1 = tmp as u32;
         tmp = tmp >> 32;
 
         // Finally, depending on d2.hi determine if we scale before return
-        let mut hi = tmp as u32;
         if d1.hi != 0 {
             tmp = tmp.wrapping_add(d2.lo as u64 * d1.hi as u64);
             if tmp > u32::MAX as u64 {
-                mid = tmp as u32;
-                hi = (tmp >> 32) as u32;
-                // TODO: Skip scale
+                product.set_mid64(tmp);
             } else {
-                hi = tmp as u32;
+                product.u2 = tmp as u32;
             }
+        } else {
+            product.u2 = tmp as u32;
+        }
+    } else {
+        // We're not dealing with 32 bit numbers on either side. Both operands are > 32 bits.
+        // We compute and accumulate the 9 partial products using long multiplication
+        let mut tmp = d1.lo as u64 * d2.lo as u64; // 1
+        product.u0 = tmp as u32;
+        let mut tmp2 = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32); // 2
+        tmp = d1.mid as u64 * d2.lo as u64; // 3
+        tmp = tmp.wrapping_add(tmp2);
+        product.u1 = tmp as u32;
+
+        // Detect if carry happened from the wrapping add
+        if tmp < tmp2 {
+            tmp2 = (tmp >> 32) | (1u64 << 32);
+        } else {
+            tmp2 = tmp >> 32;
         }
 
-        // TODO: check leading zeros, and skip scale
-        return CalculationResult::Ok(Decimal::from_parts(lo, mid, hi, d1.negative ^ d2.negative, scale));
-    } else {
+        tmp = (d1.mid as u64 * d2.mid as u64) + tmp2; // 4
+        if (d1.hi | d2.hi) > 0 {
+            // We need to calculate 5 more partial products.
+            tmp2 = d1.lo as u64 * d2.hi as u64; // 5
+            tmp = tmp.wrapping_add(tmp2);
+
+            // Detect if wrapping add carried
+            let mut tmp3 = if tmp < tmp2 { 1 } else { 0 };
+            tmp2 = d1.hi as u64 * d2.lo as u64; // 6
+            tmp = tmp.wrapping_add(tmp2);
+            product.u2 = tmp as u32;
+            // Detect if wrapping add carried
+            if tmp < tmp2 {
+                tmp3 += 1;
+            }
+            tmp2 = (tmp3 << 32) | (tmp >> 32);
+
+            tmp = d1.mid as u64 * d2.hi as u64; // 7
+            tmp = tmp.wrapping_add(tmp2);
+            // Detect if wrapping add carried
+            tmp3 = if tmp < tmp2 { 1 } else { 0 };
+
+            tmp2 = d1.hi as u64 * d2.mid as u64; // 8
+            tmp = tmp.wrapping_add(tmp2);
+            product.u3 = tmp as u32;
+            if tmp < tmp2 {
+                tmp3 += 1;
+            }
+            tmp = (tmp3 << 32) | (tmp >> 32);
+
+            product.set_high64(d1.hi as u64 * d2.hi as u64 + tmp);
+        } else {
+            product.set_mid64(tmp);
+        }
     }
-    unimplemented!("mul")
+    // Scale as necessary
+    let upper_word = product.upper_word();
+    if upper_word > 2 || scale > MAX_PRECISION {
+        scale = if let Some(new_scale) = product.rescale(upper_word, scale) {
+            new_scale
+        } else {
+            return CalculationResult::Overflow;
+        }
+    }
+
+    CalculationResult::Ok(Decimal::from_parts(product.u0, product.u1, product.u2, negative, scale))
 }

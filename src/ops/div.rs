@@ -1,87 +1,62 @@
 use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION_I32, POWERS_10};
+use crate::ops::common::{Buf12, Buf16};
 
 use core::ops::BitXor;
 use num_traits::Zero;
 
 // This is a table of the largest values that will not overflow when multiplied
 // by a given power as represented by the index.
-static POWER_OVERFLOW_VALUES: [Dec12; 8] = [
-    Dec12 {
-        hi: 429496729,
-        mid: 2576980377,
-        lo: 2576980377,
+static POWER_OVERFLOW_VALUES: [Buf12; 8] = [
+    Buf12 {
+        u2: 429496729,
+        u1: 2576980377,
+        u0: 2576980377,
     },
-    Dec12 {
-        hi: 42949672,
-        mid: 4123168604,
-        lo: 687194767,
+    Buf12 {
+        u2: 42949672,
+        u1: 4123168604,
+        u0: 687194767,
     },
-    Dec12 {
-        hi: 4294967,
-        mid: 1271310319,
-        lo: 2645699854,
+    Buf12 {
+        u2: 4294967,
+        u1: 1271310319,
+        u0: 2645699854,
     },
-    Dec12 {
-        hi: 429496,
-        mid: 3133608139,
-        lo: 694066715,
+    Buf12 {
+        u2: 429496,
+        u1: 3133608139,
+        u0: 694066715,
     },
-    Dec12 {
-        hi: 42949,
-        mid: 2890341191,
-        lo: 2216890319,
+    Buf12 {
+        u2: 42949,
+        u1: 2890341191,
+        u0: 2216890319,
     },
-    Dec12 {
-        hi: 4294,
-        mid: 4154504685,
-        lo: 2369172679,
+    Buf12 {
+        u2: 4294,
+        u1: 4154504685,
+        u0: 2369172679,
     },
-    Dec12 {
-        hi: 429,
-        mid: 2133437386,
-        lo: 4102387834,
+    Buf12 {
+        u2: 429,
+        u1: 2133437386,
+        u0: 4102387834,
     },
-    Dec12 {
-        hi: 42,
-        mid: 4078814305,
-        lo: 410238783,
+    Buf12 {
+        u2: 42,
+        u1: 4078814305,
+        u0: 410238783,
     },
 ];
 
-// A structure that is used for faking a union of the decimal type. This allows setting mid/hi
-// with a u64, for example
-struct Dec12 {
-    lo: u32,
-    mid: u32,
-    hi: u32,
-}
-
-impl Dec12 {
+impl Buf12 {
     const fn new(value: &Decimal) -> Self {
         let a = value.mantissa_array3();
-        Dec12 {
-            lo: a[0],
-            mid: a[1],
-            hi: a[2],
+        Buf12 {
+            u0: a[0],
+            u1: a[1],
+            u2: a[2],
         }
-    }
-
-    // lo + mid combined
-    const fn low64(&self) -> u64 {
-        ((self.mid as u64) << 32) | (self.lo as u64)
-    }
-    fn set_low64(&mut self, value: u64) {
-        self.mid = (value >> 32) as u32;
-        self.lo = value as u32;
-    }
-
-    // mid + hi combined
-    const fn high64(&self) -> u64 {
-        ((self.hi as u64) << 32) | (self.mid as u64)
-    }
-    fn set_high64(&mut self, value: u64) {
-        self.hi = (value >> 32) as u32;
-        self.mid = value as u32;
     }
 
     // Returns true if successful, else false for an overflow
@@ -90,8 +65,8 @@ impl Dec12 {
         let new = self.low64().wrapping_add(value);
         self.set_low64(new);
         if new < value {
-            self.hi = self.hi.wrapping_add(1);
-            if self.hi == 0 {
+            self.u2 = self.u2.wrapping_add(1);
+            if self.u2 == 0 {
                 return Err(DivError::Overflow);
             }
         }
@@ -104,18 +79,18 @@ impl Dec12 {
     fn div32(&mut self, divisor: u32) -> u32 {
         let divisor64 = divisor as u64;
         // See if we can get by using a simple u64 division
-        if self.hi != 0 {
+        if self.u2 != 0 {
             let mut temp = self.high64();
             let q64 = temp / divisor64;
             self.set_high64(q64);
 
             // Calculate the "remainder"
-            temp = ((temp - q64 * divisor64) << 32) | (self.lo as u64);
+            temp = ((temp - q64 * divisor64) << 32) | (self.u0 as u64);
             if temp == 0 {
                 return 0;
             }
             let q32 = (temp / divisor64) as u32;
-            self.lo = q32;
+            self.u0 = q32;
             ((temp as u32).wrapping_sub(q32.wrapping_mul(divisor))) as u32
         } else {
             // Super easy divisor
@@ -137,12 +112,12 @@ impl Dec12 {
     fn div32_const(&mut self, pow: u32) -> bool {
         let pow64 = pow as u64;
         let high64 = self.high64();
-        let lo = self.lo as u64;
+        let lo = self.u0 as u64;
         let div64: u64 = high64 / pow64;
         let div = ((((high64 - div64 * pow64) << 32) + lo) / pow64) as u32;
-        if self.lo == div.wrapping_mul(pow) {
+        if self.u0 == div.wrapping_mul(pow) {
             self.set_high64(div64);
-            self.lo = div;
+            self.u0 = div;
             true
         } else {
             false
@@ -150,51 +125,7 @@ impl Dec12 {
     }
 }
 
-// A structure that is used for faking a union of the decimal type with an overflow word.
-struct Dec16 {
-    lo: u32,
-    mid: u32,
-    hi: u32,
-    overflow: u32,
-}
-
-impl Dec16 {
-    const fn zero() -> Self {
-        Dec16 {
-            lo: 0,
-            mid: 0,
-            hi: 0,
-            overflow: 0,
-        }
-    }
-
-    // lo + mid combined
-    const fn low64(&self) -> u64 {
-        ((self.mid as u64) << 32) | (self.lo as u64)
-    }
-    fn set_low64(&mut self, value: u64) {
-        self.mid = (value >> 32) as u32;
-        self.lo = value as u32;
-    }
-
-    // Equivalent to Dec12 high64 (i.e. mid + hi)
-    const fn mid64(&self) -> u64 {
-        ((self.hi as u64) << 32) | (self.mid as u64)
-    }
-    fn set_mid64(&mut self, value: u64) {
-        self.hi = (value >> 32) as u32;
-        self.mid = value as u32;
-    }
-
-    // hi + overflow combined
-    const fn high64(&self) -> u64 {
-        ((self.overflow as u64) << 32) | (self.hi as u64)
-    }
-    fn set_high64(&mut self, value: u64) {
-        self.overflow = (value >> 32) as u32;
-        self.hi = value as u32;
-    }
-
+impl Buf16 {
     // Does a partial divide with a 64 bit divisor. The divisor in this case must require 64 bits
     // otherwise various assumptions fail (e.g. 32 bit quotient).
     // To assist, the upper 64 bits must be greater than the divisor for this to succeed.
@@ -206,7 +137,7 @@ impl Dec16 {
 
         // If we have an empty high bit, then divisor must be greater than the dividend due to
         // the assumption that the divisor REQUIRES 64 bits.
-        if self.hi == 0 {
+        if self.u2 == 0 {
             let low64 = self.low64();
             if low64 < divisor {
                 // We can't divide at at all so result is 0. The dividend remains untouched since
@@ -222,7 +153,7 @@ impl Dec16 {
         // Do a simple check to see if the hi portion of the dividend is greater than the hi
         // portion of the divisor.
         let divisor_hi32 = (divisor >> 32) as u32;
-        if self.hi >= divisor_hi32 {
+        if self.u2 >= divisor_hi32 {
             // We know that the divisor goes into this at MOST u32::max times.
             // So we kick things off, with that assumption
             let mut low64 = self.low64();
@@ -249,7 +180,7 @@ impl Dec16 {
         }
 
         let mut quotient = mid64 / divisor_hi32_64;
-        let mut remainder = self.lo as u64 | ((mid64 - quotient * divisor_hi32_64) << 32);
+        let mut remainder = self.u0 as u64 | ((mid64 - quotient * divisor_hi32_64) << 32);
 
         // Do quotient * lo divisor
         let product = quotient * (divisor & 0xFFFF_FFFF);
@@ -272,9 +203,9 @@ impl Dec16 {
 
     // Does a partial divide with a 96 bit divisor. The divisor in this case must require 96 bits
     // otherwise various assumptions fail (e.g. 32 bit quotient).
-    fn partial_divide_96(&mut self, divisor: &Dec12) -> u32 {
+    fn partial_divide_96(&mut self, divisor: &Buf12) -> u32 {
         let dividend = self.high64();
-        let divisor_hi = divisor.hi;
+        let divisor_hi = divisor.u2;
         if dividend < divisor_hi as u64 {
             // Dividend is too small - entire number is remainder
             return 0;
@@ -284,8 +215,8 @@ impl Dec16 {
         let mut remainder = (dividend as u32).wrapping_sub(quo.wrapping_mul(divisor_hi));
 
         // Compute full remainder
-        let mut prod1 = quo as u64 * divisor.lo as u64;
-        let mut prod2 = quo as u64 * divisor.mid as u64;
+        let mut prod1 = quo as u64 * divisor.u0 as u64;
+        let mut prod2 = quo as u64 * divisor.u1 as u64;
         prod2 += prod1 >> 32;
         prod1 = (prod1 & 0xFFFF_FFFF) | (prod2 << 32);
         prod2 >>= 32;
@@ -299,12 +230,12 @@ impl Dec16 {
             remainder = remainder.wrapping_sub(1);
             if remainder < (prod2 as u32).bitxor(u32::MAX) {
                 self.set_low64(num);
-                self.hi = remainder;
+                self.u2 = remainder;
                 return quo;
             }
         } else if remainder <= (prod2 as u32).bitxor(u32::MAX) {
             self.set_low64(num);
-            self.hi = remainder;
+            self.u2 = remainder;
             return quo;
         }
 
@@ -329,7 +260,7 @@ impl Dec16 {
         }
 
         self.set_low64(num);
-        self.hi = remainder;
+        self.u2 = remainder;
         quo
     }
 }
@@ -352,13 +283,13 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
 
     // Set up some variables for modification throughout
     let mut require_unscale = false;
-    let mut quotient = Dec12::new(&dividend);
-    let divisor = Dec12::new(&divisor);
+    let mut quotient = Buf12::new(&dividend);
+    let divisor = Buf12::new(&divisor);
 
     // Branch depending on the complexity of the divisor
-    if divisor.hi | divisor.mid == 0 {
+    if divisor.u2 | divisor.u1 == 0 {
         // We have a simple(r) divisor (32 bit)
-        let divisor32 = divisor.lo;
+        let divisor32 = divisor.u0;
 
         // Remainder can only be 32 bits since the divisor is 32 bits.
         let mut remainder = quotient.div32(divisor32);
@@ -403,7 +334,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                         if tmp >= divisor32 {
                             // If we're greater than the divisor (i.e. underflow)
                             // or if there is a lo bit set, we round
-                            tmp > divisor32 || (quotient.lo & 0x1) > 0
+                            tmp > divisor32 || (quotient.u0 & 0x1) > 0
                         } else {
                             false
                         }
@@ -454,34 +385,34 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
         // left one has the same result (8/4) etc.
         // The advantage is that we may be able to write off lower portions of the number making things
         // easier.
-        let mut power_scale = if divisor.hi == 0 {
-            divisor.mid.leading_zeros()
+        let mut power_scale = if divisor.u2 == 0 {
+            divisor.u1.leading_zeros()
         } else {
-            divisor.hi.leading_zeros()
+            divisor.u2.leading_zeros()
         } as usize;
-        let mut remainder = Dec16::zero();
+        let mut remainder = Buf16::zero();
         remainder.set_low64(quotient.low64() << power_scale);
-        let tmp_high = ((quotient.mid as u64) + ((quotient.hi as u64) << 32)) >> (32 - power_scale);
+        let tmp_high = ((quotient.u1 as u64) + ((quotient.u2 as u64) << 32)) >> (32 - power_scale);
         remainder.set_high64(tmp_high);
 
         // Work out the divisor after it's shifted
         let divisor64 = divisor.low64() << power_scale;
         // Check if the divisor is 64 bit or the full 96 bits
-        if divisor.hi == 0 {
+        if divisor.u2 == 0 {
             // It's 64 bits
-            quotient.hi = 0;
+            quotient.u2 = 0;
 
             // Calc mid/lo by shifting accordingly
-            let rem_lo = remainder.lo;
-            remainder.lo = remainder.mid;
-            remainder.mid = remainder.hi;
-            remainder.hi = remainder.overflow;
-            quotient.mid = remainder.partial_divide_64(divisor64);
+            let rem_lo = remainder.u0;
+            remainder.u0 = remainder.u1;
+            remainder.u1 = remainder.u2;
+            remainder.u2 = remainder.u3;
+            quotient.u1 = remainder.partial_divide_64(divisor64);
 
-            remainder.hi = remainder.mid;
-            remainder.mid = remainder.lo;
-            remainder.lo = rem_lo;
-            quotient.lo = remainder.partial_divide_64(divisor64);
+            remainder.u2 = remainder.u1;
+            remainder.u1 = remainder.u0;
+            remainder.u0 = rem_lo;
+            quotient.u0 = remainder.partial_divide_64(divisor64);
 
             loop {
                 let rem_low64 = remainder.low64();
@@ -522,7 +453,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                             if tmp > divisor64 {
                                 true
                             } else {
-                                tmp == divisor64 && quotient.lo & 0x1 != 0
+                                tmp == divisor64 && quotient.u0 & 0x1 != 0
                             }
                         };
 
@@ -564,19 +495,19 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
         } else {
             // It's 96 bits
             // Start by finishing the shift left
-            let divisor_mid = divisor.mid;
-            let divisor_hi = divisor.hi;
+            let divisor_mid = divisor.u1;
+            let divisor_hi = divisor.u2;
             let mut divisor = divisor;
             divisor.set_low64(divisor64);
-            divisor.hi = ((divisor_mid as u64 + ((divisor_hi as u64) << 32)) >> (32 - power_scale)) as u32;
+            divisor.u2 = ((divisor_mid as u64 + ((divisor_hi as u64) << 32)) >> (32 - power_scale)) as u32;
 
             let quo = remainder.partial_divide_96(&divisor);
             quotient.set_low64(quo as u64);
-            quotient.hi = 0;
+            quotient.u2 = 0;
 
             loop {
                 let mut rem_low64 = remainder.low64();
-                if rem_low64 == 0 && remainder.hi == 0 {
+                if rem_low64 == 0 && remainder.u2 == 0 {
                     // If the scale is positive then we're actually done
                     if scale >= 0 {
                         break;
@@ -604,23 +535,23 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                     };
                     if will_overflow {
                         // No more scaling can be done, but remainder is non-zero so we round if necessary.
-                        let round = if (remainder.hi as i32) < 0 {
+                        let round = if (remainder.u2 as i32) < 0 {
                             // We round if we wrapped around
                             true
                         } else {
-                            let tmp = remainder.mid >> 31;
+                            let tmp = remainder.u1 >> 31;
                             rem_low64 <<= 1;
                             remainder.set_low64(rem_low64);
-                            remainder.hi = (remainder.hi << 1) + tmp;
+                            remainder.u2 = (remainder.u2 << 1) + tmp;
 
-                            if remainder.hi > divisor.hi {
+                            if remainder.u2 > divisor.u2 {
                                 true
-                            } else if remainder.hi == divisor.hi {
+                            } else if remainder.u2 == divisor.u2 {
                                 let divisor_low64 = divisor.low64();
                                 if rem_low64 > divisor_low64 {
                                     true
                                 } else {
-                                    rem_low64 == divisor_low64 && (quotient.lo & 1) != 0
+                                    rem_low64 == divisor_low64 && (quotient.u0 & 1) != 0
                                 }
                             } else {
                                 false
@@ -649,16 +580,12 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                 if overflow > 0 {
                     return CalculationResult::Overflow;
                 }
-                let mut tmp_remainder = Dec12 {
-                    lo: remainder.lo,
-                    mid: remainder.mid,
-                    hi: remainder.hi,
-                };
+                let mut tmp_remainder = remainder.into_buf12();
                 let overflow = increase_scale(&mut tmp_remainder, power as u64);
-                remainder.lo = tmp_remainder.lo;
-                remainder.mid = tmp_remainder.mid;
-                remainder.hi = tmp_remainder.hi;
-                remainder.overflow = overflow;
+                remainder.u0 = tmp_remainder.u0;
+                remainder.u1 = tmp_remainder.u1;
+                remainder.u2 = tmp_remainder.u2;
+                remainder.u3 = overflow;
 
                 let tmp = remainder.partial_divide_96(&divisor);
                 if let Err(DivError::Overflow) = quotient.add32(tmp) {
@@ -679,9 +606,9 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
         scale = unscale(&mut quotient, scale);
     }
     CalculationResult::Ok(Decimal::from_parts(
-        quotient.lo,
-        quotient.mid,
-        quotient.hi,
+        quotient.u0,
+        quotient.u1,
+        quotient.u2,
         sign_negative,
         scale as u32,
     ))
@@ -689,24 +616,24 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
 
 // Multiply num by power (multiple of 10). Power must be 32 bits.
 // Returns the overflow, if any
-fn increase_scale(num: &mut Dec12, power: u64) -> u32 {
-    let mut tmp = (num.lo as u64) * power;
-    num.lo = tmp as u32;
+fn increase_scale(num: &mut Buf12, power: u64) -> u32 {
+    let mut tmp = (num.u0 as u64) * power;
+    num.u0 = tmp as u32;
     tmp >>= 32;
-    tmp += (num.mid as u64) * power;
-    num.mid = tmp as u32;
+    tmp += (num.u1 as u64) * power;
+    num.u1 = tmp as u32;
     tmp >>= 32;
-    tmp += (num.hi as u64) * power;
-    num.hi = tmp as u32;
+    tmp += (num.u2 as u64) * power;
+    num.u2 = tmp as u32;
     (tmp >> 32) as u32
 }
 
 // Multiply num by power (multiple of 10). Power must be 32 bits.
-fn increase_scale64(num: &mut Dec16, power: u64) {
-    let mut tmp = (num.lo as u64) * power;
-    num.lo = tmp as u32;
+fn increase_scale64(num: &mut Buf16, power: u64) {
+    let mut tmp = (num.u0 as u64) * power;
+    num.u0 = tmp as u32;
     tmp >>= 32;
-    tmp += (num.mid as u64) * power;
+    tmp += (num.u1 as u64) * power;
     num.set_mid64(tmp)
 }
 
@@ -714,7 +641,7 @@ fn increase_scale64(num: &mut Dec16, power: u64) {
 // by 10, so this effectively tries to reverse that by dividing by 10 then feeding in the high bit
 // to undo the overflow and rounding instead.
 // Returns the updated scale.
-fn unscale_from_overflow(num: &mut Dec12, scale: i32, sticky: bool) -> Result<i32, DivError> {
+fn unscale_from_overflow(num: &mut Buf12, scale: i32, sticky: bool) -> Result<i32, DivError> {
     let scale = scale - 1;
     if scale < 0 {
         return Err(DivError::Overflow);
@@ -724,21 +651,21 @@ fn unscale_from_overflow(num: &mut Dec12, scale: i32, sticky: bool) -> Result<i3
     // back around to 0. Consequently, we need to "feed" that back in, but also rescaling down
     // to reverse out the overflow.
     const HIGH_BIT: u64 = 0x1_0000_0000;
-    num.hi = (HIGH_BIT / 10) as u32;
+    num.u2 = (HIGH_BIT / 10) as u32;
 
     // Calc the mid
-    let mut tmp = ((HIGH_BIT % 10) << 32) + (num.mid as u64);
+    let mut tmp = ((HIGH_BIT % 10) << 32) + (num.u1 as u64);
     let mut val = (tmp / 10) as u32;
-    num.mid = val;
+    num.u1 = val;
 
     // Calc the lo using a similar method
-    tmp = ((tmp - (val as u64) * 10) << 32) + (num.lo as u64);
+    tmp = ((tmp - (val as u64) * 10) << 32) + (num.u0 as u64);
     val = (tmp / 10) as u32;
-    num.lo = val;
+    num.u0 = val;
 
     // Work out the remainder, and round if we have one (since it doesn't fit)
     let remainder = (tmp - (val as u64) * 10) as u32;
-    if remainder > 5 || (remainder == 5 && (sticky || num.lo & 0x1 > 0)) {
+    if remainder > 5 || (remainder == 5 && (sticky || num.u0 & 0x1 > 0)) {
         let _ = num.add32(1);
     }
     Ok(scale)
@@ -748,7 +675,7 @@ fn unscale_from_overflow(num: &mut Dec12, scale: i32, sticky: bool) -> Result<i3
 // still fits in 96 bits. Ultimately, we want to make scale positive - if we can't then
 // we're going to overflow. Because x is ultimately used to lookup inside the POWERS array, it
 // must be a valid value 0 <= x <= 9
-fn find_scale(num: &Dec12, scale: i32) -> Result<usize, DivError> {
+fn find_scale(num: &Buf12, scale: i32) -> Result<usize, DivError> {
     const OVERFLOW_MAX_9_HI: u32 = 4;
     const OVERFLOW_MAX_8_HI: u32 = 42;
     const OVERFLOW_MAX_7_HI: u32 = 429;
@@ -760,7 +687,7 @@ fn find_scale(num: &Dec12, scale: i32) -> Result<usize, DivError> {
     const OVERFLOW_MAX_1_HI: u32 = 429496729;
     const OVERFLOW_MAX_9_LOW64: u64 = 5441186219426131129;
 
-    let hi = num.hi;
+    let hi = num.u2;
     let low64 = num.low64();
     let mut x = 0usize;
 
@@ -780,7 +707,7 @@ fn find_scale(num: &Dec12, scale: i32) -> Result<usize, DivError> {
         // This is safe to do due to the check above. e.g. scale > 19 in the above, so it will
         // evaluate to 9 or less below.
         x = (MAX_PRECISION_I32 - scale) as usize;
-        if hi < POWER_OVERFLOW_VALUES[x - 1].hi {
+        if hi < POWER_OVERFLOW_VALUES[x - 1].u2 {
             if x as i32 + scale < 0 {
                 // We still overflow
                 return Err(DivError::Overflow);
@@ -823,7 +750,7 @@ fn find_scale(num: &Dec12, scale: i32) -> Result<usize, DivError> {
     };
 
     // Double check what we've found won't overflow. Otherwise, we go one below.
-    if hi == POWER_OVERFLOW_VALUES[x - 1].hi && low64 > POWER_OVERFLOW_VALUES[x - 1].low64() {
+    if hi == POWER_OVERFLOW_VALUES[x - 1].u2 && low64 > POWER_OVERFLOW_VALUES[x - 1].low64() {
         x -= 1;
     }
 
@@ -836,37 +763,37 @@ fn find_scale(num: &Dec12, scale: i32) -> Result<usize, DivError> {
 }
 
 #[inline]
-fn round_up(num: &mut Dec12, scale: i32) -> Result<i32, DivError> {
+fn round_up(num: &mut Buf12, scale: i32) -> Result<i32, DivError> {
     let low64 = num.low64().wrapping_add(1);
     num.set_low64(low64);
     if low64 != 0 {
         return Ok(scale);
     }
-    let hi = num.hi.wrapping_add(1);
-    num.hi = hi;
+    let hi = num.u2.wrapping_add(1);
+    num.u2 = hi;
     if hi != 0 {
         return Ok(scale);
     }
     unscale_from_overflow(num, scale, true)
 }
 
-fn unscale(num: &mut Dec12, scale: i32) -> i32 {
+fn unscale(num: &mut Buf12, scale: i32) -> i32 {
     // Since 10 = 2 * 5, there must be a factor of 2 for every power of 10 we can extract.
     // We use this as a quick test on whether to try a given power.
     let mut scale = scale;
-    while num.lo == 0 && scale >= 8 && num.div32_const(100000000) {
+    while num.u0 == 0 && scale >= 8 && num.div32_const(100000000) {
         scale -= 8;
     }
 
-    if (num.lo & 0xF) == 0 && scale >= 4 && num.div32_const(10000) {
+    if (num.u0 & 0xF) == 0 && scale >= 4 && num.div32_const(10000) {
         scale -= 4;
     }
 
-    if (num.lo & 0x3) == 0 && scale >= 2 && num.div32_const(100) {
+    if (num.u0 & 0x3) == 0 && scale >= 2 && num.div32_const(100) {
         scale -= 2;
     }
 
-    if (num.lo & 0x1) == 0 && scale >= 1 && num.div32_const(10) {
+    if (num.u0 & 0x1) == 0 && scale >= 1 && num.div32_const(10) {
         scale -= 1;
     }
     scale
