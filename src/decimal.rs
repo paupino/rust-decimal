@@ -83,9 +83,17 @@ pub(crate) const POWERS_10: [u32; 10] = [
     100_000_000,
     1_000_000_000,
 ];
-// Fast access for 10^n where n is 10-19
-#[allow(dead_code)]
-const BIG_POWERS_10: [u64; 10] = [
+// Fast access for 10^n where n is 1-19
+pub(crate) const BIG_POWERS_10: [u64; 19] = [
+    10,
+    100,
+    1_000,
+    10_000,
+    100_000,
+    1_000_000,
+    10_000_000,
+    100_000_000,
+    1_000_000_000,
     10_000_000_000,
     100_000_000_000,
     1_000_000_000_000,
@@ -102,7 +110,7 @@ const BIG_POWERS_10: [u64; 10] = [
 /// of decimal-format stored in it's own field
 #[derive(Clone, Copy, Debug)]
 pub struct UnpackedDecimal {
-    pub is_negative: bool,
+    pub negative: bool,
     pub scale: u32,
     pub hi: u32,
     pub mid: u32,
@@ -986,12 +994,12 @@ impl Decimal {
     /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
     /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
     /// assert_eq!(format!("{:?}", pi.unpack()), "UnpackedDecimal { \
-    ///     is_negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
+    ///     negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
     /// }");
     /// ```
     pub const fn unpack(&self) -> UnpackedDecimal {
         UnpackedDecimal {
-            is_negative: self.is_sign_negative(),
+            negative: self.is_sign_negative(),
             scale: self.scale(),
             hi: self.hi,
             lo: self.lo,
@@ -1015,7 +1023,7 @@ impl Decimal {
     /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
     /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
     /// assert_eq!(format!("{:?}", pi.unpack()), "UnpackedDecimal { \
-    ///     is_negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
+    ///     negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
     /// }");
     /// ```
 

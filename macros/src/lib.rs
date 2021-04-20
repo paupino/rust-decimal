@@ -58,7 +58,7 @@ pub fn dec(input: TokenStream) -> TokenStream {
         unpacked.lo,
         unpacked.mid,
         unpacked.hi,
-        unpacked.is_negative,
+        unpacked.negative,
         unpacked.scale,
     )
 }

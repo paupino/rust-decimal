@@ -227,7 +227,7 @@ impl Dec16 {
             // So we kick things off, with that assumption
             let mut low64 = self.low64();
             low64 = low64 - (divisor << 32) + divisor;
-            let mut quotient = u32::max_value();
+            let mut quotient = u32::MAX;
 
             // If we went negative then keep adding it back in
             loop {
@@ -256,7 +256,7 @@ impl Dec16 {
         remainder = remainder.wrapping_sub(product);
 
         // Check if we've gone negative. If so, add it back
-        if remainder > product.bitxor(u64::max_value()) {
+        if remainder > product.bitxor(u64::MAX) {
             loop {
                 quotient = quotient.wrapping_sub(1);
                 remainder = remainder.wrapping_add(divisor);
@@ -295,14 +295,14 @@ impl Dec16 {
         remainder = remainder.wrapping_sub(prod2 as u32);
 
         // If there are carries make sure they are propagated
-        if num > prod1.bitxor(u64::max_value()) {
+        if num > prod1.bitxor(u64::MAX) {
             remainder = remainder.wrapping_sub(1);
-            if remainder < (prod2 as u32).bitxor(u32::max_value()) {
+            if remainder < (prod2 as u32).bitxor(u32::MAX) {
                 self.set_low64(num);
                 self.hi = remainder;
                 return quo;
             }
-        } else if remainder <= (prod2 as u32).bitxor(u32::max_value()) {
+        } else if remainder <= (prod2 as u32).bitxor(u32::MAX) {
             self.set_low64(num);
             self.hi = remainder;
             return quo;
