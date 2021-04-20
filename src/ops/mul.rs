@@ -4,6 +4,11 @@ use crate::ops::common::{Buf24, MAX_I64_SCALE};
 use num_traits::Zero;
 
 pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
+    if d1.is_zero() || d2.is_zero() {
+        // We should think about this - does zero need to maintain precision? This treats it like
+        // an absolute which I think is ok, especially since we have is_zero() functions etc.
+        return CalculationResult::Ok(Decimal::zero());
+    }
     let d1 = d1.unpack();
     let d2 = d2.unpack();
     let mut scale = d1.scale + d2.scale;
@@ -12,8 +17,8 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
     // See if we can optimize this calculation depending on whether the hi bits are set
     if d1.hi | d1.mid == 0 {
-        // Check if we're 32 bits on both sides.
         if d2.hi | d2.mid == 0 {
+            // We're multiplying two 32 bit integers, so we can take some liberties to optimize this.
             let mut low64 = d1.lo as u64 * d2.lo as u64;
             if scale > MAX_PRECISION {
                 // We've exceeded maximum scale so we need to start reducing the precision (aka
@@ -49,52 +54,59 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
             ));
         }
 
-        // We know that the left hand side is just 32 bits.
+        // We know that the left hand side is just 32 bits but the right hand side is either
+        // 64 or 96 bits.
         let mut tmp = d1.lo as u64 * d2.lo as u64;
-        product.u0 = tmp as u32;
+        product.data[0] = tmp as u32;
         tmp = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
-        product.u1 = tmp as u32;
+        product.data[1] = tmp as u32;
         tmp = tmp >> 32;
 
-        // Finally, depending on d2.hi determine if we scale before return
-        if d2.hi != 0 {
+        // If we're multiplying by a 96 bit integer then continue the calculation
+        if d2.hi > 0 {
             tmp = tmp.wrapping_add(d1.lo as u64 * d2.hi as u64);
             if tmp > u32::MAX as u64 {
                 product.set_mid64(tmp);
             } else {
-                product.u2 = tmp as u32;
+                product.data[2] = tmp as u32;
             }
         } else {
-            product.u2 = tmp as u32;
+            product.data[2] = tmp as u32;
         }
     } else if d2.mid | d2.hi == 0 {
         // We know that the right hand side is just 32 bits.
         let mut tmp = d2.lo as u64 * d1.lo as u64;
-        product.u0 = tmp as u32;
+        product.data[0] = tmp as u32;
         tmp = (d2.lo as u64 * d1.mid as u64).wrapping_add(tmp >> 32);
-        product.u1 = tmp as u32;
+        product.data[1] = tmp as u32;
         tmp = tmp >> 32;
 
-        // Finally, depending on d2.hi determine if we scale before return
-        if d1.hi != 0 {
+        // If the LHS is 96 bits then continue calculation
+        if d1.hi > 0 {
             tmp = tmp.wrapping_add(d2.lo as u64 * d1.hi as u64);
             if tmp > u32::MAX as u64 {
                 product.set_mid64(tmp);
             } else {
-                product.u2 = tmp as u32;
+                product.data[2] = tmp as u32;
             }
         } else {
-            product.u2 = tmp as u32;
+            product.data[2] = tmp as u32;
         }
     } else {
-        // We're not dealing with 32 bit numbers on either side. Both operands are > 32 bits.
+        // We know we're not dealing with simple 32 bit operands on either side.
         // We compute and accumulate the 9 partial products using long multiplication
-        let mut tmp = d1.lo as u64 * d2.lo as u64; // 1
-        product.u0 = tmp as u32;
-        let mut tmp2 = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32); // 2
-        tmp = d1.mid as u64 * d2.lo as u64; // 3
+
+        // 1: ll * rl
+        let mut tmp = d1.lo as u64 * d2.lo as u64;
+        product.data[0] = tmp as u32;
+
+        // 2: ll * rm
+        let mut tmp2 = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
+
+        // 3: lm * rl
+        tmp = d1.mid as u64 * d2.lo as u64;
         tmp = tmp.wrapping_add(tmp2);
-        product.u1 = tmp as u32;
+        product.data[1] = tmp as u32;
 
         // Detect if carry happened from the wrapping add
         if tmp < tmp2 {
@@ -103,42 +115,53 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
             tmp2 = tmp >> 32;
         }
 
-        tmp = (d1.mid as u64 * d2.mid as u64) + tmp2; // 4
-        if (d1.hi | d2.hi) > 0 {
-            // We need to calculate 5 more partial products.
-            tmp2 = d1.lo as u64 * d2.hi as u64; // 5
-            tmp = tmp.wrapping_add(tmp2);
+        // 4: lm * rm
+        tmp = (d1.mid as u64 * d2.mid as u64) + tmp2;
 
-            // Detect if wrapping add carried
-            let mut tmp3 = if tmp < tmp2 { 1 } else { 0 };
-            tmp2 = d1.hi as u64 * d2.lo as u64; // 6
+        // If the high bit isn't set then we can stop here. Otherwise, we need to continue calculating
+        // using the high bits.
+        if (d1.hi | d2.hi) > 0 {
+            // 5. ll * rh
+            tmp2 = d1.lo as u64 * d2.hi as u64;
             tmp = tmp.wrapping_add(tmp2);
-            product.u2 = tmp as u32;
-            // Detect if wrapping add carried
+            // Detect if we carried
+            let mut tmp3 = if tmp < tmp2 { 1 } else { 0 };
+
+            // 6. lh * rl
+            tmp2 = d1.hi as u64 * d2.lo as u64;
+            tmp = tmp.wrapping_add(tmp2);
+            product.data[2] = tmp as u32;
+            // Detect if we carried
             if tmp < tmp2 {
                 tmp3 += 1;
             }
             tmp2 = (tmp3 << 32) | (tmp >> 32);
 
-            tmp = d1.mid as u64 * d2.hi as u64; // 7
+            // 7. lm * rh
+            tmp = d1.mid as u64 * d2.hi as u64;
             tmp = tmp.wrapping_add(tmp2);
-            // Detect if wrapping add carried
+            // Check for carry
             tmp3 = if tmp < tmp2 { 1 } else { 0 };
 
-            tmp2 = d1.hi as u64 * d2.mid as u64; // 8
+            // 8. lh * rm
+            tmp2 = d1.hi as u64 * d2.mid as u64;
             tmp = tmp.wrapping_add(tmp2);
-            product.u3 = tmp as u32;
+            product.data[3] = tmp as u32;
+            // Check for carry
             if tmp < tmp2 {
                 tmp3 += 1;
             }
             tmp = (tmp3 << 32) | (tmp >> 32);
 
+            // 9. lh * rh
             product.set_high64(d1.hi as u64 * d2.hi as u64 + tmp);
         } else {
             product.set_mid64(tmp);
         }
     }
-    // Scale as necessary
+
+    // We may want to "rescale". This is the case if the mantissa is > 96 bits or if the scale
+    // exceeds the maximum precision.
     let upper_word = product.upper_word();
     if upper_word > 2 || scale > MAX_PRECISION {
         scale = if let Some(new_scale) = product.rescale(upper_word, scale) {
@@ -148,5 +171,11 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         }
     }
 
-    CalculationResult::Ok(Decimal::from_parts(product.u0, product.u1, product.u2, negative, scale))
+    CalculationResult::Ok(Decimal::from_parts(
+        product.data[0],
+        product.data[1],
+        product.data[2],
+        negative,
+        scale,
+    ))
 }

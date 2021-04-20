@@ -580,7 +580,11 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                 if overflow > 0 {
                     return CalculationResult::Overflow;
                 }
-                let mut tmp_remainder = remainder.into_buf12();
+                let mut tmp_remainder = Buf12 {
+                    u0: remainder.u0,
+                    u1: remainder.u1,
+                    u2: remainder.u2,
+                };
                 let overflow = increase_scale(&mut tmp_remainder, power as u64);
                 remainder.u0 = tmp_remainder.u0;
                 remainder.u1 = tmp_remainder.u1;
