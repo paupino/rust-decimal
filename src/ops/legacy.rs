@@ -1,6 +1,6 @@
 use crate::decimal::{
-    add_by_internal, cmp_internal, div_by_u32, is_all_zero, mul_by_u32, mul_part, rescale_to_maximum_scale,
-    shl1_internal, CalculationResult, Decimal, MAX_PRECISION, POWERS_10, U32_MASK,
+    add_by_internal, cmp_internal, div_by_u32, is_all_zero, mul_by_u32, mul_part, rescale_internal, shl1_internal,
+    CalculationResult, Decimal, MAX_PRECISION, POWERS_10, U32_MASK,
 };
 
 use core::cmp::Ordering;
@@ -424,6 +424,54 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     ))
 }
 
+pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
+    // Quick exit if major differences
+    if d1.is_zero() && d2.is_zero() {
+        return Ordering::Equal;
+    }
+    let self_negative = d1.is_sign_negative();
+    let other_negative = d2.is_sign_negative();
+    if self_negative && !other_negative {
+        return Ordering::Less;
+    } else if !self_negative && other_negative {
+        return Ordering::Greater;
+    }
+
+    // If we have 1.23 and 1.2345 then we have
+    //  123 scale 2 and 12345 scale 4
+    //  We need to convert the first to
+    //  12300 scale 4 so we can compare equally
+    let left: &Decimal;
+    let right: &Decimal;
+    if self_negative && other_negative {
+        // Both are negative, so reverse cmp
+        left = d2;
+        right = d1;
+    } else {
+        left = d1;
+        right = d2;
+    }
+    let mut left_scale = left.scale();
+    let mut right_scale = right.scale();
+    let mut left_raw = left.mantissa_array3();
+    let mut right_raw = right.mantissa_array3();
+
+    if left_scale == right_scale {
+        // Fast path for same scale
+        if left_raw[2] != right_raw[2] {
+            return left_raw[2].cmp(&right_raw[2]);
+        }
+        if left_raw[1] != right_raw[1] {
+            return left_raw[1].cmp(&right_raw[1]);
+        }
+        return left_raw[0].cmp(&right_raw[0]);
+    }
+
+    // Rescale and compare
+    rescale_to_maximum_scale(&mut left_raw, &mut left_scale, &mut right_raw, &mut right_scale);
+    cmp_internal(&left_raw, &right_raw)
+}
+
 #[inline]
 fn add_part(left: u32, right: u32) -> (u32, u32) {
     let added = u64::from(left) + u64::from(right);
@@ -674,4 +722,114 @@ fn add_with_scale_internal(
         }
     }
     false
+}
+
+/// Rescales the given decimals to equivalent scales.
+/// It will firstly try to scale both the left and the right side to
+/// the maximum scale of left/right. If it is unable to do that it
+/// will try to reduce the accuracy of the other argument.
+/// e.g. with 1.23 and 2.345 it'll rescale the first arg to 1.230
+#[inline(always)]
+fn rescale_to_maximum_scale(left: &mut [u32; 3], left_scale: &mut u32, right: &mut [u32; 3], right_scale: &mut u32) {
+    if left_scale == right_scale {
+        // Nothing to do
+        return;
+    }
+
+    if is_all_zero(left) {
+        *left_scale = *right_scale;
+        return;
+    } else if is_all_zero(right) {
+        *right_scale = *left_scale;
+        return;
+    }
+
+    if left_scale > right_scale {
+        rescale_internal(right, right_scale, *left_scale);
+        if right_scale != left_scale {
+            rescale_internal(left, left_scale, *right_scale);
+        }
+    } else {
+        rescale_internal(left, left_scale, *right_scale);
+        if right_scale != left_scale {
+            rescale_internal(right, right_scale, *left_scale);
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    // Tests on private methods.
+    //
+    // All public tests should go under `tests/`.
+
+    use super::*;
+    use crate::prelude::*;
+
+    #[test]
+    fn it_can_rescale_to_maximum_scale() {
+        fn extract(value: &str) -> ([u32; 3], u32) {
+            let v = Decimal::from_str(value).unwrap();
+            (v.mantissa_array3(), v.scale())
+        }
+
+        let tests = &[
+            ("1", "1", "1", "1"),
+            ("1", "1.0", "1.0", "1.0"),
+            ("1", "1.00000", "1.00000", "1.00000"),
+            ("1", "1.0000000000", "1.0000000000", "1.0000000000"),
+            (
+                "1",
+                "1.00000000000000000000",
+                "1.00000000000000000000",
+                "1.00000000000000000000",
+            ),
+            ("1.1", "1.1", "1.1", "1.1"),
+            ("1.1", "1.10000", "1.10000", "1.10000"),
+            ("1.1", "1.1000000000", "1.1000000000", "1.1000000000"),
+            (
+                "1.1",
+                "1.10000000000000000000",
+                "1.10000000000000000000",
+                "1.10000000000000000000",
+            ),
+            (
+                "0.6386554621848739495798319328",
+                "11.815126050420168067226890757",
+                "0.638655462184873949579831933",
+                "11.815126050420168067226890757",
+            ),
+            (
+                "0.0872727272727272727272727272", // Scale 28
+                "843.65000000",                   // Scale 8
+                "0.0872727272727272727272727",    // 25
+                "843.6500000000000000000000000",  // 25
+            ),
+        ];
+
+        for &(left_raw, right_raw, expected_left, expected_right) in tests {
+            // Left = the value to rescale
+            // Right = the new scale we're scaling to
+            // Expected = the expected left value after rescale
+            let (expected_left, expected_lscale) = extract(expected_left);
+            let (expected_right, expected_rscale) = extract(expected_right);
+
+            let (mut left, mut left_scale) = extract(left_raw);
+            let (mut right, mut right_scale) = extract(right_raw);
+            rescale_to_maximum_scale(&mut left, &mut left_scale, &mut right, &mut right_scale);
+            assert_eq!(left, expected_left);
+            assert_eq!(left_scale, expected_lscale);
+            assert_eq!(right, expected_right);
+            assert_eq!(right_scale, expected_rscale);
+
+            // Also test the transitive case
+            let (mut left, mut left_scale) = extract(left_raw);
+            let (mut right, mut right_scale) = extract(right_raw);
+            rescale_to_maximum_scale(&mut right, &mut right_scale, &mut left, &mut left_scale);
+            assert_eq!(left, expected_left);
+            assert_eq!(left_scale, expected_lscale);
+            assert_eq!(right, expected_right);
+            assert_eq!(right_scale, expected_rscale);
+        }
+    }
 }

@@ -1,37 +1,8 @@
-use crate::decimal::{CalculationResult, Decimal, UnpackedDecimal, MAX_PRECISION_I32, POWERS_10};
+use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION_I32, POWERS_10};
 use crate::ops::common::{Buf12, Buf16};
 
 use core::ops::BitXor;
 use num_traits::Zero;
-
-// This is a table of the largest values that will not overflow when multiplied
-// by a given power as represented by the index.
-static POWER_OVERFLOW_VALUES: [Buf12; 8] = [
-    Buf12 {
-        data: [2576980377, 2576980377, 429496729],
-    },
-    Buf12 {
-        data: [687194767, 4123168604, 42949672],
-    },
-    Buf12 {
-        data: [2645699854, 1271310319, 4294967],
-    },
-    Buf12 {
-        data: [694066715, 3133608139, 429496],
-    },
-    Buf12 {
-        data: [2216890319, 2890341191, 42949],
-    },
-    Buf12 {
-        data: [2369172679, 4154504685, 4294],
-    },
-    Buf12 {
-        data: [4102387834, 2133437386, 429],
-    },
-    Buf12 {
-        data: [410238783, 4078814305, 42],
-    },
-];
 
 impl Buf12 {
     // Returns true if successful, else false for an overflow
@@ -101,12 +72,12 @@ impl Buf12 {
 }
 
 impl Buf16 {
-    // Does a partial divide with a 64 bit divisor. The divisor in this case must require 64 bits
+    // Does a partial divide with a 64 bit divisor. The divisor in this case must be 64 bits
     // otherwise various assumptions fail (e.g. 32 bit quotient).
     // To assist, the upper 64 bits must be greater than the divisor for this to succeed.
     // Consequently, it will return the quotient as a 32 bit number and overwrite self with the
     // 64 bit remainder.
-    fn partial_divide_64(&mut self, divisor: u64) -> u32 {
+    pub(super) fn partial_divide_64(&mut self, divisor: u64) -> u32 {
         // We make this assertion here, however below we pivot based on the data
         debug_assert!(divisor > self.mid64());
 
@@ -178,7 +149,7 @@ impl Buf16 {
 
     // Does a partial divide with a 96 bit divisor. The divisor in this case must require 96 bits
     // otherwise various assumptions fail (e.g. 32 bit quotient).
-    fn partial_divide_96(&mut self, divisor: &Buf12) -> u32 {
+    pub(super) fn partial_divide_96(&mut self, divisor: &Buf12) -> u32 {
         let dividend = self.high64();
         let divisor_hi = divisor.data[2];
         if dividend < divisor_hi as u64 {
@@ -292,7 +263,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                     true
                 } else {
                     // Figure out how much we can scale by
-                    if let Ok(s) = find_scale(&quotient, scale) {
+                    if let Some(s) = quotient.find_scale(scale) {
                         power_scale = s;
                     } else {
                         return CalculationResult::Overflow;
@@ -410,7 +381,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                         true
                     } else {
                         // Figure out how much we can scale by
-                        if let Ok(s) = find_scale(&quotient, scale) {
+                        if let Some(s) = quotient.find_scale(scale) {
                             power_scale = s;
                         } else {
                             return CalculationResult::Overflow;
@@ -501,7 +472,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                         true
                     } else {
                         // Figure out how much we can scale by
-                        if let Ok(s) = find_scale(&quotient, scale) {
+                        if let Some(s) = quotient.find_scale(scale) {
                             power_scale = s;
                         } else {
                             return CalculationResult::Overflow;
@@ -648,97 +619,6 @@ fn unscale_from_overflow(num: &mut Buf12, scale: i32, sticky: bool) -> Result<i3
         let _ = num.add32(1);
     }
     Ok(scale)
-}
-
-// Determine the maximum value of x that ensures that the quotient when scaled up by 10^x
-// still fits in 96 bits. Ultimately, we want to make scale positive - if we can't then
-// we're going to overflow. Because x is ultimately used to lookup inside the POWERS array, it
-// must be a valid value 0 <= x <= 9
-fn find_scale(num: &Buf12, scale: i32) -> Result<usize, DivError> {
-    const OVERFLOW_MAX_9_HI: u32 = 4;
-    const OVERFLOW_MAX_8_HI: u32 = 42;
-    const OVERFLOW_MAX_7_HI: u32 = 429;
-    const OVERFLOW_MAX_6_HI: u32 = 4294;
-    const OVERFLOW_MAX_5_HI: u32 = 42949;
-    const OVERFLOW_MAX_4_HI: u32 = 429496;
-    const OVERFLOW_MAX_3_HI: u32 = 4294967;
-    const OVERFLOW_MAX_2_HI: u32 = 42949672;
-    const OVERFLOW_MAX_1_HI: u32 = 429496729;
-    const OVERFLOW_MAX_9_LOW64: u64 = 5441186219426131129;
-
-    let hi = num.data[2];
-    let low64 = num.low64();
-    let mut x = 0usize;
-
-    // Quick check to stop us from trying to scale any more.
-    //
-    if hi > OVERFLOW_MAX_1_HI {
-        // If it's less than 0, which it probably is - overflow. We can't do anything.
-        if scale < 0 {
-            return Err(DivError::Overflow);
-        }
-        return Ok(x);
-    }
-
-    if scale > MAX_PRECISION_I32 - 9 {
-        // We can't scale by 10^9 without exceeding the max scale factor.
-        // Instead, we'll try to scale by the most that we can and see if that works.
-        // This is safe to do due to the check above. e.g. scale > 19 in the above, so it will
-        // evaluate to 9 or less below.
-        x = (MAX_PRECISION_I32 - scale) as usize;
-        if hi < POWER_OVERFLOW_VALUES[x - 1].data[2] {
-            if x as i32 + scale < 0 {
-                // We still overflow
-                return Err(DivError::Overflow);
-            }
-            return Ok(x);
-        }
-    } else if hi < OVERFLOW_MAX_9_HI || hi == OVERFLOW_MAX_9_HI && low64 <= OVERFLOW_MAX_9_LOW64 {
-        return Ok(9);
-    }
-
-    // Do a binary search to find a power to scale by that is less than 9
-    x = if hi > OVERFLOW_MAX_5_HI {
-        if hi > OVERFLOW_MAX_3_HI {
-            if hi > OVERFLOW_MAX_2_HI {
-                1
-            } else {
-                2
-            }
-        } else {
-            if hi > OVERFLOW_MAX_4_HI {
-                3
-            } else {
-                4
-            }
-        }
-    } else {
-        if hi > OVERFLOW_MAX_7_HI {
-            if hi > OVERFLOW_MAX_6_HI {
-                5
-            } else {
-                6
-            }
-        } else {
-            if hi > OVERFLOW_MAX_8_HI {
-                7
-            } else {
-                8
-            }
-        }
-    };
-
-    // Double check what we've found won't overflow. Otherwise, we go one below.
-    if hi == POWER_OVERFLOW_VALUES[x - 1].data[2] && low64 > POWER_OVERFLOW_VALUES[x - 1].low64() {
-        x -= 1;
-    }
-
-    // Confirm we've actually resolved things
-    if x as i32 + scale < 0 {
-        Err(DivError::Overflow)
-    } else {
-        Ok(x)
-    }
 }
 
 #[inline]

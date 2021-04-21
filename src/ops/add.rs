@@ -15,8 +15,8 @@ pub(crate) fn sub_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
 #[inline]
 fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationResult {
-    let mut ud1 = d1.unpack();
-    let mut ud2 = d2.unpack();
+    let ud1 = d1.unpack();
+    let ud2 = d2.unpack();
     if d1.is_zero() {
         // 0 - x or 0 + x
         return CalculationResult::Ok(Decimal::from_parts(
@@ -35,7 +35,7 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
     // If we're not the same scale then make sure we're there first before starting addition
     let mut d1_buffer = Buf12::new(&ud1);
     let mut d2_buffer = Buf12::new(&ud2);
-    let mut subtract = subtract ^ (ud1.negative ^ ud2.negative);
+    let subtract = subtract ^ (ud1.negative ^ ud2.negative);
     if ud1.scale != ud2.scale {
         let mut rescale_factor = ud2.scale as i32 - ud1.scale as i32;
         if rescale_factor < 0 {
@@ -107,13 +107,7 @@ fn aligned_add(lhs: &Buf12, rhs: &Buf12, result: &mut UnpackedDecimal, subtract:
         }
     }
 
-    CalculationResult::Ok(Decimal::from_parts(
-        result.lo,
-        result.mid,
-        result.hi,
-        result.negative,
-        result.scale,
-    ))
+    CalculationResult::Ok((*result).into())
 }
 
 fn flip_sign(result: &mut UnpackedDecimal) {
@@ -205,7 +199,7 @@ fn unaligned_add(
     }
 
     // See if we can get away with keeping it in the 96 bits. Otherwise, we need a buffer
-    let mut tmp64 = 0;
+    let mut tmp64: u64;
     loop {
         let power = if rescale_factor <= MAX_I32_SCALE as i32 {
             POWERS_10[rescale_factor as usize] as u64
