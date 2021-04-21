@@ -3,7 +3,7 @@ use core::{
     convert::{TryFrom, TryInto},
     str::FromStr,
 };
-use num_traits::{Signed, ToPrimitive, Zero};
+use num_traits::{Signed, ToPrimitive};
 use rust_decimal::{Decimal, RoundingStrategy};
 
 macro_rules! either {
@@ -594,7 +594,7 @@ fn it_divides_decimals() {
 #[should_panic]
 fn it_can_divide_by_zero() {
     let a = Decimal::from_str("2").unwrap();
-    let _ = a / Decimal::zero();
+    let _ = a / Decimal::ZERO;
 }
 
 #[test]

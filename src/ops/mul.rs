@@ -1,13 +1,34 @@
-use crate::decimal::{CalculationResult, Decimal, BIG_POWERS_10, MAX_PRECISION};
+use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION};
 use crate::ops::common::{Buf24, MAX_I64_SCALE};
 
-use num_traits::Zero;
+// Fast access for 10^n where n is 1-19
+const BIG_POWERS_10: [u64; 19] = [
+    10,
+    100,
+    1_000,
+    10_000,
+    100_000,
+    1_000_000,
+    10_000_000,
+    100_000_000,
+    1_000_000_000,
+    10_000_000_000,
+    100_000_000_000,
+    1_000_000_000_000,
+    10_000_000_000_000,
+    100_000_000_000_000,
+    1_000_000_000_000_000,
+    10_000_000_000_000_000,
+    100_000_000_000_000_000,
+    1_000_000_000_000_000_000,
+    10_000_000_000_000_000_000,
+];
 
 pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     if d1.is_zero() || d2.is_zero() {
         // We should think about this - does zero need to maintain precision? This treats it like
         // an absolute which I think is ok, especially since we have is_zero() functions etc.
-        return CalculationResult::Ok(Decimal::zero());
+        return CalculationResult::Ok(Decimal::ZERO);
     }
     let d1 = d1.unpack();
     let d2 = d2.unpack();
@@ -25,7 +46,7 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
                 // rounding) until we have something that fits.
                 // If we're too big then we effectively round to zero.
                 if scale > MAX_PRECISION + MAX_I64_SCALE {
-                    return CalculationResult::Ok(Decimal::zero());
+                    return CalculationResult::Ok(Decimal::ZERO);
                 }
 
                 scale -= MAX_PRECISION + 1;

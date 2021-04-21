@@ -59,8 +59,8 @@ impl MathematicalOps for Decimal {
     /// numbers to avoid multiplication overflow.
     #[inline]
     fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal {
-        if self == &Decimal::zero() {
-            return Decimal::one();
+        if self == &Decimal::ZERO {
+            return Decimal::ONE;
         }
 
         let mut term = *self;
@@ -130,7 +130,7 @@ impl MathematicalOps for Decimal {
         }
 
         if self.is_zero() {
-            return Some(Decimal::zero());
+            return Some(Decimal::ZERO);
         }
 
         // Start with an arbitrary number as the first guess
@@ -154,8 +154,8 @@ impl MathematicalOps for Decimal {
     /// This is more accurate on larger numbers and less on numbers less than 1.
     fn ln(&self) -> Decimal {
         if self.is_sign_positive() {
-            if self == &Decimal::one() {
-                Decimal::zero()
+            if self == &Decimal::ONE {
+                Decimal::ZERO
             } else {
                 let s = self * Decimal::new(256, 0);
                 let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::one(), &(Decimal::new(4, 0) / s));
@@ -163,7 +163,7 @@ impl MathematicalOps for Decimal {
                 PI / (arith_geo_mean * TWO) - (Decimal::new(8, 0) * LN2)
             }
         } else {
-            Decimal::zero()
+            Decimal::ZERO
         }
     }
 

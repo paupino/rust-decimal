@@ -1,9 +1,7 @@
 use crate::decimal::{Decimal, UnpackedDecimal, POWERS_10, U32_MASK};
+use crate::ops::common::MAX_I32_SCALE;
 
 use core::cmp::Ordering;
-
-use crate::ops::common::MAX_I32_SCALE;
-use num_traits::Zero;
 
 pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
     if d2.is_zero() {

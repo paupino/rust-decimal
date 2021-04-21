@@ -49,6 +49,7 @@ pub(crate) const MAX_PRECISION_I32: i32 = 28;
 // 79,228,162,514,264,337,593,543,950,335
 const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
 
+/// The smallest value that can be represented by this decimal type.
 const MIN: Decimal = Decimal {
     flags: 2_147_483_648,
     lo: 4_294_967_295,
@@ -56,6 +57,7 @@ const MIN: Decimal = Decimal {
     hi: 4_294_967_295,
 };
 
+/// The smallest value that can be represented by this decimal type.
 const MAX: Decimal = Decimal {
     flags: 0,
     lo: 4_294_967_295,
@@ -63,7 +65,16 @@ const MAX: Decimal = Decimal {
     hi: 4_294_967_295,
 };
 
-pub(crate) const ONE: Decimal = Decimal {
+/// A constant representing 0.
+const ZERO: Decimal = Decimal {
+    flags: 0,
+    lo: 0,
+    mid: 0,
+    hi: 0,
+};
+
+/// A constant representing 1.
+const ONE: Decimal = Decimal {
     flags: 0,
     lo: 1,
     mid: 0,
@@ -82,29 +93,6 @@ pub(crate) const POWERS_10: [u32; 10] = [
     10_000_000,
     100_000_000,
     1_000_000_000,
-];
-#[cfg(not(feature = "legacy-ops"))]
-// Fast access for 10^n where n is 1-19
-pub(crate) const BIG_POWERS_10: [u64; 19] = [
-    10,
-    100,
-    1_000,
-    10_000,
-    100_000,
-    1_000_000,
-    10_000_000,
-    100_000_000,
-    1_000_000_000,
-    10_000_000_000,
-    100_000_000_000,
-    1_000_000_000_000,
-    10_000_000_000_000,
-    100_000_000_000_000,
-    1_000_000_000_000_000,
-    10_000_000_000_000_000,
-    100_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    10_000_000_000_000_000_000,
 ];
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
@@ -182,6 +170,15 @@ pub enum RoundingStrategy {
 
 #[allow(dead_code)]
 impl Decimal {
+    /// The smallest value that can be represented by this decimal type.
+    pub const MIN: Decimal = MIN;
+    /// The largest value that can be represented by this decimal type.
+    pub const MAX: Decimal = MAX;
+    /// A constant representing 0.
+    pub const ZERO: Decimal = ZERO;
+    /// A constant representing 1.
+    pub const ONE: Decimal = ONE;
+
     /// Returns a `Decimal` with a 64 bit `m` representation and corresponding `e` scale.
     ///
     /// # Arguments
@@ -382,6 +379,20 @@ impl Decimal {
         } else {
             raw
         }
+    }
+
+    /// Returns true if this Decimal number is equivalent to zero.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::prelude::*;
+    ///
+    /// let num = Decimal::ZERO;
+    /// assert!(num.is_zero());
+    /// ```
+    pub const fn is_zero(&self) -> bool {
+        self.lo == 0 && self.mid == 0 && self.hi == 0
     }
 
     /// An optimized method for changing the sign of a decimal number.
@@ -757,7 +768,7 @@ impl Decimal {
     pub fn normalize(&self) -> Decimal {
         if self.is_zero() {
             // Convert -0, -0.0*, or 0.0* to 0.
-            return Decimal::zero();
+            return Decimal::ZERO;
         }
 
         let mut scale = self.scale();
@@ -1236,7 +1247,7 @@ impl Decimal {
 
 impl Default for Decimal {
     fn default() -> Self {
-        Self::zero()
+        ZERO
     }
 }
 
@@ -1576,16 +1587,11 @@ macro_rules! forward_all_binop {
 
 impl Zero for Decimal {
     fn zero() -> Decimal {
-        Decimal {
-            flags: 0,
-            hi: 0,
-            lo: 0,
-            mid: 0,
-        }
+        ZERO
     }
 
     fn is_zero(&self) -> bool {
-        self.lo.is_zero() && self.mid.is_zero() && self.hi.is_zero()
+        self.is_zero()
     }
 }
 
@@ -1602,7 +1608,7 @@ impl Signed for Decimal {
 
     fn abs_sub(&self, other: &Self) -> Self {
         if self <= other {
-            Decimal::zero()
+            ZERO
         } else {
             self.abs()
         }
@@ -1610,7 +1616,7 @@ impl Signed for Decimal {
 
     fn signum(&self) -> Self {
         if self.is_zero() {
-            Decimal::zero()
+            ZERO
         } else {
             let mut value = ONE;
             if self.is_sign_negative() {
@@ -2216,7 +2222,7 @@ impl FromPrimitive for Decimal {
 
         // Handle the special zero case
         if biased_exponent == 0 && mantissa == 0 {
-            let mut zero = Decimal::zero();
+            let mut zero = ZERO;
             if !positive {
                 zero.set_sign_negative(true);
             }
@@ -2260,7 +2266,7 @@ impl FromPrimitive for Decimal {
 
         // Handle the special zero case
         if biased_exponent == 0 && mantissa == 0 {
-            let mut zero = Decimal::zero();
+            let mut zero = ZERO;
             if !positive {
                 zero.set_sign_negative(true);
             }
@@ -2786,7 +2792,7 @@ impl Ord for Decimal {
 
 impl Sum for Decimal {
     fn sum<I: Iterator<Item = Decimal>>(iter: I) -> Self {
-        let mut sum = Decimal::zero();
+        let mut sum = ZERO;
         for i in iter {
             sum += i;
         }
@@ -2796,7 +2802,7 @@ impl Sum for Decimal {
 
 impl<'a> Sum<&'a Decimal> for Decimal {
     fn sum<I: Iterator<Item = &'a Decimal>>(iter: I) -> Self {
-        let mut sum = Decimal::zero();
+        let mut sum = ZERO;
         for i in iter {
             sum += i;
         }
