@@ -1,84 +1,98 @@
-use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION, POWERS_10};
+use crate::decimal::{CalculationResult, Decimal, UnpackedDecimal, MAX_PRECISION, MAX_PRECISION_I32, POWERS_10};
 
 // The maximum power of 10 that a 32 bit integer can store
 pub const MAX_I32_SCALE: u32 = 9;
 // The maximum power of 10 that a 64 bit integer can store
 pub const MAX_I64_SCALE: u32 = 19;
 
-// TODO: Test out array
 pub struct Buf12 {
-    pub u0: u32,
-    pub u1: u32,
-    pub u2: u32,
+    pub data: [u32; 3],
 }
 
 impl Buf12 {
+    pub const fn new(value: &UnpackedDecimal) -> Self {
+        Buf12 {
+            data: [value.lo, value.mid, value.hi],
+        }
+    }
+
     pub const fn zero() -> Self {
-        Buf12 { u0: 0, u1: 0, u2: 0 }
+        Buf12 { data: [0, 0, 0] }
     }
 
     pub const fn low64(&self) -> u64 {
-        ((self.u1 as u64) << 32) | (self.u0 as u64)
+        ((self.data[1] as u64) << 32) | (self.data[0] as u64)
     }
 
     pub fn set_low64(&mut self, value: u64) {
-        self.u1 = (value >> 32) as u32;
-        self.u0 = value as u32;
+        self.data[1] = (value >> 32) as u32;
+        self.data[0] = value as u32;
     }
 
     pub const fn high64(&self) -> u64 {
-        ((self.u2 as u64) << 32) | (self.u1 as u64)
+        ((self.data[2] as u64) << 32) | (self.data[1] as u64)
     }
 
     pub fn set_high64(&mut self, value: u64) {
-        self.u2 = (value >> 32) as u32;
-        self.u1 = value as u32;
+        self.data[2] = (value >> 32) as u32;
+        self.data[1] = value as u32;
     }
 }
 
-// TODO: Test out array
+impl UnpackedDecimal {
+    pub const fn low64(&self) -> u64 {
+        ((self.mid as u64) << 32) | (self.lo as u64)
+    }
+
+    pub fn set_low64(&mut self, value: u64) {
+        self.mid = (value >> 32) as u32;
+        self.lo = value as u32;
+    }
+
+    pub const fn high64(&self) -> u64 {
+        ((self.hi as u64) << 32) | (self.mid as u64)
+    }
+
+    pub fn set_high64(&mut self, value: u64) {
+        self.hi = (value >> 32) as u32;
+        self.mid = value as u32;
+    }
+}
+
 pub struct Buf16 {
-    pub u0: u32,
-    pub u1: u32,
-    pub u2: u32,
-    pub u3: u32,
+    pub data: [u32; 4],
 }
 
 impl Buf16 {
     pub const fn zero() -> Self {
-        Buf16 {
-            u0: 0,
-            u1: 0,
-            u2: 0,
-            u3: 0,
-        }
+        Buf16 { data: [0, 0, 0, 0] }
     }
 
     pub const fn low64(&self) -> u64 {
-        ((self.u1 as u64) << 32) | (self.u0 as u64)
+        ((self.data[1] as u64) << 32) | (self.data[0] as u64)
     }
 
     pub fn set_low64(&mut self, value: u64) {
-        self.u1 = (value >> 32) as u32;
-        self.u0 = value as u32;
+        self.data[1] = (value >> 32) as u32;
+        self.data[0] = value as u32;
     }
 
     pub const fn mid64(&self) -> u64 {
-        ((self.u2 as u64) << 32) | (self.u1 as u64)
+        ((self.data[2] as u64) << 32) | (self.data[1] as u64)
     }
 
     pub fn set_mid64(&mut self, value: u64) {
-        self.u2 = (value >> 32) as u32;
-        self.u1 = value as u32;
+        self.data[2] = (value >> 32) as u32;
+        self.data[1] = value as u32;
     }
 
     pub const fn high64(&self) -> u64 {
-        ((self.u3 as u64) << 32) | (self.u2 as u64)
+        ((self.data[3] as u64) << 32) | (self.data[2] as u64)
     }
 
     pub fn set_high64(&mut self, value: u64) {
-        self.u3 = (value >> 32) as u32;
-        self.u2 = value as u32;
+        self.data[3] = (value >> 32) as u32;
+        self.data[2] = value as u32;
     }
 }
 
@@ -145,14 +159,14 @@ impl Buf24 {
     // * `upper` - Index of last non-zero value in self.
     // * `scale` - Current scale factor for this value.
     pub fn rescale(&mut self, upper: usize, scale: u32) -> Option<u32> {
-        let mut scale = scale;
+        let mut scale = scale as i32;
         let mut upper = upper;
 
         // Determine a rescale target to start with
-        let mut rescale_target = 0;
+        let mut rescale_target = 0i32;
         if upper > 2 {
-            rescale_target = upper as u32 * 32 - 64 - 1;
-            rescale_target -= self.data[upper].leading_zeros();
+            rescale_target = upper as i32 * 32 - 64 - 1;
+            rescale_target -= self.data[upper].leading_zeros() as i32;
             rescale_target = ((rescale_target * 77) >> 8) + 1;
             if rescale_target > scale {
                 return None;
@@ -160,8 +174,8 @@ impl Buf24 {
         }
 
         // Make sure we scale enough to bring it into a valid range
-        if scale > MAX_PRECISION && rescale_target < scale - MAX_PRECISION {
-            rescale_target = scale - MAX_PRECISION;
+        if rescale_target < scale - MAX_PRECISION_I32 {
+            rescale_target = scale - MAX_PRECISION_I32;
         }
 
         if rescale_target > 0 {
@@ -185,7 +199,7 @@ impl Buf24 {
                 for item in self.data.iter_mut().rev().skip(6 - upper) {
                     let num = (*item as u64).wrapping_add((remainder as u64) << 32);
                     *item = (num / power as u64) as u32;
-                    remainder = (num as u32).wrapping_sub((*item).wrapping_mul(power));
+                    remainder = (num as u32).wrapping_sub(item.wrapping_mul(power));
                 }
 
                 self.data[upper] = high_quotient;
@@ -194,9 +208,9 @@ impl Buf24 {
                 if high_quotient == 0 && upper > 0 {
                     upper -= 1;
                 }
-                if rescale_target > MAX_I32_SCALE {
+                if rescale_target > MAX_I32_SCALE as i32 {
                     // Scale some more
-                    rescale_target -= MAX_I32_SCALE;
+                    rescale_target -= MAX_I32_SCALE as i32;
                     continue;
                 }
 
@@ -260,6 +274,6 @@ impl Buf24 {
             }
         }
 
-        Some(scale)
+        Some(scale as u32)
     }
 }
