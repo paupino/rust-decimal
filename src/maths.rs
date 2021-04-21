@@ -64,9 +64,9 @@ impl MathematicalOps for Decimal {
         }
 
         let mut term = *self;
-        let mut result = self + Decimal::one();
+        let mut result = self + Decimal::ONE;
         let mut prev_result: Option<Decimal> = None;
-        let mut factorial = Decimal::one();
+        let mut factorial = Decimal::ONE;
         let mut n = TWO;
         let twenty_four = Decimal::new(24, 0);
 
@@ -76,7 +76,7 @@ impl MathematicalOps for Decimal {
             term = self * term.round_dp(8);
             factorial *= n;
             result += (term / factorial).round_dp(8);
-            n += Decimal::one();
+            n += Decimal::ONE;
         }
 
         result
@@ -92,7 +92,7 @@ impl MathematicalOps for Decimal {
 
     fn checked_powi(&self, exp: u64) -> Option<Decimal> {
         match exp {
-            0 => Some(Decimal::one()),
+            0 => Some(Decimal::ONE),
             1 => Some(*self),
             2 => self.checked_mul(*self),
             _ => {
@@ -105,7 +105,7 @@ impl MathematicalOps for Decimal {
                 let iter = core::iter::repeat(squared);
 
                 // We then take half of the exponent to create a finite iterator and then multiply those together.
-                let mut product = Decimal::one();
+                let mut product = Decimal::ONE;
                 for x in iter.take((exp / 2) as usize) {
                     match product.checked_mul(x) {
                         Some(r) => product = r,
@@ -135,7 +135,7 @@ impl MathematicalOps for Decimal {
 
         // Start with an arbitrary number as the first guess
         let mut result = self / TWO;
-        let mut last = result + Decimal::one();
+        let mut last = result + Decimal::ONE;
 
         // Keep going while the difference is larger than the tolerance
         let mut circuit_breaker = 0;
@@ -158,7 +158,7 @@ impl MathematicalOps for Decimal {
                 Decimal::ZERO
             } else {
                 let s = self * Decimal::new(256, 0);
-                let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::one(), &(Decimal::new(4, 0) / s));
+                let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::ONE, &(Decimal::new(4, 0) / s));
 
                 PI / (arith_geo_mean * TWO) - (Decimal::new(8, 0) * LN2)
             }
@@ -170,7 +170,7 @@ impl MathematicalOps for Decimal {
     /// Abramowitz Approximation of Error Function from [wikipedia](https://en.wikipedia.org/wiki/Error_function#Numerical_approximations)
     fn erf(&self) -> Decimal {
         if self.is_sign_positive() {
-            let one = &Decimal::one();
+            let one = &Decimal::ONE;
 
             let xa1 = self * Decimal::from_str("0.0705230784").unwrap();
             let xa2 = self.powi(2) * Decimal::from_str("0.0422820123").unwrap();
@@ -188,7 +188,7 @@ impl MathematicalOps for Decimal {
 
     /// The Cumulative distribution function for a Normal distribution
     fn norm_cdf(&self) -> Decimal {
-        (Decimal::one() + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf()) / TWO
+        (Decimal::ONE + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf()) / TWO
     }
 
     /// The Probability density function for a Normal distribution

@@ -72,6 +72,8 @@ bench_decimal_op!(mul_negative_point_five, *, "2.01", "-0.5");
 bench_decimal_op!(mul_pi, *, "2.01", "3.1415926535897932384626433832");
 bench_decimal_op!(mul_negative_pi, *, "2.01", "-3.1415926535897932384626433832");
 
+bench_fold_op!(mul_25, *, Decimal::from_str("1.1").unwrap(), 25);
+
 /* Div */
 bench_decimal_op!(div_one, /, "2.01", "1");
 bench_decimal_op!(div_two, /, "2.01", "2");
@@ -81,8 +83,8 @@ bench_decimal_op!(div_negative_point_five, /, "2.01", "-0.5");
 bench_decimal_op!(div_pi, /, "2.01", "3.1415926535897932384626433832");
 bench_decimal_op!(div_negative_pi, /, "2.01", "-3.1415926535897932384626433832");
 bench_decimal_op!(div_no_underflow, /, "1.02343545345", "0.35454343453");
-
 bench_fold_op!(div_10k, /, Decimal::max_value(), 10_000);
+bench_fold_op!(rem_10k, %, Decimal::max_value(), 10_000);
 
 /* Iteration */
 struct DecimalIterator {
