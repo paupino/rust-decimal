@@ -1,9 +1,8 @@
 use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION_I32, POWERS_10};
 use crate::ops::common::{Buf12, Buf16, DecCalc};
 
+use core::cmp::Ordering;
 use core::ops::BitXor;
-use num_traits::Zero;
-use std::cmp::Ordering;
 
 impl Buf12 {
     // Returns true if successful, else false for an overflow
@@ -221,7 +220,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
         return CalculationResult::DivByZero;
     }
     if dividend.is_zero() {
-        return CalculationResult::Ok(Decimal::zero());
+        return CalculationResult::Ok(Decimal::ZERO);
     }
     let dividend = DecCalc::new(dividend);
     let divisor = DecCalc::new(divisor);
