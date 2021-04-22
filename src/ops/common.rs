@@ -15,7 +15,7 @@ pub struct Buf12 {
 impl Buf12 {
     pub(super) const fn new(value: &DecCalc) -> Self {
         Buf12 {
-            data: [value.lo(), value.mid(), value.hi],
+            data: [value.low64 as u32, (value.low64 >> 32) as u32, value.hi],
         }
     }
 
@@ -168,11 +168,20 @@ pub(super) struct DecCalc {
 impl DecCalc {
     pub(super) const fn new(d: &Decimal) -> DecCalc {
         let m = d.mantissa_array3();
-        DecCalc {
-            negative: d.is_sign_negative(),
-            scale: d.scale(),
-            hi: m[2],
-            low64: ((m[1] as u64) << 32) | (m[0] as u64),
+        if m[1] == 0 {
+            DecCalc {
+                negative: d.is_sign_negative(),
+                scale: d.scale(),
+                hi: m[2],
+                low64: m[0] as u64,
+            }
+        } else {
+            DecCalc {
+                negative: d.is_sign_negative(),
+                scale: d.scale(),
+                hi: m[2],
+                low64: ((m[1] as u64) << 32) | (m[0] as u64),
+            }
         }
     }
 
@@ -182,20 +191,12 @@ impl DecCalc {
 
     pub(super) const fn to_decimal(&self) -> Decimal {
         Decimal::from_parts(
-            self.lo(),
-            self.mid(),
+            self.low64 as u32,
+            (self.low64 >> 32) as u32,
             self.hi,
             if self.is_zero() { false } else { self.negative },
             self.scale,
         )
-    }
-
-    pub(super) const fn lo(&self) -> u32 {
-        self.low64 as u32
-    }
-
-    pub(super) const fn mid(&self) -> u32 {
-        (self.low64 >> 32) as u32
     }
 }
 

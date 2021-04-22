@@ -30,7 +30,7 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         let mut rescale_factor = d2.scale as i32 - d1.scale as i32;
         if rescale_factor < 0 {
             rescale_factor = -rescale_factor;
-            let negative = if subtract { !d1.negative } else { d1.negative };
+            let negative = subtract ^ d1.negative;
             let scale = d1.scale;
             unaligned_add(d2, d1, negative, scale, rescale_factor, subtract)
         } else {

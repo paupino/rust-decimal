@@ -1019,26 +1019,6 @@ impl Decimal {
         }
     }
 
-    /// Convert `Decimal` to an internal representation of the underlying struct. This is useful
-    /// for debugging the internal state of the object.
-    ///
-    /// # Important Disclaimer
-    /// This is primarily intended for library maintainers. The internal representation of a
-    /// `Decimal` is considered "unstable" for public use.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rust_decimal::Decimal;
-    /// use core::str::FromStr;
-    ///
-    /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
-    /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
-    /// assert_eq!(format!("{:?}", pi.unpack()), "UnpackedDecimal { \
-    ///     negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
-    /// }");
-    /// ```
-
     #[inline(always)]
     pub(crate) const fn mantissa_array3(&self) -> [u32; 3] {
         [self.lo, self.mid, self.hi]
