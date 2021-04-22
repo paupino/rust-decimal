@@ -163,9 +163,11 @@ impl MathematicalOps for Decimal {
             if self == &Decimal::ONE {
                 Decimal::ZERO
             } else {
+                // TODO: We could just shift left self by 8 here
                 let s = self * Decimal::new(256, 0);
                 let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::ONE, &(Decimal::new(4, 0) / s));
 
+                // TODO: Multiplication by two could be bit shifted too
                 PI / (arith_geo_mean * TWO) - (Decimal::new(8, 0) * LN2)
             }
         } else {
