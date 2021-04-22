@@ -40,6 +40,10 @@ dependencies = ["codecov-build", "codecov-test"]
 command = "grcov"
 args = [".", "-s", ".", "--binary-path", "./target/debug/", "-t",  "html", "--branch", "--ignore-not-existing", "-o", "./target/debug/coverage/"]
 
+[tasks.codecov-open]
+command = "open"
+args = [ "./target/debug/coverage/index.html" ]
+
 [tasks.codecov-clean]
 toolchain = "nightly"
 command = "cargo"
