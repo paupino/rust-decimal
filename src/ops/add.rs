@@ -13,22 +13,18 @@ pub(crate) fn sub_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
 #[inline]
 fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationResult {
-    let d1 = DecCalc::new(d1);
-    let d2 = DecCalc::new(d2);
     if d1.is_zero() {
         // 0 - x or 0 + x
-        return CalculationResult::Ok(Decimal::from_parts(
-            d2.lo(),
-            d2.mid(),
-            d2.hi,
-            subtract ^ d2.negative,
-            d2.scale,
-        ));
+        let mut result = *d2;
+        result.set_sign_negative(subtract ^ d2.is_sign_negative());
+        return CalculationResult::Ok(result);
     }
     if d2.is_zero() {
         // x - 0 or x + 0
-        return CalculationResult::Ok(d1.to_decimal());
+        return CalculationResult::Ok(*d1);
     }
+    let d1 = DecCalc::new(d1);
+    let d2 = DecCalc::new(d2);
 
     // If we're not the same scale then make sure we're there first before starting addition
     let subtract = subtract ^ (d1.negative ^ d2.negative);
