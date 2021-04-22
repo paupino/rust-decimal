@@ -3,7 +3,6 @@ use crate::{
     Decimal,
 };
 use core::{convert::TryInto, fmt, result::*};
-use num_traits::Zero;
 use std::error;
 
 #[derive(Debug, Clone)]
@@ -44,7 +43,7 @@ impl Decimal {
         let fractionals_part_count = digits.len() as i32 + (-weight as i32) - 1;
         let integers_part_count = weight as i32 + 1;
 
-        let mut result = Decimal::zero();
+        let mut result = Decimal::ZERO;
         // adding integer part
         if integers_part_count > 0 {
             let (start_integers, last) = if integers_part_count > digits.len() as i32 {

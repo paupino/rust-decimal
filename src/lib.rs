@@ -129,6 +129,7 @@ extern crate alloc;
 
 mod decimal;
 mod error;
+mod ops;
 
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;
@@ -150,7 +151,7 @@ pub mod prelude {
     pub use crate::maths::MathematicalOps;
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
-    pub use num_traits::{FromPrimitive, One, ToPrimitive, Zero};
+    pub use num_traits::{FromPrimitive, ToPrimitive};
 }
 
 #[cfg(feature = "diesel")]

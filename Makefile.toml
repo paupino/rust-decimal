@@ -10,10 +10,54 @@ toolchain = "nightly"
 command = "cargo"
 args = ["bench", "${@}"]
 
-[tasks.bench-slow]
+[tasks.bench-legacy]
 toolchain = "nightly"
 command = "cargo"
-args = ["bench", "--no-default-features", "--features", "serde,std", "${@}"]
+args = ["bench", "--no-default-features", "--features", "serde,std,legacy-ops", "${@}"]
+
+[tasks.benchcmp]
+dependencies = [
+    "benchcmp-legacy",
+    "benchcmp-default"
+]
+install_crate = "benchcmp"
+command = "cargo"
+args = ["benchcmp", "target/legacy.bench", "target/default.bench"]
+
+[tasks.benchcmp-default]
+script = "cargo +nightly bench > target/default.bench"
+
+[tasks.benchcmp-legacy]
+script = "cargo +nightly bench --no-default-features --features serde,std,legacy-ops > target/legacy.bench"
+
+[tasks.coverage]
+dependencies = ["codecov-clean"]
+env = { "CARGO_INCREMENTAL" = "0", "RUSTFLAGS" = "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort", "RUSTDOCFLAGS" = "-Cpanic=abort" }
+run_task = "codecov-grcov"
+
+[tasks.codecov-grcov]
+dependencies = ["codecov-build", "codecov-test"]
+command = "grcov"
+args = [".", "-s", ".", "--binary-path", "./target/debug/", "-t",  "html", "--branch", "--ignore-not-existing", "-o", "./target/debug/coverage/"]
+
+[tasks.codecov-open]
+command = "open"
+args = [ "./target/debug/coverage/index.html" ]
+
+[tasks.codecov-clean]
+toolchain = "nightly"
+command = "cargo"
+args = [ "clean" ]
+
+[tasks.codecov-build]
+toolchain = "nightly"
+command = "cargo"
+args = [ "build", "-p", "rust_decimal", "--features=default" ]
+
+[tasks.codecov-test]
+toolchain = "nightly"
+command = "cargo"
+args = [ "test", "-p", "rust_decimal", "--features=default"  ]
 
 # Always test no-std with std tests
 [tasks.test]
@@ -76,8 +120,18 @@ command = "cargo"
 args = ["test", "--workspace", "--features=legacy-ops"]
 
 [tasks.test-maths]
+dependencies = [
+    "test-maths-default",
+    "test-maths-legacy",
+]
+
+[tasks.test-maths-default]
 command = "cargo"
 args = ["test", "--workspace", "--no-default-features", "--features=maths", "maths"]
+
+[tasks.test-maths-legacy]
+command = "cargo"
+args = ["test", "--workspace", "--no-default-features", "--features=maths,legacy-ops", "maths"]
 
 [tasks.test-misc]
 command = "cargo"
@@ -85,32 +139,32 @@ args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", 
 
 [tasks.test-db-postgres]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-postgres"]
+args = ["test", "--workspace", "--tests", "--features=db-postgres", "--", "--skip", "generated"]
 
 [tasks.test-db-tokio-postgres]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres"]
+args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres", "--", "--skip", "generated"]
 
 [tasks.test-db-diesel-postgres]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres"]
+args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres", "--", "--skip", "generated"]
 
 [tasks.test-serde-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-float"]
+args = ["test", "--workspace", "--tests", "--features=serde-float", "--", "--skip", "generated"]
 
 [tasks.test-serde-str]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-str"]
+args = ["test", "--workspace", "--tests", "--features=serde-str", "--", "--skip", "generated"]
 
 [tasks.test-serde-str-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-str,serde-float"]
+args = ["test", "--workspace", "--tests", "--features=serde-str,serde-float", "--", "--skip", "generated"]
 
 [tasks.test-serde-arbitrary-precision]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision"]
+args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision", "--", "--skip", "generated"]
 
 [tasks.test-serde-arbitrary-precision-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision,serde-float"]
+args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision,serde-float", "--", "--skip", "generated"]
