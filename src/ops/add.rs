@@ -32,52 +32,49 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         let mut rescale_factor = d2.scale as i32 - d1.scale as i32;
         if rescale_factor < 0 {
             rescale_factor = -rescale_factor;
-            let mut result = DecCalc {
-                negative: if subtract { !d1.negative } else { d1.negative },
-                scale: d1.scale,
-                hi: 0,
-                low64: 0,
-            };
-            unaligned_add(d2, d1, &mut result, rescale_factor, subtract)
+            let negative = if subtract { !d1.negative } else { d1.negative };
+            let scale = d1.scale;
+            unaligned_add(d2, d1, negative, scale, rescale_factor, subtract)
         } else {
-            let mut result = DecCalc {
-                negative: d1.negative,
-                scale: d2.scale,
-                hi: 0,
-                low64: 0,
-            };
-            unaligned_add(d1, d2, &mut result, rescale_factor, subtract)
+            let negative = d1.negative;
+            let scale = d2.scale;
+            unaligned_add(d1, d2, negative, scale, rescale_factor, subtract)
         }
     } else {
-        let mut result = DecCalc {
-            negative: d1.negative,
-            scale: d1.scale,
-            hi: 0,
-            low64: 0,
-        };
-        aligned_add(d1, d2, &mut result, subtract)
+        let neg = d1.negative;
+        let scale = d1.scale;
+        aligned_add(d1, d2, neg, scale, subtract)
     }
 }
 
-fn aligned_add(lhs: DecCalc, rhs: DecCalc, result: &mut DecCalc, subtract: bool) -> CalculationResult {
+fn aligned_add(lhs: DecCalc, rhs: DecCalc, negative: bool, scale: u32, subtract: bool) -> CalculationResult {
     if subtract {
         // Signs differ, so subtract
-        result.low64 = lhs.low64.wrapping_sub(rhs.low64);
-        result.hi = lhs.hi.wrapping_sub(rhs.hi);
+        let mut result = DecCalc {
+            negative,
+            scale,
+            low64: lhs.low64.wrapping_sub(rhs.low64),
+            hi: lhs.hi.wrapping_sub(rhs.hi),
+        };
 
         // Check for carry
         if result.low64 > lhs.low64 {
             result.hi = result.hi.wrapping_sub(1);
             if result.hi >= lhs.hi {
-                flip_sign(result);
+                flip_sign(&mut result);
             }
         } else if result.hi > lhs.hi {
-            flip_sign(result);
+            flip_sign(&mut result);
         }
+        CalculationResult::Ok(result.to_decimal())
     } else {
         // Signs are the same, so add
-        result.low64 = lhs.low64.wrapping_add(rhs.low64);
-        result.hi = lhs.hi.wrapping_add(rhs.hi);
+        let mut result = DecCalc {
+            negative,
+            scale,
+            low64: lhs.low64.wrapping_add(rhs.low64),
+            hi: lhs.hi.wrapping_add(rhs.hi),
+        };
 
         // Check for carry
         if result.low64 < lhs.low64 {
@@ -86,17 +83,16 @@ fn aligned_add(lhs: DecCalc, rhs: DecCalc, result: &mut DecCalc, subtract: bool)
                 if result.scale == 0 {
                     return CalculationResult::Overflow;
                 }
-                reduce_scale(result);
+                reduce_scale(&mut result);
             }
         } else if result.hi < lhs.hi {
             if result.scale == 0 {
                 return CalculationResult::Overflow;
             }
-            reduce_scale(result);
+            reduce_scale(&mut result);
         }
+        CalculationResult::Ok(result.to_decimal())
     }
-
-    CalculationResult::Ok(result.to_decimal())
 }
 
 fn flip_sign(result: &mut DecCalc) {
@@ -142,7 +138,8 @@ fn reduce_scale(result: &mut DecCalc) {
 fn unaligned_add(
     lhs: DecCalc,
     rhs: DecCalc,
-    result: &mut DecCalc,
+    negative: bool,
+    scale: u32,
     rescale_factor: i32,
     subtract: bool,
 ) -> CalculationResult {
@@ -160,7 +157,7 @@ fn unaligned_add(
                 if rescale_factor <= MAX_I32_SCALE {
                     low64 = low64 * POWERS_10[rescale_factor as usize] as u64;
                     lhs.low64 = low64;
-                    return aligned_add(lhs, rhs, result, subtract);
+                    return aligned_add(lhs, rhs, negative, scale, subtract);
                 }
                 rescale_factor -= MAX_I32_SCALE;
                 low64 = low64 * POWERS_10[9] as u64;
@@ -183,7 +180,7 @@ fn unaligned_add(
             if rescale_factor <= 0 {
                 lhs.low64 = low64;
                 lhs.hi = high;
-                return aligned_add(lhs, rhs, result, subtract);
+                return aligned_add(lhs, rhs, negative, scale, subtract);
             }
         }
     }
@@ -212,7 +209,7 @@ fn unaligned_add(
             if rescale_factor <= 0 {
                 lhs.low64 = low64;
                 lhs.hi = high;
-                return aligned_add(lhs, rhs, result, subtract);
+                return aligned_add(lhs, rhs, negative, scale, subtract);
             }
         }
     }
@@ -274,14 +271,12 @@ fn unaligned_add(
             }
 
             if buffer.data[upper_word] == 0 && upper_word < 3 {
-                result.low64 = low64;
-                result.hi = high;
                 return CalculationResult::Ok(Decimal::from_parts(
-                    result.lo(),
-                    result.mid(),
-                    result.hi,
-                    result.negative,
-                    result.scale,
+                    low64 as u32,
+                    (low64 >> 32) as u32,
+                    high,
+                    negative,
+                    scale,
                 ));
             }
         }
@@ -314,12 +309,12 @@ fn unaligned_add(
 
     buffer.set_low64(low64);
     buffer.data[2] = high;
-    if let Some(scale) = buffer.rescale(upper_word, result.scale) {
+    if let Some(scale) = buffer.rescale(upper_word, scale) {
         CalculationResult::Ok(Decimal::from_parts(
             buffer.data[0],
             buffer.data[1],
             buffer.data[2],
-            result.negative,
+            negative,
             scale,
         ))
     } else {
