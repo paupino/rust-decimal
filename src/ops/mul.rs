@@ -1,4 +1,4 @@
-use crate::decimal::{CalculationResult, Decimal, UnpackedDecimal, MAX_PRECISION};
+use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION};
 use crate::ops::common::{Buf24, MAX_I64_SCALE, U32_MAX};
 
 // Fast access for 10^n where n is 1-19
@@ -30,17 +30,16 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         // an absolute which I think is ok, especially since we have is_zero() functions etc.
         return CalculationResult::Ok(Decimal::ZERO);
     }
-    let d1 = d1.unpack();
-    let d2 = d2.unpack();
-    let mut scale = d1.scale + d2.scale;
-    let negative = d1.negative ^ d2.negative;
+
+    let mut scale = d1.scale() + d2.scale();
+    let negative = d1.is_sign_negative() ^ d2.is_sign_negative();
     let mut product = Buf24::zero();
 
     // See if we can optimize this calculation depending on whether the hi bits are set
-    if d1.hi | d1.mid == 0 {
-        if d2.hi | d2.mid == 0 {
+    if d1.hi() | d1.mid() == 0 {
+        if d2.hi() | d2.mid() == 0 {
             // We're multiplying two 32 bit integers, so we can take some liberties to optimize this.
-            let mut low64 = d1.lo as u64 * d2.lo as u64;
+            let mut low64 = d1.lo() as u64 * d2.lo() as u64;
             if scale > MAX_PRECISION {
                 // We've exceeded maximum scale so we need to start reducing the precision (aka
                 // rounding) until we have something that fits.
@@ -77,23 +76,23 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
         // We know that the left hand side is just 32 bits but the right hand side is either
         // 64 or 96 bits.
-        mul_by_32bit_lhs(&d1, &d2, &mut product);
-    } else if d2.mid | d2.hi == 0 {
+        mul_by_32bit_lhs(d1.lo() as u64, &d2, &mut product);
+    } else if d2.mid() | d2.hi() == 0 {
         // We know that the right hand side is just 32 bits.
-        mul_by_32bit_lhs(&d2, &d1, &mut product);
+        mul_by_32bit_lhs(d2.lo() as u64, &d1, &mut product);
     } else {
         // We know we're not dealing with simple 32 bit operands on either side.
         // We compute and accumulate the 9 partial products using long multiplication
 
         // 1: ll * rl
-        let mut tmp = d1.lo as u64 * d2.lo as u64;
+        let mut tmp = d1.lo() as u64 * d2.lo() as u64;
         product.data[0] = tmp as u32;
 
         // 2: ll * rm
-        let mut tmp2 = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
+        let mut tmp2 = (d1.lo() as u64 * d2.mid() as u64).wrapping_add(tmp >> 32);
 
         // 3: lm * rl
-        tmp = d1.mid as u64 * d2.lo as u64;
+        tmp = d1.mid() as u64 * d2.lo() as u64;
         tmp = tmp.wrapping_add(tmp2);
         product.data[1] = tmp as u32;
 
@@ -105,19 +104,19 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         }
 
         // 4: lm * rm
-        tmp = (d1.mid as u64 * d2.mid as u64) + tmp2;
+        tmp = (d1.mid() as u64 * d2.mid() as u64) + tmp2;
 
         // If the high bit isn't set then we can stop here. Otherwise, we need to continue calculating
         // using the high bits.
-        if (d1.hi | d2.hi) > 0 {
+        if (d1.hi() | d2.hi()) > 0 {
             // 5. ll * rh
-            tmp2 = d1.lo as u64 * d2.hi as u64;
+            tmp2 = d1.lo() as u64 * d2.hi() as u64;
             tmp = tmp.wrapping_add(tmp2);
             // Detect if we carried
             let mut tmp3 = if tmp < tmp2 { 1 } else { 0 };
 
             // 6. lh * rl
-            tmp2 = d1.hi as u64 * d2.lo as u64;
+            tmp2 = d1.hi() as u64 * d2.lo() as u64;
             tmp = tmp.wrapping_add(tmp2);
             product.data[2] = tmp as u32;
             // Detect if we carried
@@ -127,13 +126,13 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
             tmp2 = (tmp3 << 32) | (tmp >> 32);
 
             // 7. lm * rh
-            tmp = d1.mid as u64 * d2.hi as u64;
+            tmp = d1.mid() as u64 * d2.hi() as u64;
             tmp = tmp.wrapping_add(tmp2);
             // Check for carry
             tmp3 = if tmp < tmp2 { 1 } else { 0 };
 
             // 8. lh * rm
-            tmp2 = d1.hi as u64 * d2.mid as u64;
+            tmp2 = d1.hi() as u64 * d2.mid() as u64;
             tmp = tmp.wrapping_add(tmp2);
             product.data[3] = tmp as u32;
             // Check for carry
@@ -143,7 +142,7 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
             tmp = (tmp3 << 32) | (tmp >> 32);
 
             // 9. lh * rh
-            product.set_high64(d1.hi as u64 * d2.hi as u64 + tmp);
+            product.set_high64(d1.hi() as u64 * d2.hi() as u64 + tmp);
         } else {
             product.set_mid64(tmp);
         }
@@ -170,16 +169,16 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 }
 
 #[inline(always)]
-fn mul_by_32bit_lhs(d1: &UnpackedDecimal, d2: &UnpackedDecimal, product: &mut Buf24) {
-    let mut tmp = d1.lo as u64 * d2.lo as u64;
+fn mul_by_32bit_lhs(d1: u64, d2: &Decimal, product: &mut Buf24) {
+    let mut tmp = d1 * d2.lo() as u64;
     product.data[0] = tmp as u32;
-    tmp = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
+    tmp = (d1 * d2.mid() as u64).wrapping_add(tmp >> 32);
     product.data[1] = tmp as u32;
     tmp >>= 32;
 
     // If we're multiplying by a 96 bit integer then continue the calculation
-    if d2.hi > 0 {
-        tmp = tmp.wrapping_add(d1.lo as u64 * d2.hi as u64);
+    if d2.hi() > 0 {
+        tmp = tmp.wrapping_add(d1 * d2.hi() as u64);
         if tmp > U32_MAX {
             product.set_mid64(tmp);
         } else {

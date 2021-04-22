@@ -1,5 +1,5 @@
-use crate::decimal::{Decimal, UnpackedDecimal, POWERS_10, U32_MASK};
-use crate::ops::common::{MAX_I32_SCALE, U32_MAX};
+use crate::decimal::{Decimal, POWERS_10, U32_MASK};
+use crate::ops::common::{Dec64, MAX_I32_SCALE, U32_MAX};
 
 use core::cmp::Ordering;
 
@@ -30,8 +30,8 @@ pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
     }
 
     // Otherwise, do a deep comparison
-    let d1 = d1.unpack();
-    let d2 = d2.unpack();
+    let d1 = Dec64::new(&d1);
+    let d2 = Dec64::new(&d2);
     // We know both signs are the same here so flip it here.
     // Negative is handled differently. i.e. 0.5 > 0.01 however -0.5 < -0.01
     if d1.negative {
@@ -41,11 +41,11 @@ pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
     }
 }
 
-pub(in crate::ops) fn cmp_internal(d1: &UnpackedDecimal, d2: &UnpackedDecimal) -> Ordering {
+pub(in crate::ops) fn cmp_internal(d1: &Dec64, d2: &Dec64) -> Ordering {
     // This function ignores sign
-    let mut d1_low = d1.low64();
+    let mut d1_low = d1.low64;
     let mut d1_high = d1.hi;
-    let mut d2_low = d2.low64();
+    let mut d2_low = d2.low64;
     let mut d2_high = d2.hi;
 
     // If the scale factors aren't equal then

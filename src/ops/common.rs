@@ -13,25 +13,60 @@ pub struct Buf12 {
 }
 
 impl Buf12 {
-    pub(super) const fn new(value: &DecCalc) -> Self {
+    pub(super) const fn from_dec64(value: &Dec64) -> Self {
         Buf12 {
             data: [value.low64 as u32, (value.low64 >> 32) as u32, value.hi],
         }
     }
 
+    pub(super) const fn from_decimal(value: &Decimal) -> Self {
+        Buf12 {
+            data: value.mantissa_array3(),
+        }
+    }
+
+    #[inline(always)]
+    pub const fn lo(&self) -> u32 {
+        self.data[0]
+    }
+    #[inline(always)]
+    pub const fn mid(&self) -> u32 {
+        self.data[1]
+    }
+    #[inline(always)]
+    pub const fn hi(&self) -> u32 {
+        self.data[2]
+    }
+    #[inline(always)]
+    pub fn set_lo(&mut self, value: u32) {
+        self.data[0] = value;
+    }
+    #[inline(always)]
+    pub fn set_mid(&mut self, value: u32) {
+        self.data[1] = value;
+    }
+    #[inline(always)]
+    pub fn set_hi(&mut self, value: u32) {
+        self.data[2] = value;
+    }
+
+    #[inline(always)]
     pub const fn low64(&self) -> u64 {
         ((self.data[1] as u64) << 32) | (self.data[0] as u64)
     }
 
+    #[inline(always)]
     pub fn set_low64(&mut self, value: u64) {
         self.data[1] = (value >> 32) as u32;
         self.data[0] = value as u32;
     }
 
+    #[inline(always)]
     pub const fn high64(&self) -> u64 {
         ((self.data[2] as u64) << 32) | (self.data[1] as u64)
     }
 
+    #[inline(always)]
     pub fn set_high64(&mut self, value: u64) {
         self.data[2] = (value >> 32) as u32;
         self.data[1] = value as u32;
@@ -152,31 +187,45 @@ static POWER_OVERFLOW_VALUES: [Buf12; 8] = [
     },
 ];
 
-pub(super) struct DecCalc {
+pub(super) struct Dec64 {
     pub negative: bool,
     pub scale: u32,
     pub hi: u32,
     pub low64: u64,
 }
 
-impl DecCalc {
-    pub(super) const fn new(d: &Decimal) -> DecCalc {
+impl Dec64 {
+    pub(super) const fn new(d: &Decimal) -> Dec64 {
         let m = d.mantissa_array3();
         if m[1] == 0 {
-            DecCalc {
+            Dec64 {
                 negative: d.is_sign_negative(),
                 scale: d.scale(),
                 hi: m[2],
                 low64: m[0] as u64,
             }
         } else {
-            DecCalc {
+            Dec64 {
                 negative: d.is_sign_negative(),
                 scale: d.scale(),
                 hi: m[2],
                 low64: ((m[1] as u64) << 32) | (m[0] as u64),
             }
         }
+    }
+
+    #[inline(always)]
+    pub(super) const fn lo(&self) -> u32 {
+        self.low64 as u32
+    }
+    #[inline(always)]
+    pub(super) const fn mid(&self) -> u32 {
+        (self.low64 >> 32) as u32
+    }
+
+    #[inline(always)]
+    pub(super) const fn high64(&self) -> u64 {
+        (self.low64 >> 32) | ((self.hi as u64) << 32)
     }
 
     pub(super) const fn to_decimal(&self) -> Decimal {
@@ -187,26 +236,6 @@ impl DecCalc {
             self.negative,
             self.scale,
         )
-    }
-}
-
-// TODO: Remove this
-impl crate::decimal::UnpackedDecimal {
-    pub(super) const fn low64(&self) -> u64 {
-        ((self.mid as u64) << 32) | (self.lo as u64)
-    }
-
-    pub(super) fn set_low64(&mut self, value: u64) {
-        self.mid = (value >> 32) as u32;
-        self.lo = value as u32;
-    }
-
-    pub(super) const fn high64(&self) -> u64 {
-        ((self.hi as u64) << 32) | (self.mid as u64)
-    }
-
-    pub(super) const fn repack(&self) -> Decimal {
-        Decimal::from_parts(self.lo, self.mid, self.hi, self.negative, self.scale)
     }
 }
 

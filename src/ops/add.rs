@@ -1,5 +1,5 @@
 use crate::decimal::{CalculationResult, Decimal, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK};
-use crate::ops::common::{Buf24, DecCalc, MAX_I32_SCALE, U32_MAX};
+use crate::ops::common::{Buf24, Dec64, MAX_I32_SCALE, U32_MAX};
 
 pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     add_sub_internal(d1, d2, false)
@@ -59,8 +59,8 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
     }
 
     // Continue on with the slower 64 bit method
-    let d1 = DecCalc::new(d1);
-    let d2 = DecCalc::new(d2);
+    let d1 = Dec64::new(d1);
+    let d2 = Dec64::new(d2);
 
     // If we're not the same scale then make sure we're there first before starting addition
     if rescale {
@@ -103,10 +103,10 @@ fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult
     CalculationResult::Ok(Decimal::from_parts_raw(lo, mid, 0, flags))
 }
 
-fn aligned_add(lhs: DecCalc, rhs: DecCalc, negative: bool, scale: u32, subtract: bool) -> CalculationResult {
+fn aligned_add(lhs: Dec64, rhs: Dec64, negative: bool, scale: u32, subtract: bool) -> CalculationResult {
     if subtract {
         // Signs differ, so subtract
-        let mut result = DecCalc {
+        let mut result = Dec64 {
             negative,
             scale,
             low64: lhs.low64.wrapping_sub(rhs.low64),
@@ -125,7 +125,7 @@ fn aligned_add(lhs: DecCalc, rhs: DecCalc, negative: bool, scale: u32, subtract:
         CalculationResult::Ok(result.to_decimal())
     } else {
         // Signs are the same, so add
-        let mut result = DecCalc {
+        let mut result = Dec64 {
             negative,
             scale,
             low64: lhs.low64.wrapping_add(rhs.low64),
@@ -151,7 +151,7 @@ fn aligned_add(lhs: DecCalc, rhs: DecCalc, negative: bool, scale: u32, subtract:
     }
 }
 
-fn flip_sign(result: &mut DecCalc) {
+fn flip_sign(result: &mut Dec64) {
     // Bitwise not the high portion
     result.hi = !result.hi;
     let low64 = (-(result.low64 as i64)) as u64;
@@ -162,7 +162,7 @@ fn flip_sign(result: &mut DecCalc) {
     result.negative = !result.negative;
 }
 
-fn reduce_scale(result: &mut DecCalc) {
+fn reduce_scale(result: &mut Dec64) {
     let mut low64 = result.low64;
     let mut hi = result.hi;
 
@@ -192,8 +192,8 @@ fn reduce_scale(result: &mut DecCalc) {
 // Assumption going into this function is that the LHS is the larger number and will "absorb" the
 // smaller number.
 fn unaligned_add(
-    lhs: DecCalc,
-    rhs: DecCalc,
+    lhs: Dec64,
+    rhs: Dec64,
     negative: bool,
     scale: u32,
     rescale_factor: i32,
