@@ -1020,6 +1020,26 @@ impl Decimal {
     }
 
     #[inline(always)]
+    pub(crate) const fn lo(&self) -> u32 {
+        self.lo
+    }
+
+    #[inline(always)]
+    pub(crate) const fn mid(&self) -> u32 {
+        self.mid
+    }
+
+    #[inline(always)]
+    pub(crate) const fn hi(&self) -> u32 {
+        self.hi
+    }
+
+    #[inline(always)]
+    pub(crate) const fn flags(&self) -> u32 {
+        self.flags
+    }
+
+    #[inline(always)]
     pub(crate) const fn mantissa_array3(&self) -> [u32; 3] {
         [self.lo, self.mid, self.hi]
     }

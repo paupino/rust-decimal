@@ -21,6 +21,33 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         // x - 0 or x + 0
         return CalculationResult::Ok(*d1);
     }
+
+    // Micro-optimization for the simple u32 case
+    if d1.flags() == d2.flags() {
+        if d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
+            let lo1 = d1.lo();
+            let lo2 = d2.lo();
+            if subtract {
+                if lo1 < lo2 {
+                    if let Some(lo) = lo2.checked_sub(lo1) {
+                        return CalculationResult::Ok(Decimal::from_parts(
+                            lo,
+                            0,
+                            0,
+                            !d1.is_sign_negative(),
+                            d1.scale(),
+                        ));
+                    }
+                } else if let Some(lo) = lo1.checked_sub(lo2) {
+                    return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
+                }
+            } else {
+                if let Some(lo) = lo1.checked_add(lo2) {
+                    return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
+                }
+            }
+        }
+    }
     let d1 = DecCalc::new(d1);
     let d2 = DecCalc::new(d2);
 
