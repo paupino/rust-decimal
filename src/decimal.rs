@@ -83,16 +83,7 @@ const ONE: Decimal = Decimal {
 
 // Fast access for 10^n where n is 0-9
 pub(crate) const POWERS_10: [u32; 10] = [
-    1,
-    10,
-    100,
-    1_000,
-    10_000,
-    100_000,
-    1_000_000,
-    10_000_000,
-    100_000_000,
-    1_000_000_000,
+    1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000,
 ];
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
@@ -331,8 +322,8 @@ impl Decimal {
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
-        if exp.starts_with('-') {
-            let exp: u32 = exp[1..].parse().map_err(move |_| err)?;
+        if let Some(stripped) = exp.strip_prefix('-') {
+            let exp: u32 = stripped.parse().map_err(move |_| err)?;
             ret.set_scale(current_scale + exp)?;
         } else {
             let exp: u32 = exp.parse().map_err(move |_| err)?;
@@ -827,7 +818,7 @@ impl Decimal {
     /// use core::str::FromStr;
     ///
     /// let tax = Decimal::from_str("3.4395").unwrap();
-    /// assert_eq!(tax.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp).to_string(), "3.44");
+    /// assert_eq!(tax.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero).to_string(), "3.44");
     /// ```
     pub fn round_dp_with_strategy(&self, dp: u32, strategy: RoundingStrategy) -> Decimal {
         // Short circuit for zero
@@ -1154,9 +1145,7 @@ impl Decimal {
             }
         } else {
             // Guaranteed to about 7 dp
-            while exponent10 < 0
-                && (bits[2] != 0 || bits[1] != 0 || (bits[2] == 0 && bits[1] == 0 && (bits[0] & 0xFF00_0000) != 0))
-            {
+            while exponent10 < 0 && ((bits[0] & 0xFF00_0000) != 0 || bits[1] != 0 || bits[2] != 0) {
                 let rem10 = div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {

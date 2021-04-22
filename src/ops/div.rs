@@ -3,6 +3,7 @@ use crate::ops::common::{Buf12, Buf16, DecCalc};
 
 use core::ops::BitXor;
 use num_traits::Zero;
+use std::cmp::Ordering;
 
 impl Buf12 {
     // Returns true if successful, else false for an overflow
@@ -278,14 +279,12 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                     let round = if tmp < remainder {
                         // We round if we wrapped around
                         true
+                    } else if tmp >= divisor32 {
+                        // If we're greater than the divisor (i.e. underflow)
+                        // or if there is a lo bit set, we round
+                        tmp > divisor32 || (quotient.data[0] & 0x1) > 0
                     } else {
-                        if tmp >= divisor32 {
-                            // If we're greater than the divisor (i.e. underflow)
-                            // or if there is a lo bit set, we round
-                            tmp > divisor32 || (quotient.data[0] & 0x1) > 0
-                        } else {
-                            false
-                        }
+                        false
                     };
 
                     // If we need to round, try to do so.
@@ -492,17 +491,17 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                             remainder.set_low64(rem_low64);
                             remainder.data[2] = (&remainder.data[2] << 1) + tmp;
 
-                            if remainder.data[2] > divisor.data[2] {
-                                true
-                            } else if remainder.data[2] == divisor.data[2] {
-                                let divisor_low64 = divisor.low64();
-                                if rem_low64 > divisor_low64 {
-                                    true
-                                } else {
-                                    rem_low64 == divisor_low64 && (quotient.data[0] & 1) != 0
+                            match remainder.data[2].cmp(&divisor.data[2]) {
+                                Ordering::Less => false,
+                                Ordering::Equal => {
+                                    let divisor_low64 = divisor.low64();
+                                    if rem_low64 > divisor_low64 {
+                                        true
+                                    } else {
+                                        rem_low64 == divisor_low64 && (quotient.data[0] & 1) != 0
+                                    }
                                 }
-                            } else {
-                                false
+                                Ordering::Greater => true,
                             }
                         };
 

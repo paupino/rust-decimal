@@ -44,7 +44,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
             let mut tmp = d2.lo as u64 * power;
             d2.lo = tmp as u32;
-            tmp = tmp >> 32;
+            tmp >>= 32;
             tmp = tmp.wrapping_add((d2.mid as u64 + ((d2.hi as u64) << 32)) * power);
             d2.mid = tmp as u32;
             d2.hi = (tmp >> 32) as u32;
@@ -80,11 +80,11 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
                     break;
                 }
                 let power = POWERS_10[power_scale] as u64;
-                scale = scale + power_scale as i32;
+                scale += power_scale as i32;
 
                 let mut tmp = quotient.data[0] as u64 * power;
                 quotient.data[0] = tmp as u32;
-                tmp = tmp >> 32;
+                tmp >>= 32;
                 quotient.set_high64(tmp.wrapping_add(quotient.high64().wrapping_mul(power)));
                 if power_scale != 9 {
                     break;
@@ -149,13 +149,13 @@ fn rem_full(d1: &UnpackedDecimal, d2: &UnpackedDecimal, scale: i32) -> Calculati
             if index > upper {
                 break;
             }
-            tmp64 = tmp64 >> 32;
+            tmp64 >>= 32;
             tmp64 = tmp64.wrapping_add((*part as u64).wrapping_mul(power));
             *part = tmp64 as u32;
         }
         // If we have overflow then also process that
         if upper == 6 {
-            tmp64 = tmp64 >> 32;
+            tmp64 >>= 32;
             tmp64 = tmp64.wrapping_add((overflow as u64).wrapping_mul(power));
             overflow = tmp64 as u32;
         }

@@ -56,10 +56,8 @@ pub(in crate::ops) fn cmp_internal(d1: &UnpackedDecimal, d2: &UnpackedDecimal) -
             if !rescale(&mut d2_low, &mut d2_high, diff as u32) {
                 return Ordering::Less;
             }
-        } else {
-            if !rescale(&mut d1_low, &mut d1_high, diff as u32) {
-                return Ordering::Greater;
-            }
+        } else if !rescale(&mut d1_low, &mut d1_high, diff as u32) {
+            return Ordering::Greater;
         }
     }
 
@@ -83,7 +81,7 @@ fn rescale(low64: &mut u64, high: &mut u32, diff: u32) -> bool {
         let tmp_lo_32 = (*low64 & U32_MASK) * power;
         let mut tmp = (*low64 >> 32) * power + (tmp_lo_32 >> 32);
         *low64 = (tmp_lo_32 & U32_MASK) + (tmp << 32);
-        tmp = tmp >> 32;
+        tmp >>= 32;
         tmp = tmp.wrapping_add((*high as u64) * power);
         // Indicates > 96 bits
         if tmp > U32_MAX {

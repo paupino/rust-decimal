@@ -5,23 +5,23 @@ use crate::ops::common::{Buf24, MAX_I64_SCALE, U32_MAX};
 const BIG_POWERS_10: [u64; 19] = [
     10,
     100,
-    1_000,
-    10_000,
-    100_000,
-    1_000_000,
-    10_000_000,
-    100_000_000,
-    1_000_000_000,
-    10_000_000_000,
-    100_000_000_000,
-    1_000_000_000_000,
-    10_000_000_000_000,
-    100_000_000_000_000,
-    1_000_000_000_000_000,
-    10_000_000_000_000_000,
-    100_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    10_000_000_000_000_000_000,
+    1000,
+    10000,
+    100000,
+    1000000,
+    10000000,
+    100000000,
+    1000000000,
+    10000000000,
+    100000000000,
+    1000000000000,
+    10000000000000,
+    100000000000000,
+    1000000000000000,
+    10000000000000000,
+    100000000000000000,
+    1000000000000000000,
+    10000000000000000000,
 ];
 
 pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
@@ -57,7 +57,7 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
                 low64 = tmp;
 
                 // Round the result. Since the divisor was a power of 10, it's always even.
-                power = power >> 1;
+                power >>= 1;
                 if remainder >= power && (remainder > power || (low64 as u32 & 1) > 0) {
                     low64 += 1;
                 }
@@ -175,7 +175,7 @@ fn mul_by_32bit_lhs(d1: &UnpackedDecimal, d2: &UnpackedDecimal, product: &mut Bu
     product.data[0] = tmp as u32;
     tmp = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
     product.data[1] = tmp as u32;
-    tmp = tmp >> 32;
+    tmp >>= 32;
 
     // If we're multiplying by a 96 bit integer then continue the calculation
     if d2.hi > 0 {

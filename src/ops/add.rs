@@ -23,29 +23,20 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
     }
 
     // Micro-optimization for the simple u32 case
-    if d1.flags() == d2.flags() {
-        if d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
-            let lo1 = d1.lo();
-            let lo2 = d2.lo();
-            if subtract {
-                if lo1 < lo2 {
-                    if let Some(lo) = lo2.checked_sub(lo1) {
-                        return CalculationResult::Ok(Decimal::from_parts(
-                            lo,
-                            0,
-                            0,
-                            !d1.is_sign_negative(),
-                            d1.scale(),
-                        ));
-                    }
-                } else if let Some(lo) = lo1.checked_sub(lo2) {
-                    return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
+    // TODO: We can extend this to support different signs/scales fairly easily
+    if d1.flags() == d2.flags() && d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
+        let lo1 = d1.lo();
+        let lo2 = d2.lo();
+        if subtract {
+            if lo1 < lo2 {
+                if let Some(lo) = lo2.checked_sub(lo1) {
+                    return CalculationResult::Ok(Decimal::from_parts(lo, 0, 0, !d1.is_sign_negative(), d1.scale()));
                 }
-            } else {
-                if let Some(lo) = lo1.checked_add(lo2) {
-                    return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
-                }
+            } else if let Some(lo) = lo1.checked_sub(lo2) {
+                return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
             }
+        } else if let Some(lo) = lo1.checked_add(lo2) {
+            return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
         }
     }
     let d1 = DecCalc::new(d1);
@@ -180,12 +171,12 @@ fn unaligned_add(
             // Start with reducing the scale down for the low portion
             while low64 <= U32_MAX {
                 if rescale_factor <= MAX_I32_SCALE {
-                    low64 = low64 * POWERS_10[rescale_factor as usize] as u64;
+                    low64 *= POWERS_10[rescale_factor as usize] as u64;
                     lhs.low64 = low64;
                     return aligned_add(lhs, rhs, negative, scale, subtract);
                 }
                 rescale_factor -= MAX_I32_SCALE;
-                low64 = low64 * POWERS_10[9] as u64;
+                low64 *= POWERS_10[9] as u64;
             }
         }
 
@@ -222,8 +213,8 @@ fn unaligned_add(
         let tmp_low = (low64 & U32_MASK) * power;
         tmp64 = (low64 >> 32) * power + (tmp_low >> 32);
         low64 = (tmp_low & U32_MASK) + (tmp64 << 32);
-        tmp64 = tmp64 >> 32;
-        tmp64 = tmp64 + (high as u64) * power;
+        tmp64 >>= 32;
+        tmp64 += (high as u64) * power;
 
         rescale_factor -= MAX_I32_SCALE;
 
@@ -254,7 +245,7 @@ fn unaligned_add(
         for (index, part) in buffer.data.iter_mut().enumerate() {
             tmp64 = tmp64.wrapping_add((*part as u64) * power);
             *part = tmp64 as u32;
-            tmp64 = tmp64 >> 32;
+            tmp64 >>= 32;
             if index + 1 > upper_word {
                 break;
             }

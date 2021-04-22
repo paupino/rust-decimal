@@ -92,27 +92,21 @@ impl Buf12 {
                 } else {
                     2
                 }
+            } else if hi > OVERFLOW_MAX_4_HI {
+                3
             } else {
-                if hi > OVERFLOW_MAX_4_HI {
-                    3
-                } else {
-                    4
-                }
+                4
             }
+        } else if hi > OVERFLOW_MAX_7_HI {
+            if hi > OVERFLOW_MAX_6_HI {
+                5
+            } else {
+                6
+            }
+        } else if hi > OVERFLOW_MAX_8_HI {
+            7
         } else {
-            if hi > OVERFLOW_MAX_7_HI {
-                if hi > OVERFLOW_MAX_6_HI {
-                    5
-                } else {
-                    6
-                }
-            } else {
-                if hi > OVERFLOW_MAX_8_HI {
-                    7
-                } else {
-                    8
-                }
-            }
+            8
         };
 
         // Double check what we've found won't overflow. Otherwise, we go one below.
@@ -324,7 +318,7 @@ impl Buf24 {
         if self.data[1] > 0 {
             return 1;
         }
-        return 0;
+        0
     }
 
     // Attempt to rescale the number into 96 bits. If successful, the scale is returned wrapped
@@ -354,11 +348,11 @@ impl Buf24 {
         if rescale_target > 0 {
             // We're going to keep reducing by powers of 10. So, start by reducing the scale by
             // that amount.
-            scale = scale - rescale_target;
+            scale -= rescale_target;
             let mut sticky = 0;
             let mut remainder = 0;
             loop {
-                sticky = sticky | remainder;
+                sticky |= remainder;
                 let mut power = if rescale_target > 8 {
                     POWERS_10[9]
                 } else {
@@ -399,7 +393,7 @@ impl Buf24 {
                 }
 
                 // Round the final result.
-                power = power >> 1;
+                power >>= 1;
                 let carried = if power <= remainder {
                     // If we're less than half then we're fine. Otherwise, we round if odd or if the
                     // sticky bit is set.
