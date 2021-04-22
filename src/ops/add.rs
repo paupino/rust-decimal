@@ -1,4 +1,4 @@
-use crate::decimal::{CalculationResult, Decimal, POWERS_10, U32_MASK};
+use crate::decimal::{CalculationResult, Decimal, POWERS_10, SCALE_MASK, SIGN_MASK, U32_MASK};
 use crate::ops::common::{Buf24, DecCalc, MAX_I32_SCALE, U32_MAX};
 
 pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
@@ -22,29 +22,28 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         return CalculationResult::Ok(*d1);
     }
 
-    // Micro-optimization for the simple u32 case
-    // TODO: We can extend this to support different signs/scales fairly easily
-    if d1.flags() == d2.flags() && d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
-        let lo1 = d1.lo();
-        let lo2 = d2.lo();
-        if subtract {
-            if lo1 < lo2 {
-                if let Some(lo) = lo2.checked_sub(lo1) {
-                    return CalculationResult::Ok(Decimal::from_parts(lo, 0, 0, !d1.is_sign_negative(), d1.scale()));
-                }
-            } else if let Some(lo) = lo1.checked_sub(lo2) {
-                return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
-            }
-        } else if let Some(lo) = lo1.checked_add(lo2) {
-            return CalculationResult::Ok(Decimal::from_parts_raw(lo, 0, 0, d1.flags()));
+    // Work out whether we need to rescale and/or if it's a subtract still given the signs of the
+    // numbers.
+    let flags = d1.flags() ^ d2.flags();
+    let subtract = subtract ^ ((flags & SIGN_MASK) != 0);
+    let rescale = (flags & SCALE_MASK) > 0;
+
+    // We optimize towards using 32 bit logic as much as possible. It's noticeably faster at
+    // scale, even on 64 bit machines
+    if d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
+        // We'll try to rescale, however we may end up with 64 bit (or more) numbers
+        // If we do, we'll choose a different flow than fast_add
+        if !rescale {
+            return fast_add(d1.lo(), d2.lo(), d1.flags(), subtract);
         }
     }
+
+    // Continue on with the slower 64 bit method
     let d1 = DecCalc::new(d1);
     let d2 = DecCalc::new(d2);
 
     // If we're not the same scale then make sure we're there first before starting addition
-    let subtract = subtract ^ (d1.negative ^ d2.negative);
-    if d1.scale != d2.scale {
+    if rescale {
         let mut rescale_factor = d2.scale as i32 - d1.scale as i32;
         if rescale_factor < 0 {
             rescale_factor = -rescale_factor;
@@ -61,6 +60,20 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         let scale = d1.scale;
         aligned_add(d1, d2, neg, scale, subtract)
     }
+}
+
+fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult {
+    if subtract {
+        // Sub can't overflow because we're ensuring the bigger number always subtracts the smaller number
+        if lo1 < lo2 {
+            return CalculationResult::Ok(Decimal::from_parts_raw(lo2 - lo1, 0, 0, flags ^ SIGN_MASK));
+        }
+        return CalculationResult::Ok(Decimal::from_parts_raw(lo1 - lo2, 0, 0, flags));
+    }
+    // Add can overflow however, so we check for that explicitly
+    let lo = lo1.wrapping_add(lo2);
+    let mid = if lo < lo1 { 1 } else { 0 };
+    CalculationResult::Ok(Decimal::from_parts_raw(lo, mid, 0, flags))
 }
 
 fn aligned_add(lhs: DecCalc, rhs: DecCalc, negative: bool, scale: u32, subtract: bool) -> CalculationResult {

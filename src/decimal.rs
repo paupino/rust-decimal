@@ -23,13 +23,13 @@ use num_traits::{
 // Sign mask for the flags field. A value of zero in this bit indicates a
 // positive Decimal value, and a value of one in this bit indicates a
 // negative Decimal value.
-const SIGN_MASK: u32 = 0x8000_0000;
+pub(crate) const SIGN_MASK: u32 = 0x8000_0000;
 const UNSIGN_MASK: u32 = 0x4FFF_FFFF;
 
 // Scale mask for the flags field. This byte in the flags field contains
 // the power of 10 to divide the Decimal value by. The scale byte must
 // contain a value between 0 and 28 inclusive.
-const SCALE_MASK: u32 = 0x00FF_0000;
+pub(crate) const SCALE_MASK: u32 = 0x00FF_0000;
 const U8_MASK: u32 = 0x0000_00FF;
 pub(crate) const U32_MASK: u64 = 0xFFFF_FFFF;
 
@@ -289,12 +289,28 @@ impl Decimal {
             lo,
             mid,
             hi,
-            flags: flags(negative, scale % (MAX_PRECISION + 1)),
+            flags: flags(
+                if lo == 0 && mid == 0 && hi == 0 {
+                    false
+                } else {
+                    negative
+                },
+                scale % (MAX_PRECISION + 1),
+            ),
         }
     }
 
     pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
-        Decimal { lo, mid, hi, flags }
+        if lo == 0 && mid == 0 && hi == 0 {
+            Decimal {
+                lo,
+                mid,
+                hi,
+                flags: flags & SCALE_MASK,
+            }
+        } else {
+            Decimal { lo, mid, hi, flags }
+        }
     }
 
     /// Returns a `Result` which if successful contains the `Decimal` constitution of

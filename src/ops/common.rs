@@ -179,16 +179,12 @@ impl DecCalc {
         }
     }
 
-    pub(super) const fn is_zero(&self) -> bool {
-        self.low64 == 0 && self.hi == 0
-    }
-
     pub(super) const fn to_decimal(&self) -> Decimal {
         Decimal::from_parts(
             self.low64 as u32,
             (self.low64 >> 32) as u32,
             self.hi,
-            if self.is_zero() { false } else { self.negative },
+            self.negative,
             self.scale,
         )
     }
@@ -210,17 +206,7 @@ impl crate::decimal::UnpackedDecimal {
     }
 
     pub(super) const fn repack(&self) -> Decimal {
-        Decimal::from_parts(
-            self.lo,
-            self.mid,
-            self.hi,
-            if self.lo == 0 && self.mid == 0 && self.hi == 0 {
-                false
-            } else {
-                self.negative
-            },
-            self.scale,
-        )
+        Decimal::from_parts(self.lo, self.mid, self.hi, self.negative, self.scale)
     }
 }
 
