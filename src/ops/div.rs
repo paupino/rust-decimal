@@ -1,5 +1,5 @@
 use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION_I32, POWERS_10};
-use crate::ops::common::{Buf12, Buf16};
+use crate::ops::common::{Buf12, Buf16, DecCalc};
 
 use core::ops::BitXor;
 use num_traits::Zero;
@@ -222,8 +222,8 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
     if dividend.is_zero() {
         return CalculationResult::Ok(Decimal::zero());
     }
-    let dividend = dividend.unpack();
-    let divisor = divisor.unpack();
+    let dividend = DecCalc::new(dividend);
+    let divisor = DecCalc::new(divisor);
 
     // Pre calculate the scale and the sign
     let mut scale = (dividend.scale as i32) - (divisor.scale as i32);

@@ -63,7 +63,9 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     loop {
         // If the dividend is smaller than the divisor then try to scale that up first
         if scale < 0 {
-            let mut quotient = Buf12::new(&d1);
+            let mut quotient = Buf12 {
+                data: [d1.lo, d1.mid, d1.hi],
+            };
             loop {
                 // Figure out how much we can scale by
                 let power_scale;

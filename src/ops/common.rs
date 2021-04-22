@@ -1,4 +1,4 @@
-use crate::decimal::{UnpackedDecimal, MAX_PRECISION_I32, POWERS_10};
+use crate::decimal::{MAX_PRECISION_I32, POWERS_10};
 use crate::Decimal;
 
 // The maximum power of 10 that a 32 bit integer can store
@@ -12,9 +12,9 @@ pub struct Buf12 {
 }
 
 impl Buf12 {
-    pub const fn new(value: &UnpackedDecimal) -> Self {
+    pub(super) const fn new(value: &DecCalc) -> Self {
         Buf12 {
-            data: [value.lo, value.mid, value.hi],
+            data: [value.lo(), value.mid(), value.hi],
         }
     }
 
@@ -157,26 +157,62 @@ static POWER_OVERFLOW_VALUES: [Buf12; 8] = [
     },
 ];
 
-impl UnpackedDecimal {
-    pub const fn low64(&self) -> u64 {
+pub(super) struct DecCalc {
+    pub negative: bool,
+    pub scale: u32,
+    pub hi: u32,
+    pub low64: u64,
+}
+
+impl DecCalc {
+    pub(super) const fn new(d: &Decimal) -> DecCalc {
+        let m = d.mantissa_array3();
+        DecCalc {
+            negative: d.is_sign_negative(),
+            scale: d.scale(),
+            hi: m[2],
+            low64: ((m[1] as u64) << 32) | (m[0] as u64),
+        }
+    }
+
+    pub(super) const fn is_zero(&self) -> bool {
+        self.low64 == 0 && self.hi == 0
+    }
+
+    pub(super) const fn to_decimal(&self) -> Decimal {
+        Decimal::from_parts(
+            self.lo(),
+            self.mid(),
+            self.hi,
+            if self.is_zero() { false } else { self.negative },
+            self.scale,
+        )
+    }
+
+    pub(super) const fn lo(&self) -> u32 {
+        self.low64 as u32
+    }
+
+    pub(super) const fn mid(&self) -> u32 {
+        (self.low64 >> 32) as u32
+    }
+}
+
+impl crate::decimal::UnpackedDecimal {
+    pub(super) const fn low64(&self) -> u64 {
         ((self.mid as u64) << 32) | (self.lo as u64)
     }
 
-    pub fn set_low64(&mut self, value: u64) {
+    pub(super) fn set_low64(&mut self, value: u64) {
         self.mid = (value >> 32) as u32;
         self.lo = value as u32;
     }
 
-    pub const fn high64(&self) -> u64 {
+    pub(super) const fn high64(&self) -> u64 {
         ((self.hi as u64) << 32) | (self.mid as u64)
     }
 
-    pub fn set_high64(&mut self, value: u64) {
-        self.hi = (value >> 32) as u32;
-        self.mid = value as u32;
-    }
-
-    pub const fn repack(&self) -> Decimal {
+    pub(super) const fn repack(&self) -> Decimal {
         Decimal::from_parts(
             self.lo,
             self.mid,
