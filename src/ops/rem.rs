@@ -1,14 +1,12 @@
 use crate::decimal::{CalculationResult, Decimal, UnpackedDecimal, MAX_PRECISION_I32, POWERS_10};
 use crate::ops::common::{Buf12, Buf16, Buf24, MAX_I32_SCALE};
 
-use num_traits::Zero;
-
 pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     if d2.is_zero() {
         return CalculationResult::DivByZero;
     }
     if d1.is_zero() {
-        return CalculationResult::Ok(Decimal::zero());
+        return CalculationResult::Ok(Decimal::ZERO);
     }
 
     // Unpack the decimals
@@ -24,7 +22,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     match cmp {
         core::cmp::Ordering::Equal => {
             // Same numbers meaning that remainder is zero
-            return CalculationResult::Ok(Decimal::zero());
+            return CalculationResult::Ok(Decimal::ZERO);
         }
         core::cmp::Ordering::Less => {
             // d1 < d2, e.g. 1/2. This means that the result is the value of d1

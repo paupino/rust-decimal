@@ -1,7 +1,5 @@
 use crate::decimal::{CalculationResult, Decimal, POWERS_10, U32_MASK};
-use crate::ops::common::{Buf24, DecCalc, MAX_I32_SCALE};
-
-const U32_MAX: u64 = u32::MAX as u64;
+use crate::ops::common::{Buf24, DecCalc, MAX_I32_SCALE, U32_MAX};
 
 pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     add_sub_internal(d1, d2, false)
@@ -120,7 +118,7 @@ fn reduce_scale(result: &mut DecCalc) {
     low64 = low64.wrapping_add(div as u64);
     let remainder = (num as u32).wrapping_sub(div.wrapping_mul(10));
 
-    // Finally, round
+    // Finally, round. This is optimizing slightly toward non-rounded numbers
     if remainder >= 5 && (remainder > 5 || (low64 & 1) > 0) {
         low64 = low64.wrapping_add(1);
         if low64 == 0 {

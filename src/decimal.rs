@@ -2555,9 +2555,9 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn add(self, other: &Decimal) -> Decimal {
-        match self.checked_add(other) {
-            Some(sum) => sum,
-            None => panic!("Addition overflowed"),
+        match ops::add_impl(&self, other) {
+            CalculationResult::Ok(sum) => sum,
+            _ => panic!("Addition overflowed"),
         }
     }
 }
@@ -2597,9 +2597,9 @@ impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn sub(self, other: &Decimal) -> Decimal {
-        match self.checked_sub(other) {
-            Some(diff) => diff,
-            None => panic!("Subtraction overflowed"),
+        match ops::sub_impl(&self, other) {
+            CalculationResult::Ok(sum) => sum,
+            _ => panic!("Subtraction overflowed"),
         }
     }
 }
@@ -2639,9 +2639,9 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn mul(self, other: &Decimal) -> Decimal {
-        match self.checked_mul(other) {
-            Some(prod) => prod,
-            None => panic!("Multiplication overflowed"),
+        match ops::mul_impl(&self, other) {
+            CalculationResult::Ok(prod) => prod,
+            _ => panic!("Multiplication overflowed"),
         }
     }
 }
@@ -2723,9 +2723,10 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn rem(self, other: &Decimal) -> Decimal {
-        match self.checked_rem(other) {
-            Some(rem) => rem,
-            None => panic!("Division by zero"),
+        match ops::rem_impl(&self, other) {
+            CalculationResult::Ok(rem) => rem,
+            CalculationResult::Overflow => panic!("Division overflowed"),
+            CalculationResult::DivByZero => panic!("Division by zero"),
         }
     }
 }

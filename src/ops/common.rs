@@ -2,9 +2,10 @@ use crate::decimal::{MAX_PRECISION_I32, POWERS_10};
 use crate::Decimal;
 
 // The maximum power of 10 that a 32 bit integer can store
-pub const MAX_I32_SCALE: i32 = 9;
+pub(super) const MAX_I32_SCALE: i32 = 9;
 // The maximum power of 10 that a 64 bit integer can store
-pub const MAX_I64_SCALE: u32 = 19;
+pub(super) const MAX_I64_SCALE: u32 = 19;
+pub(super) const U32_MAX: u64 = u32::MAX as u64;
 
 #[derive(Debug)]
 pub struct Buf12 {
@@ -198,6 +199,7 @@ impl DecCalc {
     }
 }
 
+// TODO: Remove this
 impl crate::decimal::UnpackedDecimal {
     pub(super) const fn low64(&self) -> u64 {
         ((self.mid as u64) << 32) | (self.lo as u64)

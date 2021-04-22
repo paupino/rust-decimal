@@ -1,5 +1,5 @@
 use crate::decimal::{Decimal, UnpackedDecimal, POWERS_10, U32_MASK};
-use crate::ops::common::MAX_I32_SCALE;
+use crate::ops::common::{MAX_I32_SCALE, U32_MAX};
 
 use core::cmp::Ordering;
 
@@ -86,7 +86,7 @@ fn rescale(low64: &mut u64, high: &mut u32, diff: u32) -> bool {
         tmp = tmp >> 32;
         tmp = tmp.wrapping_add((*high as u64) * power);
         // Indicates > 96 bits
-        if tmp > u32::MAX as u64 {
+        if tmp > U32_MAX {
             return false;
         }
         *high = tmp as u32;

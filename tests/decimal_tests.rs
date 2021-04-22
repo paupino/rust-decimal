@@ -1,5 +1,5 @@
 use core::{
-    cmp::{Ordering, Ordering::*},
+    cmp::Ordering::*,
     convert::{TryFrom, TryInto},
     str::FromStr,
 };
@@ -262,6 +262,13 @@ fn it_negates_decimals() {
 }
 
 // Addition
+
+#[test]
+fn it_can_add_simple() {
+    // This is the most basic test for addition, intended largely for micro-optimization.
+    let two = Decimal::ONE + Decimal::ONE;
+    assert_eq!(two.to_u32(), Some(2));
+}
 
 #[test]
 fn it_adds_decimals() {
@@ -700,7 +707,7 @@ fn it_eqs_decimals() {
 
 #[test]
 fn it_cmps_decimals() {
-    fn cmp(a: &str, b: &str, c: Ordering) {
+    fn cmp(a: &str, b: &str, c: core::cmp::Ordering) {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         assert_eq!(

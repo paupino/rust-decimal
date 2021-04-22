@@ -1,5 +1,5 @@
-use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION};
-use crate::ops::common::{Buf24, MAX_I64_SCALE};
+use crate::decimal::{CalculationResult, Decimal, UnpackedDecimal, MAX_PRECISION};
+use crate::ops::common::{Buf24, MAX_I64_SCALE, U32_MAX};
 
 // Fast access for 10^n where n is 1-19
 const BIG_POWERS_10: [u64; 19] = [
@@ -70,49 +70,17 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
                 low64 as u32,
                 (low64 >> 32) as u32,
                 0,
-                d2.negative ^ d1.negative,
+                negative,
                 scale,
             ));
         }
 
         // We know that the left hand side is just 32 bits but the right hand side is either
         // 64 or 96 bits.
-        let mut tmp = d1.lo as u64 * d2.lo as u64;
-        product.data[0] = tmp as u32;
-        tmp = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
-        product.data[1] = tmp as u32;
-        tmp = tmp >> 32;
-
-        // If we're multiplying by a 96 bit integer then continue the calculation
-        if d2.hi > 0 {
-            tmp = tmp.wrapping_add(d1.lo as u64 * d2.hi as u64);
-            if tmp > u32::MAX as u64 {
-                product.set_mid64(tmp);
-            } else {
-                product.data[2] = tmp as u32;
-            }
-        } else {
-            product.data[2] = tmp as u32;
-        }
+        mul_by_32bit_lhs(&d1, &d2, &mut product);
     } else if d2.mid | d2.hi == 0 {
         // We know that the right hand side is just 32 bits.
-        let mut tmp = d2.lo as u64 * d1.lo as u64;
-        product.data[0] = tmp as u32;
-        tmp = (d2.lo as u64 * d1.mid as u64).wrapping_add(tmp >> 32);
-        product.data[1] = tmp as u32;
-        tmp = tmp >> 32;
-
-        // If the LHS is 96 bits then continue calculation
-        if d1.hi > 0 {
-            tmp = tmp.wrapping_add(d2.lo as u64 * d1.hi as u64);
-            if tmp > u32::MAX as u64 {
-                product.set_mid64(tmp);
-            } else {
-                product.data[2] = tmp as u32;
-            }
-        } else {
-            product.data[2] = tmp as u32;
-        }
+        mul_by_32bit_lhs(&d2, &d1, &mut product);
     } else {
         // We know we're not dealing with simple 32 bit operands on either side.
         // We compute and accumulate the 9 partial products using long multiplication
@@ -199,4 +167,25 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         negative,
         scale,
     ))
+}
+
+#[inline(always)]
+fn mul_by_32bit_lhs(d1: &UnpackedDecimal, d2: &UnpackedDecimal, product: &mut Buf24) {
+    let mut tmp = d1.lo as u64 * d2.lo as u64;
+    product.data[0] = tmp as u32;
+    tmp = (d1.lo as u64 * d2.mid as u64).wrapping_add(tmp >> 32);
+    product.data[1] = tmp as u32;
+    tmp = tmp >> 32;
+
+    // If we're multiplying by a 96 bit integer then continue the calculation
+    if d2.hi > 0 {
+        tmp = tmp.wrapping_add(d1.lo as u64 * d2.hi as u64);
+        if tmp > U32_MAX {
+            product.set_mid64(tmp);
+        } else {
+            product.data[2] = tmp as u32;
+        }
+    } else {
+        product.data[2] = tmp as u32;
+    }
 }
