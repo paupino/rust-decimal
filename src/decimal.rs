@@ -34,7 +34,7 @@ const U8_MASK: u32 = 0x0000_00FF;
 pub(crate) const U32_MASK: u64 = 0xFFFF_FFFF;
 
 // Number of bits scale is shifted by.
-const SCALE_SHIFT: u32 = 16;
+pub(crate) const SCALE_SHIFT: u32 = 16;
 // Number of bits sign is shifted by.
 const SIGN_SHIFT: u32 = 31;
 

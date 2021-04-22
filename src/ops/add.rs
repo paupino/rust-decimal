@@ -1,4 +1,4 @@
-use crate::decimal::{CalculationResult, Decimal, POWERS_10, SCALE_MASK, SIGN_MASK, U32_MASK};
+use crate::decimal::{CalculationResult, Decimal, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK};
 use crate::ops::common::{Buf24, DecCalc, MAX_I32_SCALE, U32_MAX};
 
 pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
@@ -33,7 +33,27 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
     if d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
         // We'll try to rescale, however we may end up with 64 bit (or more) numbers
         // If we do, we'll choose a different flow than fast_add
-        if !rescale {
+        if rescale {
+            // This is less optimized if we scale to a 64 bit integer. We can add some further logic
+            // here later on.
+            let rescale_factor = ((d2.flags() & SCALE_MASK) as i32 - (d1.flags() & SCALE_MASK) as i32) >> SCALE_SHIFT;
+            if rescale_factor < 0 {
+                // We try to rescale the rhs
+                if let Some(rescaled) = rescale32(d2.lo(), -rescale_factor) {
+                    return fast_add(d1.lo(), rescaled, d1.flags(), subtract);
+                }
+            } else {
+                // We try to rescale the lhs
+                if let Some(rescaled) = rescale32(d1.lo(), rescale_factor) {
+                    return fast_add(
+                        rescaled,
+                        d2.lo(),
+                        (d2.flags() & SCALE_MASK) | (d1.flags() & SIGN_MASK),
+                        subtract,
+                    );
+                }
+            }
+        } else {
             return fast_add(d1.lo(), d2.lo(), d1.flags(), subtract);
         }
     }
@@ -44,12 +64,11 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
 
     // If we're not the same scale then make sure we're there first before starting addition
     if rescale {
-        let mut rescale_factor = d2.scale as i32 - d1.scale as i32;
+        let rescale_factor = d2.scale as i32 - d1.scale as i32;
         if rescale_factor < 0 {
-            rescale_factor = -rescale_factor;
             let negative = subtract ^ d1.negative;
             let scale = d1.scale;
-            unaligned_add(d2, d1, negative, scale, rescale_factor, subtract)
+            unaligned_add(d2, d1, negative, scale, -rescale_factor, subtract)
         } else {
             let negative = d1.negative;
             let scale = d2.scale;
@@ -60,6 +79,14 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         let scale = d1.scale;
         aligned_add(d1, d2, neg, scale, subtract)
     }
+}
+
+#[inline(always)]
+fn rescale32(num: u32, rescale_factor: i32) -> Option<u32> {
+    if rescale_factor > MAX_I32_SCALE {
+        return None;
+    }
+    num.checked_mul(POWERS_10[rescale_factor as usize])
 }
 
 fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult {

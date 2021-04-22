@@ -651,8 +651,8 @@ fn it_rems_decimals() {
         ("2", "2", "0"),
         ("2", "-2", "0"),
         // Legacy keeps sign from lhs operand
-        ("-2", "2", either!("0", "-0")),
-        ("-2", "-2", either!("0", "-0")),
+        ("-2", "2", "0"),
+        ("-2", "-2", "0"),
     ];
     for &(a, b, c) in tests {
         rem(a, b, c);
