@@ -28,7 +28,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         }
         core::cmp::Ordering::Less => {
             // d1 < d2, e.g. 1/2. This means that the result is the value of d1
-            return CalculationResult::Ok(d1.into());
+            return CalculationResult::Ok(d1.repack());
         }
         core::cmp::Ordering::Greater => {}
     }
@@ -38,7 +38,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     if scale > 0 {
         // Scale up the divisor
         loop {
-            let power = if scale >= MAX_I32_SCALE as i32 {
+            let power = if scale >= MAX_I32_SCALE {
                 POWERS_10[9]
             } else {
                 POWERS_10[scale as usize]
@@ -52,7 +52,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
             d2.hi = (tmp >> 32) as u32;
 
             // Keep scaling if there is more to go
-            scale -= MAX_I32_SCALE as i32;
+            scale -= MAX_I32_SCALE;
             if scale <= 0 {
                 break;
             }
@@ -101,7 +101,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         // if the high portion is empty then return the modulus of the bottom portion
         if d1.hi == 0 {
             d1.set_low64(d1.low64() % d2.low64());
-            return CalculationResult::Ok(d1.into());
+            return CalculationResult::Ok(d1.repack());
         } else if (d2.mid | d2.hi) == 0 {
             let mut tmp = d1.high64();
             tmp = ((tmp % d2.lo as u64) << 32) | (d1.lo as u64);
@@ -117,7 +117,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         }
     }
 
-    CalculationResult::Ok(d1.into())
+    CalculationResult::Ok(d1.repack())
 }
 
 fn rem_full(d1: &UnpackedDecimal, d2: &UnpackedDecimal, scale: i32) -> CalculationResult {
@@ -137,7 +137,7 @@ fn rem_full(d1: &UnpackedDecimal, d2: &UnpackedDecimal, scale: i32) -> Calculati
     let mut upper = 3; // We start at 3 due to bit shifting
 
     while scale < 0 {
-        let power = if -scale >= MAX_I32_SCALE as i32 {
+        let power = if -scale >= MAX_I32_SCALE {
             POWERS_10[9]
         } else {
             POWERS_10[-scale as usize]
@@ -169,7 +169,7 @@ fn rem_full(d1: &UnpackedDecimal, d2: &UnpackedDecimal, scale: i32) -> Calculati
                 buffer.data[upper] = (tmp64 >> 32) as u32;
             }
         }
-        scale += MAX_I32_SCALE as i32;
+        scale += MAX_I32_SCALE;
     }
 
     // TODO: Optimize slice logic

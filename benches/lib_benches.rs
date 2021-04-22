@@ -42,6 +42,8 @@ macro_rules! bench_fold_op {
 }
 
 /* Add */
+bench_decimal_op!(add_self, +, "2.01", "2.01");
+bench_decimal_op!(add_one_plus_one, +, "1", "1");
 bench_decimal_op!(add_one, +, "2.01", "1");
 bench_decimal_op!(add_two, +, "2.01", "2");
 bench_decimal_op!(add_one_hundred, +, "2.01", "100");

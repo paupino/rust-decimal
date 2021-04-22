@@ -2,7 +2,7 @@ use crate::decimal::{UnpackedDecimal, MAX_PRECISION_I32, POWERS_10};
 use crate::Decimal;
 
 // The maximum power of 10 that a 32 bit integer can store
-pub const MAX_I32_SCALE: u32 = 9;
+pub const MAX_I32_SCALE: i32 = 9;
 // The maximum power of 10 that a 64 bit integer can store
 pub const MAX_I64_SCALE: u32 = 19;
 
@@ -175,11 +175,8 @@ impl UnpackedDecimal {
         self.hi = (value >> 32) as u32;
         self.mid = value as u32;
     }
-}
 
-impl Into<crate::Decimal> for UnpackedDecimal {
-    fn into(self) -> Decimal {
-        // Intended for internal wrapping only. Consequently, overrides sign for 0
+    pub const fn repack(&self) -> Decimal {
         Decimal::from_parts(
             self.lo,
             self.mid,
@@ -345,9 +342,9 @@ impl Buf24 {
                 if high_quotient == 0 && upper > 0 {
                     upper -= 1;
                 }
-                if rescale_target > MAX_I32_SCALE as i32 {
+                if rescale_target > MAX_I32_SCALE {
                     // Scale some more
-                    rescale_target -= MAX_I32_SCALE as i32;
+                    rescale_target -= MAX_I32_SCALE;
                     continue;
                 }
 

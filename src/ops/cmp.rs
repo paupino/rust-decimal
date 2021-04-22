@@ -75,7 +75,7 @@ fn rescale(low64: &mut u64, high: &mut u32, diff: u32) -> bool {
     let mut diff = diff as i32;
     // We need to modify d1 by 10^diff to get it to the same scale as d2
     loop {
-        let power = if diff >= MAX_I32_SCALE as i32 {
+        let power = if diff >= MAX_I32_SCALE {
             POWERS_10[9]
         } else {
             POWERS_10[diff as usize]
@@ -92,7 +92,7 @@ fn rescale(low64: &mut u64, high: &mut u32, diff: u32) -> bool {
         *high = tmp as u32;
 
         // Keep scaling if there is more to go
-        diff -= MAX_I32_SCALE as i32;
+        diff -= MAX_I32_SCALE;
         if diff <= 0 {
             break;
         }

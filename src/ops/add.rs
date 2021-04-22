@@ -27,7 +27,7 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
     }
     if d2.is_zero() {
         // x - 0 or x + 0
-        return CalculationResult::Ok(Decimal::from_parts(ud1.lo, ud1.mid, ud1.hi, ud1.negative, ud1.scale));
+        return CalculationResult::Ok(ud1.repack());
     }
 
     // If we're not the same scale then make sure we're there first before starting addition
@@ -72,13 +72,15 @@ fn aligned_add(
     result: &mut UnpackedDecimal,
     subtract: bool,
 ) -> CalculationResult {
+    let lhs_low64 = lhs.low64();
     if subtract {
         // Signs differ, so subtract
-        result.set_low64(lhs.low64().wrapping_sub(rhs.low64()));
+        let low64 = lhs_low64.wrapping_sub(rhs.low64());
+        result.set_low64(low64);
         result.hi = lhs.hi.wrapping_sub(rhs.hi);
 
         // Check for carry
-        if result.low64() > lhs.low64() {
+        if low64 > lhs_low64 {
             result.hi = result.hi.wrapping_sub(1);
             if result.hi >= lhs.hi {
                 flip_sign(result);
@@ -88,11 +90,12 @@ fn aligned_add(
         }
     } else {
         // Signs are the same, so add
-        result.set_low64(lhs.low64().wrapping_add(rhs.low64()));
+        let low64 = lhs_low64.wrapping_add(rhs.low64());
+        result.set_low64(low64);
         result.hi = lhs.hi.wrapping_add(rhs.hi);
 
         // Check for carry
-        if result.low64() < lhs.low64() {
+        if low64 < lhs_low64 {
             result.hi = result.hi.wrapping_add(1);
             if result.hi <= lhs.hi {
                 if result.scale == 0 {
@@ -108,7 +111,7 @@ fn aligned_add(
         }
     }
 
-    CalculationResult::Ok((*result).into())
+    CalculationResult::Ok(result.repack())
 }
 
 fn flip_sign(result: &mut UnpackedDecimal) {
@@ -169,19 +172,19 @@ fn unaligned_add(
             // We know it's not zero, so we start scaling.
             // Start with reducing the scale down for the low portion
             while low64 <= U32_MAX {
-                if rescale_factor <= MAX_I32_SCALE as i32 {
+                if rescale_factor <= MAX_I32_SCALE {
                     low64 = low64 * POWERS_10[rescale_factor as usize] as u64;
                     lhs.set_low64(low64);
                     return aligned_add(lhs, rhs, result, subtract);
                 }
-                rescale_factor -= MAX_I32_SCALE as i32;
+                rescale_factor -= MAX_I32_SCALE;
                 low64 = low64 * POWERS_10[9] as u64;
             }
         }
 
         // Reduce the scale for the high portion
         while high == 0 {
-            let power = if rescale_factor <= MAX_I32_SCALE as i32 {
+            let power = if rescale_factor <= MAX_I32_SCALE {
                 POWERS_10[rescale_factor as usize] as u64
             } else {
                 POWERS_10[9] as u64
@@ -191,7 +194,7 @@ fn unaligned_add(
             let tmp_hi = (low64 >> 32) * power + (tmp_low >> 32);
             low64 = (tmp_low & U32_MASK) + (tmp_hi << 32);
             high = (tmp_hi >> 32) as u32;
-            rescale_factor -= MAX_I32_SCALE as i32;
+            rescale_factor -= MAX_I32_SCALE;
             if rescale_factor <= 0 {
                 lhs.set_low64(low64);
                 lhs.hi = high;
@@ -203,7 +206,7 @@ fn unaligned_add(
     // See if we can get away with keeping it in the 96 bits. Otherwise, we need a buffer
     let mut tmp64: u64;
     loop {
-        let power = if rescale_factor <= MAX_I32_SCALE as i32 {
+        let power = if rescale_factor <= MAX_I32_SCALE {
             POWERS_10[rescale_factor as usize] as u64
         } else {
             POWERS_10[9] as u64
@@ -215,7 +218,7 @@ fn unaligned_add(
         tmp64 = tmp64 >> 32;
         tmp64 = tmp64 + (high as u64) * power;
 
-        rescale_factor -= MAX_I32_SCALE as i32;
+        rescale_factor -= MAX_I32_SCALE;
 
         if tmp64 > U32_MAX {
             break;
@@ -235,7 +238,7 @@ fn unaligned_add(
 
     let mut upper_word = buffer.upper_word();
     while rescale_factor > 0 {
-        let power = if rescale_factor <= MAX_I32_SCALE as i32 {
+        let power = if rescale_factor <= MAX_I32_SCALE {
             POWERS_10[rescale_factor as usize] as u64
         } else {
             POWERS_10[9] as u64
@@ -256,7 +259,7 @@ fn unaligned_add(
             buffer.data[upper_word] = tmp64 as u32;
         }
 
-        rescale_factor -= MAX_I32_SCALE as i32;
+        rescale_factor -= MAX_I32_SCALE;
     }
 
     // Do the add
