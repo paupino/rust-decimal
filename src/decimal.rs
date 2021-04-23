@@ -329,20 +329,20 @@ impl Decimal {
     /// assert_eq!(value.to_string(), "0.00000097");
     /// ```
     pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
-        let err = Error::new("Failed to parse");
+        let err_msg = "Failed to parse";
         let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
 
-        let base = split.next().ok_or_else(|| err.clone())?;
-        let exp = split.next().ok_or_else(|| err.clone())?;
+        let base = split.next().ok_or_else(|| Error::new(err_msg))?;
+        let exp = split.next().ok_or_else(|| Error::new(err_msg))?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(move |_| err)?;
+            let exp: u32 = stripped.parse().map_err(|_| Error::new(err_msg))?;
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp.parse().map_err(move |_| err)?;
+            let exp: u32 = exp.parse().map_err(|_| Error::new(err_msg))?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else {
