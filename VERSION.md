@@ -1,5 +1,33 @@
 # Version History
 
+## 1.12.0
+
+This version releases faster operation support for `add`, `sub`, `cmp`, `rem` and `mul` to match the renewed `div` strategy.
+It does this by leveraging 64 bit support when it makes sense, while attempting to still keep 32 bit optimizations in place.
+To ensure correct functionality, thousands more tests were included to cover a wide variety of different scenarios
+and bit combinations. Compared to previous operations, we get the following speed improvements:
+* `add` - up to 2.2x faster
+* `div` - up to 428x faster
+* `mul` - up to 1.8x faster
+* `rem` - up to 1.08x faster
+* `sub` - up to 2.5x faster
+
+Of course, if old functionality is desired, it can be re-enabled by using the `legacy-ops` feature. 
+
+Other improvements include:
+* Remove unnecessary `String` allocation when parsing a scientific number format. Thanks [@thomcc](https://github.com/thomcc) for the fix [#350](https://github.com/paupino/rust-decimal/pull/350).
+* Fixes overflow bug with `sqrt` when using the smallest possible representable number. [#349](https://github.com/paupino/rust-decimal/pull/349).
+* Some minor optimizations in the `maths` feature. Future work will involve speeding up this feature by keeping operations
+  in an internal format until required.
+* Added associated constants for `MIN`, `MAX` and `ZERO`. Deprecated `min_value()` and `max_value()` in favor of these new
+  constants.
+* `-0` now gets corrected to `0`. During operation rewrite I needed to consider operations such as `-0 * 2` - in cases like
+  this I opted towards `0` always being the right number and `-0` being superfluous (since `+0 == -0`). Consequently, parsing 
+  `-0` etc _in general_ will automatically be parsed as `0`. Of course, this _may_ be a breaking change so if this 
+  functionality is required then please create an issue with the use case described.
+* Small breaking change by renaming `is_negative` to `negative` in `UnpackedDecimal`.
+* Some internal housekeeping was made to help make way for version 2.0 improvements.
+
 ## 1.11.1
 
 This is a documentation only release and has no new functionality included. Thank you [@c410-f3r](https://github.com/c410-f3r) for the documentation fix.

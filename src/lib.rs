@@ -127,18 +127,20 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 
+mod constants;
 mod decimal;
 mod error;
 mod ops;
+mod str;
 
+#[cfg(any(feature = "postgres", feature = "diesel"))]
+mod db;
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
-#[cfg(any(feature = "postgres", feature = "diesel"))]
-mod postgres;
 #[cfg(feature = "serde")]
-mod serde_types;
+mod serde;
 
 pub use decimal::{Decimal, RoundingStrategy};
 pub use error::Error;

@@ -1,6 +1,9 @@
-use crate::decimal::{
-    add_by_internal, cmp_internal, div_by_u32, is_all_zero, mul_by_u32, mul_part, rescale_internal, shl1_internal,
-    CalculationResult, Decimal, MAX_PRECISION, POWERS_10, U32_MASK,
+use crate::{
+    constants::{MAX_PRECISION, POWERS_10, U32_MASK},
+    decimal::{CalculationResult, Decimal},
+    ops::array::{
+        add_by_internal, cmp_internal, div_by_u32, is_all_zero, mul_by_u32, mul_part, rescale_internal, shl1_internal,
+    },
 };
 
 use core::cmp::Ordering;
@@ -288,9 +291,9 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     // high portions are both 0 then we can skip portions 5-9
     let to = if my[2] == 0 && ot[2] == 0 { 2 } else { 3 };
 
-    for my_index in 0..to {
-        for ot_index in 0..to {
-            let (mut rlo, mut rhi) = mul_part(my[my_index], ot[ot_index], 0);
+    for (my_index, my_item) in my.iter().enumerate().take(to) {
+        for (ot_index, ot_item) in ot.iter().enumerate().take(to) {
+            let (mut rlo, mut rhi) = mul_part(*my_item, *ot_item, 0);
 
             // Get the index for the lo portion of the product
             for prod in product.iter_mut().skip(my_index + ot_index) {
