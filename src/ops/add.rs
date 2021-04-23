@@ -1,5 +1,6 @@
-use crate::decimal::{CalculationResult, Decimal, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK};
-use crate::ops::common::{Buf24, Dec64, MAX_I32_SCALE, U32_MAX};
+use crate::constants::{MAX_I32_SCALE, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK, U32_MAX};
+use crate::decimal::{CalculationResult, Decimal};
+use crate::ops::common::{Buf24, Dec64};
 
 pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     add_sub_internal(d1, d2, false)

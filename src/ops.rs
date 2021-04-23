@@ -2,6 +2,8 @@
 // implementation. Consequently, a huge thank you for to all the contributors to that project
 // whose work has also inspired the solutions found here.
 
+pub(crate) mod array;
+
 #[cfg(feature = "legacy-ops")]
 mod legacy;
 #[cfg(feature = "legacy-ops")]

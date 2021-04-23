@@ -1,5 +1,6 @@
-use crate::decimal::{Decimal, POWERS_10, U32_MASK};
-use crate::ops::common::{Dec64, MAX_I32_SCALE, U32_MAX};
+use crate::constants::{MAX_I32_SCALE, POWERS_10, U32_MASK, U32_MAX};
+use crate::decimal::Decimal;
+use crate::ops::common::Dec64;
 
 use core::cmp::Ordering;
 

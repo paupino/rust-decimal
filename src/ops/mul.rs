@@ -1,5 +1,6 @@
-use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION};
-use crate::ops::common::{Buf24, MAX_I64_SCALE, U32_MAX};
+use crate::constants::{MAX_I64_SCALE, MAX_PRECISION, U32_MAX};
+use crate::decimal::{CalculationResult, Decimal};
+use crate::ops::common::Buf24;
 
 // Fast access for 10^n where n is 1-19
 const BIG_POWERS_10: [u64; 19] = [

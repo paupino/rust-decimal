@@ -1,5 +1,6 @@
-use crate::decimal::{CalculationResult, Decimal, MAX_PRECISION_I32, POWERS_10};
-use crate::ops::common::{Buf12, Buf16, Buf24, Dec64, MAX_I32_SCALE};
+use crate::constants::{MAX_I32_SCALE, MAX_PRECISION_I32, POWERS_10};
+use crate::decimal::{CalculationResult, Decimal};
+use crate::ops::common::{Buf12, Buf16, Buf24, Dec64};
 
 pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     if d2.is_zero() {
@@ -106,7 +107,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
         // if the high portion is empty then return the modulus of the bottom portion
         if d1.hi == 0 {
-            d1.low64 = d1.low64 % d2.low64();
+            d1.low64 %= d2.low64();
             return CalculationResult::Ok(d1.to_decimal());
         } else if (d2.mid() | d2.hi()) == 0 {
             let mut tmp = d1.high64();

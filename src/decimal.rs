@@ -1,8 +1,10 @@
+use crate::constants::{
+    MAX_I128_REPR, MAX_PRECISION, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
+    UNSIGN_MASK,
+};
 use crate::ops;
 use crate::Error;
 
-use alloc::{string::String, vec::Vec};
-use arrayvec::{ArrayString, ArrayVec};
 use core::{
     cmp::{Ordering::Equal, *},
     fmt,
@@ -19,35 +21,6 @@ use num_traits::float::FloatCore;
 use num_traits::{
     CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, FromPrimitive, Num, One, Signed, ToPrimitive, Zero,
 };
-
-// Sign mask for the flags field. A value of zero in this bit indicates a
-// positive Decimal value, and a value of one in this bit indicates a
-// negative Decimal value.
-pub(crate) const SIGN_MASK: u32 = 0x8000_0000;
-const UNSIGN_MASK: u32 = 0x4FFF_FFFF;
-
-// Scale mask for the flags field. This byte in the flags field contains
-// the power of 10 to divide the Decimal value by. The scale byte must
-// contain a value between 0 and 28 inclusive.
-pub(crate) const SCALE_MASK: u32 = 0x00FF_0000;
-const U8_MASK: u32 = 0x0000_00FF;
-pub(crate) const U32_MASK: u64 = 0xFFFF_FFFF;
-
-// Number of bits scale is shifted by.
-pub(crate) const SCALE_SHIFT: u32 = 16;
-// Number of bits sign is shifted by.
-const SIGN_SHIFT: u32 = 31;
-
-// The maximum string buffer size used for serialization purposes. 31 is optimal, however we align
-// to the byte boundary for simplicity.
-const MAX_STR_BUFFER_SIZE: usize = 32;
-
-// The maximum supported precision
-pub(crate) const MAX_PRECISION: u32 = 28;
-#[cfg(not(feature = "legacy-ops"))]
-pub(crate) const MAX_PRECISION_I32: i32 = 28;
-// 79,228,162,514,264,337,593,543,950,335
-const MAX_I128_REPR: i128 = 0x0000_0000_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF;
 
 /// The smallest value that can be represented by this decimal type.
 const MIN: Decimal = Decimal {
@@ -80,11 +53,6 @@ const ONE: Decimal = Decimal {
     mid: 0,
     hi: 0,
 };
-
-// Fast access for 10^n where n is 0-9
-pub(crate) const POWERS_10: [u32; 10] = [
-    1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000,
-];
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
@@ -516,7 +484,7 @@ impl Decimal {
     pub fn rescale(&mut self, scale: u32) {
         let mut array = [self.lo, self.mid, self.hi];
         let mut value_scale = self.scale();
-        rescale_internal(&mut array, &mut value_scale, scale);
+        ops::array::rescale_internal(&mut array, &mut value_scale, scale);
         self.lo = array[0];
         self.mid = array[1];
         self.hi = array[2];
@@ -592,11 +560,13 @@ impl Decimal {
     }
 
     /// Returns the minimum possible number that `Decimal` can represent.
+    #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MIN")]
     pub const fn min_value() -> Decimal {
         MIN
     }
 
     /// Returns the maximum possible number that `Decimal` can represent.
+    #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MAX")]
     pub const fn max_value() -> Decimal {
         MAX
     }
@@ -624,10 +594,10 @@ impl Decimal {
         while scale > 0 {
             // We're removing precision, so we don't care about overflow
             if scale < 10 {
-                div_by_u32(&mut working, POWERS_10[scale as usize]);
+                ops::array::div_by_u32(&mut working, POWERS_10[scale as usize]);
                 break;
             } else {
-                div_by_u32(&mut working, POWERS_10[9]);
+                ops::array::div_by_u32(&mut working, POWERS_10[9]);
                 // Only 9 as this array starts with 1
                 scale -= 9;
             }
@@ -787,7 +757,7 @@ impl Decimal {
         let mut result = [self.lo, self.mid, self.hi];
         let mut working = [self.lo, self.mid, self.hi];
         while scale > 0 {
-            if div_by_u32(&mut working, 10) > 0 {
+            if ops::array::div_by_u32(&mut working, 10) > 0 {
                 break;
             }
             scale -= 1;
@@ -864,10 +834,10 @@ impl Decimal {
         // Rescale to zero so it's easier to work with
         while value_scale > 0 {
             if value_scale < 10 {
-                div_by_u32(&mut value, POWERS_10[value_scale as usize]);
+                ops::array::div_by_u32(&mut value, POWERS_10[value_scale as usize]);
                 value_scale = 0;
             } else {
-                div_by_u32(&mut value, POWERS_10[9]);
+                ops::array::div_by_u32(&mut value, POWERS_10[9]);
                 value_scale -= 9;
             }
         }
@@ -885,10 +855,10 @@ impl Decimal {
 
         while diff > 0 {
             if diff < 10 {
-                div_by_u32(&mut offset, POWERS_10[diff as usize]);
+                ops::array::div_by_u32(&mut offset, POWERS_10[diff as usize]);
                 break;
             } else {
-                div_by_u32(&mut offset, POWERS_10[9]);
+                ops::array::div_by_u32(&mut offset, POWERS_10[9]);
                 // Only 9 as this array starts with 1
                 diff -= 9;
             }
@@ -898,24 +868,24 @@ impl Decimal {
 
         while diff > 0 {
             if diff < 10 {
-                mul_by_u32(&mut offset, POWERS_10[diff as usize]);
+                ops::array::mul_by_u32(&mut offset, POWERS_10[diff as usize]);
                 break;
             } else {
-                mul_by_u32(&mut offset, POWERS_10[9]);
+                ops::array::mul_by_u32(&mut offset, POWERS_10[9]);
                 // Only 9 as this array starts with 1
                 diff -= 9;
             }
         }
 
         let mut decimal_portion = [self.lo, self.mid, self.hi];
-        sub_by_internal(&mut decimal_portion, &offset);
+        ops::array::sub_by_internal(&mut decimal_portion, &offset);
 
         // If the decimal_portion is zero then we round based on the other data
         let mut cap = [5, 0, 0];
         for _ in 0..(old_scale - dp - 1) {
-            mul_by_u32(&mut cap, 10);
+            ops::array::mul_by_u32(&mut cap, 10);
         }
-        let order = cmp_internal(&decimal_portion, &cap);
+        let order = ops::array::cmp_internal(&decimal_portion, &cap);
 
         #[allow(deprecated)]
         match strategy {
@@ -923,19 +893,19 @@ impl Decimal {
                 match order {
                     Ordering::Equal => {
                         if (value[0] & 1) == 1 {
-                            add_one_internal(&mut value);
+                            ops::array::add_one_internal(&mut value);
                         }
                     }
                     Ordering::Greater => {
                         // Doesn't matter about the decimal portion
-                        add_one_internal(&mut value);
+                        ops::array::add_one_internal(&mut value);
                     }
                     _ => {}
                 }
             }
             RoundingStrategy::RoundHalfDown | RoundingStrategy::MidpointTowardZero => {
                 if let Ordering::Greater = order {
-                    add_one_internal(&mut value);
+                    ops::array::add_one_internal(&mut value);
                 }
             }
             RoundingStrategy::RoundHalfUp | RoundingStrategy::MidpointAwayFromZero => {
@@ -943,28 +913,28 @@ impl Decimal {
                 // when Ordering::Greater, decimal_portion is > 0.5
                 match order {
                     Ordering::Equal => {
-                        add_one_internal(&mut value);
+                        ops::array::add_one_internal(&mut value);
                     }
                     Ordering::Greater => {
                         // Doesn't matter about the decimal portion
-                        add_one_internal(&mut value);
+                        ops::array::add_one_internal(&mut value);
                     }
                     _ => {}
                 }
             }
             RoundingStrategy::RoundUp | RoundingStrategy::AwayFromZero => {
-                if !is_all_zero(&decimal_portion) {
-                    add_one_internal(&mut value);
+                if !ops::array::is_all_zero(&decimal_portion) {
+                    ops::array::add_one_internal(&mut value);
                 }
             }
             RoundingStrategy::ToPositiveInfinity => {
-                if !negative && !is_all_zero(&decimal_portion) {
-                    add_one_internal(&mut value);
+                if !negative && !ops::array::is_all_zero(&decimal_portion) {
+                    ops::array::add_one_internal(&mut value);
                 }
             }
             RoundingStrategy::ToNegativeInfinity => {
-                if negative && !is_all_zero(&decimal_portion) {
-                    add_one_internal(&mut value);
+                if negative && !ops::array::is_all_zero(&decimal_portion) {
+                    ops::array::add_one_internal(&mut value);
                 }
             }
             RoundingStrategy::RoundDown | RoundingStrategy::ToZero => (),
@@ -1080,7 +1050,7 @@ impl Decimal {
                 exponent5 -= 1;
 
                 let mut temp = [bits[0], bits[1], bits[2]];
-                if mul_by_u32(&mut temp, 5) == 0 {
+                if ops::array::mul_by_u32(&mut temp, 5) == 0 {
                     // Multiplication succeeded without overflow, so copy result back
                     bits[0] = temp[0];
                     bits[1] = temp[1];
@@ -1107,13 +1077,13 @@ impl Decimal {
                 // No far left bit, the mantissa can withstand a shift-left without overflowing
                 exponent10 -= 1;
                 exponent5 += 1;
-                shl1_internal(bits, 0);
+                ops::array::shl1_internal(bits, 0);
             } else {
                 // The mantissa would overflow if shifted. Therefore it should be
                 // directly divided by 5. This will lose significant digits, unless
                 // by chance the mantissa happens to be divisible by 5.
                 exponent5 += 1;
-                div_by_u32(bits, 5);
+                ops::array::div_by_u32(bits, 5);
             }
         }
 
@@ -1125,7 +1095,7 @@ impl Decimal {
             // In order to bring exponent10 down to 0, the mantissa should be
             // multiplied by 10 to compensate. If the exponent10 is too big, this
             // will cause the mantissa to overflow.
-            if mul_by_u32(bits, 10) == 0 {
+            if ops::array::mul_by_u32(bits, 10) == 0 {
                 exponent10 -= 1;
             } else {
                 // Overflowed - return?
@@ -1137,13 +1107,13 @@ impl Decimal {
         // be divided by 10 to compensate. If the exponent10 is too small, this
         // will cause the mantissa to underflow and become 0.
         while exponent10 < -(MAX_PRECISION as i32) {
-            let rem10 = div_by_u32(bits, 10);
+            let rem10 = ops::array::div_by_u32(bits, 10);
             exponent10 += 1;
-            if is_all_zero(bits) {
+            if ops::array::is_all_zero(bits) {
                 // Underflow, unable to keep dividing
                 exponent10 = 0;
             } else if rem10 >= 5 {
-                add_one_internal(bits);
+                ops::array::add_one_internal(bits);
             }
         }
 
@@ -1153,19 +1123,19 @@ impl Decimal {
         if is64 {
             // Guaranteed to about 16 dp
             while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFF0_0000) != 0) {
-                let rem10 = div_by_u32(bits, 10);
+                let rem10 = ops::array::div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {
-                    add_one_internal(bits);
+                    ops::array::add_one_internal(bits);
                 }
             }
         } else {
             // Guaranteed to about 7 dp
             while exponent10 < 0 && ((bits[0] & 0xFF00_0000) != 0 || bits[1] != 0 || bits[2] != 0) {
-                let rem10 = div_by_u32(bits, 10);
+                let rem10 = ops::array::div_by_u32(bits, 10);
                 exponent10 += 1;
                 if rem10 >= 5 {
-                    add_one_internal(bits);
+                    ops::array::add_one_internal(bits);
                 }
             }
         }
@@ -1173,7 +1143,7 @@ impl Decimal {
         // Remove multiples of 10 from the representation
         while exponent10 < 0 {
             let mut temp = [bits[0], bits[1], bits[2]];
-            let remainder = div_by_u32(&mut temp, 10);
+            let remainder = ops::array::div_by_u32(&mut temp, 10);
             if remainder == 0 {
                 exponent10 += 1;
                 bits[0] = temp[0];
@@ -1243,9 +1213,9 @@ impl Decimal {
 
     pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, crate::Error> {
         if radix == 10 {
-            parse_str_radix_10(str)
+            crate::str::parse_str_radix_10(str)
         } else {
-            parse_str_radix_n(str, radix)
+            crate::str::parse_str_radix_n(str, radix)
         }
     }
 }
@@ -1265,258 +1235,6 @@ pub(crate) enum CalculationResult {
 #[inline]
 const fn flags(neg: bool, scale: u32) -> u32 {
     (scale << SCALE_SHIFT) | ((neg as u32) << SIGN_SHIFT)
-}
-
-/// Rescales the given decimal to new scale.
-/// e.g. with 1.23 and new scale 3 rescale the value to 1.230
-#[inline(always)]
-pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
-    if *value_scale == new_scale {
-        // Nothing to do
-        return;
-    }
-
-    if is_all_zero(value) {
-        *value_scale = new_scale;
-        return;
-    }
-
-    if *value_scale > new_scale {
-        let mut diff = *value_scale - new_scale;
-        // Scaling further isn't possible since we got an overflow
-        // In this case we need to reduce the accuracy of the "side to keep"
-
-        // Now do the necessary rounding
-        let mut remainder = 0;
-        while diff > 0 {
-            if is_all_zero(value) {
-                *value_scale = new_scale;
-                return;
-            }
-
-            diff -= 1;
-
-            // Any remainder is discarded if diff > 0 still (i.e. lost precision)
-            remainder = div_by_10(value);
-        }
-        if remainder >= 5 {
-            for part in value.iter_mut() {
-                let digit = u64::from(*part) + 1u64;
-                remainder = if digit > 0xFFFF_FFFF { 1 } else { 0 };
-                *part = (digit & 0xFFFF_FFFF) as u32;
-                if remainder == 0 {
-                    break;
-                }
-            }
-        }
-        *value_scale = new_scale;
-    } else {
-        let mut diff = new_scale - *value_scale;
-        let mut working = [value[0], value[1], value[2]];
-        while diff > 0 && mul_by_10(&mut working) == 0 {
-            value.copy_from_slice(&working);
-            diff -= 1;
-        }
-        *value_scale = new_scale - diff;
-    }
-}
-
-pub(crate) fn add_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
-    let mut carry: u64 = 0;
-    let vl = value.len();
-    let bl = by.len();
-    if vl >= bl {
-        let mut sum: u64;
-        for i in 0..bl {
-            sum = u64::from(value[i]) + u64::from(by[i]) + carry;
-            value[i] = (sum & U32_MASK) as u32;
-            carry = sum >> 32;
-        }
-        if vl > bl && carry > 0 {
-            for i in value.iter_mut().skip(bl) {
-                sum = u64::from(*i) + carry;
-                *i = (sum & U32_MASK) as u32;
-                carry = sum >> 32;
-                if carry == 0 {
-                    break;
-                }
-            }
-        }
-    } else if vl + 1 == bl {
-        // Overflow, by default, is anything in the high portion of by
-        let mut sum: u64;
-        for i in 0..vl {
-            sum = u64::from(value[i]) + u64::from(by[i]) + carry;
-            value[i] = (sum & U32_MASK) as u32;
-            carry = sum >> 32;
-        }
-        if by[vl] > 0 {
-            carry += u64::from(by[vl]);
-        }
-    } else {
-        panic!("Internal error: add using incompatible length arrays. {} <- {}", vl, bl);
-    }
-    carry as u32
-}
-
-#[inline]
-fn add_one_internal(value: &mut [u32]) -> u32 {
-    let mut carry: u64 = 1; // Start with one, since adding one
-    let mut sum: u64;
-    for i in value.iter_mut() {
-        sum = (*i as u64) + carry;
-        *i = (sum & U32_MASK) as u32;
-        carry = sum >> 32;
-    }
-
-    carry as u32
-}
-
-fn sub_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
-    // The way this works is similar to long subtraction
-    // Let's assume we're working with bytes for simplicity in an example:
-    //   257 - 8 = 249
-    //   0000_0001 0000_0001 - 0000_0000 0000_1000 = 0000_0000 1111_1001
-    // We start by doing the first byte...
-    //   Overflow = 0
-    //   Left = 0000_0001 (1)
-    //   Right = 0000_1000 (8)
-    // Firstly, we make sure the left and right are scaled up to twice the size
-    //   Left = 0000_0000 0000_0001
-    //   Right = 0000_0000 0000_1000
-    // We then subtract right from left
-    //   Result = Left - Right = 1111_1111 1111_1001
-    // We subtract the overflow, which in this case is 0.
-    // Because left < right (1 < 8) we invert the high part.
-    //   Lo = 1111_1001
-    //   Hi = 1111_1111 -> 0000_0001
-    // Lo is the field, hi is the overflow.
-    // We do the same for the second byte...
-    //   Overflow = 1
-    //   Left = 0000_0001
-    //   Right = 0000_0000
-    //   Result = Left - Right = 0000_0000 0000_0001
-    // We subtract the overflow...
-    //   Result = 0000_0000 0000_0001 - 1 = 0
-    // And we invert the high, just because (invert 0 = 0).
-    // So our result is:
-    //   0000_0000 1111_1001
-    let mut overflow = 0;
-    let vl = value.len();
-    let bl = by.len();
-    for i in 0..vl {
-        if i >= bl {
-            break;
-        }
-        let (lo, hi) = sub_part(value[i], by[i], overflow);
-        value[i] = lo;
-        overflow = hi;
-    }
-    overflow
-}
-
-fn sub_part(left: u32, right: u32, overflow: u32) -> (u32, u32) {
-    let part = 0x1_0000_0000u64 + u64::from(left) - (u64::from(right) + u64::from(overflow));
-    let lo = part as u32;
-    let hi = 1 - ((part >> 32) as u32);
-    (lo, hi)
-}
-
-// Returns overflow
-#[inline]
-fn mul_by_10(bits: &mut [u32; 3]) -> u32 {
-    let mut overflow = 0u64;
-    for b in bits.iter_mut() {
-        let result = u64::from(*b) * 10u64 + overflow;
-        let hi = (result >> 32) & U32_MASK;
-        let lo = (result & U32_MASK) as u32;
-        *b = lo;
-        overflow = hi;
-    }
-
-    overflow as u32
-}
-
-// Returns overflow
-pub(crate) fn mul_by_u32(bits: &mut [u32], m: u32) -> u32 {
-    let mut overflow = 0;
-    for b in bits.iter_mut() {
-        let (lo, hi) = mul_part(*b, m, overflow);
-        *b = lo;
-        overflow = hi;
-    }
-    overflow
-}
-
-pub(crate) fn mul_part(left: u32, right: u32, high: u32) -> (u32, u32) {
-    let result = u64::from(left) * u64::from(right) + u64::from(high);
-    let hi = ((result >> 32) & U32_MASK) as u32;
-    let lo = (result & U32_MASK) as u32;
-    (lo, hi)
-}
-
-// Returns remainder
-pub(crate) fn div_by_u32(bits: &mut [u32], divisor: u32) -> u32 {
-    if divisor == 0 {
-        // Divide by zero
-        panic!("Internal error: divide by zero");
-    } else if divisor == 1 {
-        // dividend remains unchanged
-        0
-    } else {
-        let mut remainder = 0u32;
-        let divisor = u64::from(divisor);
-        for part in bits.iter_mut().rev() {
-            let temp = (u64::from(remainder) << 32) + u64::from(*part);
-            remainder = (temp % divisor) as u32;
-            *part = (temp / divisor) as u32;
-        }
-
-        remainder
-    }
-}
-
-fn div_by_10(bits: &mut [u32; 3]) -> u32 {
-    let mut remainder = 0u32;
-    let divisor = 10u64;
-    for part in bits.iter_mut().rev() {
-        let temp = (u64::from(remainder) << 32) + u64::from(*part);
-        remainder = (temp % divisor) as u32;
-        *part = (temp / divisor) as u32;
-    }
-
-    remainder
-}
-
-#[inline]
-pub(crate) fn shl1_internal(bits: &mut [u32], carry: u32) -> u32 {
-    let mut carry = carry;
-    for part in bits.iter_mut() {
-        let b = *part >> 31;
-        *part = (*part << 1) | carry;
-        carry = b;
-    }
-    carry
-}
-
-#[inline]
-pub(crate) fn cmp_internal(left: &[u32; 3], right: &[u32; 3]) -> Ordering {
-    let left_hi: u32 = left[2];
-    let right_hi: u32 = right[2];
-    let left_lo: u64 = u64::from(left[1]) << 32 | u64::from(left[0]);
-    let right_lo: u64 = u64::from(right[1]) << 32 | u64::from(right[0]);
-    if left_hi < right_hi || (left_hi <= right_hi && left_lo < right_lo) {
-        Ordering::Less
-    } else if left_hi == right_hi && left_lo == right_lo {
-        Ordering::Equal
-    } else {
-        Ordering::Greater
-    }
-}
-
-#[inline]
-pub(crate) fn is_all_zero(bits: &[u32]) -> bool {
-    bits.iter().all(|b| *b == 0)
 }
 
 macro_rules! impl_from {
@@ -1675,434 +1393,6 @@ impl CheckedRem for Decimal {
     }
 }
 
-// dedicated implementation for the most common case.
-fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
-    if str.is_empty() {
-        return Err(Error::new("Invalid decimal: empty"));
-    }
-
-    let mut offset = 0;
-    let mut len = str.len();
-    let bytes = str.as_bytes();
-    let mut negative = false; // assume positive
-
-    // handle the sign
-    if bytes[offset] == b'-' {
-        negative = true; // leading minus means negative
-        offset += 1;
-        len -= 1;
-    } else if bytes[offset] == b'+' {
-        // leading + allowed
-        offset += 1;
-        len -= 1;
-    }
-
-    // should now be at numeric part of the significand
-    let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-    let mut coeff = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new(); // integer significand array
-
-    let mut maybe_round = false;
-    while len > 0 {
-        let b = bytes[offset];
-        match b {
-            b'0'..=b'9' => {
-                coeff.push(u32::from(b - b'0'));
-                offset += 1;
-                len -= 1;
-
-                // If the coefficient is longer than the max, exit early
-                if coeff.len() as u32 > 28 {
-                    maybe_round = true;
-                    break;
-                }
-            }
-            b'.' => {
-                if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
-                }
-                digits_before_dot = coeff.len() as i32;
-                offset += 1;
-                len -= 1;
-            }
-            b'_' => {
-                // Must start with a number...
-                if coeff.is_empty() {
-                    return Err(Error::new("Invalid decimal: must start lead with a number"));
-                }
-                offset += 1;
-                len -= 1;
-            }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
-        }
-    }
-
-    // If we exited before the end of the string then do some rounding if necessary
-    if maybe_round && offset < bytes.len() {
-        let next_byte = bytes[offset];
-        let digit = match next_byte {
-            b'0'..=b'9' => u32::from(next_byte - b'0'),
-            b'_' => 0,
-            b'.' => {
-                // Still an error if we have a second dp
-                if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
-                }
-                0
-            }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
-        };
-
-        // Round at midpoint
-        if digit >= 5 {
-            let mut index = coeff.len() - 1;
-            loop {
-                let new_digit = coeff[index] + 1;
-                if new_digit <= 9 {
-                    coeff[index] = new_digit;
-                    break;
-                } else {
-                    coeff[index] = 0;
-                    if index == 0 {
-                        coeff.insert(0, 1u32);
-                        digits_before_dot += 1;
-                        coeff.pop();
-                        break;
-                    }
-                }
-                index -= 1;
-            }
-        }
-    }
-
-    // here when no characters left
-    if coeff.is_empty() {
-        return Err(Error::new("Invalid decimal: no digits found"));
-    }
-
-    let mut scale = if digits_before_dot >= 0 {
-        // we had a decimal place so set the scale
-        (coeff.len() as u32) - (digits_before_dot as u32)
-    } else {
-        0
-    };
-
-    let mut data = [0u32, 0u32, 0u32];
-    let mut tmp = [0u32, 0u32, 0u32];
-    let len = coeff.len();
-    for (i, digit) in coeff.iter().enumerate() {
-        // If the data is going to overflow then we should go into recovery mode
-        tmp[0] = data[0];
-        tmp[1] = data[1];
-        tmp[2] = data[2];
-        let overflow = mul_by_10(&mut tmp);
-        if overflow > 0 {
-            // This means that we have more data to process, that we're not sure what to do with.
-            // This may or may not be an issue - depending on whether we're past a decimal point
-            // or not.
-            if (i as i32) < digits_before_dot && i + 1 < len {
-                return Err(Error::new("Invalid decimal: overflow from too many digits"));
-            }
-
-            if *digit >= 5 {
-                let carry = add_one_internal(&mut data);
-                if carry > 0 {
-                    // Highly unlikely scenario which is more indicative of a bug
-                    return Err(Error::new("Invalid decimal: overflow when rounding"));
-                }
-            }
-            // We're also one less digit so reduce the scale
-            let diff = (len - i) as u32;
-            if diff > scale {
-                return Err(Error::new("Invalid decimal: overflow from scale mismatch"));
-            }
-            scale -= diff;
-            break;
-        } else {
-            data[0] = tmp[0];
-            data[1] = tmp[1];
-            data[2] = tmp[2];
-            let carry = add_by_internal(&mut data, &[*digit]);
-            if carry > 0 {
-                // Highly unlikely scenario which is more indicative of a bug
-                return Err(Error::new("Invalid decimal: overflow from carry"));
-            }
-        }
-    }
-
-    Ok(Decimal {
-        lo: data[0],
-        mid: data[1],
-        hi: data[2],
-        flags: flags(negative, scale),
-    })
-}
-
-pub fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::Error> {
-    if str.is_empty() {
-        return Err(Error::new("Invalid decimal: empty"));
-    }
-    if radix < 2 {
-        return Err(Error::new("Unsupported radix < 2"));
-    }
-    if radix > 36 {
-        // As per trait documentation
-        return Err(Error::new("Unsupported radix > 36"));
-    }
-
-    let mut offset = 0;
-    let mut len = str.len();
-    let bytes = str.as_bytes();
-    let mut negative = false; // assume positive
-
-    // handle the sign
-    if bytes[offset] == b'-' {
-        negative = true; // leading minus means negative
-        offset += 1;
-        len -= 1;
-    } else if bytes[offset] == b'+' {
-        // leading + allowed
-        offset += 1;
-        len -= 1;
-    }
-
-    // should now be at numeric part of the significand
-    let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-    let mut coeff = ArrayVec::<[_; 96]>::new(); // integer significand array
-
-    // Supporting different radix
-    let (max_n, max_alpha_lower, max_alpha_upper) = if radix <= 10 {
-        (b'0' + (radix - 1) as u8, 0, 0)
-    } else {
-        let adj = (radix - 11) as u8;
-        (b'9', adj + b'a', adj + b'A')
-    };
-
-    // Estimate the max precision. All in all, it needs to fit into 96 bits.
-    // Rather than try to estimate, I've included the constants directly in here. We could,
-    // perhaps, replace this with a formula if it's faster - though it does appear to be log2.
-    let estimated_max_precision = match radix {
-        2 => 96,
-        3 => 61,
-        4 => 48,
-        5 => 42,
-        6 => 38,
-        7 => 35,
-        8 => 32,
-        9 => 31,
-        10 => 28,
-        11 => 28,
-        12 => 27,
-        13 => 26,
-        14 => 26,
-        15 => 25,
-        16 => 24,
-        17 => 24,
-        18 => 24,
-        19 => 23,
-        20 => 23,
-        21 => 22,
-        22 => 22,
-        23 => 22,
-        24 => 21,
-        25 => 21,
-        26 => 21,
-        27 => 21,
-        28 => 20,
-        29 => 20,
-        30 => 20,
-        31 => 20,
-        32 => 20,
-        33 => 20,
-        34 => 19,
-        35 => 19,
-        36 => 19,
-        _ => return Err(Error::new("Unsupported radix")),
-    };
-
-    let mut maybe_round = false;
-    while len > 0 {
-        let b = bytes[offset];
-        match b {
-            b'0'..=b'9' => {
-                if b > max_n {
-                    return Err(Error::new("Invalid decimal: invalid character"));
-                }
-                coeff.push(u32::from(b - b'0'));
-                offset += 1;
-                len -= 1;
-
-                // If the coefficient is longer than the max, exit early
-                if coeff.len() as u32 > estimated_max_precision {
-                    maybe_round = true;
-                    break;
-                }
-            }
-            b'a'..=b'z' => {
-                if b > max_alpha_lower {
-                    return Err(Error::new("Invalid decimal: invalid character"));
-                }
-                coeff.push(u32::from(b - b'a') + 10);
-                offset += 1;
-                len -= 1;
-
-                if coeff.len() as u32 > estimated_max_precision {
-                    maybe_round = true;
-                    break;
-                }
-            }
-            b'A'..=b'Z' => {
-                if b > max_alpha_upper {
-                    return Err(Error::new("Invalid decimal: invalid character"));
-                }
-                coeff.push(u32::from(b - b'A') + 10);
-                offset += 1;
-                len -= 1;
-
-                if coeff.len() as u32 > estimated_max_precision {
-                    maybe_round = true;
-                    break;
-                }
-            }
-            b'.' => {
-                if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
-                }
-                digits_before_dot = coeff.len() as i32;
-                offset += 1;
-                len -= 1;
-            }
-            b'_' => {
-                // Must start with a number...
-                if coeff.is_empty() {
-                    return Err(Error::new("Invalid decimal: must start lead with a number"));
-                }
-                offset += 1;
-                len -= 1;
-            }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
-        }
-    }
-
-    // If we exited before the end of the string then do some rounding if necessary
-    if maybe_round && offset < bytes.len() {
-        let next_byte = bytes[offset];
-        let digit = match next_byte {
-            b'0'..=b'9' => {
-                if next_byte > max_n {
-                    return Err(Error::new("Invalid decimal: invalid character"));
-                }
-                u32::from(next_byte - b'0')
-            }
-            b'a'..=b'z' => {
-                if next_byte > max_alpha_lower {
-                    return Err(Error::new("Invalid decimal: invalid character"));
-                }
-                u32::from(next_byte - b'a') + 10
-            }
-            b'A'..=b'Z' => {
-                if next_byte > max_alpha_upper {
-                    return Err(Error::new("Invalid decimal: invalid character"));
-                }
-                u32::from(next_byte - b'A') + 10
-            }
-            b'_' => 0,
-            b'.' => {
-                // Still an error if we have a second dp
-                if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
-                }
-                0
-            }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
-        };
-
-        // Round at midpoint
-        let midpoint = if radix & 0x1 == 1 { radix / 2 } else { (radix + 1) / 2 };
-        if digit >= midpoint {
-            let mut index = coeff.len() - 1;
-            loop {
-                let new_digit = coeff[index] + 1;
-                if new_digit <= 9 {
-                    coeff[index] = new_digit;
-                    break;
-                } else {
-                    coeff[index] = 0;
-                    if index == 0 {
-                        coeff.insert(0, 1u32);
-                        digits_before_dot += 1;
-                        coeff.pop();
-                        break;
-                    }
-                }
-                index -= 1;
-            }
-        }
-    }
-
-    // here when no characters left
-    if coeff.is_empty() {
-        return Err(Error::new("Invalid decimal: no digits found"));
-    }
-
-    let mut scale = if digits_before_dot >= 0 {
-        // we had a decimal place so set the scale
-        (coeff.len() as u32) - (digits_before_dot as u32)
-    } else {
-        0
-    };
-
-    // Parse this using specified radix
-    let mut data = [0u32, 0u32, 0u32];
-    let mut tmp = [0u32, 0u32, 0u32];
-    let len = coeff.len();
-    for (i, digit) in coeff.iter().enumerate() {
-        // If the data is going to overflow then we should go into recovery mode
-        tmp[0] = data[0];
-        tmp[1] = data[1];
-        tmp[2] = data[2];
-        let overflow = mul_by_u32(&mut tmp, radix);
-        if overflow > 0 {
-            // This means that we have more data to process, that we're not sure what to do with.
-            // This may or may not be an issue - depending on whether we're past a decimal point
-            // or not.
-            if (i as i32) < digits_before_dot && i + 1 < len {
-                return Err(Error::new("Invalid decimal: overflow from too many digits"));
-            }
-
-            if *digit >= 5 {
-                let carry = add_one_internal(&mut data);
-                if carry > 0 {
-                    // Highly unlikely scenario which is more indicative of a bug
-                    return Err(Error::new("Invalid decimal: overflow when rounding"));
-                }
-            }
-            // We're also one less digit so reduce the scale
-            let diff = (len - i) as u32;
-            if diff > scale {
-                return Err(Error::new("Invalid decimal: overflow from scale mismatch"));
-            }
-            scale -= diff;
-            break;
-        } else {
-            data[0] = tmp[0];
-            data[1] = tmp[1];
-            data[2] = tmp[2];
-            let carry = add_by_internal(&mut data, &[*digit]);
-            if carry > 0 {
-                // Highly unlikely scenario which is more indicative of a bug
-                return Err(Error::new("Invalid decimal: overflow from carry"));
-            }
-        }
-    }
-
-    Ok(Decimal {
-        lo: data[0],
-        mid: data[1],
-        hi: data[2],
-        flags: flags(negative, scale),
-    })
-}
-
 impl Num for Decimal {
     type FromStrRadixErr = Error;
 
@@ -2115,7 +1405,7 @@ impl FromStr for Decimal {
     type Err = Error;
 
     fn from_str(value: &str) -> Result<Decimal, Self::Err> {
-        parse_str_radix_10(value)
+        crate::str::parse_str_radix_10(value)
     }
 }
 
@@ -2409,64 +1699,9 @@ impl core::convert::TryFrom<Decimal> for f64 {
     }
 }
 
-// impl that doesn't allocate for serialization purposes.
-pub(crate) fn to_str_internal(
-    value: &Decimal,
-    append_sign: bool,
-    precision: Option<usize>,
-) -> ArrayString<[u8; MAX_STR_BUFFER_SIZE]> {
-    // Get the scale - where we need to put the decimal point
-    let scale = value.scale() as usize;
-
-    // Convert to a string and manipulate that (neg at front, inject decimal)
-    let mut chars = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new();
-    let mut working = [value.lo, value.mid, value.hi];
-    while !is_all_zero(&working) {
-        let remainder = div_by_u32(&mut working, 10u32);
-        chars.push(char::from(b'0' + remainder as u8));
-    }
-    while scale > chars.len() {
-        chars.push('0');
-    }
-
-    let prec = match precision {
-        Some(prec) => prec,
-        None => scale,
-    };
-
-    let len = chars.len();
-    let whole_len = len - scale;
-    let mut rep = ArrayString::new();
-    if append_sign && value.is_sign_negative() {
-        rep.push('-');
-    }
-    for i in 0..whole_len + prec {
-        if i == len - scale {
-            if i == 0 {
-                rep.push('0');
-            }
-            rep.push('.');
-        }
-
-        if i >= len {
-            rep.push('0');
-        } else {
-            let c = chars[len - i - 1];
-            rep.push(c);
-        }
-    }
-
-    // corner case for when we truncated everything in a low fractional
-    if rep.is_empty() {
-        rep.push('0');
-    }
-
-    rep
-}
-
 impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let rep = to_str_internal(self, false, f.precision());
+        let rep = crate::str::to_str_internal(self, false, f.precision());
         f.pad_integral(self.is_sign_positive(), "", rep.as_str())
     }
 }
@@ -2477,56 +1712,15 @@ impl fmt::Debug for Decimal {
     }
 }
 
-fn fmt_scientific_notation(value: &Decimal, exponent_symbol: &str, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    #[cfg(not(feature = "std"))]
-    use alloc::string::ToString;
-
-    // Get the scale - this is the e value. With multiples of 10 this may get bigger.
-    let mut exponent = -(value.scale() as isize);
-
-    // Convert the integral to a string
-    let mut chars = Vec::new();
-    let mut working = [value.lo, value.mid, value.hi];
-    while !is_all_zero(&working) {
-        let remainder = div_by_u32(&mut working, 10u32);
-        chars.push(char::from(b'0' + remainder as u8));
-    }
-
-    // First of all, apply scientific notation rules. That is:
-    //  1. If non-zero digit comes first, move decimal point left so that e is a positive integer
-    //  2. If decimal point comes first, move decimal point right until after the first non-zero digit
-    // Since decimal notation naturally lends itself this way, we just need to inject the decimal
-    // point in the right place and adjust the exponent accordingly.
-
-    let len = chars.len();
-    let mut rep;
-    if len > 1 {
-        if chars.iter().take(len - 1).all(|c| *c == '0') {
-            // Chomp off the zero's.
-            rep = chars.iter().skip(len - 1).collect::<String>();
-        } else {
-            chars.insert(len - 1, '.');
-            rep = chars.iter().rev().collect::<String>();
-        }
-        exponent += (len - 1) as isize;
-    } else {
-        rep = chars.iter().collect::<String>();
-    }
-
-    rep.push_str(exponent_symbol);
-    rep.push_str(&exponent.to_string());
-    f.pad_integral(value.is_sign_positive(), "", &rep)
-}
-
 impl fmt::LowerExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_scientific_notation(self, "e", f)
+        crate::str::fmt_scientific_notation(self, "e", f)
     }
 }
 
 impl fmt::UpperExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt_scientific_notation(self, "E", f)
+        crate::str::fmt_scientific_notation(self, "E", f)
     }
 }
 
@@ -2813,89 +2007,5 @@ impl<'a> Sum<&'a Decimal> for Decimal {
             sum += i;
         }
         sum
-    }
-}
-
-#[cfg(test)]
-mod test {
-    // Tests on private methods.
-    //
-    // All public tests should go under `tests/`.
-
-    use super::*;
-
-    #[test]
-    fn it_can_rescale_internal() {
-        fn extract(value: &str) -> ([u32; 3], u32) {
-            let v = Decimal::from_str(value).unwrap();
-            ([v.lo, v.mid, v.hi], v.scale())
-        }
-
-        let tests = &[
-            ("1", 0, "1"),
-            ("1", 1, "1.0"),
-            ("1", 5, "1.00000"),
-            ("1", 10, "1.0000000000"),
-            ("1", 20, "1.00000000000000000000"),
-            ("0.6386554621848739495798319328", 27, "0.638655462184873949579831933"),
-            (
-                "843.65000000",                  // Scale 8
-                25,                              // 25
-                "843.6500000000000000000000000", // 25
-            ),
-            (
-                "843.65000000",                     // Scale 8
-                30,                                 // 30
-                "843.6500000000000000000000000000", // 28
-            ),
-        ];
-
-        for &(value_raw, new_scale, expected_value) in tests {
-            let (expected_value, _) = extract(expected_value);
-            let (mut value, mut value_scale) = extract(value_raw);
-            rescale_internal(&mut value, &mut value_scale, new_scale);
-            assert_eq!(value, expected_value);
-        }
-    }
-
-    #[test]
-    fn test_shl1_internal() {
-        struct TestCase {
-            // One thing to be cautious of is that the structure of a number here for shifting left is
-            // the reverse of how you may conceive this mentally. i.e. a[2] contains the higher order
-            // bits: a[2] a[1] a[0]
-            given: [u32; 3],
-            given_carry: u32,
-            expected: [u32; 3],
-            expected_carry: u32,
-        }
-        let tests = [
-            TestCase {
-                given: [1, 0, 0],
-                given_carry: 0,
-                expected: [2, 0, 0],
-                expected_carry: 0,
-            },
-            TestCase {
-                given: [1, 0, 2147483648],
-                given_carry: 1,
-                expected: [3, 0, 0],
-                expected_carry: 1,
-            },
-        ];
-        for case in &tests {
-            let mut test = [case.given[0], case.given[1], case.given[2]];
-            let carry = shl1_internal(&mut test, case.given_carry);
-            assert_eq!(
-                test, case.expected,
-                "Bits: {:?} << 1 | {}",
-                case.given, case.given_carry
-            );
-            assert_eq!(
-                carry, case.expected_carry,
-                "Carry: {:?} << 1 | {}",
-                case.given, case.given_carry
-            )
-        }
     }
 }

@@ -1,8 +1,9 @@
+use crate::constants::MAX_PRECISION;
 use crate::{
-    decimal::{div_by_u32, is_all_zero, mul_by_u32, MAX_PRECISION},
+    ops::array::{div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
 };
-use core::{convert::TryInto, fmt, result::*};
+use core::{convert::TryInto, fmt};
 use std::error;
 
 #[derive(Debug, Clone)]
@@ -37,7 +38,7 @@ impl Decimal {
             digits,
             weight,
         }: PostgresDecimal<D>,
-    ) -> Result<Self, InvalidDecimal> {
+    ) -> Self {
         let mut digits = digits.into_iter().collect::<Vec<_>>();
 
         let fractionals_part_count = digits.len() as i32 + (-weight as i32) - 1;
@@ -69,8 +70,7 @@ impl Decimal {
                 } else if fract_pow == MAX_PRECISION + 4 {
                     // rounding last digit
                     if digit >= 5000 {
-                        result +=
-                            Decimal::new(1 as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION), 0);
+                        result += Decimal::new(1_i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION), 0);
                     }
                 }
             }
@@ -79,8 +79,7 @@ impl Decimal {
         result.set_sign_negative(neg);
         // Rescale to the postgres value, automatically rounding as needed.
         result.rescale(scale as u32);
-
-        Ok(result)
+        result
     }
 
     fn to_postgres(self) -> PostgresDecimal<Vec<i16>> {
@@ -176,8 +175,7 @@ mod diesel {
                 weight,
                 scale,
                 digits: digits.iter().copied().map(|v| v.try_into().unwrap()),
-            })
-            .map_err(Box::new)?)
+            }))
         }
     }
 
@@ -190,11 +188,6 @@ mod diesel {
     }
 
     impl<'a> From<&'a Decimal> for PgNumeric {
-        // NOTE(clippy): Clippy suggests to replace the `.take_while(|i| i.is_zero())`
-        // with `.take_while(Zero::is_zero)`, but that's a false positive.
-        // The closure gets an `&&i16` due to autoderef `<i16 as Zero>::is_zero(&self) -> bool`
-        // is called. There is no impl for `&i16` that would work with this closure.
-        #[allow(clippy::assign_op_pattern, clippy::redundant_closure)]
         fn from(decimal: &'a Decimal) -> Self {
             let PostgresDecimal {
                 neg,
@@ -202,8 +195,6 @@ mod diesel {
                 scale,
                 digits,
             } = decimal.to_postgres();
-
-            let digits = digits.into_iter().map(|v| v.try_into().unwrap()).collect();
 
             if neg {
                 PgNumeric::Negative { digits, scale, weight }
@@ -551,15 +542,11 @@ mod postgres {
                 weight,
                 scale,
                 digits: groups.into_iter(),
-            })
-            .map_err(Box::new)?)
+            }))
         }
 
         fn accepts(ty: &Type) -> bool {
-            match ty {
-                &Type::NUMERIC => true,
-                _ => false,
-            }
+            matches!(*ty, Type::NUMERIC)
         }
     }
 
@@ -598,10 +585,7 @@ mod postgres {
         }
 
         fn accepts(ty: &Type) -> bool {
-            match ty {
-                &Type::NUMERIC => true,
-                _ => false,
-            }
+            matches!(*ty, Type::NUMERIC)
         }
 
         to_sql_checked!();

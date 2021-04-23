@@ -1909,7 +1909,7 @@ fn it_finds_min_of_two() {
 #[test]
 fn test_max_compares() {
     let x = "225.33543601344182".parse::<Decimal>().unwrap();
-    let y = Decimal::max_value();
+    let y = Decimal::MAX;
     assert!(x < y);
     assert!(y > x);
     assert_ne!(y, x);
@@ -1918,7 +1918,7 @@ fn test_max_compares() {
 #[test]
 fn test_min_compares() {
     let x = "225.33543601344182".parse::<Decimal>().unwrap();
-    let y = Decimal::min_value();
+    let y = Decimal::MIN;
     assert!(x > y);
     assert!(y < x);
     assert_ne!(y, x);
@@ -2387,12 +2387,12 @@ fn it_can_normalize() {
 
 #[test]
 fn it_can_return_the_max_value() {
-    assert_eq!("79228162514264337593543950335", Decimal::max_value().to_string());
+    assert_eq!("79228162514264337593543950335", Decimal::MAX.to_string());
 }
 
 #[test]
 fn it_can_return_the_min_value() {
-    assert_eq!("-79228162514264337593543950335", Decimal::min_value().to_string());
+    assert_eq!("-79228162514264337593543950335", Decimal::MIN.to_string());
 }
 
 #[test]
@@ -2512,7 +2512,7 @@ fn it_converts_to_i128() {
 
     assert_eq!(
         79_228_162_514_264_337_593_543_950_335_i128,
-        Decimal::max_value().to_i128().unwrap()
+        Decimal::MAX.to_i128().unwrap()
     );
 }
 
@@ -2531,7 +2531,7 @@ fn it_converts_to_u128() {
     }
     assert_eq!(
         79_228_162_514_264_337_593_543_950_335_u128,
-        Decimal::max_value().to_u128().unwrap()
+        Decimal::MAX.to_u128().unwrap()
     );
 }
 
@@ -2873,7 +2873,7 @@ fn it_can_parse_different_radix() {
           1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111",
             2,
             true,
-            &Decimal::max_value().to_string(),
+            &Decimal::MAX.to_string(),
         ),
         // We limit to 28 dp
         (
@@ -3072,7 +3072,6 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
     // Verify 0 and -0 have the same hash
     let k1 = Decimal::from_str("0").unwrap();
     let k2 = Decimal::from_str("-0").unwrap();
-    assert_eq!("-0", k2.to_string());
     assert_eq!(k1, k2);
     let h1 = hash_it(k1);
     let h2 = hash_it(k2);
@@ -3081,7 +3080,6 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
     // Verify 0 and -0.0 have the same hash
     let k1 = Decimal::from_str("0").unwrap();
     let k2 = Decimal::from_str("-0.0").unwrap();
-    assert_eq!("-0.0", k2.to_string());
     assert_eq!(k1, k2);
     let h1 = hash_it(k1);
     let h2 = hash_it(k2);
