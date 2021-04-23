@@ -67,16 +67,16 @@ impl MathematicalOps for Decimal {
         let mut result = self + Decimal::ONE;
         let mut prev_result: Option<Decimal> = None;
         let mut factorial = Decimal::ONE;
-        let mut n = TWO;
-        let twenty_four = Decimal::new(24, 0);
+        let mut n = 2;
 
         // Needs rounding because multiplication overflows otherwise.
-        while (prev_result.is_none() || (result - prev_result.unwrap()).abs() > tolerance) && n < twenty_four {
+        while (prev_result.is_none() || (result - prev_result.unwrap()).abs() > tolerance) && n < 24 {
             prev_result = Some(result);
             term = self * term.round_dp(8);
-            factorial *= n;
+            // n is always less than 24 so we construct the multiplier dynamically
+            factorial *= Decimal::from_parts_raw(n, 0, 0, 0);
             result += (term / factorial).round_dp(8);
-            n += Decimal::ONE;
+            n += 1;
         }
 
         result
@@ -106,7 +106,7 @@ impl MathematicalOps for Decimal {
 
                 // We then take half of the exponent to create a finite iterator and then multiply those together.
                 let mut product = Decimal::ONE;
-                for x in iter.take((exp / 2) as usize) {
+                for x in iter.take((exp >> 1) as usize) {
                     match product.checked_mul(x) {
                         Some(r) => product = r,
                         None => return None,
@@ -114,7 +114,7 @@ impl MathematicalOps for Decimal {
                 }
 
                 // If the exponent is odd we still need to multiply once more
-                if exp % 2 > 0 {
+                if exp & 0x1 > 0 {
                     self.checked_mul(product)
                 } else {
                     Some(product)
@@ -135,6 +135,12 @@ impl MathematicalOps for Decimal {
 
         // Start with an arbitrary number as the first guess
         let mut result = self / TWO;
+        // Too small to represent, so we start with self
+        // Future iterations could actually avoid using a decimal altogether and use a buffered
+        // vector, only combining back into a decimal on return
+        if result.is_zero() {
+            result = *self;
+        }
         let mut last = result + Decimal::ONE;
 
         // Keep going while the difference is larger than the tolerance
@@ -157,9 +163,11 @@ impl MathematicalOps for Decimal {
             if self == &Decimal::ONE {
                 Decimal::ZERO
             } else {
+                // TODO: We could just shift left self by 8 here
                 let s = self * Decimal::new(256, 0);
                 let arith_geo_mean = arithmetic_geo_mean_of_2(&Decimal::ONE, &(Decimal::new(4, 0) / s));
 
+                // TODO: Multiplication by two could be bit shifted too
                 PI / (arith_geo_mean * TWO) - (Decimal::new(8, 0) * LN2)
             }
         } else {
@@ -172,12 +180,12 @@ impl MathematicalOps for Decimal {
         if self.is_sign_positive() {
             let one = &Decimal::ONE;
 
-            let xa1 = self * Decimal::from_str("0.0705230784").unwrap();
-            let xa2 = self.powi(2) * Decimal::from_str("0.0422820123").unwrap();
-            let xa3 = self.powi(3) * Decimal::from_str("0.0092705272").unwrap();
-            let xa4 = self.powi(4) * Decimal::from_str("0.0001520143").unwrap();
-            let xa5 = self.powi(5) * Decimal::from_str("0.0002765672").unwrap();
-            let xa6 = self.powi(6) * Decimal::from_str("0.0000430638").unwrap();
+            let xa1 = self * Decimal::from_parts(705230784, 0, 0, false, 10);
+            let xa2 = self.powi(2) * Decimal::from_parts(422820123, 0, 0, false, 10);
+            let xa3 = self.powi(3) * Decimal::from_parts(92705272, 0, 0, false, 10);
+            let xa4 = self.powi(4) * Decimal::from_parts(1520143, 0, 0, false, 10);
+            let xa5 = self.powi(5) * Decimal::from_parts(2765672, 0, 0, false, 10);
+            let xa6 = self.powi(6) * Decimal::from_parts(430638, 0, 0, false, 10);
 
             let sum = one + xa1 + xa2 + xa3 + xa4 + xa5 + xa6;
             one - (one / sum.powi(16))
@@ -188,7 +196,7 @@ impl MathematicalOps for Decimal {
 
     /// The Cumulative distribution function for a Normal distribution
     fn norm_cdf(&self) -> Decimal {
-        (Decimal::ONE + (self / Decimal::from_str("1.4142135623730951").unwrap()).erf()) / TWO
+        (Decimal::ONE + (self / Decimal::from_parts(2318911239, 3292722, 0, false, 16)).erf()) / TWO
     }
 
     /// The Probability density function for a Normal distribution

@@ -3199,26 +3199,17 @@ mod maths {
     #[test]
     fn test_sqrt() {
         let test_cases = &[
-            (Decimal::new(4, 0), Decimal::new(2, 0)),
-            (
-                Decimal::new(3222, 3),
-                Decimal::from_str("1.7949930361981909371487724124").unwrap(),
-            ),
-            (
-                Decimal::new(19945, 2),
-                Decimal::from_str("14.122676800097069416754994263").unwrap(),
-            ),
-            (
-                Decimal::from_str("342.4").unwrap(),
-                Decimal::from_str("18.504053609952604112132102540").unwrap(),
-            ),
-            (
-                Decimal::new(2, 0),
-                Decimal::from_str("1.414213562373095048801688724209698078569671875376948073176").unwrap(),
-            ),
+            ("4", "2"),
+            ("3.222", "1.7949930361981909371487724124"),
+            ("199.45", "14.122676800097069416754994263"),
+            ("342.4", "18.504053609952604112132102540"),
+            ("2", "1.414213562373095048801688724209698078569671875376948073176"),
+            ("0.0000000000000000000000000001", "0.0000000000000100000000000000"),
         ];
         for case in test_cases {
-            assert_eq!(case.1, case.0.sqrt().unwrap());
+            let a = Decimal::from_str(case.0).unwrap();
+            let expected = Decimal::from_str(case.1).unwrap();
+            assert_eq!(expected, a.sqrt().unwrap());
         }
 
         assert_eq!(Decimal::new(-2, 0).sqrt(), None);
