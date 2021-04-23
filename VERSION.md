@@ -1,5 +1,9 @@
 # Version History
 
+## 1.12.1
+
+Added `num_traits::Zero` back to `rust_decimal::prelude` to prevent unnecessary downstream dependency breakages.
+
 ## 1.12.0
 
 This version releases faster operation support for `add`, `sub`, `cmp`, `rem` and `mul` to match the renewed `div` strategy.

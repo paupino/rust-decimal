@@ -153,7 +153,7 @@ pub mod prelude {
     pub use crate::maths::MathematicalOps;
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
-    pub use num_traits::{FromPrimitive, ToPrimitive};
+    pub use num_traits::{FromPrimitive, ToPrimitive, Zero};
 }
 
 #[cfg(feature = "diesel")]
