@@ -62,6 +62,7 @@ assert_eq!("3.1415926535897932384626433832", pi.to_string());
 * [rust-fuzz](#rust-fuzz)
 * [serde-float](#serde-float)
 * [serde-str](#serde-str)
+* [serde-arbitrary-precision](#serde-arbitrary-precision)
 * [std](#std)
 
 ## `db-postgres`

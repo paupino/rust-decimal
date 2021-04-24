@@ -1,5 +1,10 @@
 # Version History
 
+## 1.12.2
+
+Fixes small regression whereby `0 - 0` was producing `-0`. Thank you [@KonishchevDmitry](https://github.com/KonishchevDmitry) for 
+providing a swift fix ([#356](https://github.com/paupino/rust-decimal/pull/356)).
+
 ## 1.12.1
 
 Added `num_traits::Zero` back to `rust_decimal::prelude` to prevent unnecessary downstream dependency breakages.

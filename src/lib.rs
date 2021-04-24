@@ -60,6 +60,7 @@
 //! * [rust-fuzz](#rust-fuzz)
 //! * [serde-float](#serde-float)
 //! * [serde-str](#serde-str)
+//! * [serde-arbitrary-precision](#serde-arbitrary-precision)
 //! * [std](#std)
 //!
 //! ## `db-postgres`
