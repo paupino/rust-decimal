@@ -134,13 +134,13 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: --workspace -- --check
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --all
+          args: --workspace --all-features
 
   minimum_rust_version:
     name: Check minimum rust version
@@ -175,4 +175,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all
+          args: --workspace
