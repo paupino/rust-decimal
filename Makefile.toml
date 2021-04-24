@@ -127,44 +127,44 @@ dependencies = [
 
 [tasks.test-maths-default]
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=maths", "maths"]
+args = ["test", "--workspace", "--no-default-features", "--features=maths", "maths", "--", "--skip", "generated"]
 
 [tasks.test-maths-legacy]
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=maths,legacy-ops", "maths"]
+args = ["test", "--workspace", "--no-default-features", "--features=maths,legacy-ops", "maths", "--", "--skip", "generated"]
 
 [tasks.test-misc]
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", "rust_fuzz"]
+args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", "rust_fuzz", "--", "--skip", "generated"]
 
 [tasks.test-db-postgres]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-postgres", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=db-postgres", "db", "--", "--skip", "generated"]
 
 [tasks.test-db-tokio-postgres]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres", "db", "--", "--skip", "generated"]
 
 [tasks.test-db-diesel-postgres]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres", "db", "--", "--skip", "generated"]
 
 [tasks.test-serde-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-float", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=serde-float", "serde", "--", "--skip", "generated"]
 
 [tasks.test-serde-str]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-str", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=serde-str", "serde", "--", "--skip", "generated"]
 
 [tasks.test-serde-str-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-str,serde-float", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=serde-str,serde-float", "serde", "--", "--skip", "generated"]
 
 [tasks.test-serde-arbitrary-precision]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision", "serde", "--", "--skip", "generated"]
 
 [tasks.test-serde-arbitrary-precision-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision,serde-float", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision,serde-float", "serde", "--", "--skip", "generated"]

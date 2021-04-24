@@ -157,6 +157,7 @@ impl Decimal {
     /// let pi = Decimal::new(3141, 3);
     /// assert_eq!(pi.to_string(), "3.141");
     /// ```
+    #[must_use]
     pub fn new(num: i64, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
             panic!(
@@ -201,6 +202,7 @@ impl Decimal {
     /// let pi = Decimal::from_i128_with_scale(3141i128, 3);
     /// assert_eq!(pi.to_string(), "3.141");
     /// ```
+    #[must_use]
     pub fn from_i128_with_scale(num: i128, scale: u32) -> Decimal {
         if scale > MAX_PRECISION {
             panic!(
@@ -252,6 +254,7 @@ impl Decimal {
     /// let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
     /// assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
     /// ```
+    #[must_use]
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
         Decimal {
             lo,
@@ -268,6 +271,7 @@ impl Decimal {
         }
     }
 
+    #[must_use]
     pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
         if lo == 0 && mid == 0 && hi == 0 {
             Decimal {
@@ -332,6 +336,7 @@ impl Decimal {
     /// assert_eq!(num.scale(), 3u32);
     /// ```
     #[inline]
+    #[must_use]
     pub const fn scale(&self) -> u32 {
         ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
     }
@@ -347,6 +352,7 @@ impl Decimal {
     /// assert_eq!(num.mantissa(), -12345678i128);
     /// assert_eq!(num.scale(), 7);
     /// ```
+    #[must_use]
     pub const fn mantissa(&self) -> i128 {
         let raw = (self.lo as i128) | ((self.mid as i128) << 32) | ((self.hi as i128) << 64);
         if self.is_sign_negative() {
@@ -366,6 +372,7 @@ impl Decimal {
     /// let num = Decimal::ZERO;
     /// assert!(num.is_zero());
     /// ```
+    #[must_use]
     pub const fn is_zero(&self) -> bool {
         self.lo == 0 && self.mid == 0 && self.hi == 0
     }
@@ -446,7 +453,7 @@ impl Decimal {
     /// use rust_decimal::Decimal;
     ///
     /// let mut one = Decimal::new(1, 0);
-    /// one.set_scale(5);
+    /// one.set_scale(5).unwrap();
     /// assert_eq!(one.to_string(), "0.00001");
     /// ```
     pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
@@ -498,6 +505,7 @@ impl Decimal {
     /// * Bytes 5-8: lo portion of `m`
     /// * Bytes 9-12: mid portion of `m`
     /// * Bytes 13-16: high portion of `m`
+    #[must_use]
     pub const fn serialize(&self) -> [u8; 16] {
         [
             (self.flags & U8_MASK) as u8,
@@ -526,6 +534,7 @@ impl Decimal {
     /// * Bytes 5-8: lo portion of `m`
     /// * Bytes 9-12: mid portion of `m`
     /// * Bytes 13-16: high portion of `m`
+    #[must_use]
     pub const fn deserialize(bytes: [u8; 16]) -> Decimal {
         Decimal {
             flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
@@ -537,12 +546,14 @@ impl Decimal {
 
     /// Returns `true` if the decimal is negative.
     #[deprecated(since = "0.6.3", note = "please use `is_sign_negative` instead")]
+    #[must_use]
     pub fn is_negative(&self) -> bool {
         self.is_sign_negative()
     }
 
     /// Returns `true` if the decimal is positive.
     #[deprecated(since = "0.6.3", note = "please use `is_sign_positive` instead")]
+    #[must_use]
     pub fn is_positive(&self) -> bool {
         self.is_sign_positive()
     }
@@ -555,18 +566,21 @@ impl Decimal {
 
     /// Returns `true` if the sign bit of the decimal is positive.
     #[inline(always)]
+    #[must_use]
     pub const fn is_sign_positive(&self) -> bool {
         self.flags & SIGN_MASK == 0
     }
 
     /// Returns the minimum possible number that `Decimal` can represent.
     #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MIN")]
+    #[must_use]
     pub const fn min_value() -> Decimal {
         MIN
     }
 
     /// Returns the maximum possible number that `Decimal` can represent.
     #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MAX")]
+    #[must_use]
     pub const fn max_value() -> Decimal {
         MAX
     }
@@ -584,6 +598,7 @@ impl Decimal {
     /// // note that it returns a decimal
     /// assert_eq!(pi.trunc(), trunc);
     /// ```
+    #[must_use]
     pub fn trunc(&self) -> Decimal {
         let mut scale = self.scale();
         if scale == 0 {
@@ -622,6 +637,7 @@ impl Decimal {
     /// // note that it returns a decimal
     /// assert_eq!(pi.fract(), fract);
     /// ```
+    #[must_use]
     pub fn fract(&self) -> Decimal {
         // This is essentially the original number minus the integral.
         // Could possibly be optimized in the future
@@ -638,6 +654,7 @@ impl Decimal {
     /// let num = Decimal::new(-3141, 3);
     /// assert_eq!(num.abs().to_string(), "3.141");
     /// ```
+    #[must_use]
     pub fn abs(&self) -> Decimal {
         let mut me = *self;
         me.set_sign_positive(true);
@@ -654,6 +671,7 @@ impl Decimal {
     /// let num = Decimal::new(3641, 3);
     /// assert_eq!(num.floor().to_string(), "3");
     /// ```
+    #[must_use]
     pub fn floor(&self) -> Decimal {
         let scale = self.scale();
         if scale == 0 {
@@ -682,6 +700,7 @@ impl Decimal {
     /// let num = Decimal::new(3, 0);
     /// assert_eq!(num.ceil().to_string(), "3");
     /// ```
+    #[must_use]
     pub fn ceil(&self) -> Decimal {
         let scale = self.scale();
         if scale == 0 {
@@ -706,6 +725,7 @@ impl Decimal {
     /// let y = Decimal::new(2, 0);
     /// assert_eq!(y, x.max(y));
     /// ```
+    #[must_use]
     pub fn max(self, other: Decimal) -> Decimal {
         if self < other {
             other
@@ -723,6 +743,7 @@ impl Decimal {
     /// let y = Decimal::new(2, 0);
     /// assert_eq!(x, x.min(y));
     /// ```
+    #[must_use]
     pub fn min(self, other: Decimal) -> Decimal {
         if self > other {
             other
@@ -742,6 +763,7 @@ impl Decimal {
     /// // note that it returns a decimal, without the extra scale
     /// assert_eq!(number.normalize().to_string(), "3.1");
     /// ```
+    #[must_use]
     pub fn normalize(&self) -> Decimal {
         if self.is_zero() {
             // Convert -0, -0.0*, or 0.0* to 0.
@@ -785,6 +807,7 @@ impl Decimal {
     /// assert_eq!(number_down.round().to_string(), "6");
     /// assert_eq!(number_up.round().to_string(), "8");
     /// ```
+    #[must_use]
     pub fn round(&self) -> Decimal {
         self.round_dp(0)
     }
@@ -806,6 +829,7 @@ impl Decimal {
     /// let tax = Decimal::from_str("3.4395").unwrap();
     /// assert_eq!(tax.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero).to_string(), "3.44");
     /// ```
+    #[must_use]
     pub fn round_dp_with_strategy(&self, dp: u32, strategy: RoundingStrategy) -> Decimal {
         // Short circuit for zero
         if self.is_zero() {
@@ -963,6 +987,7 @@ impl Decimal {
     /// let pi = Decimal::from_str("3.1415926535897932384626433832").unwrap();
     /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
     /// ```
+    #[must_use]
     pub fn round_dp(&self, dp: u32) -> Decimal {
         self.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven)
     }
@@ -1164,6 +1189,7 @@ impl Decimal {
 
     /// Checked addition. Computes `self + other`, returning `None` if overflow occurred.
     #[inline(always)]
+    #[must_use]
     pub fn checked_add(self, other: Decimal) -> Option<Decimal> {
         match ops::add_impl(&self, &other) {
             CalculationResult::Ok(result) => Some(result),
@@ -1174,6 +1200,7 @@ impl Decimal {
 
     /// Checked subtraction. Computes `self - other`, returning `None` if overflow occurred.
     #[inline(always)]
+    #[must_use]
     pub fn checked_sub(self, other: Decimal) -> Option<Decimal> {
         match ops::sub_impl(&self, &other) {
             CalculationResult::Ok(result) => Some(result),
@@ -1184,6 +1211,7 @@ impl Decimal {
 
     /// Checked multiplication. Computes `self * other`, returning `None` if overflow occurred.
     #[inline]
+    #[must_use]
     pub fn checked_mul(self, other: Decimal) -> Option<Decimal> {
         match ops::mul_impl(&self, &other) {
             CalculationResult::Ok(result) => Some(result),
@@ -1194,6 +1222,8 @@ impl Decimal {
 
     /// Checked division. Computes `self / other`, returning `None` if `other == 0.0` or the
     /// division results in overflow.
+    #[inline]
+    #[must_use]
     pub fn checked_div(self, other: Decimal) -> Option<Decimal> {
         match ops::div_impl(&self, &other) {
             CalculationResult::Ok(quot) => Some(quot),
@@ -1203,6 +1233,8 @@ impl Decimal {
     }
 
     /// Checked remainder. Computes `self % other`, returning `None` if `other == 0.0`.
+    #[inline]
+    #[must_use]
     pub fn checked_rem(self, other: Decimal) -> Option<Decimal> {
         match ops::rem_impl(&self, &other) {
             CalculationResult::Ok(quot) => Some(quot),

@@ -3097,7 +3097,7 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 #[test]
 #[should_panic]
 fn it_handles_i128_min() {
-    Decimal::from_i128_with_scale(i128::MIN, 0);
+    let _ = Decimal::from_i128_with_scale(i128::MIN, 0);
 }
 
 #[test]
