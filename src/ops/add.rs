@@ -15,7 +15,9 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
     if d1.is_zero() {
         // 0 - x or 0 + x
         let mut result = *d2;
-        result.set_sign_negative(subtract ^ d2.is_sign_negative());
+        if subtract && !d2.is_zero() {
+            result.set_sign_negative(d2.is_sign_positive());
+        }
         return CalculationResult::Ok(result);
     }
     if d2.is_zero() {
