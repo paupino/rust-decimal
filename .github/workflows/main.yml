@@ -143,7 +143,7 @@ jobs:
           args: --all
 
   minimum_rust_version:
-    name: Check minimum rust version (1.46.0)
+    name: Check minimum rust version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
