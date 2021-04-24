@@ -1,4 +1,10 @@
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - master
+      - "[1-9].x"
 
 name: Continuous integration
 
