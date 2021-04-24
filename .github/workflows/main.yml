@@ -10,7 +10,6 @@ jobs:
         rust:
           - stable
           - beta
-          - 1.46 # Minimum required rust version
 
     services:
       postgres:
@@ -26,6 +25,7 @@ jobs:
 
       - name: Install postgres development libs
         run: |
+          sudo apt-get update
           sudo apt-get -y install libpq-dev
 
       - name: Install toolchain
@@ -101,3 +101,38 @@ jobs:
         with:
           command: make
           args: test-macros
+
+  minimal_rust_version:
+    name: Check Minimal supported rust version (1.46.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.46.0
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: minimal_rust_version-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
+
+      - name: Use minimal dependencies
+        run: |
+          RUSTC_BOOTSTRAP=1 cargo update -Z minimal-versions
+
+      - name: Check building with minimal rust version
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all
