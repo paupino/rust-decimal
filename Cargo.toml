@@ -47,6 +47,7 @@ serde-str = ["serde"]
 serde-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
 std = ["arrayvec/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
+c-repr = [] # Force Decimal to be repr(C)
 
 [workspace]
 members = [".", "./macros"]
