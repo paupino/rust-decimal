@@ -964,12 +964,7 @@ impl Decimal {
             RoundingStrategy::RoundDown | RoundingStrategy::ToZero => (),
         }
 
-        Decimal {
-            lo: value[0],
-            mid: value[1],
-            hi: value[2],
-            flags: flags(negative, dp),
-        }
+        Decimal::from_parts(value[0], value[1], value[2], negative, dp)
     }
 
     /// Returns a new `Decimal` number with the specified number of decimal points for fractional portion.

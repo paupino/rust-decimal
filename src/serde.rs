@@ -309,4 +309,21 @@ mod test {
             assert_eq!(8usize, encoded.len());
         }
     }
+
+    #[test]
+    #[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
+    fn bincode_nested_serialization() {
+        // Issue #361
+        #[derive(Deserialize, Serialize, Debug)]
+        pub struct Foo {
+            value: Decimal,
+        }
+
+        let s = Foo {
+            value: Decimal::new(-1, 3).round_dp(0),
+        };
+        let ser = bincode::serialize(&s).unwrap();
+        let des: Foo = bincode::deserialize(&ser).unwrap();
+        assert_eq!(des.value, s.value);
+    }
 }
