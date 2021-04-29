@@ -113,7 +113,7 @@ pub(crate) fn fmt_scientific_notation(
 // dedicated implementation for the most common case.
 pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
     if str.is_empty() {
-        return Err(Error::new("Invalid decimal: empty"));
+        return Err(Error::from("Invalid decimal: empty"));
     }
 
     let mut offset = 0;
@@ -153,7 +153,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             }
             b'.' => {
                 if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
+                    return Err(Error::from("Invalid decimal: two decimal points"));
                 }
                 digits_before_dot = coeff.len() as i32;
                 offset += 1;
@@ -162,12 +162,12 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             b'_' => {
                 // Must start with a number...
                 if coeff.is_empty() {
-                    return Err(Error::new("Invalid decimal: must start lead with a number"));
+                    return Err(Error::from("Invalid decimal: must start lead with a number"));
                 }
                 offset += 1;
                 len -= 1;
             }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
+            _ => return Err(Error::from("Invalid decimal: unknown character")),
         }
     }
 
@@ -180,11 +180,11 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             b'.' => {
                 // Still an error if we have a second dp
                 if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
+                    return Err(Error::from("Invalid decimal: two decimal points"));
                 }
                 0
             }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
+            _ => return Err(Error::from("Invalid decimal: unknown character")),
         };
 
         // Round at midpoint
@@ -211,7 +211,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 
     // here when no characters left
     if coeff.is_empty() {
-        return Err(Error::new("Invalid decimal: no digits found"));
+        return Err(Error::from("Invalid decimal: no digits found"));
     }
 
     let mut scale = if digits_before_dot >= 0 {
@@ -235,20 +235,20 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             // This may or may not be an issue - depending on whether we're past a decimal point
             // or not.
             if (i as i32) < digits_before_dot && i + 1 < len {
-                return Err(Error::new("Invalid decimal: overflow from too many digits"));
+                return Err(Error::from("Invalid decimal: overflow from too many digits"));
             }
 
             if *digit >= 5 {
                 let carry = add_one_internal(&mut data);
                 if carry > 0 {
                     // Highly unlikely scenario which is more indicative of a bug
-                    return Err(Error::new("Invalid decimal: overflow when rounding"));
+                    return Err(Error::from("Invalid decimal: overflow when rounding"));
                 }
             }
             // We're also one less digit so reduce the scale
             let diff = (len - i) as u32;
             if diff > scale {
-                return Err(Error::new("Invalid decimal: overflow from scale mismatch"));
+                return Err(Error::from("Invalid decimal: overflow from scale mismatch"));
             }
             scale -= diff;
             break;
@@ -259,7 +259,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             let carry = add_by_internal(&mut data, &[*digit]);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
-                return Err(Error::new("Invalid decimal: overflow from carry"));
+                return Err(Error::from("Invalid decimal: overflow from carry"));
             }
         }
     }
@@ -269,14 +269,14 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 
 pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::Error> {
     if str.is_empty() {
-        return Err(Error::new("Invalid decimal: empty"));
+        return Err(Error::from("Invalid decimal: empty"));
     }
     if radix < 2 {
-        return Err(Error::new("Unsupported radix < 2"));
+        return Err(Error::from("Unsupported radix < 2"));
     }
     if radix > 36 {
         // As per trait documentation
-        return Err(Error::new("Unsupported radix > 36"));
+        return Err(Error::from("Unsupported radix > 36"));
     }
 
     let mut offset = 0;
@@ -346,7 +346,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
         34 => 19,
         35 => 19,
         36 => 19,
-        _ => return Err(Error::new("Unsupported radix")),
+        _ => return Err(Error::from("Unsupported radix")),
     };
 
     let mut maybe_round = false;
@@ -355,7 +355,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
         match b {
             b'0'..=b'9' => {
                 if b > max_n {
-                    return Err(Error::new("Invalid decimal: invalid character"));
+                    return Err(Error::from("Invalid decimal: invalid character"));
                 }
                 coeff.push(u32::from(b - b'0'));
                 offset += 1;
@@ -369,7 +369,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             }
             b'a'..=b'z' => {
                 if b > max_alpha_lower {
-                    return Err(Error::new("Invalid decimal: invalid character"));
+                    return Err(Error::from("Invalid decimal: invalid character"));
                 }
                 coeff.push(u32::from(b - b'a') + 10);
                 offset += 1;
@@ -382,7 +382,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             }
             b'A'..=b'Z' => {
                 if b > max_alpha_upper {
-                    return Err(Error::new("Invalid decimal: invalid character"));
+                    return Err(Error::from("Invalid decimal: invalid character"));
                 }
                 coeff.push(u32::from(b - b'A') + 10);
                 offset += 1;
@@ -395,7 +395,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             }
             b'.' => {
                 if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
+                    return Err(Error::from("Invalid decimal: two decimal points"));
                 }
                 digits_before_dot = coeff.len() as i32;
                 offset += 1;
@@ -404,12 +404,12 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             b'_' => {
                 // Must start with a number...
                 if coeff.is_empty() {
-                    return Err(Error::new("Invalid decimal: must start lead with a number"));
+                    return Err(Error::from("Invalid decimal: must start lead with a number"));
                 }
                 offset += 1;
                 len -= 1;
             }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
+            _ => return Err(Error::from("Invalid decimal: unknown character")),
         }
     }
 
@@ -419,19 +419,19 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
         let digit = match next_byte {
             b'0'..=b'9' => {
                 if next_byte > max_n {
-                    return Err(Error::new("Invalid decimal: invalid character"));
+                    return Err(Error::from("Invalid decimal: invalid character"));
                 }
                 u32::from(next_byte - b'0')
             }
             b'a'..=b'z' => {
                 if next_byte > max_alpha_lower {
-                    return Err(Error::new("Invalid decimal: invalid character"));
+                    return Err(Error::from("Invalid decimal: invalid character"));
                 }
                 u32::from(next_byte - b'a') + 10
             }
             b'A'..=b'Z' => {
                 if next_byte > max_alpha_upper {
-                    return Err(Error::new("Invalid decimal: invalid character"));
+                    return Err(Error::from("Invalid decimal: invalid character"));
                 }
                 u32::from(next_byte - b'A') + 10
             }
@@ -439,11 +439,11 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             b'.' => {
                 // Still an error if we have a second dp
                 if digits_before_dot >= 0 {
-                    return Err(Error::new("Invalid decimal: two decimal points"));
+                    return Err(Error::from("Invalid decimal: two decimal points"));
                 }
                 0
             }
-            _ => return Err(Error::new("Invalid decimal: unknown character")),
+            _ => return Err(Error::from("Invalid decimal: unknown character")),
         };
 
         // Round at midpoint
@@ -471,7 +471,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 
     // here when no characters left
     if coeff.is_empty() {
-        return Err(Error::new("Invalid decimal: no digits found"));
+        return Err(Error::from("Invalid decimal: no digits found"));
     }
 
     let mut scale = if digits_before_dot >= 0 {
@@ -496,20 +496,20 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             // This may or may not be an issue - depending on whether we're past a decimal point
             // or not.
             if (i as i32) < digits_before_dot && i + 1 < len {
-                return Err(Error::new("Invalid decimal: overflow from too many digits"));
+                return Err(Error::from("Invalid decimal: overflow from too many digits"));
             }
 
             if *digit >= 5 {
                 let carry = add_one_internal(&mut data);
                 if carry > 0 {
                     // Highly unlikely scenario which is more indicative of a bug
-                    return Err(Error::new("Invalid decimal: overflow when rounding"));
+                    return Err(Error::from("Invalid decimal: overflow when rounding"));
                 }
             }
             // We're also one less digit so reduce the scale
             let diff = (len - i) as u32;
             if diff > scale {
-                return Err(Error::new("Invalid decimal: overflow from scale mismatch"));
+                return Err(Error::from("Invalid decimal: overflow from scale mismatch"));
             }
             scale -= diff;
             break;
@@ -520,7 +520,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             let carry = add_by_internal(&mut data, &[*digit]);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
-                return Err(Error::new("Invalid decimal: overflow from carry"));
+                return Err(Error::from("Invalid decimal: overflow from carry"));
             }
         }
     }
