@@ -1,5 +1,9 @@
 # Version History
 
+## 1.12.3
+
+Fixes an issue [#361](https://github.com/paupino/rust-decimal/issues/361) when rounding a small number towards zero.
+
 ## 1.12.2
 
 Fixes small regression whereby `0 - 0` was producing `-0`. Thank you [@KonishchevDmitry](https://github.com/KonishchevDmitry) for 
