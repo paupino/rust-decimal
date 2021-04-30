@@ -3,7 +3,7 @@ use alloc::string::String;
 use core::fmt;
 
 /// Error type for the library.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     ErrorString(String),
     ExceedsMaximumPossibleValue(i128),

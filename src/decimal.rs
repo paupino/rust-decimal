@@ -204,7 +204,10 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn from_i128_with_scale(num: i128, scale: u32) -> Decimal {
-        Self::from_i128_with_scale_rslt(num, scale).unwrap()
+        match Self::try_from_i128_with_scale(num, scale) {
+            Ok(d) => d,
+            Err(e) => panic!("{}", e),
+        }
     }
 
     /// Checked version of `from_i128_with_scale`. Will return `Err` instead
@@ -215,10 +218,10 @@ impl Decimal {
     /// ```rust
     /// use rust_decimal::Decimal;
     ///
-    /// let max = Decimal::from_i128_with_scale_rslt(i128::MAX, u32::MAX);
+    /// let max = Decimal::try_from_i128_with_scale(i128::MAX, u32::MAX);
     /// assert!(max.is_err());
     /// ```
-    pub fn from_i128_with_scale_rslt(num: i128, scale: u32) -> crate::Result<Decimal> {
+    pub fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
         if scale > MAX_PRECISION {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
