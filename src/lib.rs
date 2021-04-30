@@ -52,6 +52,7 @@
 //!
 //! ## Features
 //!
+//! * [c-repr](#c-repr)
 //! * [db-postgres](#db-postgres)
 //! * [db-tokio-postgres](#db-tokio-postgres)
 //! * [db-diesel-postgres](#db-diesel-postgres)
@@ -62,6 +63,10 @@
 //! * [serde-str](#serde-str)
 //! * [serde-arbitrary-precision](#serde-arbitrary-precision)
 //! * [std](#std)
+//!
+//! ## `c-repr`
+//!
+//! Forces `Decimal` to use `[repr(C)]`. The corresponding target layout is 128 bit aligned.
 //!
 //! ## `db-postgres`
 //!
@@ -91,7 +96,7 @@
 //!
 //! ## `serde-float`
 //!
-//! Enable this so that JSON serialization of Decimal types are sent as a float instead of a string (default).
+//! Enable this so that JSON serialization of `Decimal` types are sent as a float instead of a string (default).
 //!
 //! e.g. with this turned on, JSON serialization would output:
 //! ```json
@@ -105,12 +110,12 @@
 //! This is typically useful for `bincode` or `csv` like implementations.
 //!
 //! Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to
-//! correctly be able to deserialize. Enabling this feature on it's own will force deserialization to use `deserialize_str`
+//! correctly be able to deserialize. Enabling this feature on its own will force deserialization to use `deserialize_str`
 //! instead of `deserialize_any`.
 //!
 //! If, for some reason, you also have `serde-float` enabled then this will use `deserialize_f64` as a type hint. Because
 //! converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with
-//! `bincode`. That being said, this will only use 8 bytes so is slightly more efficient in regards to storage size.
+//! `bincode`. That being said, this will only use 8 bytes so is slightly more efficient in terms of storage size.
 //!
 //! ## `serde-arbitrary-precision`
 //!
