@@ -17,6 +17,12 @@ macro_rules! either {
 }
 
 #[test]
+#[cfg(feature = "c-repr")]
+fn layout_is_correct() {
+    assert_eq!(std::mem::size_of::<Decimal>(), std::mem::size_of::<u128>());
+}
+
+#[test]
 fn it_can_extract_the_mantissa() {
     let tests = [
         ("1", 1i128, 0),

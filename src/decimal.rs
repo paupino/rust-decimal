@@ -71,6 +71,7 @@ pub struct UnpackedDecimal {
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), sql_type = "Numeric")]
+#[cfg_attr(feature = "c-repr", repr(C))]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
