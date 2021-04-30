@@ -218,7 +218,6 @@ impl Decimal {
     /// let max = Decimal::from_i128_with_scale_rslt(i128::MAX, u32::MAX);
     /// assert!(max.is_err());
     /// ```
-    #[must_use]
     pub fn from_i128_with_scale_rslt(num: i128, scale: u32) -> crate::Result<Decimal> {
         if scale > MAX_PRECISION {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
