@@ -197,7 +197,7 @@ impl Decimal {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust
     /// use rust_decimal::Decimal;
     ///
     /// let pi = Decimal::from_i128_with_scale(3141i128, 3);
@@ -205,29 +205,44 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn from_i128_with_scale(num: i128, scale: u32) -> Decimal {
+        match Self::try_from_i128_with_scale(num, scale) {
+            Ok(d) => d,
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    /// Checked version of `from_i128_with_scale`. Will return `Err` instead
+    /// of panicking at run-time.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use rust_decimal::Decimal;
+    ///
+    /// let max = Decimal::try_from_i128_with_scale(i128::MAX, u32::MAX);
+    /// assert!(max.is_err());
+    /// ```
+    pub fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
         if scale > MAX_PRECISION {
-            panic!(
-                "Scale exceeds the maximum precision allowed: {} > {}",
-                scale, MAX_PRECISION
-            );
+            return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let mut neg = false;
         let mut wrapped = num;
         if num > MAX_I128_REPR {
-            panic!("Number exceeds maximum value that can be represented");
+            return Err(Error::ExceedsMaximumPossibleValue(num));
         } else if num < -MAX_I128_REPR {
-            panic!("Number less than minimum value that can be represented");
+            return Err(Error::LessThanMinimumPossibleValue(num));
         } else if num < 0 {
             neg = true;
             wrapped = -num;
         }
         let flags: u32 = flags(neg, scale);
-        Decimal {
+        Ok(Decimal {
             flags,
             lo: (wrapped as u64 & U32_MASK) as u32,
             mid: ((wrapped as u64 >> 32) & U32_MASK) as u32,
             hi: ((wrapped as u128 >> 64) as u64 & U32_MASK) as u32,
-        }
+        })
     }
 
     /// Returns a `Decimal` using the instances constituent parts.
@@ -305,17 +320,17 @@ impl Decimal {
         let err_msg = "Failed to parse";
         let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
 
-        let base = split.next().ok_or_else(|| Error::new(err_msg))?;
-        let exp = split.next().ok_or_else(|| Error::new(err_msg))?;
+        let base = split.next().ok_or_else(|| Error::from(err_msg))?;
+        let exp = split.next().ok_or_else(|| Error::from(err_msg))?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::new(err_msg))?;
+            let exp: u32 = stripped.parse().map_err(|_| Error::from(err_msg))?;
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::new(err_msg))?;
+            let exp: u32 = exp.parse().map_err(|_| Error::from(err_msg))?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else {
@@ -459,7 +474,7 @@ impl Decimal {
     /// ```
     pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
         if scale > MAX_PRECISION {
-            return Err(Error::new("Scale exceeds maximum precision"));
+            return Err(Error::from("Scale exceeds maximum precision"));
         }
         self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
         Ok(())
@@ -1699,7 +1714,7 @@ impl core::convert::TryFrom<f32> for Decimal {
     type Error = crate::Error;
 
     fn try_from(value: f32) -> Result<Self, Error> {
-        Self::from_f32(value).ok_or_else(|| Error::new("Failed to convert to Decimal"))
+        Self::from_f32(value).ok_or_else(|| Error::from("Failed to convert to Decimal"))
     }
 }
 
@@ -1707,7 +1722,7 @@ impl core::convert::TryFrom<f64> for Decimal {
     type Error = crate::Error;
 
     fn try_from(value: f64) -> Result<Self, Error> {
-        Self::from_f64(value).ok_or_else(|| Error::new("Failed to convert to Decimal"))
+        Self::from_f64(value).ok_or_else(|| Error::from("Failed to convert to Decimal"))
     }
 }
 
@@ -1715,7 +1730,7 @@ impl core::convert::TryFrom<Decimal> for f32 {
     type Error = crate::Error;
 
     fn try_from(value: Decimal) -> Result<Self, Self::Error> {
-        Decimal::to_f32(&value).ok_or_else(|| Error::new("Failed to convert to f32"))
+        Decimal::to_f32(&value).ok_or_else(|| Error::from("Failed to convert to f32"))
     }
 }
 
@@ -1723,7 +1738,7 @@ impl core::convert::TryFrom<Decimal> for f64 {
     type Error = crate::Error;
 
     fn try_from(value: Decimal) -> Result<Self, Self::Error> {
-        Decimal::to_f64(&value).ok_or_else(|| Error::new("Failed to convert to f64"))
+        Decimal::to_f64(&value).ok_or_else(|| Error::from("Failed to convert to f64"))
     }
 }
 

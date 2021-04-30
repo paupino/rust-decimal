@@ -4,7 +4,7 @@ use core::{
     str::FromStr,
 };
 use num_traits::{Signed, ToPrimitive};
-use rust_decimal::{Decimal, RoundingStrategy};
+use rust_decimal::{Decimal, Error, RoundingStrategy};
 
 macro_rules! either {
     ($result:expr, $legacy_result:expr) => {
@@ -532,7 +532,7 @@ fn it_multiplies_decimals() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Multiplication overflowed")]
 fn it_panics_when_multiply_with_overflow() {
     let a = Decimal::from_str("2000000000000000000001").unwrap();
     let b = Decimal::from_str("3000000000000000000001").unwrap();
@@ -612,7 +612,7 @@ fn it_divides_decimals() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Division by zero")]
 fn it_can_divide_by_zero() {
     let a = Decimal::from_str("2").unwrap();
     let _ = a / Decimal::ZERO;
@@ -2955,7 +2955,7 @@ fn it_can_calculate_abs_sub() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Scale exceeds the maximum precision allowed: 29 > 28")]
 fn it_panics_when_scale_too_large() {
     let _ = Decimal::new(1, 29);
 }
@@ -3101,9 +3101,18 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(
+    expected = "Number less than minimum value that can be represented: -170141183460469231731687303715884105728 < -79228162514264337593543950335"
+)]
 fn it_handles_i128_min() {
     let _ = Decimal::from_i128_with_scale(i128::MIN, 0);
+}
+
+#[test]
+fn it_handles_i128_min_safely() {
+    let result = Decimal::try_from_i128_with_scale(i128::MIN, 0);
+    assert!(result.is_err());
+    assert_eq!(result.err().unwrap(), Error::LessThanMinimumPossibleValue(i128::MIN));
 }
 
 #[test]
@@ -3171,7 +3180,7 @@ mod maths {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "Pow overflowed")]
     fn test_powi_panic() {
         let two = Decimal::new(2, 0);
         let _ = two.powi(128);
