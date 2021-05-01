@@ -1,5 +1,9 @@
 # Version History
 
+## 1.12.4
+
+Adds `num_traits::One` back to `rust_decimal::prelude` to prevent unnecessary downstream dependency breakages. Thanks [@spearman](https://github.com/spearman).
+
 ## 1.12.3
 
 Fixes an issue [#361](https://github.com/paupino/rust-decimal/issues/361) when rounding a small number towards zero.
