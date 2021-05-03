@@ -9,6 +9,16 @@
 //! preserved and may be exposed when in string form. These can be
 //! truncated using the `normalize` or `round_dp` functions.
 //!
+//! ## Getting started
+//!
+//! To get started, add `rust_decimal` and optionally `rust_decimal_macros` to your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! rust_decimal = "1.12"
+//! rust_decimal_macros = "1.12"
+//! ```
+//!
 //! ## Usage
 //!
 //! Decimal numbers can be created in a few distinct ways. The easiest and most optimal
