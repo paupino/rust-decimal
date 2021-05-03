@@ -2860,11 +2860,33 @@ fn it_can_parse_scientific_notation() {
         ("1.2e+10", "12000000000"),
         ("12e10", "120000000000"),
         ("9.7E-7", "0.00000097"),
+        ("1.2345E-24", "0.0000000000000000000000012345"),
+        ("12345E-28", "0.0000000000000000000000012345"),
+        ("1.2345E0", "1.2345"),
+        ("1E28", "10000000000000000000000000000"),
     ];
 
     for &(value, expected) in tests {
         assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
     }
+}
+
+#[test]
+fn it_errors_parsing_large_scientific_notation() {
+    let result = Decimal::from_scientific("1.2345E-28");
+    assert!(result.is_err());
+    assert_eq!(
+        result.err(),
+        Some(Error::ScaleExceedsMaximumPrecision(32)) // 4 + 28
+    );
+
+    let result = Decimal::from_scientific("12345E29");
+    assert!(result.is_err());
+    assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
+
+    let result = Decimal::from_scientific("12345E28");
+    assert!(result.is_err());
+    assert_eq!(result.err(), Some(Error::ExceedsMaximumPossibleValue));
 }
 
 #[test]
@@ -3101,9 +3123,7 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 }
 
 #[test]
-#[should_panic(
-    expected = "Number less than minimum value that can be represented: -170141183460469231731687303715884105728 < -79228162514264337593543950335"
-)]
+#[should_panic(expected = "Number less than minimum value that can be represented.")]
 fn it_handles_i128_min() {
     let _ = Decimal::from_i128_with_scale(i128::MIN, 0);
 }
@@ -3112,7 +3132,7 @@ fn it_handles_i128_min() {
 fn it_handles_i128_min_safely() {
     let result = Decimal::try_from_i128_with_scale(i128::MIN, 0);
     assert!(result.is_err());
-    assert_eq!(result.err().unwrap(), Error::LessThanMinimumPossibleValue(i128::MIN));
+    assert_eq!(result.err().unwrap(), Error::LessThanMinimumPossibleValue);
 }
 
 #[test]
