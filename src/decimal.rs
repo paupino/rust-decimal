@@ -229,9 +229,9 @@ impl Decimal {
         let mut neg = false;
         let mut wrapped = num;
         if num > MAX_I128_REPR {
-            return Err(Error::ExceedsMaximumPossibleValue(num));
+            return Err(Error::ExceedsMaximumPossibleValue);
         } else if num < -MAX_I128_REPR {
-            return Err(Error::LessThanMinimumPossibleValue(num));
+            return Err(Error::LessThanMinimumPossibleValue);
         } else if num < 0 {
             neg = true;
             wrapped = -num;
@@ -317,25 +317,58 @@ impl Decimal {
     /// assert_eq!(value.to_string(), "0.00000097");
     /// ```
     pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
-        let err_msg = "Failed to parse";
+        const ERROR_MESSAGE: &str = "Failed to parse";
+
         let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
 
-        let base = split.next().ok_or_else(|| Error::from(err_msg))?;
-        let exp = split.next().ok_or_else(|| Error::from(err_msg))?;
+        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::from(err_msg))?;
+            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::from(err_msg))?;
+            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
-            } else {
-                ret *= Decimal::from_i64(10_i64.pow(exp)).unwrap();
-                ret = ret.normalize();
+            } else if exp > 0 {
+                use crate::constants::BIG_POWERS_10;
+
+                // This is a case whereby the mantissa needs to be larger to be correctly
+                // represented within the decimal type. A good example is 1.2E10. At this point,
+                // we've parsed 1.2 as the base and 10 as the exponent. To represent this within a
+                // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
+                // zero.
+                if exp > MAX_PRECISION {
+                    return Err(Error::ScaleExceedsMaximumPrecision(exp));
+                }
+                let mut exp = exp as usize;
+                // Max two iterations. If exp is 1 then it needs to index position 0 of the array.
+                while exp > 0 {
+                    let pow;
+                    if exp >= BIG_POWERS_10.len() {
+                        pow = BIG_POWERS_10[BIG_POWERS_10.len() - 1];
+                        exp -= BIG_POWERS_10.len();
+                    } else {
+                        pow = BIG_POWERS_10[exp - 1];
+                        exp = 0;
+                    }
+
+                    let pow = Decimal {
+                        flags: 0,
+                        lo: pow as u32,
+                        mid: (pow >> 32) as u32,
+                        hi: 0,
+                    };
+                    match ret.checked_mul(pow) {
+                        Some(r) => ret = r,
+                        None => return Err(Error::ExceedsMaximumPossibleValue),
+                    };
+                }
+                ret.normalize_assign();
             }
         }
         Ok(ret)
@@ -474,7 +507,7 @@ impl Decimal {
     /// ```
     pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
         if scale > MAX_PRECISION {
-            return Err(Error::from("Scale exceeds maximum precision"));
+            return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
         Ok(())
@@ -773,27 +806,43 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// use rust_decimal::Decimal;
+    /// use rust_decimal::prelude::*;
     ///
-    /// let number = Decimal::new(3100, 3);
-    /// // note that it returns a decimal, without the extra scale
+    /// let number = Decimal::from_str("3.100").unwrap();
     /// assert_eq!(number.normalize().to_string(), "3.1");
     /// ```
     #[must_use]
     pub fn normalize(&self) -> Decimal {
+        let mut result = *self;
+        result.normalize_assign();
+        result
+    }
+
+    /// An in place version of `normalize`. Strips any trailing zero's from a `Decimal` and converts -0 to 0.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::prelude::*;
+    ///
+    /// let mut number = Decimal::from_str("3.100").unwrap();
+    /// assert_eq!(number.to_string(), "3.100");
+    /// number.normalize_assign();
+    /// assert_eq!(number.to_string(), "3.1");
+    /// ```
+    pub fn normalize_assign(&mut self) {
         if self.is_zero() {
-            // Convert -0, -0.0*, or 0.0* to 0.
-            return Decimal::ZERO;
+            self.flags = 0;
+            return;
         }
 
         let mut scale = self.scale();
         if scale == 0 {
-            // Nothing to do
-            return *self;
+            return;
         }
 
-        let mut result = [self.lo, self.mid, self.hi];
-        let mut working = [self.lo, self.mid, self.hi];
+        let mut result = self.mantissa_array3();
+        let mut working = self.mantissa_array3();
         while scale > 0 {
             if ops::array::div_by_u32(&mut working, 10) > 0 {
                 break;
@@ -801,12 +850,10 @@ impl Decimal {
             scale -= 1;
             result.copy_from_slice(&working);
         }
-        Decimal {
-            lo: result[0],
-            mid: result[1],
-            hi: result[2],
-            flags: flags(self.is_sign_negative(), scale),
-        }
+        self.lo = result[0];
+        self.mid = result[1];
+        self.hi = result[2];
+        self.flags = flags(self.is_sign_negative(), scale);
     }
 
     /// Returns a new `Decimal` number with no fractional portion (i.e. an integer).
