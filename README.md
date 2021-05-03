@@ -11,7 +11,15 @@ A Decimal implementation written in pure Rust suitable for financial calculation
 
 The binary representation consists of a 96 bit integer number, a scaling factor used to specify the decimal fraction and a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These can be truncated using the `normalize` or `round_dp` functions.
 
-[Documentation](https://docs.rs/rust_decimal/)
+## Getting started
+
+To get started, add `rust_decimal` and optionally `rust_decimal_macros` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+rust_decimal = "1.12"
+rust_decimal_macros = "1.12"
+```
 
 ## Usage
 
