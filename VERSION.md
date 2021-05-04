@@ -1,5 +1,24 @@
 # Version History
 
+## 1.13.0
+
+This is a minor update to the library providing a few new features and one breaking change (I'm not using semver properly here
+sorry).
+
+* `#[must_use]` added to functions to provide additional compiler hints.
+* `try_from_i128_with_scale` function added to safely handle `i128` overflow errors.
+* New `c-repr` feature added which will ensure that `#[repr(C)]` is used on the `Decimal` type. Thanks [@jean-airoldie](https://github.com/jean-airoldie).
+* Small improvements to `from_scientific`. It now supports a wider range of values as well has slightly faster performance.
+* Support for negative and decimal `pow` functions. This is *breaking* since `powi(u64)` has been renamed to `powi(i64)`. If you want to
+  continue using `u64` arguments then please use `powu(u64)`. The fractional functions should be considered experimental for the time being
+  and may have subtle issues that still need ironing out. Functions are now:
+  * `powi`, `checked_powi` - When the exponent is a signed integer.
+  * `powu`, `checked_powu` - When the exponent is an unsigned integer.
+  * `powf`, `checked_powf` - When the exponent is a floating point number. Please note, numbers with a fractional component
+     will use an approximation function.
+  * `powd`, `checked_powd` - When the exponent is a `Decimal`. Please note, numbers with a fractional component will use 
+    an approximation function.
+
 ## 1.12.4
 
 Adds `num_traits::One` back to `rust_decimal::prelude` to prevent unnecessary downstream dependency breakages. Thanks [@spearman](https://github.com/spearman).
