@@ -230,7 +230,7 @@ impl MathematicalOps for Decimal {
         let exp = exp.normalize();
         if exp.scale() == 0 {
             if exp.mid() != 0 || exp.hi() != 0 {
-                // Exponent way to big
+                // Exponent way too big
                 return None;
             }
 
