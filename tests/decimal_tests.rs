@@ -3170,44 +3170,31 @@ mod maths {
     use num_traits::One;
 
     #[test]
-    fn test_powi() {
+    fn test_powu() {
         let test_cases = &[
-            (Decimal::new(4, 0), 3_u64, Decimal::new(64, 0)),
-            (
-                Decimal::from_str("3.222").unwrap(),
-                5_u64,
-                Decimal::from_str("347.238347228449632").unwrap(),
-            ),
-            (
-                Decimal::from_str("0.1").unwrap(),
-                0_u64,
-                Decimal::from_str("1").unwrap(),
-            ),
-            (
-                Decimal::from_str("342.4").unwrap(),
-                1_u64,
-                Decimal::from_str("342.4").unwrap(),
-            ),
-            (
-                Decimal::from_str("2.0").unwrap(),
-                16_u64,
-                Decimal::from_str("65536").unwrap(),
-            ),
+            // x, y, expected x ^ y
+            ("4", 3_u64, "64"),
+            ("3.222", 5_u64, "347.238347228449632"),
+            ("0.1", 0_u64, "1"),
+            ("342.4", 1_u64, "342.4"),
+            ("2.0", 16_u64, "65536"),
         ];
-        for case in test_cases {
-            assert_eq!(case.2, case.0.powi(case.1));
+        for &(x, y, expected) in test_cases {
+            let x = Decimal::from_str(x).unwrap();
+            let pow = x.powu(y);
+            assert_eq!(pow.to_string(), expected, "{} ^ {}", x, y);
         }
     }
 
     #[test]
     #[should_panic(expected = "Pow overflowed")]
-    fn test_powi_panic() {
+    fn test_powu_panic() {
         let two = Decimal::new(2, 0);
-        let _ = two.powi(128);
+        let _ = two.powu(128);
     }
 
     #[test]
-    fn test_checked_powi() {
+    fn test_checked_powu() {
         let test_cases = &[
             (Decimal::new(4, 0), 3_u64, Some(Decimal::new(64, 0))),
             (
@@ -3233,7 +3220,103 @@ mod maths {
             (Decimal::from_str("2.0").unwrap(), 128_u64, None),
         ];
         for case in test_cases {
-            assert_eq!(case.2, case.0.checked_powi(case.1));
+            assert_eq!(case.2, case.0.checked_powu(case.1));
+        }
+    }
+
+    #[test]
+    fn test_powi() {
+        let test_cases = &[
+            // x, y, expected x ^ y
+            ("0", 0, "1"),
+            ("1", 0, "1"),
+            ("0", 1, "0"),
+            ("2", 3, "8"),
+            ("-2", 3, "-8"),
+            ("2", -3, "0.125"),
+            ("-2", -3, "-0.125"),
+            (
+                "3",
+                -3,
+                either!("0.037037037037037037037037037", "0.0370370370370370370370370370"),
+            ),
+            ("6", 3, "216"),
+            ("0.5", 2, "0.25"),
+        ];
+        for &(x, y, expected) in test_cases {
+            let x = Decimal::from_str(x).unwrap();
+            let pow = x.powi(y);
+            assert_eq!(pow.to_string(), expected, "{} ^ {}", x, y);
+        }
+    }
+
+    #[test]
+    fn test_powd() {
+        let test_cases = &[
+            // x, y, expected x ^ y
+            ("0", "0", "1"),
+            ("1", "0", "1"),
+            ("0", "1", "0"),
+            ("2", "3", "8"),
+            ("-2", "3", "-8"),
+            ("2", "-3", "0.125"),
+            ("-2", "-3", "-0.125"),
+            ("2.0", "3.0", "8"),
+            ("-2.0", "3.0", "-8"),
+            ("2.0", "-3.0", "0.125"),
+            ("-2.0", "-3.0", "-0.125"),
+            ("2.00", "3.00", "8"),
+            ("-2.00", "3.00", "-8"),
+            ("2.00", "-3.00", "0.125"),
+            ("-2.00", "-3.00", "-0.125"),
+            (
+                "3",
+                "-3",
+                either!("0.037037037037037037037037037", "0.0370370370370370370370370370"),
+            ),
+            ("6", "3", "216"),
+            ("0.5", "2", "0.25"),
+            ("6", "13", "13060694016"),
+            // Exact result: 1 / 6^7
+            ("6", "-7", "0.0000035722450845907636031093"),
+            // ~= 0.8408964152537145
+            ("0.5", "0.25", "0.8410938965992557697437491022"),
+            // ~= 0.999999999999999999999999999790814
+            (
+                "0.1234567890123456789012345678",
+                "0.0000000000000000000000000001",
+                "0.9999999999999999999999999998",
+            ),
+            // ~= 611.0451043224257
+            (
+                "1234.5678",
+                "0.9012",
+                either!("611.04510400020872819829427791", "611.04510400020872819829429407"),
+            ),
+            (
+                "-2",
+                "0.5",
+                either!("-1.4142700792209353663825932515", "-1.4142700792209353663825932497"),
+            ),
+            // ~= -1.1193003023312942
+            (
+                "-2.5",
+                "0.123",
+                either!("-1.1193076423225947707712184105", "-1.1193076423225947707712184107"),
+            ),
+            // TODO: Overflows when calculating `ln`
+            // ~= 0.0003493091
+            // (
+            //     "0.0000000000000000000000000001",
+            //     "0.1234567890123456789012345678",
+            //     "0.0003493091",
+            // ),
+        ];
+        for &(x, y, expected) in test_cases {
+            let x = Decimal::from_str(x).unwrap();
+            let y = Decimal::from_str(y).unwrap();
+            let pow = x.powd(y);
+            assert_eq!(pow.to_string(), expected, "{} ^ {}", x, y);
         }
     }
 
@@ -3256,61 +3339,65 @@ mod maths {
         assert_eq!(Decimal::new(-2, 0).sqrt(), None);
     }
 
+    #[cfg(not(feature = "legacy-ops"))]
     #[test]
     fn test_exp() {
+        // These are approximations
         let test_cases = &[
-            ("10", "22023.81992829"),
-            ("11", "59846.36875797"),
-            ("3", "20.08553690"),
-            ("8", "2980.94688158"),
-            ("0.1", "1.10517092"),
-            ("2.0", "7.38905609"),
-            ("-2", "0.13533531"),
-            ("-1", "0.36787944"),
+            // e^10 ~= 22026.465794806703
+            ("10", "22026.416157416030662013737698"),
+            // e^11 ~= 59874.14171519778
+            ("11", "59873.388231055804982198781924"),
+            // e^3 ~= 20.085536923187664
+            ("3", "20.085536911963143539758560764"),
+            // e^8 ~= 2980.957987041727
+            ("8", "2980.9578998304103856663509017"),
+            // e^0.1 ~= 1.1051709180756477
+            ("0.1", "1.1051709166666666666666666667"),
+            // e^2.0 ~= 7.3890560989306495
+            ("2.0", "7.3890560703259115957528655940"),
+            // e^-2 ~= 0.1353352832366127
+            ("-2", "0.1353353054940356527658114960"),
+            // e^-1 ~= 0.36787944117144233
+            ("-1", "0.3678794392336059002725669393"),
+            // e^0.123456789 ~= 1.131401115
+            ("0.123456789", "1.1314011144241455834073838005"),
+            // e^0.123456789123456789123456789 ~= 1.131401114651912752617990081
+            ("0.123456789123456789123456789", "1.1314011145638247316063947842"),
         ];
-        for case in test_cases {
-            let x = Decimal::from_str(case.0).unwrap();
-            let expected = Decimal::from_str(case.1).unwrap();
+        for &(x, expected) in test_cases {
+            let x = Decimal::from_str(x).unwrap();
+            let expected = Decimal::from_str(expected).unwrap();
             assert_eq!(expected, x.exp());
         }
     }
 
+    #[cfg(not(feature = "legacy-ops"))]
     #[test]
     fn test_exp_with_tolerance() {
         let test_cases = &[
+            // e^10 ~= 22026.465794806703
             (
-                Decimal::new(10, 0),
-                Decimal::new(3, 2),
-                Decimal::from_str("22023.81992829").unwrap(),
+                "10",
+                "0.02",
+                either!("22026.416157416030662013737698", "22026.416157416030662013737699"),
             ),
-            (
-                Decimal::new(11, 0),
-                Decimal::new(2, 4),
-                Decimal::from_str("59846.36875797").unwrap(),
-            ),
-            (
-                Decimal::new(3, 0),
-                Decimal::new(2, 5),
-                Decimal::from_str("20.08553442").unwrap(),
-            ),
-            (
-                Decimal::from_str("8").unwrap(),
-                Decimal::new(2, 4),
-                Decimal::from_str("2980.94688158").unwrap(),
-            ),
-            (
-                Decimal::from_str("0.1").unwrap(),
-                Decimal::new(2, 4),
-                Decimal::from_str("1.10516667").unwrap(),
-            ),
-            (
-                Decimal::from_str("2.0").unwrap(),
-                Decimal::new(2, 4),
-                Decimal::from_str("7.38904603").unwrap(),
-            ),
+            // e^11 ~= 59874.14171519778
+            ("11", "0.0002", "59873.388231055804982198781924"),
+            // e^3 ~= 20.085536923187664
+            ("3", "0.00002", "20.085534430970814899386327955"),
+            // e^8 ~= 2980.957987041727
+            ("8", "0.0002", "2980.9578998304103856663509017"),
+            // e^0.1 ~= 1.1051709180756477
+            ("0.1", "0.0002", "1.1051666666666666666666666667"),
+            // e^2.0 ~= 7.3890560989306495
+            ("2.0", "0.0002", "7.3890460157126823793490460156"),
         ];
-        for case in test_cases {
-            assert_eq!(case.2, case.0.exp_with_tolerance(case.1));
+        for &(x, tolerance, expected) in test_cases {
+            let x = Decimal::from_str(x).unwrap();
+            let tolerance = Decimal::from_str(tolerance).unwrap();
+            let expected = Decimal::from_str(expected).unwrap();
+            assert_eq!(expected, x.exp_with_tolerance(tolerance));
         }
     }
 
@@ -3364,27 +3451,27 @@ mod maths {
         let test_cases = &[
             (
                 Decimal::from_str("-2.0").unwrap(),
-                Decimal::from_str("0.0539909771902348159131327614").unwrap(),
+                Decimal::from_str("0.0539909753926151238199725711").unwrap(),
             ),
             (
                 Decimal::from_str("-0.4").unwrap(),
-                Decimal::from_str("0.3682701417448470684306485260").unwrap(),
+                Decimal::from_str("0.3682701401597164076356226857").unwrap(),
             ),
             (
                 Decimal::from_str("-0.1").unwrap(),
-                Decimal::from_str("0.3969525477990849244300670202").unwrap(),
+                Decimal::from_str("0.3969525474666330240955397886").unwrap(),
             ),
             (
                 Decimal::from_str("0.1").unwrap(),
-                Decimal::from_str("0.3969525477990849244300670202").unwrap(),
+                Decimal::from_str("0.3969525474666330240955397886").unwrap(),
             ),
             (
                 Decimal::from_str("0.4").unwrap(),
-                Decimal::from_str("0.3682701417448470684306485260").unwrap(),
+                Decimal::from_str("0.3682701401597164076356226857").unwrap(),
             ),
             (
                 Decimal::from_str("2.0").unwrap(),
-                Decimal::from_str("0.0539909771902348159131327614").unwrap(),
+                Decimal::from_str("0.0539909753926151238199725711").unwrap(),
             ),
         ];
         for case in test_cases {
