@@ -243,12 +243,14 @@ impl MathematicalOps for Decimal {
 
         // We do some approximations since we've got a decimal exponent.
         // For positive bases: a^b = exp(b*ln(a))
-        let e = match self.ln().checked_mul(exp) {
+        let negative = self.is_sign_negative();
+        let e = match self.abs().ln().checked_mul(exp) {
             Some(e) => e,
             None => return None,
         };
-
-        Some(e.exp())
+        let mut result = e.exp();
+        result.set_sign_negative(negative);
+        Some(result)
     }
 
     /// The square root of a Decimal. Uses a standard Babylonian method.
