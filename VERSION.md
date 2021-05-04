@@ -10,7 +10,8 @@ sorry).
 * New `c-repr` feature added which will ensure that `#[repr(C)]` is used on the `Decimal` type. Thanks [@jean-airoldie](https://github.com/jean-airoldie).
 * Small improvements to `from_scientific`. It now supports a wider range of values as well has slightly faster performance.
 * Support for negative and decimal `pow` functions. This is *breaking* since `powi(u64)` has been renamed to `powi(i64)`. If you want to
-  continue using `u64` arguments then please use `powu(u64)`. Functions are now:
+  continue using `u64` arguments then please use `powu(u64)`. The fractional functions should be considered experimental for the time being
+  and may have subtle issues that still need ironing out. Functions are now:
   * `powi`, `checked_powi` - When the exponent is a signed integer.
   * `powu`, `checked_powu` - When the exponent is an unsigned integer.
   * `powf`, `checked_powf` - When the exponent is a floating point number. Please note, numbers with a fractional component
