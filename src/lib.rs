@@ -60,6 +60,17 @@
 //! assert_eq!("3.1415926535897932384626433832", pi.to_string());
 //! ```
 //!
+//! Once you have instantiated your `Decimal` number you can perform calculations with it just like any other number:
+//!
+//! ```rust
+//! use rust_decimal::prelude::*;
+//!
+//! let amount = Decimal::from_str("25.12").unwrap();
+//! let tax = Decimal::from_str("0.085").unwrap();
+//! let total = amount + (amount * tax).round_dp(2);
+//! assert_eq!(total.to_string(), "27.26");
+//! ```
+//!
 //! ## Features
 //!
 //! * [c-repr](#c-repr)
@@ -98,7 +109,9 @@
 //!
 //! ## `maths`
 //!
-//! This feature enables mathematical functionality such as `pow`, `ln`, `enf` etc.
+//! The `maths` feature enables additional complex mathematical functions such as `pow`, `ln`, `enf`, `exp` etc.
+//! Documentation detailing the additional functions can be found on the
+//! [`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.  
 //!
 //! ## `rust-fuzz`
 //!
