@@ -30,7 +30,7 @@ const MIN: Decimal = Decimal {
     hi: 4_294_967_295,
 };
 
-/// The smallest value that can be represented by this decimal type.
+/// The largest value that can be represented by this decimal type.
 const MAX: Decimal = Decimal {
     flags: 0,
     lo: 4_294_967_295,
