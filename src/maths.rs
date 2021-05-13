@@ -54,6 +54,10 @@ pub trait MathematicalOps {
     /// sooner at the potential cost of a slightly less accurate result.
     fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal;
 
+    /// The estimated exponential function, e<sup>x</sup>. Stops calculating when it is within
+    /// tolerance of roughly `0.0000002`. Returning `None` on overflow.
+    fn checked_exp(&self) -> Option<Decimal>
+    
     /// Raise self to the given integer exponent: x<sup>y</sup>
     fn powi(&self, exp: i64) -> Decimal;
 
@@ -122,6 +126,15 @@ impl MathematicalOps for Decimal {
         }
 
         result
+    }
+    
+    fn checked_exp(&self) -> Option<Decimal> {
+        // Current calculation method will overflow when e is raised to a power larger than around 11.7578.
+        if self > Decimal::from_parts(117578, 0, 0, false, 4) {
+            None
+        } else {
+            Some(self.exp())
+        }
     }
 
     fn powi(&self, exp: i64) -> Decimal {
