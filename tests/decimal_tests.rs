@@ -3384,6 +3384,8 @@ mod maths {
             ),
             // e^11 ~= 59874.14171519778
             ("11", "0.0002", "59873.388231055804982198781924"),
+            // e^11.7578 ~= 127741.03548949540892948423052
+            ("11.7578", "0.0002", "127741.03548949540892948423052"),
             // e^3 ~= 20.085536923187664
             ("3", "0.00002", "20.085534430970814899386327955"),
             // e^8 ~= 2980.957987041727
@@ -3397,8 +3399,15 @@ mod maths {
             let x = Decimal::from_str(x).unwrap();
             let tolerance = Decimal::from_str(tolerance).unwrap();
             let expected = Decimal::from_str(expected).unwrap();
-            assert_eq!(expected, x.exp_with_tolerance(tolerance));
+            assert_eq!(expected, x.exp_with_tolerance(tolerance).unwrap());
         }
+
+        let tolerance = Decimal::from_str("0.0002").unwrap();
+        assert_eq!(
+            None,
+            Decimal::from_str("11.7579").unwrap().exp_with_tolerance(tolerance)
+        );
+        assert_eq!(None, Decimal::from_str("123").unwrap().exp_with_tolerance(tolerance));
     }
 
     #[test]

@@ -49,10 +49,15 @@ pub trait MathematicalOps {
     /// tolerance of roughly `0.0000002`.
     fn exp(&self) -> Decimal;
 
+    /// The estimated exponential function, e<sup>x</sup>. Stops calculating when it is within
+    /// tolerance of roughly `0.0000002`. Returns `None` on overflow.
+    fn checked_exp(&self) -> Option<Decimal>;
+
     /// The estimated exponential function, e<sup>x</sup> using the `tolerance` provided as a hint
     /// as to when to stop calculating. A larger tolerance will cause the number to stop calculating
     /// sooner at the potential cost of a slightly less accurate result.
-    fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal;
+    /// Returns `None` on overflow.
+    fn exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal>;
 
     /// Raise self to the given integer exponent: x<sup>y</sup>
     fn powi(&self, exp: i64) -> Decimal;
@@ -93,26 +98,33 @@ pub trait MathematicalOps {
     /// The Cumulative distribution function for a Normal distribution
     fn norm_cdf(&self) -> Decimal;
 
-    /// The Probability density function for a Normal distribution
+    /// The Probability density function for a Normal distribution.
     fn norm_pdf(&self) -> Decimal;
+
+    /// The Probability density function for a Normal distribution returning `None` on overflow.
+    fn checked_norm_pdf(&self) -> Option<Decimal>;
 }
 
 impl MathematicalOps for Decimal {
     fn exp(&self) -> Decimal {
+        self.exp_with_tolerance(EXP_TOLERANCE).unwrap()
+    }
+
+    fn checked_exp(&self) -> Option<Decimal> {
         self.exp_with_tolerance(EXP_TOLERANCE)
     }
 
     #[inline]
-    fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal {
+    fn exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal> {
         if self.is_zero() {
-            return Decimal::ONE;
+            return Some(Decimal::ONE);
         }
 
         let mut term = *self;
         let mut result = self + Decimal::ONE;
 
         for factorial in FACTORIAL.iter().skip(2) {
-            term = self * term;
+            term = self.checked_mul(term)?;
             let next = result + (term / factorial);
             let diff = (next - result).abs();
             result = next;
@@ -121,7 +133,7 @@ impl MathematicalOps for Decimal {
             }
         }
 
-        result
+        Some(result)
     }
 
     fn powi(&self, exp: i64) -> Decimal {
@@ -248,7 +260,7 @@ impl MathematicalOps for Decimal {
             Some(e) => e,
             None => return None,
         };
-        let mut result = e.exp();
+        let mut result = e.checked_exp()?;
         result.set_sign_negative(negative);
         Some(result)
     }
@@ -330,10 +342,16 @@ impl MathematicalOps for Decimal {
         (Decimal::ONE + (self / Decimal::from_parts(2318911239, 3292722, 0, false, 16)).erf()) / TWO
     }
 
-    /// The Probability density function for a Normal distribution
+    /// The Probability density function for a Normal distribution.
     fn norm_pdf(&self) -> Decimal {
         let sqrt2pi = Decimal::from_parts_raw(2133383024, 2079885984, 1358845910, 1835008);
         (-self.powi(2) / TWO).exp() / sqrt2pi
+    }
+
+    /// The Probability density function for a Normal distribution, return `None` on overflow.
+    fn checked_norm_pdf(&self) -> Option<Decimal> {
+        let sqrt2pi = Decimal::from_parts_raw(2133383024, 2079885984, 1358845910, 1835008);
+        Some((-self.powi(2) / TWO).checked_exp()? / sqrt2pi)
     }
 }
 
