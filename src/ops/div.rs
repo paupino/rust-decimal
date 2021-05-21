@@ -100,7 +100,7 @@ impl Buf16 {
         // Do a simple check to see if the hi portion of the dividend is greater than the hi
         // portion of the divisor.
         let divisor_hi32 = (divisor >> 32) as u32;
-        if self.data[2] >= divisor_hi32 {
+        if self.data[2] > divisor_hi32 {
             // We know that the divisor goes into this at MOST u32::max times.
             // So we kick things off, with that assumption
             let mut low64 = self.low64();
