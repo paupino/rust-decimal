@@ -104,7 +104,7 @@ impl Buf16 {
             // We know that the divisor goes into this at MOST u32::max times.
             // So we kick things off, with that assumption
             let mut low64 = self.low64();
-            low64 = low64 - (divisor << 32) + divisor;
+            low64 = low64.wrapping_sub(divisor << 32).wrapping_add(divisor);
             let mut quotient = u32::MAX;
 
             // If we went negative then keep adding it back in
@@ -112,8 +112,8 @@ impl Buf16 {
                 if low64 < divisor {
                     break;
                 }
-                quotient -= 1;
-                low64 += divisor;
+                quotient = quotient.wrapping_sub(1);
+                low64 = low64.wrapping_add(divisor);
             }
             self.set_low64(low64);
             return quotient;
