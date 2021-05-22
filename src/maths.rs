@@ -56,8 +56,13 @@ pub trait MathematicalOps {
     /// The estimated exponential function, e<sup>x</sup> using the `tolerance` provided as a hint
     /// as to when to stop calculating. A larger tolerance will cause the number to stop calculating
     /// sooner at the potential cost of a slightly less accurate result.
+    fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal;
+
+    /// The estimated exponential function, e<sup>x</sup> using the `tolerance` provided as a hint
+    /// as to when to stop calculating. A larger tolerance will cause the number to stop calculating
+    /// sooner at the potential cost of a slightly less accurate result.
     /// Returns `None` on overflow.
-    fn exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal>;
+    fn checked_exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal>;
 
     /// Raise self to the given integer exponent: x<sup>y</sup>
     fn powi(&self, exp: i64) -> Decimal;
@@ -107,15 +112,22 @@ pub trait MathematicalOps {
 
 impl MathematicalOps for Decimal {
     fn exp(&self) -> Decimal {
-        self.exp_with_tolerance(EXP_TOLERANCE).unwrap()
-    }
-
-    fn checked_exp(&self) -> Option<Decimal> {
         self.exp_with_tolerance(EXP_TOLERANCE)
     }
 
+    fn checked_exp(&self) -> Option<Decimal> {
+        self.checked_exp_with_tolerance(EXP_TOLERANCE)
+    }
+
+    fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal {
+        match self.checked_exp_with_tolerance(tolerance) {
+            Some(d) => d,
+            None => panic!("Exp overflowed"),
+        }
+    }
+
     #[inline]
-    fn exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal> {
+    fn checked_exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal> {
         if self.is_zero() {
             return Some(Decimal::ONE);
         }
@@ -344,14 +356,18 @@ impl MathematicalOps for Decimal {
 
     /// The Probability density function for a Normal distribution.
     fn norm_pdf(&self) -> Decimal {
-        let sqrt2pi = Decimal::from_parts_raw(2133383024, 2079885984, 1358845910, 1835008);
-        (-self.powi(2) / TWO).exp() / sqrt2pi
+        match self.checked_norm_pdf() {
+            Some(d) => d,
+            None => panic!("Norm Pdf overflowed"),
+        }
     }
 
     /// The Probability density function for a Normal distribution, return `None` on overflow.
     fn checked_norm_pdf(&self) -> Option<Decimal> {
         let sqrt2pi = Decimal::from_parts_raw(2133383024, 2079885984, 1358845910, 1835008);
-        Some((-self.powi(2) / TWO).checked_exp()? / sqrt2pi)
+        let factor = -self.checked_powi(2)?;
+        let factor = factor.checked_div(TWO)?;
+        factor.checked_exp()?.checked_div(sqrt2pi)
     }
 }
 
