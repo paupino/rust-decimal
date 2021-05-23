@@ -1,5 +1,14 @@
 # Version History
 
+## 1.14.0
+
+* Added `checked_exp` and `checked_norm_pdf` functions [#375](https://github.com/paupino/rust-decimal/pull/375).
+* Fixes bug in division under certain circumstances whereby overflow would occur during rounding. [#377](https://github.com/paupino/rust-decimal/pull/377)
+* Documentation improvements
+
+Thank you to [@falsetru](https://github.com/falsetru), [@schungx](https://github.com/schungx) and [@blasrodri](https://github.com/blasrodri) for your
+help with this release!
+
 ## 1.13.0
 
 This is a minor update to the library providing a few new features and one breaking change (I'm not using semver properly here

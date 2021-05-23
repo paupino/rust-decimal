@@ -3432,6 +3432,13 @@ mod maths {
     }
 
     #[test]
+    #[should_panic(expected = "Exp overflowed")]
+    fn test_exp_expected_panic() {
+        let d = Decimal::from_str("-1024").unwrap();
+        let _ = d.exp();
+    }
+
+    #[test]
     fn test_norm_cdf() {
         let test_cases = &[
             (
