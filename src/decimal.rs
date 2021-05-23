@@ -297,7 +297,7 @@ impl Decimal {
                 flags: flags & SCALE_MASK,
             }
         } else {
-            Decimal { lo, mid, hi, flags }
+            Decimal { flags, hi, lo, mid }
         }
     }
 
@@ -1735,10 +1735,7 @@ impl ToPrimitive for Decimal {
     fn to_f64(&self) -> Option<f64> {
         if self.scale() == 0 {
             let integer = self.to_i64();
-            match integer {
-                Some(i) => Some(i as f64),
-                None => None,
-            }
+            integer.map(|i| i as f64)
         } else {
             let sign: f64 = if self.is_sign_negative() { -1.0 } else { 1.0 };
             let mut mantissa: u128 = self.lo.into();
