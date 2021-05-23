@@ -3374,6 +3374,7 @@ mod maths {
             let x = Decimal::from_str(x).unwrap();
             let expected = Decimal::from_str(expected).unwrap();
             assert_eq!(expected, x.exp());
+            assert_eq!(Some(expected), x.checked_exp());
         }
     }
 
@@ -3381,6 +3382,10 @@ mod maths {
     #[test]
     fn test_exp_with_tolerance() {
         let test_cases = &[
+            // e^0 = 1
+            ("0", "0.0002", "1"),
+            // e^1 ~= 2.7182539682539682539682539683
+            ("1", "0.0002", "2.7182539682539682539682539683"),
             // e^10 ~= 22026.465794806703
             (
                 "10",
@@ -3389,6 +3394,8 @@ mod maths {
             ),
             // e^11 ~= 59874.14171519778
             ("11", "0.0002", "59873.388231055804982198781924"),
+            // e^11.7578 ~= 127741.03548949540892948423052
+            ("11.7578", "0.0002", "127741.03548949540892948423052"),
             // e^3 ~= 20.085536923187664
             ("3", "0.00002", "20.085534430970814899386327955"),
             // e^8 ~= 2980.957987041727
@@ -3397,12 +3404,30 @@ mod maths {
             ("0.1", "0.0002", "1.1051666666666666666666666667"),
             // e^2.0 ~= 7.3890560989306495
             ("2.0", "0.0002", "7.3890460157126823793490460156"),
+            // e^11.7578+ starts to overflow
+            ("11.7579", "0.0002", ""),
+            // e^11.7578+ starts to overflow
+            ("123", "0.0002", ""),
+            // e^-8+ starts to flip and underflow
+            ("-8", "0.0002", "0.0002858169660624369145768176"),
+            // e^-1024 starts to flip and underflow
+            ("-1024", "0.0002", ""),
         ];
         for &(x, tolerance, expected) in test_cases {
             let x = Decimal::from_str(x).unwrap();
             let tolerance = Decimal::from_str(tolerance).unwrap();
-            let expected = Decimal::from_str(expected).unwrap();
-            assert_eq!(expected, x.exp_with_tolerance(tolerance));
+            let expected = if expected.is_empty() {
+                None
+            } else {
+                Some(Decimal::from_str(expected).unwrap())
+            };
+
+            if let Some(expected) = expected {
+                assert_eq!(expected, x.exp_with_tolerance(tolerance));
+                assert_eq!(Some(expected), x.checked_exp_with_tolerance(tolerance));
+            } else {
+                assert_eq!(None, x.checked_exp_with_tolerance(tolerance));
+            }
         }
     }
 
