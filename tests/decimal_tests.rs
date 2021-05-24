@@ -3408,9 +3408,11 @@ mod maths {
             ("11.7579", "0.0002", ""),
             // e^11.7578+ starts to overflow
             ("123", "0.0002", ""),
-            // e^-8+ starts to flip and underflow
+            // e^-8+ starts to underflow
             ("-8", "0.0002", "0.0002858169660624369145768176"),
-            // e^-1024 starts to flip and underflow
+            // e^-8+ starts to underflow
+            ("-9", "0.0002", ""),
+            // e^-8+ starts to underflow
             ("-1024", "0.0002", ""),
         ];
         for &(x, tolerance, expected) in test_cases {

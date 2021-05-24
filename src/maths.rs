@@ -132,19 +132,24 @@ impl MathematicalOps for Decimal {
         }
 
         let mut term = *self;
-        let mut result = self + Decimal::ONE;
+        let mut result = self.checked_add(Decimal::ONE)?;
 
-        for factorial in FACTORIAL.iter().skip(2) {
+        for factorial in FACTORIAL.iter().cloned().skip(2) {
             term = self.checked_mul(term)?;
-            let next = result + (term / factorial);
-            let diff = (next - result).abs();
+            let next = result.checked_add(term.checked_div(factorial)?)?;
+            let diff = next.checked_sub(result)?.abs();
             result = next;
-            if diff <= tolerance {
+
+            if !result.is_sign_negative() && diff <= tolerance {
                 break;
             }
         }
 
-        Some(result)
+        if result.is_sign_negative() {
+            None
+        } else {
+            Some(result)
+        }
     }
 
     fn powi(&self, exp: i64) -> Decimal {
