@@ -3970,3 +3970,25 @@ mod rust_fuzz {
         assert!(d.is_ok());
     }
 }
+
+mod issues {
+    use rust_decimal::prelude::*;
+
+    #[test]
+    fn issue_384() {
+        // -68396187170517.260188176613415
+        let a = Decimal::from_parts(39, 0, 3707764736, true, 4294967295);
+        // 0.0000000000002432631039
+        let b = Decimal::from_parts(2432631039, 0, 0, false, 33024);
+        let c = a.checked_add(b);
+        assert!(c.is_some());
+
+        // - 68396187170517.2601881766134150000000
+        // +              0.0000000000002432631039
+        // - 68396187170517.2601881766131717368961
+        //
+        // Since it rounds during rescale, we lose some precision in the last digits. This result
+        // is consistent with the .NET implementation.
+        assert_eq!("-68396187170517.260188176613172", c.unwrap().to_string());
+    }
+}
