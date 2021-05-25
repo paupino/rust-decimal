@@ -122,7 +122,13 @@ impl MathematicalOps for Decimal {
     fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal {
         match self.checked_exp_with_tolerance(tolerance) {
             Some(d) => d,
-            None => panic!("Exp overflowed"),
+            None => {
+                if self.is_sign_negative() {
+                    panic!("Exp underflowed")
+                } else {
+                    panic!("Exp overflowed")
+                }
+            }
         }
     }
 

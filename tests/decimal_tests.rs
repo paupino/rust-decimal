@@ -3443,7 +3443,14 @@ mod maths {
 
     #[test]
     #[should_panic(expected = "Exp overflowed")]
-    fn test_exp_expected_panic() {
+    fn test_exp_expected_panic_from_overflow() {
+        let d = Decimal::from_str("1024").unwrap();
+        let _ = d.exp();
+    }
+
+    #[test]
+    #[should_panic(expected = "Exp underflowed")]
+    fn test_exp_expected_panic_from_underflow() {
         let d = Decimal::from_str("-1024").unwrap();
         let _ = d.exp();
     }
