@@ -83,11 +83,11 @@ pub trait MathematicalOps {
     fn checked_powf(&self, exp: f64) -> Option<Decimal>;
 
     /// Raise self to the given Decimal exponent: x<sup>y</sup>. If `exp` is not whole then the approximation
-    /// e<sup>y*ln(x)</sup> of is used.
+    /// e<sup>y*ln(x)</sup> is used.
     fn powd(&self, exp: Decimal) -> Decimal;
 
     /// Raise self to the given Decimal exponent x<sup>y</sup> returning `None` on overflow.
-    /// If `exp` is not whole then the approximation e<sup>y*ln(x)</sup> of is used.
+    /// If `exp` is not whole then the approximation e<sup>y*ln(x)</sup> is used.
     fn checked_powd(&self, exp: Decimal) -> Option<Decimal>;
 
     /// The square root of a Decimal. Uses a standard Babylonian method.
@@ -126,10 +126,15 @@ impl MathematicalOps for Decimal {
         }
     }
 
-    #[inline]
     fn checked_exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal> {
         if self.is_zero() {
             return Some(Decimal::ONE);
+        }
+        if self.is_sign_negative() {
+            let mut flipped = *self;
+            flipped.set_sign_positive(true);
+            let exp = flipped.checked_exp_with_tolerance(tolerance)?;
+            return Decimal::ONE.checked_div(exp);
         }
 
         let mut term = *self;
@@ -277,7 +282,6 @@ impl MathematicalOps for Decimal {
         Some(result)
     }
 
-    /// The square root of a Decimal. Uses a standard Babylonian method.
     fn sqrt(&self) -> Option<Decimal> {
         if self.is_sign_negative() {
             return None;
@@ -310,8 +314,6 @@ impl MathematicalOps for Decimal {
         Some(result)
     }
 
-    /// The natural logarithm for a Decimal. Uses a [fast estimation algorithm](https://en.wikipedia.org/wiki/Natural_logarithm#High_precision)
-    /// This is more accurate on larger numbers and less on numbers less than 1.
     fn ln(&self) -> Decimal {
         const C4: Decimal = Decimal::from_parts_raw(4, 0, 0, 0);
         const C256: Decimal = Decimal::from_parts_raw(256, 0, 0, 0);
@@ -330,7 +332,6 @@ impl MathematicalOps for Decimal {
         }
     }
 
-    /// Abramowitz Approximation of Error Function from [wikipedia](https://en.wikipedia.org/wiki/Error_function#Numerical_approximations)
     fn erf(&self) -> Decimal {
         if self.is_sign_positive() {
             let one = &Decimal::ONE;
@@ -349,12 +350,10 @@ impl MathematicalOps for Decimal {
         }
     }
 
-    /// The Cumulative distribution function for a Normal distribution
     fn norm_cdf(&self) -> Decimal {
         (Decimal::ONE + (self / Decimal::from_parts(2318911239, 3292722, 0, false, 16)).erf()) / TWO
     }
 
-    /// The Probability density function for a Normal distribution.
     fn norm_pdf(&self) -> Decimal {
         match self.checked_norm_pdf() {
             Some(d) => d,
@@ -362,7 +361,6 @@ impl MathematicalOps for Decimal {
         }
     }
 
-    /// The Probability density function for a Normal distribution, return `None` on overflow.
     fn checked_norm_pdf(&self) -> Option<Decimal> {
         let sqrt2pi = Decimal::from_parts_raw(2133383024, 2079885984, 1358845910, 1835008);
         let factor = -self.checked_powi(2)?;
