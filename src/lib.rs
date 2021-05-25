@@ -15,8 +15,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rust_decimal = "1.13"
-//! rust_decimal_macros = "1.13"
+//! rust_decimal = "1.14"
+//! rust_decimal_macros = "1.14"
 //! ```
 //!
 //! ## Usage
