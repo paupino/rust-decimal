@@ -131,25 +131,32 @@ impl MathematicalOps for Decimal {
             return Some(Decimal::ONE);
         }
 
-        let mut term = *self;
-        let mut result = self.checked_add(Decimal::ONE)?;
+        let mut exponent = *self;
+
+        if exponent.is_sign_negative() {
+            exponent.set_sign_positive(true);
+        }
+
+        let mut term = exponent;
+        let mut result = exponent.checked_add(Decimal::ONE)?;
 
         for factorial in FACTORIAL.iter().cloned().skip(2) {
-            term = self.checked_mul(term)?;
+            term = exponent.checked_mul(term)?;
             let next = result.checked_add(term.checked_div(factorial)?)?;
             let diff = next.checked_sub(result)?.abs();
             result = next;
 
-            if !result.is_sign_negative() && diff <= tolerance {
+            if diff <= tolerance {
                 break;
             }
         }
 
-        if result.is_sign_negative() {
-            None
+        Some(if self.is_sign_negative() {
+            // exp(-y) = 1/exp(y)
+            Decimal::ONE.checked_div(result)?
         } else {
-            Some(result)
-        }
+            result
+        })
     }
 
     fn powi(&self, exp: i64) -> Decimal {
