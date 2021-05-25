@@ -157,7 +157,7 @@ fn aligned_add(lhs: Dec64, rhs: Dec64, negative: bool, scale: u32, subtract: boo
 fn flip_sign(result: &mut Dec64) {
     // Bitwise not the high portion
     result.hi = !result.hi;
-    let low64 = (-(result.low64 as i64)) as u64;
+    let low64 = ((result.low64 as i64).wrapping_neg()) as u64;
     if low64 == 0 {
         result.hi += 1;
     }
