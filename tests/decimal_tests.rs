@@ -3975,20 +3975,18 @@ mod issues {
     use rust_decimal::prelude::*;
 
     #[test]
-    fn issue_384() {
-        // -68396187170517.260188176613415
-        let a = Decimal::from_parts(39, 0, 3707764736, true, 4294967295);
-        // 0.0000000000002432631039
-        let b = Decimal::from_parts(2432631039, 0, 0, false, 33024);
-        let c = a.checked_add(b);
+    fn issue_384_neg_overflow_during_subtract_carry() {
+        // 288230376151711744
+        let a = Decimal::from_parts(0, 67108864, 0, false, 0);
+        // 714606955844629274884780.85120
+        let b = Decimal::from_parts(0, 0, 3873892070, false, 3873892070);
+        let c = a.checked_sub(b);
         assert!(c.is_some());
 
-        // - 68396187170517.2601881766134150000000
-        // +              0.0000000000002432631039
-        // - 68396187170517.2601881766131717368961
-        //
-        // Since it rounds during rescale, we lose some precision in the last digits. This result
-        // is consistent with the .NET implementation.
-        assert_eq!("-68396187170517.260188176613172", c.unwrap().to_string());
+        //         288230376151711744.
+        // - 714606955844629274884780.85120
+        // =
+        // - 714606667614253123173036.85120
+        assert_eq!("-714606667614253123173036.85120", c.unwrap().to_string());
     }
 }
