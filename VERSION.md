@@ -1,5 +1,17 @@
 # Version History
 
+## 1.14.1
+
+A bug fix release following on from `1.14.0`:
+
+* Fixes an issue whereby in some cases when subtracting a 64 bit `Decimal` a negating overflow would occur during underflow.
+  [#384](https://github.com/paupino/rust-decimal/issues/384). Thank you to [@c410-f3r](https://github.com/c410-f3r) for finding
+  this as part of fuzz testing.
+* Fixes an issue with `exp` whereby negative values lost accuracy due to inability to converge. 
+  [#378](https://github.com/paupino/rust-decimal/issues/378). Thank you to [@schungx](https://github.com/schungx) for 
+  finding this and proposing a fix.
+* Fixes some documentation issues.
+
 ## 1.14.0
 
 * Added `checked_exp` and `checked_norm_pdf` functions [#375](https://github.com/paupino/rust-decimal/pull/375).
