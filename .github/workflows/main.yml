@@ -158,6 +158,8 @@ jobs:
           profile: minimal
           toolchain: nightly
 
+      - uses: davidB/rust-cargo-make@v1
+
       - uses: actions-rs/install@v0.1
         with:
           crate: cargo-fuzz
