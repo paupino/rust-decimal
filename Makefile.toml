@@ -1,6 +1,9 @@
 [config]
 default_to_workspace = false
 
+[env]
+FUZZ_RUNS = 10000000
+
 [tasks.build]
 command = "cargo"
 args = ["build"]
@@ -70,6 +73,24 @@ workspace = true
 install_crate = "rustfmt"
 command = "cargo"
 args = ["fmt", "--", "--emit=files"]
+
+[tasks.fuzz]
+dependencies = [
+    "fuzz-arithmetic",
+    "fuzz-constructors"
+]
+
+[tasks.fuzz-arithmetic]
+toolchain = "nightly"
+install_crate = "cargo-fuzz"
+command = "cargo"
+args = ["fuzz", "run", "arithmetic", "--", "-runs=${FUZZ_RUNS}"]
+
+[tasks.fuzz-constructors]
+toolchain = "nightly"
+install_crate = "cargo-fuzz"
+command = "cargo"
+args = ["fuzz", "run", "constructors", "--", "-runs=${FUZZ_RUNS}"]
 
 [tasks.outdated]
 install_crate = "cargo-outdated"

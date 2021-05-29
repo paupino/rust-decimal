@@ -17,3 +17,8 @@ Cargo.lock
 
 # IDE support
 .idea/
+
+# Fuzz
+artifacts
+corpus
+target
