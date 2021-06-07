@@ -165,7 +165,7 @@ jobs:
           crate: cargo-fuzz
           use-tool-cache: true
 
-      - name: Run macro tests
+      - name: Run fuzz tests
         uses: actions-rs/cargo@v1
         with:
           command: make
