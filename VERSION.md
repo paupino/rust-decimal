@@ -1,5 +1,9 @@
 # Version History
 
+## 1.14.2
+
+Fixes an overflow issue during division under some specific circumstances. ([#392](https://github.com/paupino/rust-decimal/issues/392))
+
 ## 1.14.1
 
 A bug fix release following on from `1.14.0`:
