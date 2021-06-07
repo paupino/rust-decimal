@@ -3989,4 +3989,13 @@ mod issues {
         // - 714606667614253123173036.85120
         assert_eq!("-714606667614253123173036.85120", c.unwrap().to_string());
     }
+
+    #[test]
+    fn issue_392_overflow_during_remainder() {
+        let a = Decimal::from_str("-79228157791897.854723898738431").unwrap();
+        let b = Decimal::from_str("184512476.73336922111").unwrap();
+        let c = a.checked_div(b);
+        assert!(c.is_some());
+        assert_eq!("-429391.87200000000002327170816", c.unwrap().to_string())
+    }
 }
