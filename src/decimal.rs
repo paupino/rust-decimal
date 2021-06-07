@@ -160,28 +160,42 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn new(num: i64, scale: u32) -> Decimal {
+        match Self::try_new(num, scale) {
+            Err(e) => panic!("{}", e),
+            Ok(d) => d,
+        }
+    }
+
+    /// Checked version of `Decimal::new`. Will return `Err` instead of panicking at run-time.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use rust_decimal::Decimal;
+    ///
+    /// let max = Decimal::try_new(i64::MAX, u32::MAX);
+    /// assert!(max.is_err());
+    /// ```
+    pub const fn try_new(num: i64, scale: u32) -> crate::Result<Decimal> {
         if scale > MAX_PRECISION {
-            panic!(
-                "Scale exceeds the maximum precision allowed: {} > {}",
-                scale, MAX_PRECISION
-            );
+            return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let flags: u32 = scale << SCALE_SHIFT;
         if num < 0 {
             let pos_num = num.wrapping_neg() as u64;
-            return Decimal {
+            return Ok(Decimal {
                 flags: flags | SIGN_MASK,
                 hi: 0,
                 lo: (pos_num & U32_MASK) as u32,
                 mid: ((pos_num >> 32) & U32_MASK) as u32,
-            };
+            });
         }
-        Decimal {
+        Ok(Decimal {
             flags,
             hi: 0,
             lo: (num as u64 & U32_MASK) as u32,
             mid: ((num as u64 >> 32) & U32_MASK) as u32,
-        }
+        })
     }
 
     /// Creates a `Decimal` using a 128 bit signed `m` representation and corresponding `e` scale.
@@ -211,7 +225,7 @@ impl Decimal {
         }
     }
 
-    /// Checked version of `from_i128_with_scale`. Will return `Err` instead
+    /// Checked version of `Decimal::from_i128_with_scale`. Will return `Err` instead
     /// of panicking at run-time.
     ///
     /// # Example
@@ -222,7 +236,7 @@ impl Decimal {
     /// let max = Decimal::try_from_i128_with_scale(i128::MAX, u32::MAX);
     /// assert!(max.is_err());
     /// ```
-    pub fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
+    pub const fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
         if scale > MAX_PRECISION {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }

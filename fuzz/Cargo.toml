@@ -1,0 +1,29 @@
+[[bin]]
+doc = false
+name = "arithmetic"
+path = "fuzz_targets/arithmetic.rs"
+test = false
+
+[[bin]]
+doc = false
+name = "constructors"
+path = "fuzz_targets/constructors.rs"
+test = false
+
+[dependencies]
+arbitrary = { features = ["derive"], version = "1.0" }
+libfuzzer-sys = "0.4"
+rust_decimal = { features = ["maths", "rust-fuzz"], path = ".." }
+
+[package]
+authors = ["Automatically generated"]
+edition = "2018"
+name = "rust-decimal-fuzz"
+publish = false
+version = "0.0.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+members = ["."]

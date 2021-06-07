@@ -35,7 +35,11 @@ impl fmt::Display for Error {
                 write!(f, "Number less than minimum value that can be represented.")
             }
             Self::ScaleExceedsMaximumPrecision(ref scale) => {
-                write!(f, "Scale exceeds maximum precision: {} > {}", scale, MAX_PRECISION)
+                write!(
+                    f,
+                    "Scale exceeds the maximum precision allowed: {} > {}",
+                    scale, MAX_PRECISION
+                )
             }
         }
     }

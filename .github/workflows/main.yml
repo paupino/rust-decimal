@@ -144,6 +144,33 @@ jobs:
           command: clippy
           args: --workspace --all-features
 
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly
+
+      - uses: davidB/rust-cargo-make@v1
+
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-fuzz
+          use-tool-cache: true
+
+      - name: Run fuzz tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: fuzz
+
   minimum_rust_version:
     name: Check minimum rust version
     runs-on: ubuntu-latest
