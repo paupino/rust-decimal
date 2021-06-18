@@ -1,5 +1,10 @@
 # Version History
 
+## 1.14.3
+
+Fixes an issue[#398](https://github.com/paupino/rust-decimal/issues/398) where `Decimal::ZERO.ln()` would panic rather than returning `Decimal::ZERO`. This 
+aligns the behavior with calling `ln` on negative decimals.
+
 ## 1.14.2
 
 Fixes an overflow issue during division under some specific circumstances. ([#392](https://github.com/paupino/rust-decimal/issues/392))

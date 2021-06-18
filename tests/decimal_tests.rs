@@ -3537,6 +3537,7 @@ mod maths {
     fn test_ln() {
         let test_cases = &[
             (Decimal::from_str("1").unwrap(), Decimal::from_str("0").unwrap()),
+            (Decimal::from_str("0").unwrap(), Decimal::from_str("0").unwrap()),
             (Decimal::from_str("-2.0").unwrap(), Decimal::from_str("0").unwrap()),
             (
                 Decimal::from_str("0.23").unwrap(),
