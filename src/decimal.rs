@@ -542,14 +542,14 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// use rust_decimal::Decimal;
+    /// use rust_decimal::prelude::*;
     ///
-    /// let mut number = Decimal::new(1_123, 3);
+    /// let mut number = Decimal::from_str("1.123").unwrap();
     /// number.rescale(6);
-    /// assert_eq!(number, Decimal::new(1_123_000, 6));
-    /// let mut round = Decimal::new(145, 2);
+    /// assert_eq!(number.to_string(), "1.123000");
+    /// let mut round = Decimal::from_str("1.45").unwrap();
     /// round.rescale(1);
-    /// assert_eq!(round, Decimal::new(15, 1));
+    /// assert_eq!(round.to_string(), "1.5");
     /// ```
     pub fn rescale(&mut self, scale: u32) {
         let mut array = [self.lo, self.mid, self.hi];

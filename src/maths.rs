@@ -325,7 +325,7 @@ impl MathematicalOps for Decimal {
         const C256: Decimal = Decimal::from_parts_raw(256, 0, 0, 0);
         const EIGHT_LN2: Decimal = Decimal::from_parts(1406348788, 262764557, 3006046716, false, 28);
 
-        if self.is_sign_positive() {
+        if self.is_sign_positive() && !self.is_zero() {
             if *self == Decimal::ONE {
                 Decimal::ZERO
             } else {
