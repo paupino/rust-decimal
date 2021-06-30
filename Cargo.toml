@@ -44,6 +44,7 @@ db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
 default = ["serde", "std"]
 legacy-ops = []
 maths = []
+maths-nopanic = []
 rust-fuzz = ["arbitrary"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde"]
