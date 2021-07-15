@@ -178,7 +178,7 @@ impl serde::Serialize for Decimal {
     }
 }
 
-#[cfg(feature = "serde-float")]
+#[cfg(all(feature = "serde-float", not(feature = "serde-arbitrary-precision")))]
 impl serde::Serialize for Decimal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -186,6 +186,18 @@ impl serde::Serialize for Decimal {
     {
         use num_traits::ToPrimitive;
         serializer.serialize_f64(self.to_f64().unwrap())
+    }
+}
+
+#[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+impl serde::Serialize for Decimal {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde_json::Number::from_str(&self.to_string())
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
     }
 }
 
