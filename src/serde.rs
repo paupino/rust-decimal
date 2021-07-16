@@ -276,6 +276,32 @@ mod test {
     }
 
     #[test]
+    #[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+    fn serialize_decimal_roundtrip() {
+        let record = Record {
+            // 4.81 is intentionally chosen as it is unrepresentable as a floating point number, meaning this test
+            // would fail if the `serde-arbitrary-precision` was not activated.
+            amount: Decimal::new(481, 2),
+        };
+        let serialized = serde_json::to_string(&record).unwrap();
+        assert_eq!("{\"amount\":4.81}", serialized);
+        let deserialized: Record = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(record.amount, deserialized.amount);
+    }
+
+    #[test]
+    #[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
+    fn serialize_decimal_roundtrip() {
+        let record = Record {
+            amount: Decimal::new(481, 2),
+        };
+        let serialized = serde_json::to_string(&record).unwrap();
+        assert_eq!("{\"amount\":\"4.81\"}", serialized);
+        let deserialized: Record = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(record.amount, deserialized.amount);
+    }
+
+    #[test]
     #[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
     fn bincode_serialization() {
         use bincode::{deserialize, serialize};
