@@ -450,11 +450,7 @@ impl MathematicalOps for Decimal {
             return Some((result - self.scale()).into());
         }
 
-        if let Some(result) = self.checked_ln() {
-            Some(LN10_INVERSE * result)
-        } else {
-            None
-        }
+        self.checked_ln().map(|result| LN10_INVERSE * result)
     }
 
     fn erf(&self) -> Decimal {
