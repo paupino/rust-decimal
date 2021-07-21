@@ -17,7 +17,7 @@ all-features = true
 
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
-arrayvec = { default-features = false, version = "0.5" }
+arrayvec = { default-features = false, version = "0.7" }
 byteorder = { default-features = false, optional = true, version = "1.3" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel = { default-features = false, features = ["postgres"], optional = true, version = "1.4" }
