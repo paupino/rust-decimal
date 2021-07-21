@@ -266,6 +266,14 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(feature = "serde-float"))]
+    fn serialize_negative_zero() {
+        let record = Record { amount: -Decimal::ZERO };
+        let serialized = serde_json::to_string(&record).unwrap();
+        assert_eq!("{\"amount\":\"-0\"}", serialized);
+    }
+
+    #[test]
     #[cfg(feature = "serde-float")]
     fn serialize_decimal() {
         let record = Record {
