@@ -38,9 +38,13 @@ pub(crate) fn to_str_internal(
     let len = chars.len();
     let whole_len = len - scale;
     let mut rep = ArrayString::new();
-    if append_sign && value.is_sign_negative() {
+    // Append the negative sign if necessary while also keeping track of the length of an "empty" string representation
+    let empty_len = if append_sign && value.is_sign_negative() {
         rep.push('-');
-    }
+        1
+    } else {
+        0
+    };
     for i in 0..whole_len + prec {
         if i == len - scale {
             if i == 0 {
@@ -58,7 +62,7 @@ pub(crate) fn to_str_internal(
     }
 
     // corner case for when we truncated everything in a low fractional
-    if rep.is_empty() {
+    if rep.len() == empty_len {
         rep.push('0');
     }
 
