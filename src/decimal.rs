@@ -38,17 +38,44 @@ const MAX: Decimal = Decimal {
     hi: 4_294_967_295,
 };
 
-/// A constant representing 0.
 const ZERO: Decimal = Decimal {
     flags: 0,
     lo: 0,
     mid: 0,
     hi: 0,
 };
-
-/// A constant representing 1.
 const ONE: Decimal = Decimal {
     flags: 0,
+    lo: 1,
+    mid: 0,
+    hi: 0,
+};
+const TWO: Decimal = Decimal {
+    flags: 0,
+    lo: 2,
+    mid: 0,
+    hi: 0,
+};
+const TEN: Decimal = Decimal {
+    flags: 0,
+    lo: 10,
+    mid: 0,
+    hi: 0,
+};
+const ONE_HUNDRED: Decimal = Decimal {
+    flags: 0,
+    lo: 100,
+    mid: 0,
+    hi: 0,
+};
+const ONE_THOUSAND: Decimal = Decimal {
+    flags: 0,
+    lo: 1000,
+    mid: 0,
+    hi: 0,
+};
+const NEGATIVE_ONE: Decimal = Decimal {
+    flags: 2147483648,
     lo: 1,
     mid: 0,
     hi: 0,
@@ -138,6 +165,57 @@ impl Decimal {
     pub const ZERO: Decimal = ZERO;
     /// A constant representing 1.
     pub const ONE: Decimal = ONE;
+    /// A constant representing -1.
+    pub const NEGATIVE_ONE: Decimal = NEGATIVE_ONE;
+    /// A constant representing 2.
+    pub const TWO: Decimal = TWO;
+    /// A constant representing 10.
+    pub const TEN: Decimal = TEN;
+    /// A constant representing 100.
+    pub const ONE_HUNDRED: Decimal = ONE_HUNDRED;
+    /// A constant representing 1000.
+    pub const ONE_THOUSAND: Decimal = ONE_THOUSAND;
+
+    /// A constant representing π as 3.1415926535897932384626433833
+    #[cfg(feature = "maths")]
+    pub const PI: Decimal = Decimal {
+        flags: 1835008,
+        lo: 1102470953,
+        mid: 185874565,
+        hi: 1703060790,
+    };
+    /// A constant representing π/2 as 1.5707963267948966192313216916
+    #[cfg(feature = "maths")]
+    pub const HALF_PI: Decimal = Decimal {
+        flags: 1835008,
+        lo: 2698719124,
+        mid: 92937282,
+        hi: 851530395,
+    };
+    /// A constant representing 2π as 6.2831853071795864769252867666
+    #[cfg(feature = "maths")]
+    pub const TWO_PI: Decimal = Decimal {
+        flags: 1835008,
+        lo: 2204941906,
+        mid: 371749130,
+        hi: 3406121580,
+    };
+    /// A constant representing Euler's number (e) as 2.7182818284590452353602874714
+    #[cfg(feature = "maths")]
+    pub const E: Decimal = Decimal {
+        flags: 1835008,
+        lo: 2239425882,
+        mid: 3958169141,
+        hi: 1473583531,
+    };
+    /// A constant representing the inverse of Euler's number (1/e) as 0.3678794411714423215955237702
+    #[cfg(feature = "maths")]
+    pub const E_INVERSE: Decimal = Decimal {
+        flags: 1835008,
+        lo: 2384059206,
+        mid: 2857938002,
+        hi: 199427844,
+    };
 
     /// Returns a `Decimal` with a 64 bit `m` representation and corresponding `e` scale.
     ///

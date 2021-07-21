@@ -192,6 +192,7 @@ fn it_formats_small_neg() {
     assert_eq!(format!("{:010.2}", a), "-000000.22");
     assert_eq!(format!("{:0<10.2}", a), "-0.2200000");
 }
+
 #[test]
 fn it_formats_zero() {
     let a = Decimal::from_str("0").unwrap();
@@ -3166,6 +3167,17 @@ fn it_can_rescale() {
     }
 }
 
+#[test]
+fn test_constants() {
+    assert_eq!("0", Decimal::ZERO.to_string());
+    assert_eq!("1", Decimal::ONE.to_string());
+    assert_eq!("-1", Decimal::NEGATIVE_ONE.to_string());
+    assert_eq!("10", Decimal::TEN.to_string());
+    assert_eq!("100", Decimal::ONE_HUNDRED.to_string());
+    assert_eq!("1000", Decimal::ONE_THOUSAND.to_string());
+    assert_eq!("2", Decimal::TWO.to_string());
+}
+
 // Mathematical features
 #[cfg(feature = "maths")]
 mod maths {
@@ -3173,6 +3185,15 @@ mod maths {
     use rust_decimal::MathematicalOps;
 
     use num_traits::One;
+
+    #[test]
+    fn test_constants() {
+        assert_eq!("3.1415926535897932384626433833", Decimal::PI.to_string());
+        assert_eq!("6.2831853071795864769252867666", Decimal::TWO_PI.to_string());
+        assert_eq!("1.5707963267948966192313216916", Decimal::HALF_PI.to_string());
+        assert_eq!("2.7182818284590452353602874714", Decimal::E.to_string());
+        assert_eq!("0.3678794411714423215955237702", Decimal::E_INVERSE.to_string());
+    }
 
     #[test]
     fn test_powu() {
@@ -3288,7 +3309,7 @@ mod maths {
             (
                 "0.5",
                 "0.25",
-                either!("0.8410938963634267005719877122", "0.8410938963634267005719877121"),
+                either!("0.8408964159265360661551317741", "0.8408964159265360661551317742"),
             ),
             // ~= 0.999999999999999999999999999790814
             (
@@ -3300,26 +3321,25 @@ mod maths {
             (
                 "1234.5678",
                 "0.9012",
-                either!("611.04510400020872819829427791", "611.04510400020872819829429407"),
+                either!("611.04510415448740041442807964", "611.04510415448740041442807964"),
             ),
             (
                 "-2",
                 "0.5",
-                either!("-1.4142700792209353663825932515", "-1.4142700792209353663825932497"),
+                either!("-1.4142135570048917090885260834", "-1.4142135570048917090885260835"),
             ),
             // ~= -1.1193003023312942
             (
                 "-2.5",
                 "0.123",
-                either!("-1.1193076423225947707712184105", "-1.1193076423225947707712184107"),
+                either!("-1.1193002994383985239135362086", "-1.1193002994383985239135362086"),
             ),
-            // TODO: Overflows when calculating `ln`
             // ~= 0.0003493091
-            // (
-            //     "0.0000000000000000000000000001",
-            //     "0.1234567890123456789012345678",
-            //     "0.0003493091",
-            // ),
+            (
+                "0.0000000000000000000000000001",
+                "0.1234567890123456789012345678",
+                either!("0.0003533642875741443321850682", "0.0003305188683169079961720764"),
+            ),
         ];
         for &(x, y, expected) in test_cases {
             let x = Decimal::from_str(x).unwrap();
@@ -3535,38 +3555,112 @@ mod maths {
 
     #[test]
     fn test_ln() {
-        let test_cases = &[
-            (Decimal::from_str("1").unwrap(), Decimal::from_str("0").unwrap()),
-            (Decimal::from_str("0").unwrap(), Decimal::from_str("0").unwrap()),
-            (Decimal::from_str("-2.0").unwrap(), Decimal::from_str("0").unwrap()),
+        let test_cases = [
+            ("1", "0"),
+            // Wolfram Alpha gives -1.46968
             (
-                Decimal::from_str("0.23").unwrap(),
-                // Wolfram Alpha gives -1.46968
-                Decimal::from_str("-1.4661188292208822723626471532").unwrap(),
+                "0.23",
+                either!("-1.4696759700589416772292300779", "-1.4696759700589416772292300777"),
             ),
+            // Wolfram Alpha gives 0.693147180559945309417232121458176568075500134360255254120
+            ("2", "0.6931471805599453094172321218"),
+            // Wolfram Alpha gives 3.218875824868200749201518666452375279051202708537035443825
             (
-                Decimal::from_str("2").unwrap(),
-                // Wolfram Alpha gives 0.693147180559945309417232121458176568075500134360255254120
-                Decimal::from_str(either!(
-                    "0.6932271134541528994884316448",
-                    "0.6932271134541528994884316422"
-                ))
-                .unwrap(),
+                "25",
+                either!("3.2188758248682007492015186670", "3.2188758248682007492015186674"),
             ),
+            // Wolfram Alpha gives 0.210721022
             (
-                Decimal::from_str("25").unwrap(),
-                // Wolfram Alpha gives 3.218875824868200749201518666452375279051202708537035443825
-                Decimal::from_str(either!(
-                    "3.2188760588726737559923925704",
-                    "3.218876058872673755992392564"
-                ))
-                .unwrap(),
+                "1.234567890",
+                either!("0.2107210222156525610500017104", "0.2107210222156525610500017106"),
             ),
         ];
 
-        for case in test_cases {
-            assert_eq!(case.1, case.0.ln());
+        for (input, expected) in test_cases {
+            let input = Decimal::from_str(input).unwrap();
+            let expected = Decimal::from_str(expected).unwrap();
+            assert_eq!(expected, input.ln(), "Failed to calculate ln({})", input);
         }
+    }
+
+    #[test]
+    #[cfg(feature = "maths-nopanic")]
+    fn test_invalid_ln_nopanic() {
+        let test_cases = ["0", "-2.0"];
+
+        for input in test_cases {
+            let input = Decimal::from_str(input).unwrap();
+            assert_eq!("0", input.ln().to_string(), "Failed to calculate ln({})", input);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Unable to calculate ln for zero")]
+    #[cfg(not(feature = "maths-nopanic"))]
+    fn test_invalid_ln_zero_panic() {
+        let _ = Decimal::ZERO.ln();
+    }
+
+    #[test]
+    #[should_panic(expected = "Unable to calculate ln for negative numbers")]
+    #[cfg(not(feature = "maths-nopanic"))]
+    fn test_invalid_ln_negative_panic() {
+        let _ = Decimal::NEGATIVE_ONE.ln();
+    }
+
+    #[test]
+    fn test_log10() {
+        let test_cases = [
+            ("1", "0"),
+            // Wolfram Alpha: 0.3010299956639811952137388947
+            (
+                "2",
+                either!("0.3010299956639811952137388949", "0.3010299956639811952137388948"),
+            ),
+            // Wolfram Alpha: 0.0915149772
+            (
+                "1.234567890",
+                either!("0.0915149771692704475183336230", "0.0915149771692704475183336231"),
+            ),
+            ("10", "1"),
+            ("100", "2"),
+            ("1000", "3"),
+            ("1000.00000000", "3"),
+            ("1000.000000000000000000000", "3"),
+            ("10.000000000000000000000000000", "1"),
+            ("100000000000000.0000000000", "14"),
+        ];
+
+        for (input, expected) in test_cases {
+            let input = Decimal::from_str(input).unwrap();
+            let expected = Decimal::from_str(expected).unwrap();
+            assert_eq!(expected, input.log10(), "Failed to calculate log10({})", input);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "maths-nopanic")]
+    fn test_invalid_log10_nopanic() {
+        let test_cases = ["0", "-2.0"];
+
+        for input in test_cases {
+            let input = Decimal::from_str(input).unwrap();
+            assert_eq!("0", input.log10().to_string(), "Failed to calculate ln({})", input);
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "Unable to calculate log10 for zero")]
+    #[cfg(not(feature = "maths-nopanic"))]
+    fn test_invalid_log10_zero_panic() {
+        let _ = Decimal::ZERO.log10();
+    }
+
+    #[test]
+    #[should_panic(expected = "Unable to calculate log10 for negative numbers")]
+    #[cfg(not(feature = "maths-nopanic"))]
+    fn test_invalid_log10_negative_panic() {
+        let _ = Decimal::NEGATIVE_ONE.log10();
     }
 
     #[test]
