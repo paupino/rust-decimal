@@ -162,7 +162,7 @@ args = ["test", "--workspace", "--no-default-features", "--features=maths,legacy
 
 [tasks.test-maths-nopanic]
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=maths,maths-nopanic", "maths", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--no-default-features", "--features=maths-nopanic", "maths", "--", "--skip", "generated"]
 
 [tasks.test-misc]
 command = "cargo"
