@@ -2457,6 +2457,9 @@ fn it_converts_to_f64() {
             None, // Cannot be represented in an f64
         ),
         ("1.59283191", Some(1.59283191_f64)),
+        ("2.2238", Some(2.2238_f64)),
+        ("2.2238123", Some(2.2238123_f64)),
+        ("22238", Some(22238_f64)),
     ];
     for &(value, expected) in tests {
         let value = Decimal::from_str(value).unwrap().to_f64();
