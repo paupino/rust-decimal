@@ -15,8 +15,8 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rust_decimal = "1.14"
-//! rust_decimal_macros = "1.14"
+//! rust_decimal = "1.15"
+//! rust_decimal_macros = "1.15"
 //! ```
 //!
 //! ## Usage
@@ -85,39 +85,43 @@
 //! * [serde-arbitrary-precision](#serde-arbitrary-precision)
 //! * [std](#std)
 //!
-//! ## `c-repr`
+//! ### `c-repr`
 //!
 //! Forces `Decimal` to use `[repr(C)]`. The corresponding target layout is 128 bit aligned.
 //!
-//! ## `db-postgres`
+//! ### `db-postgres`
 //!
 //! This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
 //! type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL.
 //!
-//! ## `db-tokio-postgres`
+//! ### `db-tokio-postgres`
 //!
 //! Enables the tokio postgres module allowing for async communication with PostgreSQL.
 //!
-//! ## `db-diesel-postgres`
+//! ### `db-diesel-postgres`
 //!
 //! Enable `diesel` PostgreSQL support.
 //!
-//! ## `legacy-ops`
+//! ### `legacy-ops`
 //!
 //! As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed improvements.
 //! To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
 //!
-//! ## `maths`
+//! ### `maths`
 //!
 //! The `maths` feature enables additional complex mathematical functions such as `pow`, `ln`, `enf`, `exp` etc.
 //! Documentation detailing the additional functions can be found on the
 //! [`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.  
 //!
-//! ## `rust-fuzz`
+//! Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
+//! to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this
+//! non-panicing behavior, please use the feature: `maths-nopanic`.
+//!
+//! ### `rust-fuzz`
 //!
 //! Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 //!
-//! ## `serde-float`
+//! ### `serde-float`
 //!
 //! Enable this so that JSON serialization of `Decimal` types are sent as a float instead of a string (default).
 //!
@@ -128,7 +132,7 @@
 //! }
 //! ```
 //!
-//! ## `serde-str`
+//! ### `serde-str`
 //!
 //! This is typically useful for `bincode` or `csv` like implementations.
 //!
@@ -140,17 +144,21 @@
 //! converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with
 //! `bincode`. That being said, this will only use 8 bytes so is slightly more efficient in terms of storage size.
 //!
-//! ## `serde-arbitrary-precision`
+//! ### `serde-arbitrary-precision`
 //!
 //! This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the
 //! `arbitrary_precision` feature inside `serde_json` when parsing decimals.
 //!
 //! This is recommended when parsing "float" looking data as it will prevent data loss.
 //!
-//! ## `std`
+//! ### `std`
 //!
 //! Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to support `no_std`
 //! libraries, this crate can be compiled with `--no-default-features`.
+//!
+//! ## Building
+//!
+//! Please refer to the [Build document](BUILD.md) for more information on building and testing Rust Decimal.
 //!
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]

@@ -529,7 +529,7 @@ impl Decimal {
     /// ```
     /// use rust_decimal::Decimal;
     ///
-    /// let mut one = Decimal::new(1, 0);
+    /// let mut one = Decimal::ONE;
     /// one.set_sign(false);
     /// assert_eq!(one.to_string(), "-1");
     /// ```
@@ -549,7 +549,7 @@ impl Decimal {
     /// ```
     /// use rust_decimal::Decimal;
     ///
-    /// let mut one = Decimal::new(1, 0);
+    /// let mut one = Decimal::ONE;
     /// one.set_sign_positive(false);
     /// assert_eq!(one.to_string(), "-1");
     /// ```
@@ -573,7 +573,7 @@ impl Decimal {
     /// ```
     /// use rust_decimal::Decimal;
     ///
-    /// let mut one = Decimal::new(1, 0);
+    /// let mut one = Decimal::ONE;
     /// one.set_sign_negative(true);
     /// assert_eq!(one.to_string(), "-1");
     /// ```
@@ -593,7 +593,7 @@ impl Decimal {
     /// ```
     /// use rust_decimal::Decimal;
     ///
-    /// let mut one = Decimal::new(1, 0);
+    /// let mut one = Decimal::ONE;
     /// one.set_scale(5).unwrap();
     /// assert_eq!(one.to_string(), "0.00001");
     /// ```
@@ -622,12 +622,19 @@ impl Decimal {
     /// ```
     /// use rust_decimal::prelude::*;
     ///
+    /// // Rescaling to a higher scale preserves the value
     /// let mut number = Decimal::from_str("1.123").unwrap();
+    /// assert_eq!(number.scale(), 3);
     /// number.rescale(6);
     /// assert_eq!(number.to_string(), "1.123000");
-    /// let mut round = Decimal::from_str("1.45").unwrap();
-    /// round.rescale(1);
-    /// assert_eq!(round.to_string(), "1.5");
+    /// assert_eq!(number.scale(), 6);
+    ///
+    /// // Rescaling to a lower scale forces the number to be rounded
+    /// let mut number = Decimal::from_str("1.45").unwrap();
+    /// assert_eq!(number.scale(), 2);
+    /// number.rescale(1);
+    /// assert_eq!(number.to_string(), "1.5");
+    /// assert_eq!(number.scale(), 1);
     /// ```
     pub fn rescale(&mut self, scale: u32) {
         let mut array = [self.lo, self.mid, self.hi];

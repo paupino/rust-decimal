@@ -8,6 +8,23 @@ FUZZ_RUNS = 10000000
 command = "cargo"
 args = ["build"]
 
+[tasks.format]
+workspace = true
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--emit=files"]
+
+[tasks.clippy]
+workspace = true
+install_crate = "clippy"
+command = "cargo"
+args = ["clippy"]
+
+[tasks.outdated]
+install_crate = "cargo-outdated"
+command = "cargo"
+args = ["outdated", "-R"]
+
 [tasks.bench]
 toolchain = "nightly"
 command = "cargo"
@@ -73,12 +90,6 @@ dependencies = ["test-no-std"]
 command = "cargo"
 args = ["test"]
 
-[tasks.format]
-workspace = true
-install_crate = "rustfmt"
-command = "cargo"
-args = ["fmt", "--", "--emit=files"]
-
 [tasks.fuzz]
 dependencies = [
     "fuzz-arithmetic",
@@ -96,11 +107,6 @@ toolchain = "nightly"
 install_crate = "cargo-fuzz"
 command = "cargo"
 args = ["fuzz", "run", "constructors", "--", "-runs=${FUZZ_RUNS}"]
-
-[tasks.outdated]
-install_crate = "cargo-outdated"
-command = "cargo"
-args = ["outdated", "-R"]
 
 [tasks.test-all]
 dependencies = [

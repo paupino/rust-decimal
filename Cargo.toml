@@ -9,7 +9,7 @@ license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
-version = "1.14.3"
+version = "1.15.0"
 exclude = [ "tests/generated/*" ]
 
 [package.metadata.docs.rs]
