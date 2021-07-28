@@ -113,6 +113,10 @@
 //! Documentation detailing the additional functions can be found on the
 //! [`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.  
 //!
+//! Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
+//! to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this
+//! non-panicing behavior, please use the feature: `maths-nopanic`.
+//!
 //! ### `rust-fuzz`
 //!
 //! Enable `rust-fuzz` support by implementing the `Arbitrary` trait.

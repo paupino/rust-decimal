@@ -7,7 +7,9 @@ A minor bug and feature release which adds a couple of new functions as well as 
 * Support for serializing to float without converting to float via the `serde-arbitrary-precision` feature. 
   [#402](https://github.com/paupino/rust-decimal/issues/402). Thanks [@JamesHinshelwood](https://github.com/JamesHinshelwood)!
   for finding and fixing this!
-* Add `log10` support to the `maths` feature. [#397](https://github.com/paupino/rust-decimal/issues/397).
+* Add `log10` support to the `maths` feature. Please note that `ln` and `log10` will now panic on invalid input since both 
+  functions have a `checked_*` equivalent. This is the preferred approach going forward, however if you would like to re-enable
+  the previous behavior please use the `maths-nopanic` feature. [#397](https://github.com/paupino/rust-decimal/issues/397).
 * Added further constants to the `Decimal` library including `TWO`, `TEN`, `ONE_HUNDRED`, `ONE_THOUSAND`, and `NEGATIVE_ONE`.
   [#400](https://github.com/paupino/rust-decimal/issues/400).
 * Fixes serialization issue for `-0` whereby `-` would be output [#406](https://github.com/paupino/rust-decimal/pull/406). Thanks
