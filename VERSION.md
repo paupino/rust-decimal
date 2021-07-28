@@ -1,8 +1,24 @@
 # Version History
 
+## 1.15.0
+
+A minor bug and feature release which adds a couple of new functions as well as cleans up some documentation:
+
+* Support for serializing to float without converting to float via the `serde-arbitrary-precision` feature. 
+  [#402](https://github.com/paupino/rust-decimal/issues/402). Thanks [@JamesHinshelwood](https://github.com/JamesHinshelwood)!
+  for finding and fixing this!
+* Add `log10` support to the `maths` feature. [#397](https://github.com/paupino/rust-decimal/issues/397).
+* Added further constants to the `Decimal` library including `TWO`, `TEN`, `ONE_HUNDRED`, `ONE_THOUSAND`, and `NEGATIVE_ONE`.
+  [#400](https://github.com/paupino/rust-decimal/issues/400).
+* Fixes serialization issue for `-0` whereby `-` would be output [#406](https://github.com/paupino/rust-decimal/pull/406). Thanks
+  [@edwardycl](https://github.com/edwardycl)!
+* Fixes float rounding before return in `to_f64`. [#401](https://github.com/paupino/rust-decimal/issues/401).
+* Added `BUILD.md` file to help people get set up with Rust Decimal locally and cleaned up some
+  documentation examples.
+
 ## 1.14.3
 
-Fixes an issue[#398](https://github.com/paupino/rust-decimal/issues/398) where `Decimal::ZERO.ln()` would panic rather than returning `Decimal::ZERO`. This 
+Fixes an issue [#398](https://github.com/paupino/rust-decimal/issues/398) where `Decimal::ZERO.ln()` would panic rather than returning `Decimal::ZERO`. This 
 aligns the behavior with calling `ln` on negative decimals.
 
 Thank you to [@SebRollen](https://github.com/SebRollen) for finding and fixing this.
