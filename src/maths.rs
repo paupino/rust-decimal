@@ -155,7 +155,7 @@ impl MathematicalOps for Decimal {
         }
 
         let mut term = *self;
-        let mut result = self + Decimal::ONE;
+        let mut result = self.checked_add(Decimal::ONE)?;
 
         for factorial in FACTORIAL.iter().skip(2) {
             term = self.checked_mul(term)?;

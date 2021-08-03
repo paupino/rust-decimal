@@ -2,7 +2,7 @@
 default_to_workspace = false
 
 [env]
-FUZZ_RUNS = 10000000
+FUZZ_RUNS = 1000
 
 [tasks.build]
 command = "cargo"
