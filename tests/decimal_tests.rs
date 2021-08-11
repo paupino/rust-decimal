@@ -1,3 +1,5 @@
+mod macros;
+
 use core::{
     cmp::Ordering::*,
     convert::{TryFrom, TryInto},
@@ -5,16 +7,6 @@ use core::{
 };
 use num_traits::{Signed, ToPrimitive};
 use rust_decimal::{Decimal, Error, RoundingStrategy};
-
-macro_rules! either {
-    ($result:expr, $legacy_result:expr) => {
-        if cfg!(feature = "legacy-ops") {
-            $legacy_result
-        } else {
-            $result
-        }
-    };
-}
 
 #[test]
 #[cfg(feature = "c-repr")]
@@ -3698,6 +3690,7 @@ mod maths {
 
     #[test]
     fn test_checked_sin() {
+        const ACCEPTED_PRECISION: u32 = 10;
         let test_cases = &[
             // Sin(0)
             ("0", Some("0")),
@@ -3710,13 +3703,13 @@ mod maths {
             // Sin(2PI)
             ("6.2831853071795864769252867666", Some("0")),
             // Sin(1) ~= 0.8414709848078965066525023216302989996225630607983710656727517099
-            ("1", Some("0.8414709858170966749082025318")),
+            ("1", Some("0.8414709848078965066525023216")),
             // Sin(2) ~= 0.9092974268256816953960198659117448427022549714478902683789730115
-            ("2", Some("0.9092974268840618671470208345")),
+            ("2", Some("0.9092974268256816953960198659")),
             // Sin(4) ~= -0.756802495307928251372639094511829094135912887336472571485416773
-            ("4", Some("-0.7568025045493888932046996639")),
+            ("4", Some("-0.7568024953079282513726390945")),
             // Sin(6) ~= -0.279415498198925872811555446611894759627994864318204318483351369
-            ("6", Some("-0.2794154981989493907331214400")),
+            ("6", Some("-0.2794154981989258728115554466")),
         ];
         for (input, result) in test_cases {
             let radians = Decimal::from_str(input).unwrap();
@@ -3724,7 +3717,7 @@ mod maths {
             if let Some(result) = result {
                 assert!(sin.is_some(), "Expected result for sin({})", input);
                 let result = Decimal::from_str(result).unwrap();
-                assert_eq!(sin.unwrap(), result, "sin({})", input);
+                assert_approx_eq!(sin.unwrap(), result, ACCEPTED_PRECISION, "sin({})", input);
             } else {
                 assert!(sin.is_none(), "Unexpected result for sin({})", input);
             }
@@ -3733,6 +3726,7 @@ mod maths {
 
     #[test]
     fn test_checked_cos() {
+        const ACCEPTED_PRECISION: u32 = 10;
         let test_cases = &[
             // Cos(0)
             ("0", Some("1")),
@@ -3745,19 +3739,13 @@ mod maths {
             // Cos(2PI)
             ("6.2831853071795864769252867666", Some("1")),
             // Cos(1) ~= 0.5403023058681397174009366074429766037323104206179222276700972553
-            (
-                "1",
-                Some(either!(
-                    "0.5403023059205275676555557994",
-                    "0.5403023059205275676555557993"
-                )),
-            ),
+            ("1", Some("0.5403023058681397174009366074")),
             // Cos(2) ~= -0.416146836547142386997568229500762189766000771075544890755149973
-            ("2", Some("-0.4161468365494207835479595249")),
+            ("2", Some("-0.4161468365471423869975682295")),
             // Cos(4) ~= -0.653643620863611914639168183097750381424133596646218247007010283
-            ("4", Some("-0.6536436214624669101463752322")),
+            ("4", Some("-0.6536436208636119146391681831")),
             // Cos(6) ~= 0.9601702866503660205456522979229244054519376792110126981292864260
-            ("6", Some("0.9601702866512794611701867273")),
+            ("6", Some("0.9601702866503660205456522979")),
         ];
         for (input, result) in test_cases {
             let radians = Decimal::from_str(input).unwrap();
@@ -3765,7 +3753,7 @@ mod maths {
             if let Some(result) = result {
                 assert!(cos.is_some(), "Expected result for cos({})", input);
                 let result = Decimal::from_str(result).unwrap();
-                assert_eq!(cos.unwrap(), result, "cos({})", input);
+                assert_approx_eq!(cos.unwrap(), result, ACCEPTED_PRECISION, "cos({})", input);
             } else {
                 assert!(cos.is_none(), "Unexpected result for cos({})", input);
             }

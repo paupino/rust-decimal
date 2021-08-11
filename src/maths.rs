@@ -6,7 +6,7 @@ const EXP_TOLERANCE: Decimal = Decimal::from_parts(2, 0, 0, false, 7);
 // Approximation of 1/ln(10) = 0.4342944819032518276511289189
 const LN10_INVERSE: Decimal = Decimal::from_parts_raw(1763037029, 1670682625, 235431510, 1835008);
 // Total iterations of taylor series for Trig.
-const TRIG_SERIES_UPPER_BOUND: usize = 5;
+const TRIG_SERIES_UPPER_BOUND: usize = 6;
 
 // Table representing {index}!
 const FACTORIAL: [Decimal; 28] = [
