@@ -192,6 +192,14 @@ impl Decimal {
         mid: 92937282,
         hi: 851530395,
     };
+    /// A constant representing π/4 as 0.7853981633974483096156608458
+    #[cfg(feature = "maths")]
+    pub const QUARTER_PI: Decimal = Decimal {
+        flags: 1835008,
+        lo: 1349359562,
+        mid: 2193952289,
+        hi: 425765197,
+    };
     /// A constant representing 2π as 6.2831853071795864769252867666
     #[cfg(feature = "maths")]
     pub const TWO_PI: Decimal = Decimal {

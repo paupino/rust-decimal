@@ -3695,6 +3695,60 @@ mod maths {
             assert_eq!(case.1, case.0.erf());
         }
     }
+
+    #[test]
+    fn test_checked_sin() {
+        let test_cases = &[
+            // Sin(0)
+            ("0", Some("0")),
+            // Sin(PI/2)
+            ("1.5707963267948966192313216916", Some("1")),
+            // Sin(PI)
+            ("3.1415926535897932384626433833", Some("0")),
+            // Sin(3PI/2)
+            ("4.7123889803846898576939650749", Some("-1")),
+            // Sin(2PI)
+            ("6.2831853071795864769252867666", Some("0")),
+        ];
+        for (input, result) in test_cases {
+            let radians = Decimal::from_str(input).unwrap();
+            let sin = radians.checked_sin();
+            if let Some(result) = result {
+                assert!(sin.is_some(), "Expected result for sin({})", input);
+                let result = Decimal::from_str(result).unwrap();
+                assert_eq!(sin.unwrap(), result, "sin({})", input);
+            } else {
+                assert!(sin.is_none(), "Unexpected result for sin({})", input);
+            }
+        }
+    }
+
+    #[test]
+    fn test_checked_cos() {
+        let test_cases = &[
+            // Cos(0)
+            ("0", Some("1")),
+            // Cos(PI/2)
+            ("1.5707963267948966192313216916", Some("0")),
+            // Cos(PI)
+            ("3.1415926535897932384626433833", Some("-1")),
+            // Cos(3PI/2)
+            ("4.7123889803846898576939650749", Some("0")),
+            // Cos(2PI)
+            ("6.2831853071795864769252867666", Some("1")),
+        ];
+        for (input, result) in test_cases {
+            let radians = Decimal::from_str(input).unwrap();
+            let cos = radians.checked_cos();
+            if let Some(result) = result {
+                assert!(cos.is_some(), "Expected result for cos({})", input);
+                let result = Decimal::from_str(result).unwrap();
+                assert_eq!(cos.unwrap(), result, "cos({})", input);
+            } else {
+                assert!(cos.is_none(), "Unexpected result for cos({})", input);
+            }
+        }
+    }
 }
 
 // Generated tests

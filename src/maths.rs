@@ -5,6 +5,8 @@ use num_traits::pow::Pow;
 const EXP_TOLERANCE: Decimal = Decimal::from_parts(2, 0, 0, false, 7);
 // Approximation of 1/ln(10) = 0.4342944819032518276511289189
 const LN10_INVERSE: Decimal = Decimal::from_parts_raw(1763037029, 1670682625, 235431510, 1835008);
+// Total iterations of taylor series for Trig.
+const TRIG_SERIES_UPPER_BOUND: usize = 5;
 
 // Table representing {index}!
 const FACTORIAL: [Decimal; 28] = [
@@ -119,6 +121,20 @@ pub trait MathematicalOps {
 
     /// The Probability density function for a Normal distribution returning `None` on overflow.
     fn checked_norm_pdf(&self) -> Option<Decimal>;
+
+    /// Computes the sine of a number (in radians).
+    /// Panics upon overflow.
+    fn sin(&self) -> Decimal;
+
+    /// Computes the checked sine of a number (in radians).
+    fn checked_sin(&self) -> Option<Decimal>;
+
+    /// Computes the cosine of a number (in radians).
+    /// Panics upon overflow.
+    fn cos(&self) -> Decimal;
+
+    /// Computes the checked cosine of a number (in radians).
+    fn checked_cos(&self) -> Option<Decimal>;
 }
 
 impl MathematicalOps for Decimal {
@@ -487,6 +503,97 @@ impl MathematicalOps for Decimal {
         let factor = -self.checked_powi(2)?;
         let factor = factor.checked_div(Decimal::TWO)?;
         factor.checked_exp()?.checked_div(sqrt2pi)
+    }
+
+    fn sin(&self) -> Decimal {
+        match self.checked_sin() {
+            Some(x) => x,
+            None => panic!("Sin overflowed"),
+        }
+    }
+
+    fn checked_sin(&self) -> Option<Decimal> {
+        if self.is_zero() {
+            return Some(Decimal::ZERO);
+        }
+        if self.is_sign_negative() {
+            // -Sin(-x)
+            return match (-self).checked_sin() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+        if self >= &Decimal::PI {
+            // -Sin(x-π)
+            return match (self - Decimal::PI).checked_sin() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+        if self >= &Decimal::QUARTER_PI {
+            // Cos(π2-x)
+            return (Decimal::HALF_PI - self).checked_cos();
+        }
+
+        // Taylor series:
+        // ∑(n=0 to ∞) : ((−1)^n / (2n + 1)!) * x^(2n + 1) , x∈R
+        // First few expansions:
+        // x^1/1! - x^3/3! + x^5/5! - x^7/7! + x^9/9!
+        let mut result = Decimal::ZERO;
+        for n in 0..TRIG_SERIES_UPPER_BOUND {
+            let x = 2 * n + 1;
+            let element = self.checked_powi(x as i64)?.checked_div(FACTORIAL[x])?;
+            if n & 0x1 == 0 {
+                result += element;
+            } else {
+                result -= element;
+            }
+        }
+        Some(result)
+    }
+
+    fn cos(&self) -> Decimal {
+        match self.checked_cos() {
+            Some(x) => x,
+            None => panic!("Cos overflowed"),
+        }
+    }
+
+    fn checked_cos(&self) -> Option<Decimal> {
+        if self.is_zero() {
+            return Some(Decimal::ONE);
+        }
+        if self.is_sign_negative() {
+            // Cos(-x)
+            return (-self).checked_cos();
+        }
+        if self >= &Decimal::PI {
+            // -Cos(x-π)
+            return match (self - Decimal::PI).checked_cos() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+        if self >= &Decimal::QUARTER_PI {
+            // Sin(π2-x)
+            return (Decimal::HALF_PI - self).checked_sin();
+        }
+
+        // Taylor series:
+        // ∑(n=0 to ∞) : ((−1)^n / (2n)!) * x^(2n) , x∈R
+        // First few expansions:
+        // x^0/0! - x^2/2! + x^4/4! - x^6/6! + x^8/8!
+        let mut result = Decimal::ZERO;
+        for n in 0..TRIG_SERIES_UPPER_BOUND {
+            let x = 2 * n;
+            let element = self.checked_powi(x as i64)?.checked_div(FACTORIAL[x])?;
+            if n & 0x1 == 0 {
+                result += element;
+            } else {
+                result -= element;
+            }
+        }
+        Some(result)
     }
 }
 
