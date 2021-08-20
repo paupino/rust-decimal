@@ -79,6 +79,7 @@ assert_eq!(total.to_string(), "27.26");
 * [c-repr](#c-repr)
 * [legacy-ops](#legacy-ops)
 * [maths](#maths)
+* [rkyv](#rkyv)
 * [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
 * [std](#std)
@@ -143,6 +144,10 @@ non-panicking behavior, please use the feature: `maths-nopanic`.
 ### `rand`
 
 Implements `rand::distributions::Distribution<Decimal>` to allow the creation of random instances.
+
+### `rkyv`
+Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`.
+Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
 
 ### `rocket-traits`
 
