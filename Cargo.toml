@@ -56,7 +56,7 @@ serde-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde"]
 serde-str = ["serde"]
-std = ["arrayvec/std"]
+std = []
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [workspace]
