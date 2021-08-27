@@ -54,10 +54,10 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
         // We know that the left hand side is just 32 bits but the right hand side is either
         // 64 or 96 bits.
-        mul_by_32bit_lhs(d1.lo() as u64, &d2, &mut product);
+        mul_by_32bit_lhs(d1.lo() as u64, d2, &mut product);
     } else if d2.mid() | d2.hi() == 0 {
         // We know that the right hand side is just 32 bits.
-        mul_by_32bit_lhs(d2.lo() as u64, &d1, &mut product);
+        mul_by_32bit_lhs(d2.lo() as u64, d1, &mut product);
     } else {
         // We know we're not dealing with simple 32 bit operands on either side.
         // We compute and accumulate the 9 partial products using long multiplication

@@ -27,7 +27,7 @@ impl std::error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Self::ErrorString(ref err) => f.pad(&err),
+            Self::ErrorString(ref err) => f.pad(err),
             Self::ExceedsMaximumPossibleValue => {
                 write!(f, "Number exceeds maximum value that can be represented.")
             }
