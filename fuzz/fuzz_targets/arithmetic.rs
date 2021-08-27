@@ -13,6 +13,7 @@ struct Data {
 
 libfuzzer_sys::fuzz_target!(|data: Data| {
     let _ = data.a.checked_add(data.b);
+    let _ = data.a.checked_cos();
     let _ = data.a.checked_div(data.b);
     let _ = data.a.checked_exp_with_tolerance(data.b);
     let _ = data.a.checked_exp();
@@ -22,5 +23,7 @@ libfuzzer_sys::fuzz_target!(|data: Data| {
     let _ = data.a.checked_powf(data.exp_f64);
     let _ = data.a.checked_powi(data.exp_i64);
     let _ = data.a.checked_powu(data.exp_u64);
+    let _ = data.a.checked_sin();
     let _ = data.a.checked_sub(data.b);
+    let _ = data.a.checked_tan();
 });
