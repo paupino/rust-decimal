@@ -3759,6 +3759,42 @@ mod maths {
             }
         }
     }
+
+    #[test]
+    fn test_checked_tan() {
+        const ACCEPTED_PRECISION: u32 = 8;
+        let test_cases = &[
+            // Tan(0)
+            ("0", Some("0")),
+            // Tan(PI/2)
+            ("1.5707963267948966192313216916", None),
+            // Tan(PI)
+            ("3.1415926535897932384626433833", Some("0")),
+            // Tan(3PI/2)
+            ("4.7123889803846898576939650749", None),
+            // Tan(2PI)
+            ("6.2831853071795864769252867666", Some("0")),
+            // Tan(1) ~= 1.5574077246549022305069748074583601730872507723815200383839466056
+            ("1", Some("1.5574077246549022305069748075")),
+            // Tan(2) ~= -2.185039863261518991643306102313682543432017746227663164562955869
+            ("2", Some("-2.1850398632615189916433061023")),
+            // Tan(4) ~= 1.1578212823495775831373424182673239231197627673671421300848571893
+            ("4", Some("1.1578212823495775831373424183")),
+            // Tan(6) ~= -0.291006191384749157053699588868175542831155570912339131608827193
+            ("6", Some("-0.2910061913847491570536995889")),
+        ];
+        for (input, result) in test_cases {
+            let radians = Decimal::from_str(input).unwrap();
+            let tan = radians.checked_tan();
+            if let Some(result) = result {
+                assert!(tan.is_some(), "Expected result for tan({})", input);
+                let result = Decimal::from_str(result).unwrap();
+                assert_approx_eq!(tan.unwrap(), result, ACCEPTED_PRECISION, "tan({})", input);
+            } else {
+                assert!(tan.is_none(), "Unexpected result for tan({})", input);
+            }
+        }
+    }
 }
 
 // Generated tests
