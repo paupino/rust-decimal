@@ -1,3 +1,5 @@
+mod macros;
+
 use core::{
     cmp::Ordering::*,
     convert::{TryFrom, TryInto},
@@ -5,16 +7,6 @@ use core::{
 };
 use num_traits::{Signed, ToPrimitive};
 use rust_decimal::{Decimal, Error, RoundingStrategy};
-
-macro_rules! either {
-    ($result:expr, $legacy_result:expr) => {
-        if cfg!(feature = "legacy-ops") {
-            $legacy_result
-        } else {
-            $result
-        }
-    };
-}
 
 #[test]
 #[cfg(feature = "c-repr")]
@@ -3693,6 +3685,114 @@ mod maths {
         ];
         for case in test_cases {
             assert_eq!(case.1, case.0.erf());
+        }
+    }
+
+    #[test]
+    fn test_checked_sin() {
+        const ACCEPTED_PRECISION: u32 = 10;
+        let test_cases = &[
+            // Sin(0)
+            ("0", Some("0")),
+            // Sin(PI/2)
+            ("1.5707963267948966192313216916", Some("1")),
+            // Sin(PI)
+            ("3.1415926535897932384626433833", Some("0")),
+            // Sin(3PI/2)
+            ("4.7123889803846898576939650749", Some("-1")),
+            // Sin(2PI)
+            ("6.2831853071795864769252867666", Some("0")),
+            // Sin(1) ~= 0.8414709848078965066525023216302989996225630607983710656727517099
+            ("1", Some("0.8414709848078965066525023216")),
+            // Sin(2) ~= 0.9092974268256816953960198659117448427022549714478902683789730115
+            ("2", Some("0.9092974268256816953960198659")),
+            // Sin(4) ~= -0.756802495307928251372639094511829094135912887336472571485416773
+            ("4", Some("-0.7568024953079282513726390945")),
+            // Sin(6) ~= -0.279415498198925872811555446611894759627994864318204318483351369
+            ("6", Some("-0.2794154981989258728115554466")),
+        ];
+        for (input, result) in test_cases {
+            let radians = Decimal::from_str(input).unwrap();
+            let sin = radians.checked_sin();
+            if let Some(result) = result {
+                assert!(sin.is_some(), "Expected result for sin({})", input);
+                let result = Decimal::from_str(result).unwrap();
+                assert_approx_eq!(sin.unwrap(), result, ACCEPTED_PRECISION, "sin({})", input);
+            } else {
+                assert!(sin.is_none(), "Unexpected result for sin({})", input);
+            }
+        }
+    }
+
+    #[test]
+    fn test_checked_cos() {
+        const ACCEPTED_PRECISION: u32 = 10;
+        let test_cases = &[
+            // Cos(0)
+            ("0", Some("1")),
+            // Cos(PI/2)
+            ("1.5707963267948966192313216916", Some("0")),
+            // Cos(PI)
+            ("3.1415926535897932384626433833", Some("-1")),
+            // Cos(3PI/2)
+            ("4.7123889803846898576939650749", Some("0")),
+            // Cos(2PI)
+            ("6.2831853071795864769252867666", Some("1")),
+            // Cos(1) ~= 0.5403023058681397174009366074429766037323104206179222276700972553
+            ("1", Some("0.5403023058681397174009366074")),
+            // Cos(2) ~= -0.416146836547142386997568229500762189766000771075544890755149973
+            ("2", Some("-0.4161468365471423869975682295")),
+            // Cos(4) ~= -0.653643620863611914639168183097750381424133596646218247007010283
+            ("4", Some("-0.6536436208636119146391681831")),
+            // Cos(6) ~= 0.9601702866503660205456522979229244054519376792110126981292864260
+            ("6", Some("0.9601702866503660205456522979")),
+        ];
+        for (input, result) in test_cases {
+            let radians = Decimal::from_str(input).unwrap();
+            let cos = radians.checked_cos();
+            if let Some(result) = result {
+                assert!(cos.is_some(), "Expected result for cos({})", input);
+                let result = Decimal::from_str(result).unwrap();
+                assert_approx_eq!(cos.unwrap(), result, ACCEPTED_PRECISION, "cos({})", input);
+            } else {
+                assert!(cos.is_none(), "Unexpected result for cos({})", input);
+            }
+        }
+    }
+
+    #[test]
+    fn test_checked_tan() {
+        const ACCEPTED_PRECISION: u32 = 8;
+        let test_cases = &[
+            // Tan(0)
+            ("0", Some("0")),
+            // Tan(PI/2)
+            ("1.5707963267948966192313216916", None),
+            // Tan(PI)
+            ("3.1415926535897932384626433833", Some("0")),
+            // Tan(3PI/2)
+            ("4.7123889803846898576939650749", None),
+            // Tan(2PI)
+            ("6.2831853071795864769252867666", Some("0")),
+            // Tan(1) ~= 1.5574077246549022305069748074583601730872507723815200383839466056
+            ("1", Some("1.5574077246549022305069748075")),
+            // Tan(2) ~= -2.185039863261518991643306102313682543432017746227663164562955869
+            ("2", Some("-2.1850398632615189916433061023")),
+            // Tan(4) ~= 1.1578212823495775831373424182673239231197627673671421300848571893
+            ("4", Some("1.1578212823495775831373424183")),
+            // Tan(6) ~= -0.291006191384749157053699588868175542831155570912339131608827193
+            ("6", Some("-0.2910061913847491570536995889")),
+        ];
+        for (input, result) in test_cases {
+            let radians = Decimal::from_str(input).unwrap();
+            let tan = radians.checked_tan();
+            if let Some(result) = result {
+                assert!(tan.is_some(), "Expected result for tan({})", input);
+                let result = Decimal::from_str(result).unwrap();
+                assert_approx_eq!(tan.unwrap(), result, ACCEPTED_PRECISION, "tan({})", input);
+            } else {
+                assert!(tan.is_none(), "Unexpected result for tan({})", input);
+            }
         }
     }
 }

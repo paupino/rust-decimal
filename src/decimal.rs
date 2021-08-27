@@ -192,6 +192,14 @@ impl Decimal {
         mid: 92937282,
         hi: 851530395,
     };
+    /// A constant representing π/4 as 0.7853981633974483096156608458
+    #[cfg(feature = "maths")]
+    pub const QUARTER_PI: Decimal = Decimal {
+        flags: 1835008,
+        lo: 1349359562,
+        mid: 2193952289,
+        hi: 425765197,
+    };
     /// A constant representing 2π as 6.2831853071795864769252867666
     #[cfg(feature = "maths")]
     pub const TWO_PI: Decimal = Decimal {
@@ -1940,7 +1948,7 @@ impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn add(self, other: &Decimal) -> Decimal {
-        match ops::add_impl(&self, other) {
+        match ops::add_impl(self, other) {
             CalculationResult::Ok(sum) => sum,
             _ => panic!("Addition overflowed"),
         }
@@ -1982,7 +1990,7 @@ impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
 
     #[inline(always)]
     fn sub(self, other: &Decimal) -> Decimal {
-        match ops::sub_impl(&self, other) {
+        match ops::sub_impl(self, other) {
             CalculationResult::Ok(sum) => sum,
             _ => panic!("Subtraction overflowed"),
         }
@@ -2024,7 +2032,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn mul(self, other: &Decimal) -> Decimal {
-        match ops::mul_impl(&self, other) {
+        match ops::mul_impl(self, other) {
             CalculationResult::Ok(prod) => prod,
             _ => panic!("Multiplication overflowed"),
         }
@@ -2065,7 +2073,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
     type Output = Decimal;
 
     fn div(self, other: &Decimal) -> Decimal {
-        match ops::div_impl(&self, other) {
+        match ops::div_impl(self, other) {
             CalculationResult::Ok(quot) => quot,
             CalculationResult::Overflow => panic!("Division overflowed"),
             CalculationResult::DivByZero => panic!("Division by zero"),
@@ -2108,7 +2116,7 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
 
     #[inline]
     fn rem(self, other: &Decimal) -> Decimal {
-        match ops::rem_impl(&self, other) {
+        match ops::rem_impl(self, other) {
             CalculationResult::Ok(rem) => rem,
             CalculationResult::Overflow => panic!("Division overflowed"),
             CalculationResult::DivByZero => panic!("Division by zero"),

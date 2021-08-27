@@ -5,6 +5,10 @@ use num_traits::pow::Pow;
 const EXP_TOLERANCE: Decimal = Decimal::from_parts(2, 0, 0, false, 7);
 // Approximation of 1/ln(10) = 0.4342944819032518276511289189
 const LN10_INVERSE: Decimal = Decimal::from_parts_raw(1763037029, 1670682625, 235431510, 1835008);
+// Total iterations of taylor series for Trig.
+const TRIG_SERIES_UPPER_BOUND: usize = 6;
+// PI / 8
+const EIGHTH_PI: Decimal = Decimal::from_parts_raw(2822163429, 3244459792, 212882598, 1835008);
 
 // Table representing {index}!
 const FACTORIAL: [Decimal; 28] = [
@@ -119,6 +123,28 @@ pub trait MathematicalOps {
 
     /// The Probability density function for a Normal distribution returning `None` on overflow.
     fn checked_norm_pdf(&self) -> Option<Decimal>;
+
+    /// Computes the sine of a number (in radians).
+    /// Panics upon overflow.
+    fn sin(&self) -> Decimal;
+
+    /// Computes the checked sine of a number (in radians).
+    fn checked_sin(&self) -> Option<Decimal>;
+
+    /// Computes the cosine of a number (in radians).
+    /// Panics upon overflow.
+    fn cos(&self) -> Decimal;
+
+    /// Computes the checked cosine of a number (in radians).
+    fn checked_cos(&self) -> Option<Decimal>;
+
+    /// Computes the tangent of a number (in radians).
+    /// Panics upon overflow or upon approaching a limit.
+    fn tan(&self) -> Decimal;
+
+    /// Computes the checked tangent of a number (in radians).
+    /// Returns None on limit.
+    fn checked_tan(&self) -> Option<Decimal>;
 }
 
 impl MathematicalOps for Decimal {
@@ -487,6 +513,192 @@ impl MathematicalOps for Decimal {
         let factor = -self.checked_powi(2)?;
         let factor = factor.checked_div(Decimal::TWO)?;
         factor.checked_exp()?.checked_div(sqrt2pi)
+    }
+
+    fn sin(&self) -> Decimal {
+        match self.checked_sin() {
+            Some(x) => x,
+            None => panic!("Sin overflowed"),
+        }
+    }
+
+    fn checked_sin(&self) -> Option<Decimal> {
+        if self.is_zero() {
+            return Some(Decimal::ZERO);
+        }
+        if self.is_sign_negative() {
+            // -Sin(-x)
+            return match (-self).checked_sin() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+        if self >= &Decimal::PI {
+            // -Sin(x-π)
+            return match (self - Decimal::PI).checked_sin() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+        if self >= &Decimal::QUARTER_PI {
+            // Cos(π2-x)
+            return (Decimal::HALF_PI - self).checked_cos();
+        }
+
+        // Taylor series:
+        // ∑(n=0 to ∞) : ((−1)^n / (2n + 1)!) * x^(2n + 1) , x∈R
+        // First few expansions:
+        // x^1/1! - x^3/3! + x^5/5! - x^7/7! + x^9/9!
+        let mut result = Decimal::ZERO;
+        for n in 0..TRIG_SERIES_UPPER_BOUND {
+            let x = 2 * n + 1;
+            let element = self.checked_powi(x as i64)?.checked_div(FACTORIAL[x])?;
+            if n & 0x1 == 0 {
+                result += element;
+            } else {
+                result -= element;
+            }
+        }
+        Some(result)
+    }
+
+    fn cos(&self) -> Decimal {
+        match self.checked_cos() {
+            Some(x) => x,
+            None => panic!("Cos overflowed"),
+        }
+    }
+
+    fn checked_cos(&self) -> Option<Decimal> {
+        if self.is_zero() {
+            return Some(Decimal::ONE);
+        }
+        if self.is_sign_negative() {
+            // Cos(-x)
+            return (-self).checked_cos();
+        }
+        if self >= &Decimal::PI {
+            // -Cos(x-π)
+            return match (self - Decimal::PI).checked_cos() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+        if self >= &Decimal::QUARTER_PI {
+            // Sin(π2-x)
+            return (Decimal::HALF_PI - self).checked_sin();
+        }
+
+        // Taylor series:
+        // ∑(n=0 to ∞) : ((−1)^n / (2n)!) * x^(2n) , x∈R
+        // First few expansions:
+        // x^0/0! - x^2/2! + x^4/4! - x^6/6! + x^8/8!
+        let mut result = Decimal::ZERO;
+        for n in 0..TRIG_SERIES_UPPER_BOUND {
+            let x = 2 * n;
+            let element = self.checked_powi(x as i64)?.checked_div(FACTORIAL[x])?;
+            if n & 0x1 == 0 {
+                result += element;
+            } else {
+                result -= element;
+            }
+        }
+        Some(result)
+    }
+
+    fn tan(&self) -> Decimal {
+        match self.checked_tan() {
+            Some(x) => x,
+            None => panic!("Tan overflowed"),
+        }
+    }
+
+    fn checked_tan(&self) -> Option<Decimal> {
+        if self.is_zero() {
+            return Some(Decimal::ZERO);
+        }
+        if self.is_sign_negative() {
+            // -Tan(-x)
+            return match (-self).checked_tan() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+        // Reduce to 0 <= x <= PI
+        if self >= &Decimal::PI {
+            // Tan(x-π)
+            return (self - Decimal::PI).checked_tan();
+        }
+        // Reduce to 0 <= x <= PI/2
+        if self > &Decimal::HALF_PI {
+            // We can use the symmetrical function inside the first quadrant
+            // e.g. tan(x) = -tan((PI/2 - x) + PI/2)
+            return match ((Decimal::HALF_PI - self) + Decimal::HALF_PI).checked_tan() {
+                Some(x) => Some(-x),
+                None => None,
+            };
+        }
+
+        // It has now been reduced to 0 <= x <= PI/2. If it is >= PI/4 we can make it even smaller
+        // by calculating tan(PI/2 - x) and taking the reciprocal
+        if self > &Decimal::QUARTER_PI {
+            return match (Decimal::HALF_PI - self).checked_tan() {
+                Some(x) => Decimal::ONE.checked_div(x),
+                None => None,
+            };
+        }
+
+        // Due the way that tan(x) sharply tends towards infinity, we try to optimize
+        // the resulting accuracy by using Trigonometric identity when > PI/8. We do this by
+        // replacing the angle with one that is half as big.
+        if self > &EIGHTH_PI {
+            // Work out tan(x/2)
+            let tan_half = (self / Decimal::TWO).checked_tan()?;
+            // Work out the dividend i.e. 2tan(x/2)
+            let dividend = Decimal::TWO.checked_mul(tan_half)?;
+
+            // Work out the divisor i.e. 1 - tan^2(x/2)
+            let squared = tan_half.checked_mul(tan_half)?;
+            let divisor = Decimal::ONE - squared;
+            // Treat this as infinity
+            if divisor.is_zero() {
+                return None;
+            }
+            return dividend.checked_div(divisor);
+        }
+
+        // Do a polynomial approximation based upon the Maclaurin series.
+        // This can be simplified to something like:
+        //
+        // ∑(n=1,3,5,7,9)(f(n)(0)/n!)x^n
+        //
+        // First few expansions (which we leverage):
+        // (f'(0)/1!)x^1 + (f'''(0)/3!)x^3 + (f'''''(0)/5!)x^5 + (f'''''''/7!)x^7
+        //
+        // x + (1/3)x^3 + (2/15)x^5 + (17/315)x^7 + (62/2835)x^9 + (1382/155925)x^11
+        //
+        // (Generated by https://www.wolframalpha.com/widgets/view.jsp?id=fe1ad8d4f5dbb3cb866d0c89beb527a6)
+        // The more terms, the better the accuracy. This generates accuracy within approx 10^-8 for angles
+        // less than PI/8.
+        const SERIES: [(Decimal, u64); 6] = [
+            // 1 / 3
+            (Decimal::from_parts_raw(89478485, 347537611, 180700362, 1835008), 3),
+            // 2 / 15
+            (Decimal::from_parts_raw(894784853, 3574988881, 72280144, 1835008), 5),
+            // 17 / 315
+            (Decimal::from_parts_raw(905437054, 3907911371, 2925624, 1769472), 7),
+            // 62 / 2835
+            (Decimal::from_parts_raw(3191872741, 2108928381, 11855473, 1835008), 9),
+            // 1382 / 155925
+            (Decimal::from_parts_raw(3482645539, 2612995122, 4804769, 1835008), 11),
+            // 21844 / 6081075
+            (Decimal::from_parts_raw(4189029078, 2192791200, 1947296, 1835008), 13),
+        ];
+        let mut result = *self;
+        for (fraction, pow) in SERIES {
+            result += fraction * self.powu(pow);
+        }
+        Some(result)
     }
 }
 
