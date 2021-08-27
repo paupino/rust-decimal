@@ -1,16 +1,21 @@
+[[bench]]
+harness = false
+name = "comparison"
+path = "benches/comparison.rs"
+
 [package]
 authors = ["Paul Mason <paul@form1.co.nz>"]
 categories = ["science","data-structures"]
 description = "A Decimal Implementation written in pure Rust suitable for financial calculations."
 documentation = "https://docs.rs/rust_decimal/"
 edition = "2018"
+exclude = [ "tests/generated/*" ]
 keywords = ["decimal","financial","fixed","precision"]
 license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
 version = "1.15.0"
-exclude = [ "tests/generated/*" ]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -30,6 +35,7 @@ tokio-postgres = { default-features = false, optional = true, version = "0.7" }
 [dev-dependencies]
 bincode = "1.3"
 bytes = "1.0"
+criterion = { default-features = false, version = "0.3" }
 csv = "1"
 futures = "0.3"
 serde_derive = "1.0"
@@ -46,11 +52,11 @@ legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
 rust-fuzz = ["arbitrary"]
+serde-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde"]
 serde-str = ["serde"]
-serde-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
-std = ["arrayvec/std"]
+std = []
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [workspace]
