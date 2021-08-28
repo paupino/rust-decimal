@@ -1157,6 +1157,127 @@ impl Decimal {
         self.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven)
     }
 
+    /// Returns `Some(Decimal)` number rounded to the specified number of significant digits. If
+    /// the resulting number is unable to be represented by the `Decimal` number then `None` will
+    /// be returned.  
+    /// When the number of significant figures of the `Decimal` being rounded is greater than the requested
+    /// number of significant digits then rounding will be performed using `MidpointNearestEven` strategy.
+    ///
+    /// # Arguments
+    /// * `digits`: the number of significant digits to round to.
+    ///
+    /// # Remarks
+    /// A significant figure is determined using the following rules:
+    /// 1. Non-zero digits are always significant.
+    /// 2. Zeros between non-zero digits are always significant.
+    /// 3. Leading zeros are never significant.
+    /// 4. Trailing zeros are only significant if the number contains a decimal point.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use core::str::FromStr;
+    ///
+    /// let value = Decimal::from_str("305.459").unwrap();
+    /// assert_eq!(value.round_sf(0), Some(Decimal::from_str("0").unwrap()));
+    /// assert_eq!(value.round_sf(1), Some(Decimal::from_str("300").unwrap()));
+    /// assert_eq!(value.round_sf(2), Some(Decimal::from_str("310").unwrap()));
+    /// assert_eq!(value.round_sf(3), Some(Decimal::from_str("305").unwrap()));
+    /// assert_eq!(value.round_sf(4), Some(Decimal::from_str("305.5").unwrap()));
+    /// assert_eq!(value.round_sf(5), Some(Decimal::from_str("305.46").unwrap()));
+    /// assert_eq!(value.round_sf(6), Some(Decimal::from_str("305.459").unwrap()));
+    /// assert_eq!(value.round_sf(7), Some(Decimal::from_str("305.4590").unwrap()));
+    /// assert_eq!(Decimal::MAX.round_sf(1), None);
+    /// ```
+    #[must_use]
+    pub fn round_sf(&self, digits: u32) -> Option<Decimal> {
+        if self.is_zero() || digits == 0 {
+            return Some(Decimal::ZERO);
+        }
+
+        // We start by grabbing the mantissa and figuring out how many significant figures it is
+        // made up of. We do this by just dividing by 10 and checking remainders - effectively
+        // we're performing a naive log10.
+        let mut working = self.mantissa_array3();
+        let mut mantissa_sf = 0;
+        while !ops::array::is_all_zero(&working) {
+            let _remainder = ops::array::div_by_u32(&mut working, 10u32);
+            mantissa_sf += 1;
+            if working[2] == 0 && working[1] == 0 && working[0] == 1 {
+                break;
+            }
+        }
+
+        // Total significant figures in the full number also needs to include scale.
+        // e.g. mantissa 1, scale of 6 = 0.000001 (6 sf), mantissa 1234, scale of 3 = 1.234 (4 sf)
+        let scale = self.scale();
+        let current_sf = if scale > mantissa_sf { scale } else { mantissa_sf };
+
+        match digits.cmp(&current_sf) {
+            Ordering::Greater => {
+                // If we're requesting a higher number of significant figures, we rescale
+                let mut array = [self.lo, self.mid, self.hi];
+                let mut value_scale = self.scale();
+                ops::array::rescale_internal(&mut array, &mut value_scale, scale + digits - current_sf);
+                Some(Decimal {
+                    lo: array[0],
+                    mid: array[1],
+                    hi: array[2],
+                    flags: flags(self.is_sign_negative(), value_scale),
+                })
+            }
+            Ordering::Less => {
+                // We're requesting a lower number of significant digits.
+                let diff = current_sf - digits;
+                // If the diff is greater than the scale we're focused on the integral. Otherwise, we can
+                // just round.
+                if diff > scale {
+                    use crate::constants::BIG_POWERS_10;
+                    // We need to adjust the integral portion. This also should be rounded, consequently
+                    // we reduce the number down, round it, and then scale back up.
+                    // E.g. If we have 305.459 scaling to a sf of 2. We first, reduce the number
+                    // down to 30.5459, round it to 31 and then scale it back up to 310.
+                    let mut num = *self;
+                    let mut exp = (diff - scale) as usize;
+                    while exp > 0 {
+                        let pow;
+                        if exp >= BIG_POWERS_10.len() {
+                            pow = Decimal::from(BIG_POWERS_10[BIG_POWERS_10.len() - 1]);
+                            exp -= BIG_POWERS_10.len();
+                        } else {
+                            pow = Decimal::from(BIG_POWERS_10[exp - 1]);
+                            exp = 0;
+                        }
+                        num = num.checked_div(pow)?;
+                    }
+                    let mut num = num
+                        .round_dp_with_strategy(0, RoundingStrategy::MidpointNearestEven)
+                        .trunc();
+                    let mut exp = (current_sf - digits - scale) as usize;
+                    while exp > 0 {
+                        let pow;
+                        if exp >= BIG_POWERS_10.len() {
+                            pow = Decimal::from(BIG_POWERS_10[BIG_POWERS_10.len() - 1]);
+                            exp -= BIG_POWERS_10.len();
+                        } else {
+                            pow = Decimal::from(BIG_POWERS_10[exp - 1]);
+                            exp = 0;
+                        }
+                        num = num.checked_mul(pow)?;
+                    }
+                    Some(num)
+                } else {
+                    Some(self.round_dp_with_strategy(scale - diff, RoundingStrategy::MidpointNearestEven))
+                }
+            }
+            Ordering::Equal => {
+                // Case where significant figures = requested significant digits.
+                Some(*self)
+            }
+        }
+    }
+
     /// Convert `Decimal` to an internal representation of the underlying struct. This is useful
     /// for debugging the internal state of the object.
     ///

@@ -2348,6 +2348,55 @@ fn it_can_round_up() {
 }
 
 #[test]
+fn it_can_round_significant_figures() {
+    let tests = &[
+        ("305.459", 0u32, Some("0")),
+        ("305.459", 1, Some("300")),
+        ("305.459", 2, Some("310")),
+        ("305.459", 3, Some("305")),
+        ("305.459", 4, Some("305.5")),
+        ("305.459", 5, Some("305.46")),
+        ("305.459", 6, Some("305.459")),
+        ("305.459", 7, Some("305.4590")),
+        ("305.459", 10, Some("305.4590000")),
+        ("-305.459", 3, Some("-305")),
+        ("-305.459", 2, Some("-310")), // We ignore the negative
+        ("-305.459", 5, Some("-305.46")),
+        (
+            "79228162514264337593543950335",
+            29,
+            Some("79228162514264337593543950335"),
+        ),
+        ("79228162514264337593543950335", 1, None),
+        (
+            "79228162514264337593543950335",
+            2,
+            Some("79000000000000000000000000000"),
+        ),
+        (
+            "79228162514264337593543950335",
+            30,
+            Some("79228162514264337593543950335"),
+        ),
+        (
+            "79228162514264337593543950335",
+            u32::MAX,
+            Some("79228162514264337593543950335"),
+        ),
+    ];
+    for &(input, sf, expected) in tests {
+        let input = Decimal::from_str(input).unwrap();
+        let result = input.round_sf(sf);
+        if let Some(expected) = expected {
+            assert!(result.is_some(), "Expected result for {}.round_sf({})", input, sf);
+            assert_eq!(expected, result.unwrap().to_string(), "{}.round_sf({})", input, sf);
+        } else {
+            assert!(result.is_none(), "Unexpected result for {}.round_sf({})", input, sf);
+        }
+    }
+}
+
+#[test]
 fn it_can_trunc() {
     let tests = &[("1.00000000000000000000", "1"), ("1.000000000000000000000001", "1")];
 
