@@ -1214,62 +1214,67 @@ impl Decimal {
         let scale = self.scale();
         let current_sf = if scale > mantissa_sf { scale } else { mantissa_sf };
 
-        // If we're requesting a higher number of significant figures, we rescale
-        if digits > current_sf {
-            let mut array = [self.lo, self.mid, self.hi];
-            let mut value_scale = self.scale();
-            ops::array::rescale_internal(&mut array, &mut value_scale, scale + digits - current_sf);
-            Some(Decimal {
-                lo: array[0],
-                mid: array[1],
-                hi: array[2],
-                flags: flags(self.is_sign_negative(), value_scale),
-            })
-        } else if digits < current_sf {
-            let diff = current_sf - digits;
-            // If the diff is greater than the scale we're focused on the integral. Otherwise, we can
-            // just round.
-            if diff > scale {
-                use crate::constants::BIG_POWERS_10;
-                // We need to adjust the integral portion. This also should be rounded, consequently
-                // we reduce the number down, round it, and then scale back up.
-                // E.g. If we have 305.459 scaling to a sf of 2. We first, reduce the number
-                // down to 30.5459, round it to 31 and then scale it back up to 310.
-                let mut num = *self;
-                let mut exp = (diff - scale) as usize;
-                while exp > 0 {
-                    let pow;
-                    if exp >= BIG_POWERS_10.len() {
-                        pow = Decimal::from(BIG_POWERS_10[BIG_POWERS_10.len() - 1]);
-                        exp -= BIG_POWERS_10.len();
-                    } else {
-                        pow = Decimal::from(BIG_POWERS_10[exp - 1]);
-                        exp = 0;
-                    }
-                    num = num.checked_div(pow)?;
-                }
-                let mut num = num
-                    .round_dp_with_strategy(0, RoundingStrategy::MidpointNearestEven)
-                    .trunc();
-                let mut exp = (current_sf - digits - scale) as usize;
-                while exp > 0 {
-                    let pow;
-                    if exp >= BIG_POWERS_10.len() {
-                        pow = Decimal::from(BIG_POWERS_10[BIG_POWERS_10.len() - 1]);
-                        exp -= BIG_POWERS_10.len();
-                    } else {
-                        pow = Decimal::from(BIG_POWERS_10[exp - 1]);
-                        exp = 0;
-                    }
-                    num = num.checked_mul(pow)?;
-                }
-                Some(num)
-            } else {
-                Some(self.round_dp_with_strategy(scale - diff, RoundingStrategy::MidpointNearestEven))
+        match digits.cmp(&current_sf) {
+            Ordering::Greater => {
+                // If we're requesting a higher number of significant figures, we rescale
+                let mut array = [self.lo, self.mid, self.hi];
+                let mut value_scale = self.scale();
+                ops::array::rescale_internal(&mut array, &mut value_scale, scale + digits - current_sf);
+                Some(Decimal {
+                    lo: array[0],
+                    mid: array[1],
+                    hi: array[2],
+                    flags: flags(self.is_sign_negative(), value_scale),
+                })
             }
-        } else {
-            // Case where significant figures = requested significant digits.
-            Some(*self)
+            Ordering::Less => {
+                // We're requesting a lower number of significant digits.
+                let diff = current_sf - digits;
+                // If the diff is greater than the scale we're focused on the integral. Otherwise, we can
+                // just round.
+                if diff > scale {
+                    use crate::constants::BIG_POWERS_10;
+                    // We need to adjust the integral portion. This also should be rounded, consequently
+                    // we reduce the number down, round it, and then scale back up.
+                    // E.g. If we have 305.459 scaling to a sf of 2. We first, reduce the number
+                    // down to 30.5459, round it to 31 and then scale it back up to 310.
+                    let mut num = *self;
+                    let mut exp = (diff - scale) as usize;
+                    while exp > 0 {
+                        let pow;
+                        if exp >= BIG_POWERS_10.len() {
+                            pow = Decimal::from(BIG_POWERS_10[BIG_POWERS_10.len() - 1]);
+                            exp -= BIG_POWERS_10.len();
+                        } else {
+                            pow = Decimal::from(BIG_POWERS_10[exp - 1]);
+                            exp = 0;
+                        }
+                        num = num.checked_div(pow)?;
+                    }
+                    let mut num = num
+                        .round_dp_with_strategy(0, RoundingStrategy::MidpointNearestEven)
+                        .trunc();
+                    let mut exp = (current_sf - digits - scale) as usize;
+                    while exp > 0 {
+                        let pow;
+                        if exp >= BIG_POWERS_10.len() {
+                            pow = Decimal::from(BIG_POWERS_10[BIG_POWERS_10.len() - 1]);
+                            exp -= BIG_POWERS_10.len();
+                        } else {
+                            pow = Decimal::from(BIG_POWERS_10[exp - 1]);
+                            exp = 0;
+                        }
+                        num = num.checked_mul(pow)?;
+                    }
+                    Some(num)
+                } else {
+                    Some(self.round_dp_with_strategy(scale - diff, RoundingStrategy::MidpointNearestEven))
+                }
+            }
+            Ordering::Equal => {
+                // Case where significant figures = requested significant digits.
+                Some(*self)
+            }
         }
     }
 
