@@ -632,7 +632,7 @@ fn add_with_scale_internal(
                 let remainder = div_by_u32(temp, 10);
                 if remainder == 0 {
                     *scale -= 1;
-                    target.copy_from_slice(&temp);
+                    target.copy_from_slice(temp);
                 } else {
                     break;
                 }
@@ -659,7 +659,7 @@ fn add_with_scale_internal(
                 if overflow == 0 {
                     // Still no overflow
                     *scale += 1;
-                    target.copy_from_slice(&temp);
+                    target.copy_from_slice(temp);
                 }
             }
         }
@@ -682,7 +682,7 @@ fn add_with_scale_internal(
             while *scale > target_scale {
                 div_by_u32(temp, 10);
                 *scale -= 1;
-                target.copy_from_slice(&temp);
+                target.copy_from_slice(temp);
             }
         }
         if *quotient_scale < *working_scale {

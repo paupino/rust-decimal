@@ -61,9 +61,8 @@ impl Decimal {
         }
         // adding fractional part
         if fractionals_part_count > 0 {
-            let dec: Vec<_> = digits.into_iter().collect();
             let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
-            for (i, digit) in dec.into_iter().enumerate() {
+            for (i, digit) in digits.into_iter().enumerate() {
                 let fract_pow = 4 * (i as u32 + 1 + start_fractionals);
                 if fract_pow <= MAX_PRECISION {
                     result += Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0);
