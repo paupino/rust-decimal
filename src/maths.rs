@@ -528,10 +528,7 @@ impl MathematicalOps for Decimal {
         }
         if self.is_sign_negative() {
             // -Sin(-x)
-            return match (-self).checked_sin() {
-                Some(x) => Some(-x),
-                None => None,
-            };
+            return (-self).checked_sin().map(|x| -x);
         }
         if self >= &Decimal::TWO_PI {
             // Reduce large numbers early - we can do this using rem to constrain to a range
@@ -540,10 +537,7 @@ impl MathematicalOps for Decimal {
         }
         if self >= &Decimal::PI {
             // -Sin(x-π)
-            return match (self - Decimal::PI).checked_sin() {
-                Some(x) => Some(-x),
-                None => None,
-            };
+            return (self - Decimal::PI).checked_sin().map(|x| -x);
         }
         if self >= &Decimal::QUARTER_PI {
             // Cos(π2-x)
@@ -589,10 +583,7 @@ impl MathematicalOps for Decimal {
         }
         if self >= &Decimal::PI {
             // -Cos(x-π)
-            return match (self - Decimal::PI).checked_cos() {
-                Some(x) => Some(-x),
-                None => None,
-            };
+            return (self - Decimal::PI).checked_cos().map(|x| -x);
         }
         if self >= &Decimal::QUARTER_PI {
             // Sin(π2-x)
@@ -629,10 +620,7 @@ impl MathematicalOps for Decimal {
         }
         if self.is_sign_negative() {
             // -Tan(-x)
-            return match (-self).checked_tan() {
-                Some(x) => Some(-x),
-                None => None,
-            };
+            return (-self).checked_tan().map(|x| -x);
         }
         if self >= &Decimal::TWO_PI {
             // Reduce large numbers early - we can do this using rem to constrain to a range
@@ -648,10 +636,7 @@ impl MathematicalOps for Decimal {
         if self > &Decimal::HALF_PI {
             // We can use the symmetrical function inside the first quadrant
             // e.g. tan(x) = -tan((PI/2 - x) + PI/2)
-            return match ((Decimal::HALF_PI - self) + Decimal::HALF_PI).checked_tan() {
-                Some(x) => Some(-x),
-                None => None,
-            };
+            return ((Decimal::HALF_PI - self) + Decimal::HALF_PI).checked_tan().map(|x| -x);
         }
 
         // It has now been reduced to 0 <= x <= PI/2. If it is >= PI/4 we can make it even smaller
