@@ -533,6 +533,11 @@ impl MathematicalOps for Decimal {
                 None => None,
             };
         }
+        if self >= &Decimal::TWO_PI {
+            // Reduce large numbers early - we can do this using rem to constrain to a range
+            let adjusted = self.checked_rem(Decimal::TWO_PI)?;
+            return adjusted.checked_sin();
+        }
         if self >= &Decimal::PI {
             // -Sin(x-π)
             return match (self - Decimal::PI).checked_sin() {
@@ -576,6 +581,11 @@ impl MathematicalOps for Decimal {
         if self.is_sign_negative() {
             // Cos(-x)
             return (-self).checked_cos();
+        }
+        if self >= &Decimal::TWO_PI {
+            // Reduce large numbers early - we can do this using rem to constrain to a range
+            let adjusted = self.checked_rem(Decimal::TWO_PI)?;
+            return adjusted.checked_cos();
         }
         if self >= &Decimal::PI {
             // -Cos(x-π)
@@ -623,6 +633,11 @@ impl MathematicalOps for Decimal {
                 Some(x) => Some(-x),
                 None => None,
             };
+        }
+        if self >= &Decimal::TWO_PI {
+            // Reduce large numbers early - we can do this using rem to constrain to a range
+            let adjusted = self.checked_rem(Decimal::TWO_PI)?;
+            return adjusted.checked_tan();
         }
         // Reduce to 0 <= x <= PI
         if self >= &Decimal::PI {
