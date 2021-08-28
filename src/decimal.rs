@@ -1192,6 +1192,45 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn round_sf(&self, digits: u32) -> Option<Decimal> {
+        self.round_sf_with_strategy(digits, RoundingStrategy::MidpointNearestEven)
+    }
+
+    /// Returns `Some(Decimal)` number rounded to the specified number of significant digits. If
+    /// the resulting number is unable to be represented by the `Decimal` number then `None` will
+    /// be returned.  
+    /// When the number of significant figures of the `Decimal` being rounded is greater than the requested
+    /// number of significant digits then rounding will be performed using the provided [RoundingStrategy].
+    ///
+    /// # Arguments
+    /// * `digits`: the number of significant digits to round to.
+    /// * `strategy`: if required, the rounding strategy to use.
+    ///
+    /// # Remarks
+    /// A significant figure is determined using the following rules:
+    /// 1. Non-zero digits are always significant.
+    /// 2. Zeros between non-zero digits are always significant.
+    /// 3. Leading zeros are never significant.
+    /// 4. Trailing zeros are only significant if the number contains a decimal point.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::{Decimal, RoundingStrategy};
+    /// use core::str::FromStr;
+    ///
+    /// let value = Decimal::from_str("305.459").unwrap();
+    /// assert_eq!(value.round_sf_with_strategy(0, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("0").unwrap());
+    /// assert_eq!(value.round_sf_with_strategy(1, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("300").unwrap());
+    /// assert_eq!(value.round_sf_with_strategy(2, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("300").unwrap());
+    /// assert_eq!(value.round_sf_with_strategy(3, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("305").unwrap());
+    /// assert_eq!(value.round_sf_with_strategy(4, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("305.4").unwrap());
+    /// assert_eq!(value.round_sf_with_strategy(5, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("305.45").unwrap());
+    /// assert_eq!(value.round_sf_with_strategy(6, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("305.459").unwrap());
+    /// assert_eq!(value.round_sf_with_strategy(7, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("305.4590").unwrap());
+    /// assert_eq!(Decimal::MAX.round_sf_with_strategy(1, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("70000000000000000000000000000").unwrap());
+    /// ```
+    #[must_use]
+    pub fn round_sf_with_strategy(&self, digits: u32, strategy: RoundingStrategy) -> Option<Decimal> {
         if self.is_zero() || digits == 0 {
             return Some(Decimal::ZERO);
         }
@@ -1251,9 +1290,7 @@ impl Decimal {
                         }
                         num = num.checked_div(pow)?;
                     }
-                    let mut num = num
-                        .round_dp_with_strategy(0, RoundingStrategy::MidpointNearestEven)
-                        .trunc();
+                    let mut num = num.round_dp_with_strategy(0, strategy).trunc();
                     let mut exp = (current_sf - digits - scale) as usize;
                     while exp > 0 {
                         let pow;
@@ -1268,7 +1305,7 @@ impl Decimal {
                     }
                     Some(num)
                 } else {
-                    Some(self.round_dp_with_strategy(scale - diff, RoundingStrategy::MidpointNearestEven))
+                    Some(self.round_dp_with_strategy(scale - diff, strategy))
                 }
             }
             Ordering::Equal => {
