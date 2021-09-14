@@ -17,8 +17,8 @@ To get started, add `rust_decimal` and optionally `rust_decimal_macros` to your 
 
 ```toml
 [dependencies]
-rust_decimal = "1.15"
-rust_decimal_macros = "1.15"
+rust_decimal = "1.16"
+rust_decimal_macros = "1.16"
 ```
 
 ## Usage
@@ -159,3 +159,9 @@ libraries, this crate can be compiled with `--no-default-features`.
 ## Building
 
 Please refer to the [Build document](BUILD.md) for more information on building and testing Rust Decimal.
+
+## Minimum Rust Compiler Version
+
+This library maintains support for rust compiler versions at least one year old and only updates the minimum version if and
+when required. The current minimum compiler version is [`1.46.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1460-2020-08-27) 
+which was released on `2020-08-27`.
