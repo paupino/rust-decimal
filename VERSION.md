@@ -1,5 +1,16 @@
 # Version History
 
+## 1.16.0
+
+* Implement `sin`/`cos`/`tan` functions which are enabled within the `maths` feature. [#413](https://github.com/paupino/rust-decimal/pull/413).
+* Implement `round_sf` and `round_sf_with_strategy` to enable significant figure rounding. [#421](https://github.com/paupino/rust-decimal/pull/421)
+* Remove unnecessary `std` feature from `arrayvec` usage [#417](https://github.com/paupino/rust-decimal/pull/417).
+* Adhoc benchmarking and fuzz tooling improvements [#412](https://github.com/paupino/rust-decimal/pull/412), 
+  [#415](https://github.com/paupino/rust-decimal/pull/415), [#416](https://github.com/paupino/rust-decimal/pull/416), 
+  [#418](https://github.com/paupino/rust-decimal/pull/418).
+
+Thank you to [@c410-f3r](https://github.com/c410-f3r) for all your help with fuzz and benchmarking improvements!
+
 ## 1.15.0
 
 A minor bug and feature release which adds a couple of new functions as well as cleans up some documentation:
