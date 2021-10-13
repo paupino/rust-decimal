@@ -535,8 +535,8 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 #[cfg(test)]
 mod test {
     use crate::Decimal;
-    use core::{fmt::Write, str::FromStr};
     use arrayvec::ArrayString;
+    use core::{fmt::Write, str::FromStr};
 
     #[test]
     fn display_does_not_overflow_max_capacity() {
