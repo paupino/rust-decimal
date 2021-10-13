@@ -536,11 +536,12 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 mod test {
     use crate::Decimal;
     use core::{fmt::Write, str::FromStr};
+    use arrayvec::ArrayString;
 
     #[test]
     fn display_does_not_overflow_max_capacity() {
         let num = Decimal::from_str("1.2").unwrap();
-        let mut buffer = String::new();
+        let mut buffer = ArrayString::<[u8; 64]>::new();
         let _ = buffer.write_fmt(format_args!("{:.31}", num));
     }
 }
