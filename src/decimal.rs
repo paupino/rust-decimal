@@ -1,5 +1,5 @@
 use crate::constants::{
-    MAX_I128_REPR, MAX_PRECISION, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
+    MAX_I128_REPR, MAX_PRECISION_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
     UNSIGN_MASK,
 };
 use crate::ops;
@@ -263,7 +263,7 @@ impl Decimal {
     /// assert!(max.is_err());
     /// ```
     pub const fn try_new(num: i64, scale: u32) -> crate::Result<Decimal> {
-        if scale > MAX_PRECISION {
+        if scale > MAX_PRECISION_U32 {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let flags: u32 = scale << SCALE_SHIFT;
@@ -323,7 +323,7 @@ impl Decimal {
     /// assert!(max.is_err());
     /// ```
     pub const fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
-        if scale > MAX_PRECISION {
+        if scale > MAX_PRECISION_U32 {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let mut neg = false;
@@ -382,7 +382,7 @@ impl Decimal {
                 } else {
                     negative
                 },
-                scale % (MAX_PRECISION + 1),
+                scale % (MAX_PRECISION_U32 + 1),
             ),
         }
     }
@@ -442,7 +442,7 @@ impl Decimal {
                 // we've parsed 1.2 as the base and 10 as the exponent. To represent this within a
                 // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
                 // zero.
-                if exp > MAX_PRECISION {
+                if exp > MAX_PRECISION_U32 {
                     return Err(Error::ScaleExceedsMaximumPrecision(exp));
                 }
                 let mut exp = exp as usize;
@@ -606,7 +606,7 @@ impl Decimal {
     /// assert_eq!(one.to_string(), "0.00001");
     /// ```
     pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
-        if scale > MAX_PRECISION {
+        if scale > MAX_PRECISION_U32 {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
@@ -1454,7 +1454,7 @@ impl Decimal {
         // In order to bring exponent up to -MAX_PRECISION, the mantissa should
         // be divided by 10 to compensate. If the exponent10 is too small, this
         // will cause the mantissa to underflow and become 0.
-        while exponent10 < -(MAX_PRECISION as i32) {
+        while exponent10 < -(MAX_PRECISION_U32 as i32) {
             let rem10 = ops::array::div_by_u32(bits, 10);
             exponent10 += 1;
             if ops::array::is_all_zero(bits) {

@@ -1,5 +1,5 @@
 use crate::{
-    constants::MAX_STR_BUFFER_SIZE,
+    constants::{MAX_PRECISION, MAX_STR_BUFFER_SIZE},
     error::Error,
     ops::array::{add_by_internal, add_one_internal, div_by_u32, is_all_zero, mul_by_10, mul_by_u32},
     Decimal,
@@ -31,7 +31,7 @@ pub(crate) fn to_str_internal(
     }
 
     let prec = match precision {
-        Some(prec) => prec,
+        Some(prec) => prec.min(MAX_PRECISION.into()),
         None => scale,
     };
 
@@ -530,4 +530,17 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
     }
 
     Ok(Decimal::from_parts(data[0], data[1], data[2], negative, scale))
+}
+
+#[cfg(test)]
+mod test {
+    use crate::Decimal;
+    use core::{fmt::Write, str::FromStr};
+
+    #[test]
+    fn display_does_not_overflow_max_capacity() {
+        let num = Decimal::from_str("1.2").unwrap();
+        let mut buffer = String::new();
+        let _ = buffer.write_fmt(format_args!("{:.31}", num));
+    }
 }
