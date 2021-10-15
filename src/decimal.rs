@@ -2053,8 +2053,13 @@ impl core::convert::TryFrom<Decimal> for f64 {
 
 impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let rep = crate::str::to_str_internal(self, false, f.precision());
-        f.pad_integral(self.is_sign_positive(), "", rep.as_str())
+        let (rep, additional) = crate::str::to_str_internal(self, false, f.precision());
+        if let Some(additional) = additional {
+            let value = [rep.as_str(), "0".repeat(additional).as_str()].concat();
+            f.pad_integral(self.is_sign_positive(), "", value.as_str())
+        } else {
+            f.pad_integral(self.is_sign_positive(), "", rep.as_str())
+        }
     }
 }
 

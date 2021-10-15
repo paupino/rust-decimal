@@ -15,7 +15,7 @@ pub(crate) fn to_str_internal(
     value: &Decimal,
     append_sign: bool,
     precision: Option<usize>,
-) -> ArrayString<[u8; MAX_STR_BUFFER_SIZE]> {
+) -> (ArrayString<[u8; MAX_STR_BUFFER_SIZE]>, Option<usize>) {
     // Get the scale - where we need to put the decimal point
     let scale = value.scale() as usize;
 
@@ -30,9 +30,16 @@ pub(crate) fn to_str_internal(
         chars.push('0');
     }
 
-    let prec = match precision {
-        Some(prec) => prec.min(MAX_PRECISION.into()),
-        None => scale,
+    let (prec, additional) = match precision {
+        Some(prec) => {
+            let max: usize = MAX_PRECISION.into();
+            if prec > max {
+                (max, Some(prec - max))
+            } else {
+                (prec, None)
+            }
+        }
+        None => (scale, None),
     };
 
     let len = chars.len();
@@ -66,7 +73,7 @@ pub(crate) fn to_str_internal(
         rep.push('0');
     }
 
-    rep
+    (rep, additional)
 }
 
 pub(crate) fn fmt_scientific_notation(
@@ -542,6 +549,7 @@ mod test {
     fn display_does_not_overflow_max_capacity() {
         let num = Decimal::from_str("1.2").unwrap();
         let mut buffer = ArrayString::<[u8; 64]>::new();
-        let _ = buffer.write_fmt(format_args!("{:.31}", num));
+        let _ = buffer.write_fmt(format_args!("{:.31}", num)).unwrap();
+        assert_eq!("1.2000000000000000000000000000000", buffer.as_str());
     }
 }
