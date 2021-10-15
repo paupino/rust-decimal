@@ -697,17 +697,29 @@ impl Decimal {
         //   Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
         //   Bits 24-30: unused
         //   Bit 31: the sign of the Decimal value, 0 meaning positive and 1 meaning negative.
-        let raw = Decimal {
+        let mut raw = Decimal {
             flags: ((bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24)
                 & 0x801F_0000,
             lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
             mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
             hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
         };
-        // Scale must be bound to maximum precision. The panic currently prevents this function being
-        // marked as a const function.
+        // Scale must be bound to maximum precision. Only two values can be greater than this
         if raw.scale() > MAX_PRECISION_U32 {
-            panic!("{}", Error::ScaleExceedsMaximumPrecision(raw.scale()))
+            let mut bits = raw.mantissa_array3();
+            let remainder = match raw.scale() {
+                29 => crate::ops::array::div_by_1x(&mut bits, 1),
+                30 => crate::ops::array::div_by_1x(&mut bits, 2),
+                31 => crate::ops::array::div_by_1x(&mut bits, 3),
+                _ => 0,
+            };
+            if remainder >= 5 {
+                ops::array::add_one_internal(&mut bits);
+            }
+            raw.lo = bits[0];
+            raw.mid = bits[1];
+            raw.hi = bits[2];
+            raw.flags = flags(raw.is_sign_negative(), MAX_PRECISION_U32);
         }
         raw
     }
