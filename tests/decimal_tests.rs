@@ -133,19 +133,37 @@ fn it_can_serialize_deserialize() {
 }
 
 #[test]
-#[should_panic(expected = "Scale exceeds the maximum precision allowed: 30 > 28")]
-fn it_panics_deserializing_unbounded_values() {
-    let _ = Decimal::deserialize([1u8, 0, 30, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62]);
-}
-
-#[test]
-fn it_can_deserialize_bounded_values() {
-    let tests = [[1u8, 0, 28, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62]];
-    for &bytes in &tests {
+fn it_can_deserialize_unbounded_values() {
+    // Mantissa for these: 19393111376951473493673267553
+    let tests = [
+        (
+            [1u8, 0, 28, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62],
+            // Scale 28: -1.9393111376951473493673267553
+            "-1.9393111376951473493673267553",
+        ),
+        (
+            [1u8, 0, 29, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62],
+            // Scale 29: -0.19393111376951473493673267553
+            "-0.1939311137695147349367326755",
+        ),
+        (
+            [1u8, 0, 30, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62],
+            // Scale 30: -0.019393111376951473493673267553
+            "-0.0193931113769514734936732676",
+        ),
+        (
+            [1u8, 0, 31, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62],
+            // Scale 31: -0.0019393111376951473493673267553
+            "-0.0019393111376951473493673268",
+        ),
+    ];
+    for &(bytes, expected) in &tests {
         let dec = Decimal::deserialize(bytes);
         let string = format!("{:.9999}", dec);
         let dec2 = Decimal::from_str(&string).unwrap();
         assert_eq!(dec, dec2);
+        assert_eq!(dec.to_string(), expected, "dec.to_string()");
+        assert_eq!(dec2.to_string(), expected, "dec2.to_string()");
     }
 }
 
