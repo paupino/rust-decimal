@@ -691,13 +691,25 @@ impl Decimal {
     /// * Bytes 9-12: mid portion of `m`
     /// * Bytes 13-16: high portion of `m`
     #[must_use]
-    pub const fn deserialize(bytes: [u8; 16]) -> Decimal {
-        Decimal {
-            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
+    pub fn deserialize(bytes: [u8; 16]) -> Decimal {
+        // We can bound flags by a bitwise mask to correspond to:
+        //   Bits 0-15: unused
+        //   Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
+        //   Bits 24-30: unused
+        //   Bit 31: the sign of the Decimal value, 0 meaning positive and 1 meaning negative.
+        let raw = Decimal {
+            flags: ((bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24)
+                & 0x801F_0000,
             lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
             mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
             hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
+        };
+        // Scale must be bound to maximum precision. The panic currently prevents this function being
+        // marked as a const function.
+        if raw.scale() > MAX_PRECISION_U32 {
+            panic!("{}", Error::ScaleExceedsMaximumPrecision(raw.scale()))
         }
+        raw
     }
 
     /// Returns `true` if the decimal is negative.

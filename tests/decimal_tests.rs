@@ -132,6 +132,23 @@ fn it_can_serialize_deserialize() {
     }
 }
 
+#[test]
+#[should_panic(expected = "Scale exceeds the maximum precision allowed: 30 > 28")]
+fn it_panics_deserializing_unbounded_values() {
+    let _ = Decimal::deserialize([1u8, 0, 30, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62]);
+}
+
+#[test]
+fn it_can_deserialize_bounded_values() {
+    let tests = [[1u8, 0, 28, 206, 97, 81, 216, 182, 20, 30, 165, 78, 18, 155, 169, 62]];
+    for &bytes in &tests {
+        let dec = Decimal::deserialize(bytes);
+        let string = format!("{:.9999}", dec);
+        let dec2 = Decimal::from_str(&string).unwrap();
+        assert_eq!(dec, dec2);
+    }
+}
+
 // Formatting
 
 #[test]
