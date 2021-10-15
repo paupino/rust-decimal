@@ -1,5 +1,5 @@
 use crate::constants::{
-    MAX_I128_REPR, MAX_PRECISION, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
+    MAX_I128_REPR, MAX_PRECISION_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
     UNSIGN_MASK,
 };
 use crate::ops;
@@ -263,7 +263,7 @@ impl Decimal {
     /// assert!(max.is_err());
     /// ```
     pub const fn try_new(num: i64, scale: u32) -> crate::Result<Decimal> {
-        if scale > MAX_PRECISION {
+        if scale > MAX_PRECISION_U32 {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let flags: u32 = scale << SCALE_SHIFT;
@@ -323,7 +323,7 @@ impl Decimal {
     /// assert!(max.is_err());
     /// ```
     pub const fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
-        if scale > MAX_PRECISION {
+        if scale > MAX_PRECISION_U32 {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let mut neg = false;
@@ -382,7 +382,7 @@ impl Decimal {
                 } else {
                     negative
                 },
-                scale % (MAX_PRECISION + 1),
+                scale % (MAX_PRECISION_U32 + 1),
             ),
         }
     }
@@ -442,7 +442,7 @@ impl Decimal {
                 // we've parsed 1.2 as the base and 10 as the exponent. To represent this within a
                 // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
                 // zero.
-                if exp > MAX_PRECISION {
+                if exp > MAX_PRECISION_U32 {
                     return Err(Error::ScaleExceedsMaximumPrecision(exp));
                 }
                 let mut exp = exp as usize;
@@ -606,7 +606,7 @@ impl Decimal {
     /// assert_eq!(one.to_string(), "0.00001");
     /// ```
     pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
-        if scale > MAX_PRECISION {
+        if scale > MAX_PRECISION_U32 {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
@@ -691,13 +691,25 @@ impl Decimal {
     /// * Bytes 9-12: mid portion of `m`
     /// * Bytes 13-16: high portion of `m`
     #[must_use]
-    pub const fn deserialize(bytes: [u8; 16]) -> Decimal {
-        Decimal {
-            flags: (bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24,
+    pub fn deserialize(bytes: [u8; 16]) -> Decimal {
+        // We can bound flags by a bitwise mask to correspond to:
+        //   Bits 0-15: unused
+        //   Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
+        //   Bits 24-30: unused
+        //   Bit 31: the sign of the Decimal value, 0 meaning positive and 1 meaning negative.
+        let raw = Decimal {
+            flags: ((bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24)
+                & 0x801F_0000,
             lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
             mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
             hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
+        };
+        // Scale must be bound to maximum precision. The panic currently prevents this function being
+        // marked as a const function.
+        if raw.scale() > MAX_PRECISION_U32 {
+            panic!("{}", Error::ScaleExceedsMaximumPrecision(raw.scale()))
         }
+        raw
     }
 
     /// Returns `true` if the decimal is negative.
@@ -1454,7 +1466,7 @@ impl Decimal {
         // In order to bring exponent up to -MAX_PRECISION, the mantissa should
         // be divided by 10 to compensate. If the exponent10 is too small, this
         // will cause the mantissa to underflow and become 0.
-        while exponent10 < -(MAX_PRECISION as i32) {
+        while exponent10 < -(MAX_PRECISION_U32 as i32) {
             let rem10 = ops::array::div_by_u32(bits, 10);
             exponent10 += 1;
             if ops::array::is_all_zero(bits) {
@@ -2053,8 +2065,13 @@ impl core::convert::TryFrom<Decimal> for f64 {
 
 impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let rep = crate::str::to_str_internal(self, false, f.precision());
-        f.pad_integral(self.is_sign_positive(), "", rep.as_str())
+        let (rep, additional) = crate::str::to_str_internal(self, false, f.precision());
+        if let Some(additional) = additional {
+            let value = [rep.as_str(), "0".repeat(additional).as_str()].concat();
+            f.pad_integral(self.is_sign_positive(), "", value.as_str())
+        } else {
+            f.pad_integral(self.is_sign_positive(), "", rep.as_str())
+        }
     }
 }
 

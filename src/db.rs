@@ -1,4 +1,4 @@
-use crate::constants::MAX_PRECISION;
+use crate::constants::MAX_PRECISION_U32;
 use crate::{
     ops::array::{div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
@@ -64,12 +64,13 @@ impl Decimal {
             let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
             for (i, digit) in digits.into_iter().enumerate() {
                 let fract_pow = 4 * (i as u32 + 1 + start_fractionals);
-                if fract_pow <= MAX_PRECISION {
+                if fract_pow <= MAX_PRECISION_U32 {
                     result += Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0);
-                } else if fract_pow == MAX_PRECISION + 4 {
+                } else if fract_pow == MAX_PRECISION_U32 + 4 {
                     // rounding last digit
                     if digit >= 5000 {
-                        result += Decimal::new(1_i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION), 0);
+                        result +=
+                            Decimal::new(1_i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION_U32), 0);
                     }
                 }
             }
