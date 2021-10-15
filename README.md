@@ -115,7 +115,7 @@ Documentation detailing the additional functions can be found on the
 
 Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
 to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this 
-non-panicing behavior, please use the feature: `maths-nopanic`. 
+non-panicking behavior, please use the feature: `maths-nopanic`. 
 
 ### `rust-fuzz`
 

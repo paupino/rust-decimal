@@ -1244,6 +1244,7 @@ impl Decimal {
             let _remainder = ops::array::div_by_u32(&mut working, 10u32);
             mantissa_sf += 1;
             if working[2] == 0 && working[1] == 0 && working[0] == 1 {
+                mantissa_sf += 1;
                 break;
             }
         }
@@ -1275,8 +1276,10 @@ impl Decimal {
                     use crate::constants::BIG_POWERS_10;
                     // We need to adjust the integral portion. This also should be rounded, consequently
                     // we reduce the number down, round it, and then scale back up.
-                    // E.g. If we have 305.459 scaling to a sf of 2. We first, reduce the number
+                    // E.g. If we have 305.459 scaling to a sf of 2 - we first reduce the number
                     // down to 30.5459, round it to 31 and then scale it back up to 310.
+                    // Likewise, if we have 12301 scaling to a sf of 3 - we first reduce the number
+                    // down to 123.01, round it to 123 and then scale it back up to 12300.
                     let mut num = *self;
                     let mut exp = (diff - scale) as usize;
                     while exp > 0 {
