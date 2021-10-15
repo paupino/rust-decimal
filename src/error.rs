@@ -1,4 +1,4 @@
-use crate::constants::MAX_PRECISION;
+use crate::constants::MAX_PRECISION_U32;
 use alloc::string::String;
 use core::fmt;
 
@@ -38,7 +38,7 @@ impl fmt::Display for Error {
                 write!(
                     f,
                     "Scale exceeds the maximum precision allowed: {} > {}",
-                    scale, MAX_PRECISION
+                    scale, MAX_PRECISION_U32
                 )
             }
         }

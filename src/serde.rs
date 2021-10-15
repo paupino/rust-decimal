@@ -174,7 +174,8 @@ impl serde::Serialize for Decimal {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(crate::str::to_str_internal(self, true, None).as_ref())
+        let value = crate::str::to_str_internal(self, true, None);
+        serializer.serialize_str(value.0.as_ref())
     }
 }
 
