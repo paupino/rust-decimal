@@ -2414,6 +2414,45 @@ fn it_can_round_significant_figures() {
 }
 
 #[test]
+fn it_can_round_significant_figures_with_strategy() {
+    let tests = &[
+        ("12301", 3u32, RoundingStrategy::AwayFromZero, Some("12400")),
+        ("123.01", 3u32, RoundingStrategy::AwayFromZero, Some("124")),
+        ("1.2301", 3u32, RoundingStrategy::AwayFromZero, Some("1.24")),
+        ("0.12301", 3u32, RoundingStrategy::AwayFromZero, Some("0.124")),
+    ];
+    for &(input, sf, strategy, expected) in tests {
+        let input = Decimal::from_str(input).unwrap();
+        let result = input.round_sf_with_strategy(sf, strategy);
+        if let Some(expected) = expected {
+            assert!(
+                result.is_some(),
+                "Expected result for {}.round_sf_with_strategy({}, {:?})",
+                input,
+                sf,
+                strategy
+            );
+            assert_eq!(
+                expected,
+                result.unwrap().to_string(),
+                "{}.round_sf_with_strategy({}, {:?})",
+                input,
+                sf,
+                strategy
+            );
+        } else {
+            assert!(
+                result.is_none(),
+                "Unexpected result for {}.round_sf_with_strategy({}, {:?})",
+                input,
+                sf,
+                strategy
+            );
+        }
+    }
+}
+
+#[test]
 fn it_can_trunc() {
     let tests = &[("1.00000000000000000000", "1"), ("1.000000000000000000000001", "1")];
 

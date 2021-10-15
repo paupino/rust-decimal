@@ -1,5 +1,12 @@
 # Version History
 
+## Unreleased
+
+* Fixes panic when display precision was specified greater than 30. [#428](https://github.com/paupino/rust-decimal/issues/428). 
+* Binds `deserialize` so that invalid scale values cannot be set. This may be a breaking change for some users leveraging
+  this in a `const` function. [#428](https://github.com/paupino/rust-decimal/issues/428).
+* Fixes an issue in `round_sf` whereby integral values that started with a 1 would output incorrect rounded numbers. [#430](https://github.com/paupino/rust-decimal/issues/430).
+
 ## 1.16.0
 
 * Implement `sin`/`cos`/`tan` functions which are enabled within the `maths` feature. [#413](https://github.com/paupino/rust-decimal/pull/413).
