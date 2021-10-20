@@ -1494,40 +1494,42 @@ impl Decimal {
             }
         }
 
-        // This step is required in order to remove excess bits of precision from the
-        // end of the bit representation, down to the precision guaranteed by the
-        // floating point number
-        if is64 {
-            // Guaranteed to about 16 dp
-            while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFF0_0000) != 0) {
-                let rem10 = ops::array::div_by_u32(bits, 10);
-                exponent10 += 1;
-                if rem10 >= 5 {
-                    ops::array::add_one_internal(bits);
+        if cfg!(not(feature = "float-excess-precision")) {
+            // This step is required in order to remove excess bits of precision from the
+            // end of the bit representation, down to the precision guaranteed by the
+            // floating point number
+            if is64 {
+                // Guaranteed to about 16 dp
+                while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFF0_0000) != 0) {
+                    let rem10 = ops::array::div_by_u32(bits, 10);
+                    exponent10 += 1;
+                    if rem10 >= 5 {
+                        ops::array::add_one_internal(bits);
+                    }
                 }
-            }
-        } else {
-            // Guaranteed to about 7 dp
-            while exponent10 < 0 && ((bits[0] & 0xFF00_0000) != 0 || bits[1] != 0 || bits[2] != 0) {
-                let rem10 = ops::array::div_by_u32(bits, 10);
-                exponent10 += 1;
-                if rem10 >= 5 {
-                    ops::array::add_one_internal(bits);
-                }
-            }
-        }
-
-        // Remove multiples of 10 from the representation
-        while exponent10 < 0 {
-            let mut temp = [bits[0], bits[1], bits[2]];
-            let remainder = ops::array::div_by_u32(&mut temp, 10);
-            if remainder == 0 {
-                exponent10 += 1;
-                bits[0] = temp[0];
-                bits[1] = temp[1];
-                bits[2] = temp[2];
             } else {
-                break;
+                // Guaranteed to about 7 dp
+                while exponent10 < 0 && ((bits[0] & 0xFF00_0000) != 0 || bits[1] != 0 || bits[2] != 0) {
+                    let rem10 = ops::array::div_by_u32(bits, 10);
+                    exponent10 += 1;
+                    if rem10 >= 5 {
+                        ops::array::add_one_internal(bits);
+                    }
+                }
+            }
+
+            // Remove multiples of 10 from the representation
+            while exponent10 < 0 {
+                let mut temp = [bits[0], bits[1], bits[2]];
+                let remainder = ops::array::div_by_u32(&mut temp, 10);
+                if remainder == 0 {
+                    exponent10 += 1;
+                    bits[0] = temp[0];
+                    bits[1] = temp[1];
+                    bits[2] = temp[2];
+                } else {
+                    break;
+                }
             }
         }
 
