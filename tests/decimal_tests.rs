@@ -2722,6 +2722,7 @@ fn it_converts_from_f32() {
         (0.1234567800123456789012345678_f32, "0.12345678"),
         (0.12345678901234567890123456789_f32, "0.12345679"),
         (0.00000000000000000000000000001_f32, "0"),
+        (5.1_f32, "5.1"),
     ];
 
     for &(input, expected) in &tests {
@@ -2757,6 +2758,25 @@ fn it_converts_from_f32_limits() {
 }
 
 #[test]
+fn it_converts_from_f32_retaining_bits() {
+    let tests = [
+        (0.1_f32, "0.100000001490116119384765625"),
+        (2_f32, "2"),
+        (4.000_f32, "4"),
+        (5.1_f32, "5.099999904632568359375"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f32_retain_excess_bits(input).unwrap().to_string(),
+            "from_f32_retain_excess_bits({})",
+            input
+        );
+    }
+}
+
+#[test]
 fn it_converts_from_f64() {
     use num_traits::FromPrimitive;
 
@@ -2771,6 +2791,7 @@ fn it_converts_from_f64() {
         (0.6927_f64, "0.6927"),
         (0.00006927_f64, "0.00006927"),
         (0.000000006927_f64, "0.000000006927"),
+        (5.1_f64, "5.1"),
     ];
 
     for &(input, expected) in &tests {
@@ -2803,6 +2824,25 @@ fn it_converts_from_f64_limits() {
     assert!(Decimal::from_f64(f64::MIN).is_none(), "from_f64(f64::MIN)");
     assert!(Decimal::try_from(f64::MAX).is_err(), "try_from(f64::MIN)");
     assert!(Decimal::try_from(f64::MIN).is_err(), "try_from(f64::MAX)");
+}
+
+#[test]
+fn it_converts_from_f64_retaining_bits() {
+    let tests = [
+        (0.1_f64, "0.1000000000000000055511151231"),
+        (2_f64, "2"),
+        (4.000_f64, "4"),
+        (5.1_f64, "5.0999999999999996447286321175"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f64_retain_excess_bits(input).unwrap().to_string(),
+            "from_f64_retain_excess_bits({})",
+            input
+        );
+    }
 }
 
 #[test]

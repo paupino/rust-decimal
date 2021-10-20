@@ -1403,142 +1403,46 @@ impl Decimal {
         [self.lo, self.mid, self.hi, 0]
     }
 
-    fn base2_to_decimal(bits: &mut [u32; 3], exponent2: i32, positive: bool, is64: bool) -> Option<Self> {
-        // 2^exponent2 = (10^exponent2)/(5^exponent2)
-        //             = (5^-exponent2)*(10^exponent2)
-        let mut exponent5 = -exponent2;
-        let mut exponent10 = exponent2; // Ultimately, we want this for the scale
+    /// Parses a 32-bit float into a Decimal number whilst retaining any non-guaranteed precision.
+    ///
+    /// Typically when a float is parsed in Rust Decimal, any excess bits (after ~7.22 decimal points for
+    /// f32 as per IEEE-754) are removed due to any digits following this are considered an approximation
+    /// at best. This function bypasses this additional step and retains these excess bits.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::prelude::*;
+    ///
+    /// // Usually floats are parsed leveraging float guarantees. i.e. 0.1_f32 => 0.1
+    /// assert_eq!("0.1", Decimal::from_f32(0.1_f32).unwrap().to_string());
+    ///
+    /// // Sometimes, we may want to represent the approximation exactly.
+    /// assert_eq!("0.100000001490116119384765625", Decimal::from_f32_retain_excess_bits(0.1_f32).unwrap().to_string());
+    /// ```
+    pub fn from_f32_retain_excess_bits(n: f32) -> Option<Self> {
+        from_f32(n, false)
+    }
 
-        while exponent5 > 0 {
-            // Check to see if the mantissa is divisible by 2
-            if bits[0] & 0x1 == 0 {
-                exponent10 += 1;
-                exponent5 -= 1;
-
-                // We can divide by 2 without losing precision
-                let hi_carry = bits[2] & 0x1 == 1;
-                bits[2] >>= 1;
-                let mid_carry = bits[1] & 0x1 == 1;
-                bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
-                bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
-            } else {
-                // The mantissa is NOT divisible by 2. Therefore the mantissa should
-                // be multiplied by 5, unless the multiplication overflows.
-                exponent5 -= 1;
-
-                let mut temp = [bits[0], bits[1], bits[2]];
-                if ops::array::mul_by_u32(&mut temp, 5) == 0 {
-                    // Multiplication succeeded without overflow, so copy result back
-                    bits[0] = temp[0];
-                    bits[1] = temp[1];
-                    bits[2] = temp[2];
-                } else {
-                    // Multiplication by 5 overflows. The mantissa should be divided
-                    // by 2, and therefore will lose significant digits.
-                    exponent10 += 1;
-
-                    // Shift right
-                    let hi_carry = bits[2] & 0x1 == 1;
-                    bits[2] >>= 1;
-                    let mid_carry = bits[1] & 0x1 == 1;
-                    bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
-                    bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
-                }
-            }
-        }
-
-        // In order to divide the value by 5, it is best to multiply by 2/10.
-        // Therefore, exponent10 is decremented, and the mantissa should be multiplied by 2
-        while exponent5 < 0 {
-            if bits[2] & SIGN_MASK == 0 {
-                // No far left bit, the mantissa can withstand a shift-left without overflowing
-                exponent10 -= 1;
-                exponent5 += 1;
-                ops::array::shl1_internal(bits, 0);
-            } else {
-                // The mantissa would overflow if shifted. Therefore it should be
-                // directly divided by 5. This will lose significant digits, unless
-                // by chance the mantissa happens to be divisible by 5.
-                exponent5 += 1;
-                ops::array::div_by_u32(bits, 5);
-            }
-        }
-
-        // At this point, the mantissa has assimilated the exponent5, but
-        // exponent10 might not be suitable for assignment. exponent10 must be
-        // in the range [-MAX_PRECISION..0], so the mantissa must be scaled up or
-        // down appropriately.
-        while exponent10 > 0 {
-            // In order to bring exponent10 down to 0, the mantissa should be
-            // multiplied by 10 to compensate. If the exponent10 is too big, this
-            // will cause the mantissa to overflow.
-            if ops::array::mul_by_u32(bits, 10) == 0 {
-                exponent10 -= 1;
-            } else {
-                // Overflowed - return?
-                return None;
-            }
-        }
-
-        // In order to bring exponent up to -MAX_PRECISION, the mantissa should
-        // be divided by 10 to compensate. If the exponent10 is too small, this
-        // will cause the mantissa to underflow and become 0.
-        while exponent10 < -(MAX_PRECISION_U32 as i32) {
-            let rem10 = ops::array::div_by_u32(bits, 10);
-            exponent10 += 1;
-            if ops::array::is_all_zero(bits) {
-                // Underflow, unable to keep dividing
-                exponent10 = 0;
-            } else if rem10 >= 5 {
-                ops::array::add_one_internal(bits);
-            }
-        }
-
-        if cfg!(not(feature = "float-excess-precision")) {
-            // This step is required in order to remove excess bits of precision from the
-            // end of the bit representation, down to the precision guaranteed by the
-            // floating point number
-            if is64 {
-                // Guaranteed to about 16 dp
-                while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFF0_0000) != 0) {
-                    let rem10 = ops::array::div_by_u32(bits, 10);
-                    exponent10 += 1;
-                    if rem10 >= 5 {
-                        ops::array::add_one_internal(bits);
-                    }
-                }
-            } else {
-                // Guaranteed to about 7 dp
-                while exponent10 < 0 && ((bits[0] & 0xFF00_0000) != 0 || bits[1] != 0 || bits[2] != 0) {
-                    let rem10 = ops::array::div_by_u32(bits, 10);
-                    exponent10 += 1;
-                    if rem10 >= 5 {
-                        ops::array::add_one_internal(bits);
-                    }
-                }
-            }
-
-            // Remove multiples of 10 from the representation
-            while exponent10 < 0 {
-                let mut temp = [bits[0], bits[1], bits[2]];
-                let remainder = ops::array::div_by_u32(&mut temp, 10);
-                if remainder == 0 {
-                    exponent10 += 1;
-                    bits[0] = temp[0];
-                    bits[1] = temp[1];
-                    bits[2] = temp[2];
-                } else {
-                    break;
-                }
-            }
-        }
-
-        Some(Decimal {
-            lo: bits[0],
-            mid: bits[1],
-            hi: bits[2],
-            flags: flags(!positive, -exponent10 as u32),
-        })
+    /// Parses a 64-bit float into a Decimal number whilst retaining any non-guaranteed precision.
+    ///
+    /// Typically when a float is parsed in Rust Decimal, any excess bits (after ~15.95 decimal points for
+    /// f64 as per IEEE-754) are removed due to any digits following this are considered an approximation
+    /// at best. This function bypasses this additional step and retains these excess bits.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rust_decimal::prelude::*;
+    ///
+    /// // Usually floats are parsed leveraging float guarantees. i.e. 0.1_f64 => 0.1
+    /// assert_eq!("0.1", Decimal::from_f64(0.1_f64).unwrap().to_string());
+    ///
+    /// // Sometimes, we may want to represent the approximation exactly.
+    /// assert_eq!("0.1000000000000000055511151231", Decimal::from_f64_retain_excess_bits(0.1_f64).unwrap().to_string());
+    /// ```
+    pub fn from_f64_retain_excess_bits(n: f64) -> Option<Self> {
+        from_f64(n, false)
     }
 
     /// Checked addition. Computes `self + other`, returning `None` if overflow occurred.
@@ -1886,96 +1790,252 @@ impl FromPrimitive for Decimal {
     }
 
     fn from_f32(n: f32) -> Option<Decimal> {
-        // Handle the case if it is NaN, Infinity or -Infinity
-        if !n.is_finite() {
-            return None;
-        }
-
-        // It's a shame we can't use a union for this due to it being broken up by bits
-        // i.e. 1/8/23 (sign, exponent, mantissa)
-        // See https://en.wikipedia.org/wiki/IEEE_754-1985
-        // n = (sign*-1) * 2^exp * mantissa
-        // Decimal of course stores this differently... 10^-exp * significand
-        let raw = n.to_bits();
-        let positive = (raw >> 31) == 0;
-        let biased_exponent = ((raw >> 23) & 0xFF) as i32;
-        let mantissa = raw & 0x007F_FFFF;
-
-        // Handle the special zero case
-        if biased_exponent == 0 && mantissa == 0 {
-            let mut zero = ZERO;
-            if !positive {
-                zero.set_sign_negative(true);
-            }
-            return Some(zero);
-        }
-
-        // Get the bits and exponent2
-        let mut exponent2 = biased_exponent - 127;
-        let mut bits = [mantissa, 0u32, 0u32];
-        if biased_exponent == 0 {
-            // Denormalized number - correct the exponent
-            exponent2 += 1;
-        } else {
-            // Add extra hidden bit to mantissa
-            bits[0] |= 0x0080_0000;
-        }
-
-        // The act of copying a mantissa as integer bits is equivalent to shifting
-        // left the mantissa 23 bits. The exponent is reduced to compensate.
-        exponent2 -= 23;
-
-        // Convert to decimal
-        Decimal::base2_to_decimal(&mut bits, exponent2, positive, false)
+        // By default, we remove excess bits. This allows 0.1_f64 == dec!(0.1).
+        from_f32(n, true)
     }
 
     fn from_f64(n: f64) -> Option<Decimal> {
-        // Handle the case if it is NaN, Infinity or -Infinity
-        if !n.is_finite() {
+        // By default, we remove excess bits. This allows 0.1_f64 == dec!(0.1).
+        from_f64(n, true)
+    }
+}
+
+#[inline]
+fn from_f64(n: f64, remove_excess_bits: bool) -> Option<Decimal> {
+    // Handle the case if it is NaN, Infinity or -Infinity
+    if !n.is_finite() {
+        return None;
+    }
+
+    // It's a shame we can't use a union for this due to it being broken up by bits
+    // i.e. 1/11/52 (sign, exponent, mantissa)
+    // See https://en.wikipedia.org/wiki/IEEE_754-1985
+    // n = (sign*-1) * 2^exp * mantissa
+    // Decimal of course stores this differently... 10^-exp * significand
+    let raw = n.to_bits();
+    let positive = (raw >> 63) == 0;
+    let biased_exponent = ((raw >> 52) & 0x7FF) as i32;
+    let mantissa = raw & 0x000F_FFFF_FFFF_FFFF;
+
+    // Handle the special zero case
+    if biased_exponent == 0 && mantissa == 0 {
+        let mut zero = ZERO;
+        if !positive {
+            zero.set_sign_negative(true);
+        }
+        return Some(zero);
+    }
+
+    // Get the bits and exponent2
+    let mut exponent2 = biased_exponent - 1023;
+    let mut bits = [
+        (mantissa & 0xFFFF_FFFF) as u32,
+        ((mantissa >> 32) & 0xFFFF_FFFF) as u32,
+        0u32,
+    ];
+    if biased_exponent == 0 {
+        // Denormalized number - correct the exponent
+        exponent2 += 1;
+    } else {
+        // Add extra hidden bit to mantissa
+        bits[1] |= 0x0010_0000;
+    }
+
+    // The act of copying a mantissa as integer bits is equivalent to shifting
+    // left the mantissa 52 bits. The exponent is reduced to compensate.
+    exponent2 -= 52;
+
+    // Convert to decimal
+    base2_to_decimal(&mut bits, exponent2, positive, true, remove_excess_bits)
+}
+
+#[inline]
+fn from_f32(n: f32, remove_excess_bits: bool) -> Option<Decimal> {
+    // Handle the case if it is NaN, Infinity or -Infinity
+    if !n.is_finite() {
+        return None;
+    }
+
+    // It's a shame we can't use a union for this due to it being broken up by bits
+    // i.e. 1/8/23 (sign, exponent, mantissa)
+    // See https://en.wikipedia.org/wiki/IEEE_754-1985
+    // n = (sign*-1) * 2^exp * mantissa
+    // Decimal of course stores this differently... 10^-exp * significand
+    let raw = n.to_bits();
+    let positive = (raw >> 31) == 0;
+    let biased_exponent = ((raw >> 23) & 0xFF) as i32;
+    let mantissa = raw & 0x007F_FFFF;
+
+    // Handle the special zero case
+    if biased_exponent == 0 && mantissa == 0 {
+        let mut zero = ZERO;
+        if !positive {
+            zero.set_sign_negative(true);
+        }
+        return Some(zero);
+    }
+
+    // Get the bits and exponent2
+    let mut exponent2 = biased_exponent - 127;
+    let mut bits = [mantissa, 0u32, 0u32];
+    if biased_exponent == 0 {
+        // Denormalized number - correct the exponent
+        exponent2 += 1;
+    } else {
+        // Add extra hidden bit to mantissa
+        bits[0] |= 0x0080_0000;
+    }
+
+    // The act of copying a mantissa as integer bits is equivalent to shifting
+    // left the mantissa 23 bits. The exponent is reduced to compensate.
+    exponent2 -= 23;
+
+    // Convert to decimal
+    base2_to_decimal(&mut bits, exponent2, positive, false, remove_excess_bits)
+}
+
+fn base2_to_decimal(
+    bits: &mut [u32; 3],
+    exponent2: i32,
+    positive: bool,
+    is64: bool,
+    remove_excess_bits: bool,
+) -> Option<Decimal> {
+    // 2^exponent2 = (10^exponent2)/(5^exponent2)
+    //             = (5^-exponent2)*(10^exponent2)
+    let mut exponent5 = -exponent2;
+    let mut exponent10 = exponent2; // Ultimately, we want this for the scale
+
+    while exponent5 > 0 {
+        // Check to see if the mantissa is divisible by 2
+        if bits[0] & 0x1 == 0 {
+            exponent10 += 1;
+            exponent5 -= 1;
+
+            // We can divide by 2 without losing precision
+            let hi_carry = bits[2] & 0x1 == 1;
+            bits[2] >>= 1;
+            let mid_carry = bits[1] & 0x1 == 1;
+            bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
+            bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
+        } else {
+            // The mantissa is NOT divisible by 2. Therefore the mantissa should
+            // be multiplied by 5, unless the multiplication overflows.
+            exponent5 -= 1;
+
+            let mut temp = [bits[0], bits[1], bits[2]];
+            if ops::array::mul_by_u32(&mut temp, 5) == 0 {
+                // Multiplication succeeded without overflow, so copy result back
+                bits[0] = temp[0];
+                bits[1] = temp[1];
+                bits[2] = temp[2];
+            } else {
+                // Multiplication by 5 overflows. The mantissa should be divided
+                // by 2, and therefore will lose significant digits.
+                exponent10 += 1;
+
+                // Shift right
+                let hi_carry = bits[2] & 0x1 == 1;
+                bits[2] >>= 1;
+                let mid_carry = bits[1] & 0x1 == 1;
+                bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
+                bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
+            }
+        }
+    }
+
+    // In order to divide the value by 5, it is best to multiply by 2/10.
+    // Therefore, exponent10 is decremented, and the mantissa should be multiplied by 2
+    while exponent5 < 0 {
+        if bits[2] & SIGN_MASK == 0 {
+            // No far left bit, the mantissa can withstand a shift-left without overflowing
+            exponent10 -= 1;
+            exponent5 += 1;
+            ops::array::shl1_internal(bits, 0);
+        } else {
+            // The mantissa would overflow if shifted. Therefore it should be
+            // directly divided by 5. This will lose significant digits, unless
+            // by chance the mantissa happens to be divisible by 5.
+            exponent5 += 1;
+            ops::array::div_by_u32(bits, 5);
+        }
+    }
+
+    // At this point, the mantissa has assimilated the exponent5, but
+    // exponent10 might not be suitable for assignment. exponent10 must be
+    // in the range [-MAX_PRECISION..0], so the mantissa must be scaled up or
+    // down appropriately.
+    while exponent10 > 0 {
+        // In order to bring exponent10 down to 0, the mantissa should be
+        // multiplied by 10 to compensate. If the exponent10 is too big, this
+        // will cause the mantissa to overflow.
+        if ops::array::mul_by_u32(bits, 10) == 0 {
+            exponent10 -= 1;
+        } else {
+            // Overflowed - return?
             return None;
         }
-
-        // It's a shame we can't use a union for this due to it being broken up by bits
-        // i.e. 1/11/52 (sign, exponent, mantissa)
-        // See https://en.wikipedia.org/wiki/IEEE_754-1985
-        // n = (sign*-1) * 2^exp * mantissa
-        // Decimal of course stores this differently... 10^-exp * significand
-        let raw = n.to_bits();
-        let positive = (raw >> 63) == 0;
-        let biased_exponent = ((raw >> 52) & 0x7FF) as i32;
-        let mantissa = raw & 0x000F_FFFF_FFFF_FFFF;
-
-        // Handle the special zero case
-        if biased_exponent == 0 && mantissa == 0 {
-            let mut zero = ZERO;
-            if !positive {
-                zero.set_sign_negative(true);
-            }
-            return Some(zero);
-        }
-
-        // Get the bits and exponent2
-        let mut exponent2 = biased_exponent - 1023;
-        let mut bits = [
-            (mantissa & 0xFFFF_FFFF) as u32,
-            ((mantissa >> 32) & 0xFFFF_FFFF) as u32,
-            0u32,
-        ];
-        if biased_exponent == 0 {
-            // Denormalized number - correct the exponent
-            exponent2 += 1;
-        } else {
-            // Add extra hidden bit to mantissa
-            bits[1] |= 0x0010_0000;
-        }
-
-        // The act of copying a mantissa as integer bits is equivalent to shifting
-        // left the mantissa 52 bits. The exponent is reduced to compensate.
-        exponent2 -= 52;
-
-        // Convert to decimal
-        Decimal::base2_to_decimal(&mut bits, exponent2, positive, true)
     }
+
+    // In order to bring exponent up to -MAX_PRECISION, the mantissa should
+    // be divided by 10 to compensate. If the exponent10 is too small, this
+    // will cause the mantissa to underflow and become 0.
+    while exponent10 < -(MAX_PRECISION_U32 as i32) {
+        let rem10 = ops::array::div_by_u32(bits, 10);
+        exponent10 += 1;
+        if ops::array::is_all_zero(bits) {
+            // Underflow, unable to keep dividing
+            exponent10 = 0;
+        } else if rem10 >= 5 {
+            ops::array::add_one_internal(bits);
+        }
+    }
+
+    if remove_excess_bits {
+        // This step is required in order to remove excess bits of precision from the
+        // end of the bit representation, down to the precision guaranteed by the
+        // floating point number (see IEEE-754).
+        if is64 {
+            // Guaranteed to approx 15/16 dp
+            while exponent10 < 0 && (bits[2] != 0 || (bits[1] & 0xFFF0_0000) != 0) {
+                let rem10 = ops::array::div_by_u32(bits, 10);
+                exponent10 += 1;
+                if rem10 >= 5 {
+                    ops::array::add_one_internal(bits);
+                }
+            }
+        } else {
+            // Guaranteed to about 7/8 dp
+            while exponent10 < 0 && ((bits[0] & 0xFF00_0000) != 0 || bits[1] != 0 || bits[2] != 0) {
+                let rem10 = ops::array::div_by_u32(bits, 10);
+                exponent10 += 1;
+                if rem10 >= 5 {
+                    ops::array::add_one_internal(bits);
+                }
+            }
+        }
+
+        // Remove multiples of 10 from the representation
+        while exponent10 < 0 {
+            let mut temp = [bits[0], bits[1], bits[2]];
+            let remainder = ops::array::div_by_u32(&mut temp, 10);
+            if remainder == 0 {
+                exponent10 += 1;
+                bits[0] = temp[0];
+                bits[1] = temp[1];
+                bits[2] = temp[2];
+            } else {
+                break;
+            }
+        }
+    }
+
+    Some(Decimal {
+        lo: bits[0],
+        mid: bits[1],
+        hi: bits[2],
+        flags: flags(!positive, -exponent10 as u32),
+    })
 }
 
 impl ToPrimitive for Decimal {
