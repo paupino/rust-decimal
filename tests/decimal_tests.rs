@@ -2438,6 +2438,9 @@ fn it_can_round_significant_figures_with_strategy() {
         ("123.01", 3u32, RoundingStrategy::AwayFromZero, Some("124")),
         ("1.2301", 3u32, RoundingStrategy::AwayFromZero, Some("1.24")),
         ("0.12301", 3u32, RoundingStrategy::AwayFromZero, Some("0.124")),
+        ("0.012301", 3u32, RoundingStrategy::AwayFromZero, Some("0.0124")),
+        ("0.0000012301", 3u32, RoundingStrategy::AwayFromZero, Some("0.00000124")),
+        ("1.012301", 3u32, RoundingStrategy::AwayFromZero, Some("1.02")),
     ];
     for &(input, sf, strategy, expected) in tests {
         let input = Decimal::from_str(input).unwrap();

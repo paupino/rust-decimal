@@ -1213,6 +1213,9 @@ impl Decimal {
     /// assert_eq!(value.round_sf(6), Some(Decimal::from_str("305.459").unwrap()));
     /// assert_eq!(value.round_sf(7), Some(Decimal::from_str("305.4590").unwrap()));
     /// assert_eq!(Decimal::MAX.round_sf(1), None);
+    ///
+    /// let value = Decimal::from_str("0.012301").unwrap();
+    /// assert_eq!(value.round_sf(3), Some(Decimal::from_str("0.0123").unwrap()));
     /// ```
     #[must_use]
     pub fn round_sf(&self, digits: u32) -> Option<Decimal> {
@@ -1252,6 +1255,9 @@ impl Decimal {
     /// assert_eq!(value.round_sf_with_strategy(6, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("305.459").unwrap());
     /// assert_eq!(value.round_sf_with_strategy(7, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("305.4590").unwrap());
     /// assert_eq!(Decimal::MAX.round_sf_with_strategy(1, RoundingStrategy::ToZero).unwrap(), Decimal::from_str("70000000000000000000000000000").unwrap());
+    ///
+    /// let value = Decimal::from_str("0.012301").unwrap();
+    /// assert_eq!(value.round_sf_with_strategy(3, RoundingStrategy::AwayFromZero), Some(Decimal::from_str("0.0124").unwrap()));
     /// ```
     #[must_use]
     pub fn round_sf_with_strategy(&self, digits: u32, strategy: RoundingStrategy) -> Option<Decimal> {
@@ -1272,18 +1278,14 @@ impl Decimal {
                 break;
             }
         }
-
-        // Total significant figures in the full number also needs to include scale.
-        // e.g. mantissa 1, scale of 6 = 0.000001 (6 sf), mantissa 1234, scale of 3 = 1.234 (4 sf)
         let scale = self.scale();
-        let current_sf = if scale > mantissa_sf { scale } else { mantissa_sf };
 
-        match digits.cmp(&current_sf) {
+        match digits.cmp(&mantissa_sf) {
             Ordering::Greater => {
                 // If we're requesting a higher number of significant figures, we rescale
                 let mut array = [self.lo, self.mid, self.hi];
-                let mut value_scale = self.scale();
-                ops::array::rescale_internal(&mut array, &mut value_scale, scale + digits - current_sf);
+                let mut value_scale = scale;
+                ops::array::rescale_internal(&mut array, &mut value_scale, scale + digits - mantissa_sf);
                 Some(Decimal {
                     lo: array[0],
                     mid: array[1],
@@ -1293,7 +1295,7 @@ impl Decimal {
             }
             Ordering::Less => {
                 // We're requesting a lower number of significant digits.
-                let diff = current_sf - digits;
+                let diff = mantissa_sf - digits;
                 // If the diff is greater than the scale we're focused on the integral. Otherwise, we can
                 // just round.
                 if diff > scale {
@@ -1318,7 +1320,7 @@ impl Decimal {
                         num = num.checked_div(pow)?;
                     }
                     let mut num = num.round_dp_with_strategy(0, strategy).trunc();
-                    let mut exp = (current_sf - digits - scale) as usize;
+                    let mut exp = (mantissa_sf - digits - scale) as usize;
                     while exp > 0 {
                         let pow;
                         if exp >= BIG_POWERS_10.len() {
