@@ -17,8 +17,8 @@ To get started, add `rust_decimal` and optionally `rust_decimal_macros` to your 
 
 ```toml
 [dependencies]
-rust_decimal = "1.16"
-rust_decimal_macros = "1.16"
+rust_decimal = "1.17"
+rust_decimal_macros = "1.17"
 ```
 
 ## Usage
