@@ -2712,129 +2712,137 @@ fn it_converts_from_u128() {
 
 #[test]
 fn it_converts_from_f32() {
-    fn from_f32(f: f32) -> Option<Decimal> {
-        num_traits::FromPrimitive::from_f32(f)
+    use num_traits::FromPrimitive;
+
+    let tests = [
+        (0.1_f32, "0.1"),
+        (1_f32, "1"),
+        (0_f32, "0"),
+        (0.12345_f32, "0.12345"),
+        (0.1234567800123456789012345678_f32, "0.12345678"),
+        (0.12345678901234567890123456789_f32, "0.12345679"),
+        (0.00000000000000000000000000001_f32, "0"),
+        (5.1_f32, "5.1"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f32(input).unwrap().to_string(),
+            "from_f32({})",
+            input
+        );
+        assert_eq!(
+            expected,
+            Decimal::try_from(input).unwrap().to_string(),
+            "try_from({})",
+            input
+        );
     }
-
-    assert_eq!("1", from_f32(1f32).unwrap().to_string());
-    assert_eq!("0", from_f32(0f32).unwrap().to_string());
-    assert_eq!("0.12345", from_f32(0.12345f32).unwrap().to_string());
-    assert_eq!(
-        "0.12345678",
-        from_f32(0.1234567800123456789012345678f32).unwrap().to_string()
-    );
-    assert_eq!(
-        "0.12345679",
-        from_f32(0.12345678901234567890123456789f32).unwrap().to_string()
-    );
-    assert_eq!("0", from_f32(0.00000000000000000000000000001f32).unwrap().to_string());
-
-    assert!(from_f32(f32::NAN).is_none());
-    assert!(from_f32(f32::INFINITY).is_none());
-
-    // These both overflow
-    assert!(from_f32(f32::MAX).is_none());
-    assert!(from_f32(f32::MIN).is_none());
 }
 
 #[test]
-fn it_converts_from_f32_try() {
-    assert_eq!("1", Decimal::try_from(1f32).unwrap().to_string());
-    assert_eq!("0", Decimal::try_from(0f32).unwrap().to_string());
-    assert_eq!("0.12345", Decimal::try_from(0.12345f32).unwrap().to_string());
-    assert_eq!(
-        "0.12345678",
-        Decimal::try_from(0.1234567800123456789012345678f32)
-            .unwrap()
-            .to_string()
-    );
-    assert_eq!(
-        "0.12345679",
-        Decimal::try_from(0.12345678901234567890123456789f32)
-            .unwrap()
-            .to_string()
-    );
-    assert_eq!(
-        "0",
-        Decimal::try_from(0.00000000000000000000000000001f32)
-            .unwrap()
-            .to_string()
-    );
+fn it_converts_from_f32_limits() {
+    use num_traits::FromPrimitive;
 
-    assert!(Decimal::try_from(f32::NAN).is_err());
-    assert!(Decimal::try_from(f32::INFINITY).is_err());
+    assert!(Decimal::from_f32(f32::NAN).is_none(), "from_f32(f32::NAN)");
+    assert!(Decimal::from_f32(f32::INFINITY).is_none(), "from_f32(f32::INFINITY)");
+    assert!(Decimal::try_from(f32::NAN).is_err(), "try_from(f32::NAN)");
+    assert!(Decimal::try_from(f32::INFINITY).is_err(), "try_from(f32::INFINITY)");
 
-    // These both overflow
-    assert!(Decimal::try_from(f32::MAX).is_err());
-    assert!(Decimal::try_from(f32::MIN).is_err());
+    // These overflow
+    assert!(Decimal::from_f32(f32::MAX).is_none(), "from_f32(f32::MAX)");
+    assert!(Decimal::from_f32(f32::MIN).is_none(), "from_f32(f32::MIN)");
+    assert!(Decimal::try_from(f32::MAX).is_err(), "try_from(f32::MAX)");
+    assert!(Decimal::try_from(f32::MIN).is_err(), "try_from(f32::MIN)");
+}
+
+#[test]
+fn it_converts_from_f32_retaining_bits() {
+    let tests = [
+        (0.1_f32, "0.100000001490116119384765625"),
+        (2_f32, "2"),
+        (4.000_f32, "4"),
+        (5.1_f32, "5.099999904632568359375"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f32_retain(input).unwrap().to_string(),
+            "from_f32_retain({})",
+            input
+        );
+    }
 }
 
 #[test]
 fn it_converts_from_f64() {
-    fn from_f64(f: f64) -> Option<Decimal> {
-        num_traits::FromPrimitive::from_f64(f)
+    use num_traits::FromPrimitive;
+
+    let tests = [
+        (0.1_f64, "0.1"),
+        (1_f64, "1"),
+        (0_f64, "0"),
+        (0.12345_f64, "0.12345"),
+        (0.1234567890123456089012345678_f64, "0.1234567890123456"),
+        (0.12345678901234567890123456789_f64, "0.1234567890123457"),
+        (0.00000000000000000000000000001_f64, "0"),
+        (0.6927_f64, "0.6927"),
+        (0.00006927_f64, "0.00006927"),
+        (0.000000006927_f64, "0.000000006927"),
+        (5.1_f64, "5.1"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f64(input).unwrap().to_string(),
+            "from_f64({})",
+            input
+        );
+        assert_eq!(
+            expected,
+            Decimal::try_from(input).unwrap().to_string(),
+            "try_from({})",
+            input
+        );
     }
-
-    assert_eq!("1", from_f64(1f64).unwrap().to_string());
-    assert_eq!("0", from_f64(0f64).unwrap().to_string());
-    assert_eq!("0.12345", from_f64(0.12345f64).unwrap().to_string());
-    assert_eq!(
-        "0.1234567890123456",
-        from_f64(0.1234567890123456089012345678f64).unwrap().to_string()
-    );
-    assert_eq!(
-        "0.1234567890123457",
-        from_f64(0.12345678901234567890123456789f64).unwrap().to_string()
-    );
-    assert_eq!("0", from_f64(0.00000000000000000000000000001f64).unwrap().to_string());
-    assert_eq!("0.6927", from_f64(0.6927f64).unwrap().to_string());
-    assert_eq!("0.00006927", from_f64(0.00006927f64).unwrap().to_string());
-    assert_eq!("0.000000006927", from_f64(0.000000006927f64).unwrap().to_string());
-
-    assert!(from_f64(f64::NAN).is_none());
-    assert!(from_f64(f64::INFINITY).is_none());
-
-    // These both overflow
-    assert!(from_f64(f64::MAX).is_none());
-    assert!(from_f64(f64::MIN).is_none());
 }
 
 #[test]
-fn it_converts_from_f64_try() {
-    assert_eq!("1", Decimal::try_from(1f64).unwrap().to_string());
-    assert_eq!("0", Decimal::try_from(0f64).unwrap().to_string());
-    assert_eq!("0.12345", Decimal::try_from(0.12345f64).unwrap().to_string());
-    assert_eq!(
-        "0.1234567890123456",
-        Decimal::try_from(0.1234567890123456089012345678f64)
-            .unwrap()
-            .to_string()
-    );
-    assert_eq!(
-        "0.1234567890123457",
-        Decimal::try_from(0.12345678901234567890123456789f64)
-            .unwrap()
-            .to_string()
-    );
-    assert_eq!(
-        "0",
-        Decimal::try_from(0.00000000000000000000000000001f64)
-            .unwrap()
-            .to_string()
-    );
-    assert_eq!("0.6927", Decimal::try_from(0.6927f64).unwrap().to_string());
-    assert_eq!("0.00006927", Decimal::try_from(0.00006927f64).unwrap().to_string());
-    assert_eq!(
-        "0.000000006927",
-        Decimal::try_from(0.000000006927f64).unwrap().to_string()
-    );
+fn it_converts_from_f64_limits() {
+    use num_traits::FromPrimitive;
 
-    assert!(Decimal::try_from(f64::NAN).is_err());
-    assert!(Decimal::try_from(f64::INFINITY).is_err());
+    assert!(Decimal::from_f64(f64::NAN).is_none(), "from_f64(f64::NAN)");
+    assert!(Decimal::from_f64(f64::INFINITY).is_none(), "from_f64(f64::INFINITY)");
+    assert!(Decimal::try_from(f64::NAN).is_err(), "try_from(f64::NAN)");
+    assert!(Decimal::try_from(f64::INFINITY).is_err(), "try_from(f64::INFINITY)");
 
-    // These both overflow
-    assert!(Decimal::try_from(f64::MAX).is_err());
-    assert!(Decimal::try_from(f64::MIN).is_err());
+    // These overflow
+    assert!(Decimal::from_f64(f64::MAX).is_none(), "from_f64(f64::MAX)");
+    assert!(Decimal::from_f64(f64::MIN).is_none(), "from_f64(f64::MIN)");
+    assert!(Decimal::try_from(f64::MAX).is_err(), "try_from(f64::MIN)");
+    assert!(Decimal::try_from(f64::MIN).is_err(), "try_from(f64::MAX)");
+}
+
+#[test]
+fn it_converts_from_f64_retaining_bits() {
+    let tests = [
+        (0.1_f64, "0.1000000000000000055511151231"),
+        (2_f64, "2"),
+        (4.000_f64, "4"),
+        (5.1_f64, "5.0999999999999996447286321175"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f64_retain(input).unwrap().to_string(),
+            "from_f64_retain({})",
+            input
+        );
+    }
 }
 
 #[test]
