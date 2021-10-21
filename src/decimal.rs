@@ -1418,9 +1418,9 @@ impl Decimal {
     /// assert_eq!("0.1", Decimal::from_f32(0.1_f32).unwrap().to_string());
     ///
     /// // Sometimes, we may want to represent the approximation exactly.
-    /// assert_eq!("0.100000001490116119384765625", Decimal::from_f32_retain_excess_bits(0.1_f32).unwrap().to_string());
+    /// assert_eq!("0.100000001490116119384765625", Decimal::from_f32_retain(0.1_f32).unwrap().to_string());
     /// ```
-    pub fn from_f32_retain_excess_bits(n: f32) -> Option<Self> {
+    pub fn from_f32_retain(n: f32) -> Option<Self> {
         from_f32(n, false)
     }
 
@@ -1439,9 +1439,9 @@ impl Decimal {
     /// assert_eq!("0.1", Decimal::from_f64(0.1_f64).unwrap().to_string());
     ///
     /// // Sometimes, we may want to represent the approximation exactly.
-    /// assert_eq!("0.1000000000000000055511151231", Decimal::from_f64_retain_excess_bits(0.1_f64).unwrap().to_string());
+    /// assert_eq!("0.1000000000000000055511151231", Decimal::from_f64_retain(0.1_f64).unwrap().to_string());
     /// ```
-    pub fn from_f64_retain_excess_bits(n: f64) -> Option<Self> {
+    pub fn from_f64_retain(n: f64) -> Option<Self> {
         from_f64(n, false)
     }
 

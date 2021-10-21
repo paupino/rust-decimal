@@ -2769,8 +2769,8 @@ fn it_converts_from_f32_retaining_bits() {
     for &(input, expected) in &tests {
         assert_eq!(
             expected,
-            Decimal::from_f32_retain_excess_bits(input).unwrap().to_string(),
-            "from_f32_retain_excess_bits({})",
+            Decimal::from_f32_retain(input).unwrap().to_string(),
+            "from_f32_retain({})",
             input
         );
     }
@@ -2838,8 +2838,8 @@ fn it_converts_from_f64_retaining_bits() {
     for &(input, expected) in &tests {
         assert_eq!(
             expected,
-            Decimal::from_f64_retain_excess_bits(input).unwrap().to_string(),
-            "from_f64_retain_excess_bits({})",
+            Decimal::from_f64_retain(input).unwrap().to_string(),
+            "from_f64_retain({})",
             input
         );
     }
