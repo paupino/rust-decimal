@@ -1,11 +1,12 @@
 # Version History
 
-## Unreleased
+## 1.17.0
 
 * Fixes panic when display precision was specified greater than 30. [#428](https://github.com/paupino/rust-decimal/issues/428). 
 * Binds `deserialize` so that invalid scale values cannot be set. This may be a breaking change for some users leveraging
   this in a `const` function. [#428](https://github.com/paupino/rust-decimal/issues/428).
-* Fixes an issue in `round_sf` whereby integral values that started with a 1 would output incorrect rounded numbers. [#430](https://github.com/paupino/rust-decimal/issues/430).
+* Fixes an issue in `round_sf` whereby integral values that started with a 0 or 1 would output incorrect rounded numbers. [#430](https://github.com/paupino/rust-decimal/issues/430), [#437](https://github.com/paupino/rust-decimal/issues/437).
+* Adds `from_f32_retain` and `from_f64_retain` functions which allow parsing a floating point number and retaining any excess precision. [#438](https://github.com/paupino/rust-decimal/issues/438).
 
 ## 1.16.0
 
