@@ -4304,6 +4304,26 @@ mod generated {
     gen_test!(test_sub_111_111, "Sub_111_111.csv", checked_sub);
 }
 
+#[cfg(feature = "rocket-fromform")]
+mod rocket {
+    use rocket::form::{FromForm, Form};
+    use crate::Decimal;
+    use std::str::FromStr;
+
+    #[derive(FromForm)]
+    struct Example {
+        foo: Decimal,
+        bar: Decimal,
+    }
+
+    #[test]
+    fn it_can_parse_form() {
+        let parsed: Example = Form::parse("bar=0.12345678901234567890123456789&foo=-123456.78").unwrap();
+        assert_eq!(parsed.foo, Decimal::from_str("-123456.78").unwrap());
+        assert_eq!(parsed.bar, Decimal::from_str("0.12345678901234567890123456789").unwrap());
+    }
+}
+
 #[cfg(feature = "rust-fuzz")]
 mod rust_fuzz {
     use arbitrary::{Arbitrary, Unstructured};
