@@ -1,5 +1,5 @@
 use crate::Decimal;
-use rocket::{form::{self, FromFormField, ValueField}, request::FromParam};
+use rocket::form::{self, FromFormField, ValueField};
 use std::str::FromStr;
 
 impl<'v> FromFormField<'v> for Decimal {
