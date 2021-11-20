@@ -28,6 +28,7 @@ bytes = { default-features = false, optional = true, version = "1.0" }
 diesel = { default-features = false, features = ["postgres"], optional = true, version = "1.4" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres = { default-features = false, optional = true, version = "0.19" }
+rocket = { default-features = false, optional = true, version = "0.5.0-rc.1" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
@@ -51,6 +52,7 @@ default = ["serde", "std"]
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
+rocket-traits = ["rocket"]
 rust-fuzz = ["arbitrary"]
 serde-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
 serde-bincode = ["serde-str"] # Backwards compatability

@@ -116,6 +116,7 @@ dependencies = [
     "test-maths",
     "test-misc",
     "test-db",
+    "test-rocket-traits",
     "test-serde",
     "test-macros"
 ]
@@ -185,6 +186,10 @@ args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres", "db", 
 [tasks.test-db-diesel-postgres]
 command = "cargo"
 args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres", "db", "--", "--skip", "generated"]
+
+[tasks.test-rocket-traits]
+command = "cargo"
+args = ["test", "--workspace", "--features=rocket-traits"]
 
 [tasks.test-serde-float]
 command = "cargo"
