@@ -79,7 +79,7 @@
 //! * [db-diesel-postgres](#db-diesel-postgres)
 //! * [legacy-ops](#legacy-ops)
 //! * [maths](#maths)
-//! * [rocket-fromform](#rocket-fromform)
+//! * [rocket-traits](#rocket-traits)
 //! * [rust-fuzz](#rust-fuzz)
 //! * [serde-float](#serde-float)
 //! * [serde-str](#serde-str)
@@ -118,7 +118,7 @@
 //! to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this
 //! non-panicing behavior, please use the feature: `maths-nopanic`.
 //!
-//! ### `rocket-fromform`
+//! ### `rocket-traits`
 //!
 //! Enable support for forms by implementing the `FromFormField` trait.
 //!
@@ -181,7 +181,7 @@ mod db;
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
-#[cfg(feature = "rocket-fromform")]
+#[cfg(feature = "rocket-traits")]
 mod rocket;
 #[cfg(feature = "serde")]
 mod serde;

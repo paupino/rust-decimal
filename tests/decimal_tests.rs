@@ -4304,7 +4304,7 @@ mod generated {
     gen_test!(test_sub_111_111, "Sub_111_111.csv", checked_sub);
 }
 
-#[cfg(feature = "rocket-fromform")]
+#[cfg(feature = "rocket-traits")]
 mod rocket {
     use crate::Decimal;
     use rocket::form::{Form, FromForm};

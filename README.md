@@ -79,7 +79,7 @@ assert_eq!(total.to_string(), "27.26");
 * [db-diesel-postgres](#db-diesel-postgres)
 * [legacy-ops](#legacy-ops)
 * [maths](#maths)
-* [rocket-fromform](#rocket-fromform)
+* [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
 * [serde-float](#serde-float)
 * [serde-str](#serde-str)
@@ -118,7 +118,7 @@ Please note that `ln` and `log10` will panic on invalid input with `checked_ln` 
 to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this 
 non-panicking behavior, please use the feature: `maths-nopanic`. 
 
-### `rocket-fromform`
+### `rocket-traits`
 
 Enable support for Rocket forms by implementing the `FromFormField` trait.
 
