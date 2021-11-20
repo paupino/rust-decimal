@@ -177,12 +177,12 @@ mod str;
 
 #[cfg(any(feature = "postgres", feature = "diesel"))]
 mod db;
-#[cfg(feature = "rocket-fromform")]
-mod rocket;
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
+#[cfg(feature = "rocket-fromform")]
+mod rocket;
 #[cfg(feature = "serde")]
 mod serde;
 

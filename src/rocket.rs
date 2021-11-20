@@ -1,6 +1,6 @@
+use crate::Decimal;
 use rocket::form::{self, FromFormField, ValueField};
 use std::str::FromStr;
-use crate::Decimal;
 
 impl<'v> FromFormField<'v> for Decimal {
     fn default() -> Option<Self> {
