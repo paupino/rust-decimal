@@ -2090,7 +2090,10 @@ impl ToPrimitive for Decimal {
 
     fn to_f64(&self) -> Option<f64> {
         if self.scale() == 0 {
-            let integer = self.to_i64();
+            // If scale is zero, we are storing a 96-bit integer value, that would
+            // always fit into i128, which in turn is always representable as f64,
+            // albeit with loss of precision for values outside of -2^53..2^53 range.
+            let integer = self.to_i128();
             integer.map(|i| i as f64)
         } else {
             let sign: f64 = if self.is_sign_negative() { -1.0 } else { 1.0 };
