@@ -79,6 +79,7 @@
 //! * [db-diesel-postgres](#db-diesel-postgres)
 //! * [legacy-ops](#legacy-ops)
 //! * [maths](#maths)
+//! * [rocket-traits](#rocket-traits)
 //! * [rust-fuzz](#rust-fuzz)
 //! * [serde-float](#serde-float)
 //! * [serde-str](#serde-str)
@@ -111,11 +112,15 @@
 //!
 //! The `maths` feature enables additional complex mathematical functions such as `pow`, `ln`, `enf`, `exp` etc.
 //! Documentation detailing the additional functions can be found on the
-//! [`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.  
+//! [`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.
 //!
 //! Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
 //! to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this
 //! non-panicing behavior, please use the feature: `maths-nopanic`.
+//!
+//! ### `rocket-traits`
+//!
+//! Enable support for forms by implementing the `FromFormField` trait.
 //!
 //! ### `rust-fuzz`
 //!
@@ -176,6 +181,8 @@ mod db;
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
+#[cfg(feature = "rocket-traits")]
+mod rocket;
 #[cfg(feature = "serde")]
 mod serde;
 
