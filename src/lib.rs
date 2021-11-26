@@ -175,12 +175,18 @@ mod error;
 mod ops;
 mod str;
 
-#[cfg(any(feature = "postgres", feature = "diesel"))]
-mod db;
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
+#[cfg(any(feature = "db-diesel-mysql"))]
+mod mysql;
+#[cfg(any(
+    feature = "db-tokio-postgres",
+    feature = "db-postgres",
+    feature = "db-diesel-postgres",
+))]
+mod postgres;
 #[cfg(feature = "rocket-traits")]
 mod rocket;
 #[cfg(feature = "serde")]

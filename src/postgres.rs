@@ -139,8 +139,8 @@ impl Decimal {
     }
 }
 
-#[cfg(feature = "diesel")]
-mod diesel {
+#[cfg(feature = "db-diesel-postgres")]
+mod diesel_postgres {
     use super::*;
     use ::diesel::{
         deserialize::{self, FromSql},
@@ -205,8 +205,8 @@ mod diesel {
     }
 
     impl From<Decimal> for PgNumeric {
-        fn from(bigdecimal: Decimal) -> Self {
-            (&bigdecimal).into()
+        fn from(decimal: Decimal) -> Self {
+            (&decimal).into()
         }
     }
 
@@ -224,7 +224,7 @@ mod diesel {
     }
 
     #[cfg(test)]
-    mod pg_tests {
+    mod tests {
         use super::*;
         use core::str::FromStr;
 
@@ -349,7 +349,6 @@ mod diesel {
         }
 
         #[test]
-        #[cfg(feature = "unstable")]
         fn decimal_to_pg_numeric_retains_sign() {
             let decimal = Decimal::from_str("123.456").unwrap();
             let expected = PgNumeric::Positive {
@@ -460,7 +459,7 @@ mod diesel {
     }
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "db-postgres", feature = "db-tokio-postgres"))]
 mod postgres {
     use super::*;
     use ::postgres::types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
