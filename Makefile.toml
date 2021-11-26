@@ -123,9 +123,8 @@ dependencies = [
 
 [tasks.test-db]
 dependencies = [
-    "test-db-postgres",
-    "test-db-tokio-postgres",
-    "test-db-diesel-postgres"
+    "test-db-mysql-all",
+    "test-db-postgres-all"
 ]
 
 [tasks.test-serde]
@@ -174,6 +173,22 @@ args = ["test", "--workspace", "--no-default-features", "--features=maths-nopani
 [tasks.test-misc]
 command = "cargo"
 args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", "rust_fuzz", "--", "--skip", "generated"]
+
+[tasks.test-db-mysql-all]
+dependencies = [
+    "test-db-diesel-mysql"
+]
+
+[tasks.test-db-diesel-mysql]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-diesel-mysql", "db", "--", "--skip", "generated"]
+
+[tasks.test-db-postgres-all]
+dependencies = [
+    "test-db-postgres",
+    "test-db-tokio-postgres",
+    "test-db-diesel-postgres"
+]
 
 [tasks.test-db-postgres]
 command = "cargo"

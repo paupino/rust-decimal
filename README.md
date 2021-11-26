@@ -77,6 +77,7 @@ assert_eq!(total.to_string(), "27.26");
 * [db-postgres](#db-postgres)
 * [db-tokio-postgres](#db-tokio-postgres)
 * [db-diesel-postgres](#db-diesel-postgres)
+* [db-diesel-mysql](#db-diesel-mysql)
 * [legacy-ops](#legacy-ops)
 * [maths](#maths)
 * [rocket-traits](#rocket-traits)
@@ -102,6 +103,10 @@ Enables the tokio postgres module allowing for async communication with PostgreS
 ### `db-diesel-postgres`
 
 Enable `diesel` PostgreSQL support. 
+
+### `db-diesel-mysql`
+
+Enable `diesel` MySQL support.
 
 ### `legacy-ops`
 
