@@ -1,5 +1,13 @@
 # Version History
 
+## 1.18.0
+
+* Fixes integer handling for `to_f64` when scale is set to `0`. [#443](https://github.com/paupino/rust-decimal/pull/443). 
+  Thank you [@anatols](https://github.com/anatols) for creating this fix.
+* Add support for Rocket Forms using the feature flag `rocket-traits`. [#445](https://github.com/paupino/rust-decimal/pull/445).
+  Thank you [@Misterio77](https://github.com/Misterio77) for putting this together.
+* Add Diesel MySQL support, enabled by the feature flag `db-diesel-mysq`. [#446](https://github.com/paupino/rust-decimal/pull/446).
+
 ## 1.17.0
 
 * Fixes panic when display precision was specified greater than 30. [#428](https://github.com/paupino/rust-decimal/issues/428). 
