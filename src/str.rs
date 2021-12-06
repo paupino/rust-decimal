@@ -15,12 +15,12 @@ pub(crate) fn to_str_internal(
     value: &Decimal,
     append_sign: bool,
     precision: Option<usize>,
-) -> (ArrayString<[u8; MAX_STR_BUFFER_SIZE]>, Option<usize>) {
+) -> (ArrayString<MAX_STR_BUFFER_SIZE>, Option<usize>) {
     // Get the scale - where we need to put the decimal point
     let scale = value.scale() as usize;
 
     // Convert to a string and manipulate that (neg at front, inject decimal)
-    let mut chars = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new();
+    let mut chars = ArrayVec::<_, MAX_STR_BUFFER_SIZE>::new();
     let mut working = value.mantissa_array3();
     while !is_all_zero(&working) {
         let remainder = div_by_u32(&mut working, 10u32);
@@ -145,7 +145,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 
     // should now be at numeric part of the significand
     let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-    let mut coeff = ArrayVec::<[_; MAX_STR_BUFFER_SIZE]>::new(); // integer significand array
+    let mut coeff = ArrayVec::<_, MAX_STR_BUFFER_SIZE>::new(); // integer significand array
 
     let mut maybe_round = false;
     while len > 0 {
@@ -308,7 +308,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 
     // should now be at numeric part of the significand
     let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-    let mut coeff = ArrayVec::<[_; 96]>::new(); // integer significand array
+    let mut coeff = ArrayVec::<_, 96>::new(); // integer significand array
 
     // Supporting different radix
     let (max_n, max_alpha_lower, max_alpha_upper) = if radix <= 10 {
@@ -548,7 +548,7 @@ mod test {
     #[test]
     fn display_does_not_overflow_max_capacity() {
         let num = Decimal::from_str("1.2").unwrap();
-        let mut buffer = ArrayString::<[u8; 64]>::new();
+        let mut buffer = ArrayString::<64>::new();
         let _ = buffer.write_fmt(format_args!("{:.31}", num)).unwrap();
         assert_eq!("1.2000000000000000000000000000000", buffer.as_str());
     }
