@@ -1,5 +1,17 @@
 # Version History
 
+## 1.19.0
+
+This is a minor dot release and contains library updates ([#334](https://github.com/paupino/rust-decimal/pull/334)) and 
+expanded scope in `prelude` to include `num_traits::Signed` ([#450](https://github.com/paupino/rust-decimal/pull/450)). 
+While subtle, it also expands the way towards some bigger improvements including variable precision.
+
+Of a larger note, the minimum Rust compiler version has been updated so we can start utilizing various compiler features
+(such as const generics). The miminum compiler version is now `1.51.0`.
+
+Thank you to [@c410-f3r](https://github.com/c410-f3r) and [@jracollins](https://github.com/jracollins) for your contributions
+to this release.
+
 ## 1.18.0
 
 * Fixes integer handling for `to_f64` when scale is set to `0`. [#443](https://github.com/paupino/rust-decimal/pull/443). 
