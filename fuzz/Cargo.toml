@@ -14,6 +14,7 @@ test = false
 arbitrary = { features = ["derive"], version = "1.0" }
 libfuzzer-sys = "0.4"
 rust_decimal = { features = ["maths", "rust-fuzz"], path = ".." }
+serde_json = { default-features = false, features = ["alloc"], version = "1.0" }
 
 [package]
 authors = ["Automatically generated"]

@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 
 #[derive(Debug, arbitrary::Arbitrary)]
 struct Data<'a> {
-    from_scientific_value: &'a str,
+    generic_str: &'a str,
 
     try_from_i128_with_scale_num: i128,
     try_from_i128_with_scale_scale: u32,
@@ -14,7 +14,9 @@ struct Data<'a> {
 }
 
 libfuzzer_sys::fuzz_target!(|data: Data<'_>| {
-    let _ = Decimal::from_scientific(data.from_scientific_value);
+    let _ = serde_json::from_str::<Decimal>(data.generic_str);
+
+    let _ = Decimal::from_scientific(data.generic_str);
 
     let _ = Decimal::try_from_i128_with_scale(data.try_from_i128_with_scale_num, data.try_from_i128_with_scale_scale);
 
