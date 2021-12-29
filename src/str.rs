@@ -1,7 +1,7 @@
 use crate::{
     constants::{MAX_PRECISION, MAX_STR_BUFFER_SIZE},
     error::Error,
-    ops::array::{add_by_internal, add_one_internal, div_by_u32, is_all_zero, mul_by_10, mul_by_u32},
+    ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_10, mul_by_u32},
     Decimal,
 };
 
@@ -267,7 +267,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
             data[0] = tmp[0];
             data[1] = tmp[1];
             data[2] = tmp[2];
-            let carry = add_by_internal(&mut data, &[*digit]);
+            let carry = add_by_internal_flattened(&mut data, *digit);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
                 return Err(Error::from("Invalid decimal: overflow from carry"));
@@ -528,7 +528,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             data[0] = tmp[0];
             data[1] = tmp[1];
             data[2] = tmp[2];
-            let carry = add_by_internal(&mut data, &[*digit]);
+            let carry = add_by_internal_flattened(&mut data, *digit);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
                 return Err(Error::from("Invalid decimal: overflow from carry"));
