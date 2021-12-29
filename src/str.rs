@@ -541,6 +541,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 
 #[cfg(test)]
 mod test {
+    use super::{parse_str_radix_10, Error};
     use crate::Decimal;
     use arrayvec::ArrayString;
     use core::{fmt::Write, str::FromStr};
@@ -551,5 +552,38 @@ mod test {
         let mut buffer = ArrayString::<64>::new();
         let _ = buffer.write_fmt(format_args!("{:.31}", num)).unwrap();
         assert_eq!("1.2000000000000000000000000000000", buffer.as_str());
+    }
+
+    #[test]
+    fn from_str_overflow_1() {
+        assert_eq!(
+            Decimal::from_str("99999_99999_99999_99999_99999_99999.99999"),
+            // it returns   Ok(100000_00000_00000_00000_00000_000) now
+            Err(Error::from("Invalid decimal: overflow from too many digits"))
+        );
+    }
+
+    #[test]
+    fn from_str_overflow_2() {
+        assert_eq!(
+            Decimal::from_str("99999_99999_99999_99999_99999_11111.11111"),
+            Err(Error::from("Invalid decimal: overflow from scale mismatch"))
+        );
+    }
+
+    #[test]
+    fn from_str_overflow_3() {
+        assert_eq!(
+            Decimal::from_str("99999_99999_99999_99999_99999_99994"),
+            Err(Error::from("Invalid decimal: overflow from scale mismatch"))
+        );
+    }
+
+    #[test]
+    fn from_str_overflow_4() {
+        assert_eq!(
+            Decimal::from_str("99999_99999_99999_99999_99999_999.99").unwrap(),
+            Decimal::from_i128_with_scale(10_000_000_000_000_000_000_000_000_000, 0)
+        );
     }
 }
