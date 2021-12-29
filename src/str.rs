@@ -183,7 +183,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
     }
 
     // If we exited before the end of the string then do some rounding if necessary
-    if maybe_round && offset < bytes.len() {
+    if maybe_round && offset < bytes.len() && digits_before_dot >= 0 {
         let next_byte = bytes[offset];
         let digit = match next_byte {
             b'0'..=b'9' => u32::from(next_byte - b'0'),
@@ -541,7 +541,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 
 #[cfg(test)]
 mod test {
-    use super::{parse_str_radix_10, Error};
+    use super::Error;
     use crate::Decimal;
     use arrayvec::ArrayString;
     use core::{fmt::Write, str::FromStr};
@@ -558,8 +558,7 @@ mod test {
     fn from_str_overflow_1() {
         assert_eq!(
             Decimal::from_str("99999_99999_99999_99999_99999_99999.99999"),
-            // it returns   Ok(100000_00000_00000_00000_00000_000) now
-            Err(Error::from("Invalid decimal: overflow from too many digits"))
+            Err(Error::from("Invalid decimal: overflow from scale mismatch"))
         );
     }
 
