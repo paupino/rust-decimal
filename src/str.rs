@@ -128,69 +128,110 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
     }
 
     let mut offset = 0;
-    let mut len = str.len();
+    let len = str.len();
     let bytes = str.as_bytes();
     let mut negative = false; // assume positive
 
     // handle the sign
-    if bytes[offset] == b'-' {
-        negative = true; // leading minus means negative
-        offset += 1;
-        len -= 1;
-    } else if bytes[offset] == b'+' {
-        // leading + allowed
-        offset += 1;
-        len -= 1;
+    match bytes[offset] {
+        b'-' => {
+            negative = true; // leading minus means negative
+            offset += 1;
+        }
+        b'+' => {
+            // leading + allowed
+            offset += 1;
+        }
+        _ => {}
     }
 
     // should now be at numeric part of the significand
-    let mut digits_before_dot: i32 = -1; // digits before '.', -1 if no '.'
-    let mut coeff = ArrayVec::<_, MAX_STR_BUFFER_SIZE>::new(); // integer significand array
-
+    let mut passed_decimal_point = false;
+    let mut has_digit = false;
+    let mut coeff: u32 = 0; // number of digits
+    let mut scale = 0;
     let mut maybe_round = false;
-    while len > 0 {
+
+    let mut data = [0u32, 0u32, 0u32];
+    let mut tmp = [0u32, 0u32, 0u32];
+    while offset < len {
         let b = bytes[offset];
         match b {
             b'0'..=b'9' => {
-                coeff.push(u32::from(b - b'0'));
-                offset += 1;
-                len -= 1;
+                let digit = u32::from(b - b'0');
+                has_digit = true;
+                coeff += if coeff == 0 && digit == 0 { 0 } else { 1 }; // got one more digit
 
-                // If the coefficient is longer than the max, exit early
-                if coeff.len() as u32 > 28 {
-                    maybe_round = true;
+                // If the data is going to overflow then we should go into recovery mode
+                tmp[0] = data[0];
+                tmp[1] = data[1];
+                tmp[2] = data[2];
+                let overflow = mul_by_10(&mut tmp);
+                if overflow > 0 {
+                    // This means that we have more data to process, that we're not sure what to do with.
+                    // This may or may not be an issue - depending on whether we're past a decimal point
+                    // or not.
+                    if !passed_decimal_point {
+                        return Err(Error::from("Invalid decimal: overflow from too many digits"));
+                    }
+
+                    if digit >= 5 {
+                        let carry = add_one_internal(&mut data);
+                        if carry > 0 {
+                            // Highly unlikely scenario which is more indicative of a bug
+                            return Err(Error::from("Invalid decimal: overflow when rounding"));
+                        }
+                    }
                     break;
+                } else {
+                    data[0] = tmp[0];
+                    data[1] = tmp[1];
+                    data[2] = tmp[2];
+                    let carry = add_by_internal_flattened(&mut data, digit);
+                    if passed_decimal_point {
+                        scale += 1;
+                    }
+                    if carry > 0 {
+                        // Highly unlikely scenario which is more indicative of a bug
+                        return Err(Error::from("Invalid decimal: overflow from carry"));
+                    }
                 }
             }
             b'.' => {
-                if digits_before_dot >= 0 {
+                if passed_decimal_point {
                     return Err(Error::from("Invalid decimal: two decimal points"));
                 }
-                digits_before_dot = coeff.len() as i32;
-                offset += 1;
-                len -= 1;
+                passed_decimal_point = true;
             }
             b'_' => {
                 // Must start with a number...
-                if coeff.is_empty() {
+                if offset == 0 {
                     return Err(Error::from("Invalid decimal: must start lead with a number"));
                 }
-                offset += 1;
-                len -= 1;
             }
             _ => return Err(Error::from("Invalid decimal: unknown character")),
         }
+        offset += 1;
+
+        if coeff > MAX_PRECISION as u32 || scale >= 28 {
+            maybe_round = true;
+            break;
+        }
+    }
+
+    if !has_digit {
+        return Err(Error::from("Invalid decimal: no digits found"));
     }
 
     // If we exited before the end of the string then do some rounding if necessary
-    if maybe_round && offset < bytes.len() && digits_before_dot >= 0 {
+    if maybe_round && offset < bytes.len() {
         let next_byte = bytes[offset];
         let digit = match next_byte {
             b'0'..=b'9' => u32::from(next_byte - b'0'),
-            b'_' => 0,
+            b'_' => 0, // this is a bug?
             b'.' => {
                 // Still an error if we have a second dp
-                if digits_before_dot >= 0 {
+                if passed_decimal_point {
                     return Err(Error::from("Invalid decimal: two decimal points"));
                 }
                 0
@@ -200,77 +241,10 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 
         // Round at midpoint
         if digit >= 5 {
-            let mut index = coeff.len() - 1;
-            loop {
-                let new_digit = coeff[index] + 1;
-                if new_digit <= 9 {
-                    coeff[index] = new_digit;
-                    break;
-                } else {
-                    coeff[index] = 0;
-                    if index == 0 {
-                        coeff.insert(0, 1u32);
-                        digits_before_dot += 1;
-                        coeff.pop();
-                        break;
-                    }
-                }
-                index -= 1;
-            }
-        }
-    }
-
-    // here when no characters left
-    if coeff.is_empty() {
-        return Err(Error::from("Invalid decimal: no digits found"));
-    }
-
-    let mut scale = if digits_before_dot >= 0 {
-        // we had a decimal place so set the scale
-        (coeff.len() as u32) - (digits_before_dot as u32)
-    } else {
-        0
-    };
-
-    let mut data = [0u32, 0u32, 0u32];
-    let mut tmp = [0u32, 0u32, 0u32];
-    let len = coeff.len();
-    for (i, digit) in coeff.iter().enumerate() {
-        // If the data is going to overflow then we should go into recovery mode
-        tmp[0] = data[0];
-        tmp[1] = data[1];
-        tmp[2] = data[2];
-        let overflow = mul_by_10(&mut tmp);
-        if overflow > 0 {
-            // This means that we have more data to process, that we're not sure what to do with.
-            // This may or may not be an issue - depending on whether we're past a decimal point
-            // or not.
-            if (i as i32) < digits_before_dot && i + 1 < len {
-                return Err(Error::from("Invalid decimal: overflow from too many digits"));
-            }
-
-            if *digit >= 5 {
-                let carry = add_one_internal(&mut data);
-                if carry > 0 {
-                    // Highly unlikely scenario which is more indicative of a bug
-                    return Err(Error::from("Invalid decimal: overflow when rounding"));
-                }
-            }
-            // We're also one less digit so reduce the scale
-            let diff = (len - i) as u32;
-            if diff > scale {
-                return Err(Error::from("Invalid decimal: overflow from scale mismatch"));
-            }
-            scale -= diff;
-            break;
-        } else {
-            data[0] = tmp[0];
-            data[1] = tmp[1];
-            data[2] = tmp[2];
-            let carry = add_by_internal_flattened(&mut data, *digit);
+            let carry = add_one_internal(&mut data);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
-                return Err(Error::from("Invalid decimal: overflow from carry"));
+                return Err(Error::from("Invalid decimal: overflow when rounding"));
             }
         }
     }
@@ -635,7 +609,7 @@ mod test {
     fn from_str_overflow_1() {
         assert_eq!(
             Decimal::from_str("99999_99999_99999_99999_99999_99999.99999"),
-            Err(Error::from("Invalid decimal: overflow from scale mismatch"))
+            Err(Error::from("Invalid decimal: overflow from too many digits"))
         );
     }
 
@@ -643,7 +617,7 @@ mod test {
     fn from_str_overflow_2() {
         assert_eq!(
             Decimal::from_str("99999_99999_99999_99999_99999_11111.11111"),
-            Err(Error::from("Invalid decimal: overflow from scale mismatch"))
+            Err(Error::from("Invalid decimal: overflow from too many digits"))
         );
     }
 
@@ -651,7 +625,7 @@ mod test {
     fn from_str_overflow_3() {
         assert_eq!(
             Decimal::from_str("99999_99999_99999_99999_99999_99994"),
-            Err(Error::from("Invalid decimal: overflow from scale mismatch"))
+            Err(Error::from("Invalid decimal: overflow from too many digits"))
         );
     }
 
