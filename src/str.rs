@@ -1,6 +1,6 @@
 use crate::{
-    constants::{MAX_PRECISION, MAX_STR_BUFFER_SIZE, OVERFLOW_96},
-    error::Error,
+    constants::{BYTES_TO_OVERFLOW_U64, MAX_PRECISION, MAX_STR_BUFFER_SIZE, OVERFLOW_U96, WILL_OVERFLOW_U64},
+    error::{tail_error, Error},
     ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
 };
@@ -121,202 +121,196 @@ pub(crate) fn fmt_scientific_notation(
     f.pad_integral(value.is_sign_positive(), "", &rep)
 }
 
-#[inline]
-pub fn overflows(val: u128) -> bool {
-    val >= OVERFLOW_96
-}
-
 // dedicated implementation for the most common case.
 pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
-    if str.is_empty() {
-        return Err(Error::from("Invalid decimal: empty"));
-    }
-
-    let mut bytes = str.as_bytes();
-    let mut negative = false; // assume positive
-
+    let bytes = str.as_bytes();
     // handle the sign
 
-    bytes = match bytes[0] {
-        b'-' => {
-            negative = true; // leading minus means negative
-            &bytes[1..]
-        }
-        b'+' => {
-            // leading + allowed
-            &bytes[1..]
-        }
-        _ => bytes,
-    };
-
-    // should now be at numeric part of the significand
-    let mut passed_decimal_point = false;
-    let mut has_digit = false;
-    let mut coeff: u8 = 0; // number of digits
-    let mut scale: u8 = 0;
-
-    let mut data64: u64 = 0;
-
-    while data64 < (u64::MAX / 10 - u8::MAX as u64) {
-        // no overflow can happen here!
-        if !bytes.is_empty() {
-            let b = bytes[0];
-            match b {
-                b'0'..=b'9' => {
-                    let digit = u32::from(b - b'0');
-                    has_digit = true;
-                    coeff += if coeff == 0 && digit == 0 { 0 } else { 1 }; // got one more digit
-
-                    // we have already validated that we cannot overflow
-                    data64 = data64 * 10 + digit as u64;
-                    scale += passed_decimal_point as u8;
-                }
-                b'.' => {
-                    if passed_decimal_point {
-                        return Err(Error::from("Invalid decimal: two decimal points"));
-                    }
-                    passed_decimal_point = true;
-                }
-                b'_' => {
-                    // Must start with a number...
-                    if !has_digit {
-                        return Err(Error::from("Invalid decimal: must start lead with a number"));
-                    }
-                }
-                _ => return Err(Error::from("Invalid decimal: unknown character")),
-            }
-            bytes = &bytes[1..];
-
-            debug_assert!(coeff < MAX_PRECISION as u8);
-            if scale >= 28 {
-                if !bytes.is_empty() {
-                    return maybe_round(data64 as u128, bytes[0], scale, negative, passed_decimal_point);
-                }
-                break;
-            }
-        } else {
-            break;
-        }
+    if bytes.len() < BYTES_TO_OVERFLOW_U64 {
+        parse_str_radix_10_dispatch::<false>(bytes)
+    } else {
+        parse_str_radix_10_dispatch::<true>(bytes)
     }
-
-    let data: u128 = data64 as u128;
-
-    if !bytes.is_empty() {
-        return handle_full_128(data, bytes, scale, coeff, passed_decimal_point, negative);
-    } else if !has_digit {
-        return Err(Error::from("Invalid decimal: no digits found"));
-    }
-
-    handle_data(data, scale, negative)
 }
 
 #[inline(never)]
-#[cold]
-fn handle_full_128(
-    mut data: u128,
-    mut bytes: &[u8],
-    mut scale: u8,
-    mut coeff: u8,
-    mut passed_decimal_point: bool,
-    negative: bool,
+fn parse_str_radix_10_dispatch<const BIG: bool>(bytes: &[u8]) -> Result<Decimal, crate::Error> {
+    match bytes {
+        [b'-', b, rest @ ..] => accumulate_u64::<false, true, false, BIG>(rest, 0, 0, *b),
+        [b'+', b, rest @ ..] => accumulate_u64::<false, false, false, BIG>(rest, 0, 0, *b),
+        [b, rest @ ..] => accumulate_u64::<false, false, false, BIG>(rest, 0, 0, *b),
+        [] => tail_error("Invalid decimal: empty"),
+    }
+}
+
+#[inline]
+fn overflow_64(val: u64) -> bool {
+    val >= WILL_OVERFLOW_U64
+}
+
+#[inline]
+pub fn overflow_128(val: u128) -> bool {
+    val >= OVERFLOW_U96
+}
+
+#[inline(never)]
+fn accumulate_u64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool>(
+    bytes: &[u8],
+    mut data64: u64,
+    scale: u8,
+    next_byte: u8,
 ) -> Result<Decimal, crate::Error> {
-    while !bytes.is_empty() {
-        debug_assert!(coeff > 0);
-        let b = bytes[0];
-        match b {
-            b'0'..=b'9' => {
-                let digit = u32::from(b - b'0');
-                coeff += 1; // got one more digit
+    let b = next_byte;
+    match b {
+        b'0'..=b'9' => {
+            let digit = b - b'0';
 
-                // If the data is going to overflow then we should go into recovery mode
-                let next = data * 10;
-                if overflows(next) {
-                    // This means that we have more data to process, that we're not sure what to do with.
-                    // This may or may not be an issue - depending on whether we're past a decimal point
-                    // or not.
-                    if !passed_decimal_point {
-                        return Err(Error::from("Invalid decimal: overflow from too many digits"));
-                    }
+            // we have already validated that we cannot overflow
+            data64 = data64 * 10 + digit as u64;
+            let scale = if POINT { scale + 1 } else { 0 };
 
-                    if digit >= 5 {
-                        data += 1;
-                        if overflows(data) {
-                            // Highly unlikely scenario which is more indicative of a bug
-                            return Err(Error::from("Invalid decimal: overflow when rounding"));
-                        }
-                    }
-                    break;
+            if let Some((next, bytes)) = bytes.split_first() {
+                let next = *next;
+                if POINT && BIG && scale >= 28 {
+                    maybe_round::<POINT, NEG>(data64 as u128, next, scale)
+                } else if HAS && BIG && overflow_64(data64) {
+                    handle_full_128::<POINT, NEG>(data64 as u128, bytes, scale, next)
                 } else {
-                    data = next + digit as u128;
-                    scale += passed_decimal_point as u8;
-                    if overflows(data) {
-                        // Highly unlikely scenario which is more indicative of a bug
-                        return Err(Error::from("Invalid decimal: overflow when rounding"));
-                    }
+                    accumulate_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, next)
                 }
-            }
-            b'.' => {
-                if passed_decimal_point {
-                    return Err(Error::from("Invalid decimal: two decimal points"));
-                }
-                passed_decimal_point = true;
-            }
-            b'_' => {}
-            _ => return Err(Error::from("Invalid decimal: unknown character")),
-        }
-        bytes = &bytes[1..];
+            } else {
+                let data: u128 = data64 as u128;
 
-        if coeff > MAX_PRECISION as u8 || scale >= 28 {
-            if !bytes.is_empty() {
-                return maybe_round(data, bytes[0], scale, negative, passed_decimal_point);
+                handle_data::<NEG, true>(data, scale)
             }
-            break;
         }
+        b'.' if !POINT => {
+            if let Some((next, bytes)) = bytes.split_first() {
+                accumulate_u64::<true, NEG, HAS, BIG>(bytes, data64, scale, *next)
+            } else {
+                handle_data::<NEG, HAS>(data64 as u128, scale)
+            }
+        }
+        b'_' if HAS => {
+            if let Some((next, bytes)) = bytes.split_first() {
+                accumulate_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, *next)
+            } else {
+                handle_data::<NEG, true>(data64 as u128, scale)
+            }
+        }
+        b => tail_invalid_digit(b),
     }
-
-    handle_data(data, scale, negative)
 }
 
 #[inline(never)]
 #[cold]
-fn maybe_round(
+fn tail_invalid_digit(digit: u8) -> Result<Decimal, crate::Error> {
+    match digit {
+        b'.' => tail_error("Invalid decimal: two decimal points"),
+        b'_' => tail_error("Invalid decimal: must start lead with a number"),
+        _ => tail_error("Invalid decimal: unknown character"),
+    }
+}
+
+#[inline(never)]
+#[cold]
+fn handle_full_128<const POINT: bool, const NEG: bool>(
+    mut data: u128,
+    bytes: &[u8],
+    scale: u8,
+    next_byte: u8,
+) -> Result<Decimal, crate::Error> {
+    let b = next_byte;
+    match b {
+        b'0'..=b'9' => {
+            let digit = u32::from(b - b'0');
+
+            // If the data is going to overflow then we should go into recovery mode
+            let next = (data * 10) + digit as u128;
+            if overflow_128(next) {
+                if !POINT {
+                    return tail_error("Invalid decimal: overflow from too many digits");
+                }
+
+                if digit >= 5 {
+                    data += 1;
+                }
+                handle_data::<NEG, true>(data, scale)
+            } else {
+                data = next;
+                let scale = scale + POINT as u8;
+                if let Some((next, bytes)) = bytes.split_first() {
+                    let next = *next;
+                    if POINT && scale >= 28 {
+                        maybe_round::<POINT, NEG>(data, next, scale)
+                    } else {
+                        handle_full_128::<POINT, NEG>(data, bytes, scale, next)
+                    }
+                } else {
+                    handle_data::<NEG, true>(data, scale)
+                }
+            }
+        }
+        b'.' if !POINT => {
+            // This call won't tail?
+            if let Some((next, bytes)) = bytes.split_first() {
+                handle_full_128::<true, NEG>(data, bytes, scale, *next)
+            } else {
+                handle_data::<NEG, true>(data, scale)
+            }
+        }
+        b'_' => {
+            if let Some((next, bytes)) = bytes.split_first() {
+                handle_full_128::<POINT, NEG>(data, bytes, scale, *next)
+            } else {
+                handle_data::<NEG, true>(data, scale)
+            }
+        }
+        b => tail_invalid_digit(b),
+    }
+}
+
+#[inline(never)]
+#[cold]
+fn maybe_round<const POINT: bool, const NEG: bool>(
     mut data: u128,
     next_byte: u8,
     scale: u8,
-    negative: bool,
-    passed_decimal_point: bool,
 ) -> Result<Decimal, crate::Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
-        b'_' => 0, // this is a bug?
-        b'.' => {
-            // Still an error if we have a second dp
-            if passed_decimal_point {
-                return Err(Error::from("Invalid decimal: two decimal points"));
-            }
-            0
-        }
-        _ => return Err(Error::from("Invalid decimal: unknown character")),
+        b'_' => 0, // this should be an invalid string?
+        b'.' if !POINT => 0,
+        b => return tail_invalid_digit(b),
     };
 
     // Round at midpoint
     if digit >= 5 {
         data += 1;
-        if overflows(data) {
+        if overflow_128(data) {
             // Highly unlikely scenario which is more indicative of a bug
-            return Err(Error::from("Invalid decimal: overflow when rounding"));
+            return tail_error("Invalid decimal: overflow when rounding");
         }
     }
 
-    handle_data(data, scale, negative)
+    handle_data::<NEG, true>(data, scale)
 }
 
-fn handle_data(data: u128, scale: u8, negative: bool) -> Result<Decimal, crate::Error> {
+#[inline]
+#[cold]
+fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, crate::Error> {
     debug_assert_eq!(data >> 96, 0);
-
-    let data = [data as u32, (data >> 32) as u32, (data >> 64) as u32];
-
-    Ok(Decimal::from_parts(data[0], data[1], data[2], negative, scale as u32))
+    if !HAS {
+        tail_error("Invalid decimal: no digits found")
+    } else {
+        Ok(Decimal::from_parts(
+            data as u32,
+            (data >> 32) as u32,
+            (data >> 64) as u32,
+            NEG,
+            scale as u32,
+        ))
+    }
 }
 
 pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::Error> {
@@ -582,7 +576,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 
 #[cfg(test)]
 mod test {
-    use super::Error;
+    use super::*;
     use crate::Decimal;
     use arrayvec::ArrayString;
     use core::{fmt::Write, str::FromStr};
@@ -597,13 +591,13 @@ mod test {
 
     #[test]
     fn from_str_rounding_0() {
-        assert_eq!(Decimal::from_str("1.234").unwrap(), Decimal::new(1234, 3));
+        assert_eq!(parse_str_radix_10("1.234").unwrap(), Decimal::new(1234, 3));
     }
 
     #[test]
     fn from_str_rounding_1() {
         assert_eq!(
-            Decimal::from_str("11111_11111_11111.11111_11111_11111").unwrap(),
+            parse_str_radix_10("11111_11111_11111.11111_11111_11111").unwrap(),
             Decimal::from_i128_with_scale(11_111_111_111_111_111_111_111_111_111, 14)
         );
     }
@@ -611,7 +605,7 @@ mod test {
     #[test]
     fn from_str_rounding_2() {
         assert_eq!(
-            Decimal::from_str("11111_11111_11111.11111_11111_11115").unwrap(),
+            parse_str_radix_10("11111_11111_11111.11111_11111_11115").unwrap(),
             Decimal::from_i128_with_scale(11_111_111_111_111_111_111_111_111_112, 14)
         );
     }
@@ -619,7 +613,7 @@ mod test {
     #[test]
     fn from_str_rounding_3() {
         assert_eq!(
-            Decimal::from_str("11111_11111_11111.11111_11111_11195").unwrap(),
+            parse_str_radix_10("11111_11111_11111.11111_11111_11195").unwrap(),
             Decimal::from_i128_with_scale(1_111_111_111_111_111_111_111_111_112, 13)
         );
     }
@@ -627,15 +621,23 @@ mod test {
     #[test]
     fn from_str_rounding_4() {
         assert_eq!(
-            Decimal::from_str("99999_99999_99999.99999_99999_99995").unwrap(),
+            parse_str_radix_10("99999_99999_99999.99999_99999_99995").unwrap(),
             Decimal::from_i128_with_scale(1_000_000_000_000_000_000_000_000_000, 12)
+        );
+    }
+
+    #[test]
+    fn from_str_many_pointless_chars() {
+        assert_eq!(
+            parse_str_radix_10("00________________________________________________________________001.1").unwrap(),
+            Decimal::from_i128_with_scale(11, 1)
         );
     }
 
     #[test]
     fn from_str_leading_0s_1() {
         assert_eq!(
-            Decimal::from_str("00001.1").unwrap(),
+            parse_str_radix_10("00001.1").unwrap(),
             Decimal::from_i128_with_scale(11, 1)
         );
     }
@@ -643,7 +645,7 @@ mod test {
     #[test]
     fn from_str_leading_0s_2() {
         assert_eq!(
-            Decimal::from_str("00000_00000_00000_00000_00001.00001").unwrap(),
+            parse_str_radix_10("00000_00000_00000_00000_00001.00001").unwrap(),
             Decimal::from_i128_with_scale(100001, 5)
         );
     }
@@ -651,7 +653,7 @@ mod test {
     #[test]
     fn from_str_leading_0s_3() {
         assert_eq!(
-            Decimal::from_str("0.00000_00000_00000_00000_00000_00100").unwrap(),
+            parse_str_radix_10("0.00000_00000_00000_00000_00000_00100").unwrap(),
             Decimal::from_i128_with_scale(1, 28)
         );
     }
@@ -659,7 +661,7 @@ mod test {
     #[test]
     fn from_str_trailing_0s_1() {
         assert_eq!(
-            Decimal::from_str("0.00001_00000_00000").unwrap(),
+            parse_str_radix_10("0.00001_00000_00000").unwrap(),
             Decimal::from_i128_with_scale(1, 5)
         );
     }
@@ -667,7 +669,7 @@ mod test {
     #[test]
     fn from_str_trailing_0s_2() {
         assert_eq!(
-            Decimal::from_str("0.00001_00000_00000_00000_00000_00000").unwrap(),
+            parse_str_radix_10("0.00001_00000_00000_00000_00000_00000").unwrap(),
             Decimal::from_i128_with_scale(1, 5)
         );
     }
@@ -675,44 +677,50 @@ mod test {
     #[test]
     fn from_str_overflow_1() {
         assert_eq!(
-            Decimal::from_str("99999_99999_99999_99999_99999_99999.99999"),
+            parse_str_radix_10("99999_99999_99999_99999_99999_99999.99999"),
+            // The original implementation returned
+            //              Ok(10000_00000_00000_00000_00000_0000)
+            // Which is a bug!
             Err(Error::from("Invalid decimal: overflow from too many digits"))
         );
     }
 
     #[test]
     fn from_str_overflow_2() {
-        assert_eq!(
-            Decimal::from_str("99999_99999_99999_99999_99999_11111.11111"),
-            Err(Error::from("Invalid decimal: overflow from too many digits"))
+        assert!(
+            parse_str_radix_10("99999_99999_99999_99999_99999_11111.11111").is_err(),
+            // The original implementation is 'overflow from scale mismatch'
+            // but we got rid of that now
         );
     }
 
     #[test]
     fn from_str_overflow_3() {
-        assert_eq!(
-            Decimal::from_str("99999_99999_99999_99999_99999_99994"),
-            Err(Error::from("Invalid decimal: overflow from too many digits"))
+        assert!(
+            parse_str_radix_10("99999_99999_99999_99999_99999_99994").is_err() // We could not get into 'overflow when rounding' or 'overflow from carry'
+                                                                               // in the original implementation because the rounding logic before prevented it
         );
     }
 
     #[test]
     fn from_str_overflow_4() {
         assert_eq!(
-            Decimal::from_str("99999_99999_99999_99999_99999_999.99").unwrap(),
+            // This does not overflow, moving the decimal point 1 more step would result in
+            // 'overflow from too many digits'
+            parse_str_radix_10("99999_99999_99999_99999_99999_999.99").unwrap(),
             Decimal::from_i128_with_scale(10_000_000_000_000_000_000_000_000_000, 0)
         );
     }
 
     #[test]
     fn from_str_edge_cases_1() {
-        assert_eq!(Decimal::from_str(""), Err(Error::from("Invalid decimal: empty")));
+        assert_eq!(parse_str_radix_10(""), Err(Error::from("Invalid decimal: empty")));
     }
 
     #[test]
     fn from_str_edge_cases_2() {
         assert_eq!(
-            Decimal::from_str("0.1."),
+            parse_str_radix_10("0.1."),
             Err(Error::from("Invalid decimal: two decimal points"))
         );
     }
@@ -720,7 +728,7 @@ mod test {
     #[test]
     fn from_str_edge_cases_3() {
         assert_eq!(
-            Decimal::from_str("_"),
+            parse_str_radix_10("_"),
             Err(Error::from("Invalid decimal: must start lead with a number"))
         );
     }
@@ -728,7 +736,7 @@ mod test {
     #[test]
     fn from_str_edge_cases_4() {
         assert_eq!(
-            Decimal::from_str("1?2"),
+            parse_str_radix_10("1?2"),
             Err(Error::from("Invalid decimal: unknown character"))
         );
     }
@@ -736,7 +744,7 @@ mod test {
     #[test]
     fn from_str_edge_cases_5() {
         assert_eq!(
-            Decimal::from_str("."),
+            parse_str_radix_10("."),
             Err(Error::from("Invalid decimal: no digits found"))
         );
     }
