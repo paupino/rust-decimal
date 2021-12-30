@@ -1,7 +1,7 @@
 use crate::{
-    constants::{MAX_PRECISION, MAX_STR_BUFFER_SIZE},
+    constants::{MAX_PRECISION, MAX_STR_BUFFER_SIZE, OVERFLOW_96},
     error::Error,
-    ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_10, mul_by_u32},
+    ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
 };
 
@@ -121,39 +121,41 @@ pub(crate) fn fmt_scientific_notation(
     f.pad_integral(value.is_sign_positive(), "", &rep)
 }
 
+#[inline]
+pub fn overflows(val: u128) -> bool {
+    val >= OVERFLOW_96
+}
+
 // dedicated implementation for the most common case.
 pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
     if str.is_empty() {
         return Err(Error::from("Invalid decimal: empty"));
     }
 
-    let mut offset = 0;
-    let len = str.len();
     let bytes = str.as_bytes();
     let mut negative = false; // assume positive
 
     // handle the sign
-    match bytes[offset] {
-        b'-' => {
-            negative = true; // leading minus means negative
-            offset += 1;
-        }
-        b'+' => {
-            // leading + allowed
-            offset += 1;
-        }
-        _ => {}
-    }
+    let bytes = if bytes[0] == b'-' {
+        negative = true; // leading minus means negative
+        &bytes[1..]
+    } else if bytes[0] == b'+' {
+        // leading + allowed
+        &bytes[1..]
+    } else {
+        bytes
+    };
 
     // should now be at numeric part of the significand
+    let len = bytes.len();
+    let mut offset = 0;
     let mut passed_decimal_point = false;
     let mut has_digit = false;
+    let mut data: u128 = 0;
     let mut coeff: u32 = 0; // number of digits
     let mut scale = 0;
     let mut maybe_round = false;
 
-    let mut data = [0u32, 0u32, 0u32];
-    let mut tmp = [0u32, 0u32, 0u32];
     while offset < len {
         let b = bytes[offset];
         match b {
@@ -163,11 +165,8 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
                 coeff += if coeff == 0 && digit == 0 { 0 } else { 1 }; // got one more digit
 
                 // If the data is going to overflow then we should go into recovery mode
-                tmp[0] = data[0];
-                tmp[1] = data[1];
-                tmp[2] = data[2];
-                let overflow = mul_by_10(&mut tmp);
-                if overflow > 0 {
+                let next = data * 10;
+                if overflows(next) {
                     // This means that we have more data to process, that we're not sure what to do with.
                     // This may or may not be an issue - depending on whether we're past a decimal point
                     // or not.
@@ -176,22 +175,19 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
                     }
 
                     if digit >= 5 {
-                        let carry = add_one_internal(&mut data);
-                        if carry > 0 {
+                        data += 1;
+                        if overflows(data) {
                             // Highly unlikely scenario which is more indicative of a bug
                             return Err(Error::from("Invalid decimal: overflow when rounding"));
                         }
                     }
                     break;
                 } else {
-                    data[0] = tmp[0];
-                    data[1] = tmp[1];
-                    data[2] = tmp[2];
-                    let carry = add_by_internal_flattened(&mut data, digit);
+                    data = next + digit as u128;
                     if passed_decimal_point {
                         scale += 1;
                     }
-                    if carry > 0 {
+                    if overflows(data) {
                         // Highly unlikely scenario which is more indicative of a bug
                         return Err(Error::from("Invalid decimal: overflow from carry"));
                     }
@@ -241,13 +237,16 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 
         // Round at midpoint
         if digit >= 5 {
-            let carry = add_one_internal(&mut data);
-            if carry > 0 {
+            data += 1;
+            if overflows(data) {
                 // Highly unlikely scenario which is more indicative of a bug
                 return Err(Error::from("Invalid decimal: overflow when rounding"));
             }
         }
     }
+
+    debug_assert_eq!(data >> 96, 0);
+    let data = [data as u32, (data >> 32) as u32, (data >> 64) as u32];
 
     Ok(Decimal::from_parts(data[0], data[1], data[2], negative, scale))
 }

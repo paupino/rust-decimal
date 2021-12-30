@@ -65,3 +65,6 @@ pub const MAX_I32_SCALE: i32 = 9;
 pub const MAX_I64_SCALE: u32 = 19;
 #[cfg(not(feature = "legacy-ops"))]
 pub const U32_MAX: u64 = u32::MAX as u64;
+
+// Determines potential overflow for 128 bit operations
+pub const OVERFLOW_96: u128 = 1u128 << 96;
