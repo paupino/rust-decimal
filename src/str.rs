@@ -136,9 +136,9 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 #[inline(never)]
 fn parse_str_radix_10_dispatch<const BIG: bool>(bytes: &[u8]) -> Result<Decimal, crate::Error> {
     match bytes {
-        [b'-', b, rest @ ..] => accumulate_u64::<false, true, false, BIG>(rest, 0, 0, *b),
-        [b'+', b, rest @ ..] => accumulate_u64::<false, false, false, BIG>(rest, 0, 0, *b),
-        [b, rest @ ..] => accumulate_u64::<false, false, false, BIG>(rest, 0, 0, *b),
+        [b'-', b, rest @ ..] => byte_dispatch_u64::<false, true, false, BIG>(rest, 0, 0, *b),
+        [b'+', b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG>(rest, 0, 0, *b),
+        [b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG>(rest, 0, 0, *b),
         [] => tail_error("Invalid decimal: empty"),
     }
 }
@@ -153,52 +153,71 @@ pub fn overflow_128(val: u128) -> bool {
     val >= OVERFLOW_U96
 }
 
-#[inline(never)]
-fn accumulate_u64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool>(
+#[inline]
+fn byte_dispatch_u64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool>(
     bytes: &[u8],
-    mut data64: u64,
+    data64: u64,
     scale: u8,
-    next_byte: u8,
+    b: u8,
 ) -> Result<Decimal, crate::Error> {
-    let b = next_byte;
     match b {
-        b'0'..=b'9' => {
-            let digit = b - b'0';
-
-            // we have already validated that we cannot overflow
-            data64 = data64 * 10 + digit as u64;
-            let scale = if POINT { scale + 1 } else { 0 };
-
-            if let Some((next, bytes)) = bytes.split_first() {
-                let next = *next;
-                if POINT && BIG && scale >= 28 {
-                    maybe_round::<POINT, NEG>(data64 as u128, next, scale)
-                } else if HAS && BIG && overflow_64(data64) {
-                    handle_full_128::<POINT, NEG>(data64 as u128, bytes, scale, next)
-                } else {
-                    accumulate_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, next)
-                }
-            } else {
-                let data: u128 = data64 as u128;
-
-                handle_data::<NEG, true>(data, scale)
-            }
-        }
-        b'.' if !POINT => {
-            if let Some((next, bytes)) = bytes.split_first() {
-                accumulate_u64::<true, NEG, HAS, BIG>(bytes, data64, scale, *next)
-            } else {
-                handle_data::<NEG, HAS>(data64 as u128, scale)
-            }
-        }
-        b'_' if HAS => {
-            if let Some((next, bytes)) = bytes.split_first() {
-                accumulate_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, *next)
-            } else {
-                handle_data::<NEG, true>(data64 as u128, scale)
-            }
-        }
+        b'0'..=b'9' => handle_digit_64::<POINT, NEG, HAS, BIG>(bytes, data64, scale, b - b'0'),
+        b'.' if !POINT => handle_point::<NEG, HAS, BIG>(bytes, data64, scale),
+        b'_' if HAS => handle_separator::<POINT, NEG, BIG>(bytes, data64, scale),
         b => tail_invalid_digit(b),
+    }
+}
+
+#[inline(never)]
+fn handle_digit_64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool>(
+    bytes: &[u8],
+    data64: u64,
+    scale: u8,
+    digit: u8,
+) -> Result<Decimal, crate::Error> {
+    // we have already validated that we cannot overflow
+    let data64 = data64 * 10 + digit as u64;
+    let scale = if POINT { scale + 1 } else { 0 };
+
+    if let Some((next, bytes)) = bytes.split_first() {
+        let next = *next;
+        if POINT && BIG && scale >= 28 {
+            maybe_round::<POINT, NEG>(data64 as u128, next, scale)
+        } else if HAS && BIG && overflow_64(data64) {
+            handle_full_128::<POINT, NEG>(data64 as u128, bytes, scale, next)
+        } else {
+            byte_dispatch_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, next)
+        }
+    } else {
+        let data: u128 = data64 as u128;
+
+        handle_data::<NEG, true>(data, scale)
+    }
+}
+
+#[inline(never)]
+fn handle_point<const NEG: bool, const HAS: bool, const BIG: bool>(
+    bytes: &[u8],
+    data64: u64,
+    scale: u8,
+) -> Result<Decimal, crate::Error> {
+    if let Some((next, bytes)) = bytes.split_first() {
+        byte_dispatch_u64::<true, NEG, HAS, BIG>(bytes, data64, scale, *next)
+    } else {
+        handle_data::<NEG, HAS>(data64 as u128, scale)
+    }
+}
+
+#[inline(never)]
+fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool>(
+    bytes: &[u8],
+    data64: u64,
+    scale: u8,
+) -> Result<Decimal, crate::Error> {
+    if let Some((next, bytes)) = bytes.split_first() {
+        byte_dispatch_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, *next)
+    } else {
+        handle_data::<NEG, true>(data64 as u128, scale)
     }
 }
 
