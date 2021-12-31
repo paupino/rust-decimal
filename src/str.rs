@@ -122,6 +122,7 @@ pub(crate) fn fmt_scientific_notation(
 }
 
 // dedicated implementation for the most common case.
+#[inline]
 pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
     let bytes = str.as_bytes();
     // handle the sign
@@ -133,12 +134,10 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
     }
 }
 
-#[inline(never)]
+#[inline]
 fn parse_str_radix_10_dispatch<const BIG: bool>(bytes: &[u8]) -> Result<Decimal, crate::Error> {
     match bytes {
-        [b'-', b, rest @ ..] => byte_dispatch_u64::<false, true, false, BIG>(rest, 0, 0, *b),
-        [b'+', b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG>(rest, 0, 0, *b),
-        [b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG>(rest, 0, 0, *b),
+        [b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG, true>(rest, 0, 0, *b),
         [] => tail_error("Invalid decimal: empty"),
     }
 }
@@ -154,7 +153,35 @@ pub fn overflow_128(val: u128) -> bool {
 }
 
 #[inline]
-fn byte_dispatch_u64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool>(
+fn dispatch_next<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool>(
+    bytes: &[u8],
+    data64: u64,
+    scale: u8,
+) -> Result<Decimal, crate::Error> {
+    if let Some((next, bytes)) = bytes.split_first() {
+        byte_dispatch_u64::<POINT, NEG, HAS, BIG, false>(bytes, data64, scale, *next)
+    } else {
+        handle_data::<NEG, HAS>(data64 as u128, scale)
+    }
+}
+
+#[inline(never)]
+fn non_digit_dispatch_u64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool, const FIRST: bool>(
+    bytes: &[u8],
+    data64: u64,
+    scale: u8,
+    b: u8,
+) -> Result<Decimal, crate::Error> {
+    match b {
+        b'-' if FIRST && !HAS => dispatch_next::<false, true, false, BIG>(bytes, data64, scale),
+        b'+' if FIRST && !HAS => dispatch_next::<false, false, false, BIG>(bytes, data64, scale),
+        b'_' if HAS => handle_separator::<POINT, NEG, BIG>(bytes, data64, scale),
+        b => tail_invalid_digit(b),
+    }
+}
+
+#[inline]
+fn byte_dispatch_u64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool, const FIRST: bool>(
     bytes: &[u8],
     data64: u64,
     scale: u8,
@@ -163,8 +190,7 @@ fn byte_dispatch_u64<const POINT: bool, const NEG: bool, const HAS: bool, const 
     match b {
         b'0'..=b'9' => handle_digit_64::<POINT, NEG, HAS, BIG>(bytes, data64, scale, b - b'0'),
         b'.' if !POINT => handle_point::<NEG, HAS, BIG>(bytes, data64, scale),
-        b'_' if HAS => handle_separator::<POINT, NEG, BIG>(bytes, data64, scale),
-        b => tail_invalid_digit(b),
+        b => non_digit_dispatch_u64::<POINT, NEG, HAS, BIG, FIRST>(bytes, data64, scale, b),
     }
 }
 
@@ -182,11 +208,11 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const HAS: bool, const BI
     if let Some((next, bytes)) = bytes.split_first() {
         let next = *next;
         if POINT && BIG && scale >= 28 {
-            maybe_round::<POINT, NEG>(data64 as u128, next, scale)
+            maybe_round(data64 as u128, next, scale, POINT, NEG)
         } else if HAS && BIG && overflow_64(data64) {
             handle_full_128::<POINT, NEG>(data64 as u128, bytes, scale, next)
         } else {
-            byte_dispatch_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, next)
+            byte_dispatch_u64::<POINT, NEG, true, BIG, false>(bytes, data64, scale, next)
         }
     } else {
         let data: u128 = data64 as u128;
@@ -201,11 +227,7 @@ fn handle_point<const NEG: bool, const HAS: bool, const BIG: bool>(
     data64: u64,
     scale: u8,
 ) -> Result<Decimal, crate::Error> {
-    if let Some((next, bytes)) = bytes.split_first() {
-        byte_dispatch_u64::<true, NEG, HAS, BIG>(bytes, data64, scale, *next)
-    } else {
-        handle_data::<NEG, HAS>(data64 as u128, scale)
-    }
+    dispatch_next::<true, NEG, HAS, BIG>(bytes, data64, scale)
 }
 
 #[inline(never)]
@@ -214,11 +236,7 @@ fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool>(
     data64: u64,
     scale: u8,
 ) -> Result<Decimal, crate::Error> {
-    if let Some((next, bytes)) = bytes.split_first() {
-        byte_dispatch_u64::<POINT, NEG, true, BIG>(bytes, data64, scale, *next)
-    } else {
-        handle_data::<NEG, true>(data64 as u128, scale)
-    }
+    dispatch_next::<POINT, NEG, true, BIG>(bytes, data64, scale)
 }
 
 #[inline(never)]
@@ -261,7 +279,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool>(
                 if let Some((next, bytes)) = bytes.split_first() {
                     let next = *next;
                     if POINT && scale >= 28 {
-                        maybe_round::<POINT, NEG>(data, next, scale)
+                        maybe_round(data, next, scale, POINT, NEG)
                     } else {
                         handle_full_128::<POINT, NEG>(data, bytes, scale, next)
                     }
@@ -291,15 +309,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round<const POINT: bool, const NEG: bool>(
-    mut data: u128,
-    next_byte: u8,
-    scale: u8,
-) -> Result<Decimal, crate::Error> {
+fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: bool) -> Result<Decimal, crate::Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // this should be an invalid string?
-        b'.' if !POINT => 0,
+        b'.' if point => 0,
         b => return tail_invalid_digit(b),
     };
 
@@ -312,15 +326,23 @@ fn maybe_round<const POINT: bool, const NEG: bool>(
         }
     }
 
-    handle_data::<NEG, true>(data, scale)
+    if negative {
+        handle_data::<true, true>(data, scale)
+    } else {
+        handle_data::<false, true>(data, scale)
+    }
+}
+
+#[inline(never)]
+fn tail_no_has() -> Result<Decimal, crate::Error> {
+    tail_error("Invalid decimal: no digits found")
 }
 
 #[inline]
-#[cold]
 fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, crate::Error> {
     debug_assert_eq!(data >> 96, 0);
     if !HAS {
-        tail_error("Invalid decimal: no digits found")
+        tail_no_has()
     } else {
         Ok(Decimal::from_parts(
             data as u32,
