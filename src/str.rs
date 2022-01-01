@@ -188,14 +188,14 @@ fn byte_dispatch_u64<const POINT: bool, const NEG: bool, const HAS: bool, const 
     b: u8,
 ) -> Result<Decimal, crate::Error> {
     match b {
-        b'0'..=b'9' => handle_digit_64::<POINT, NEG, HAS, BIG>(bytes, data64, scale, b - b'0'),
+        b'0'..=b'9' => handle_digit_64::<POINT, NEG, BIG>(bytes, data64, scale, b - b'0'),
         b'.' if !POINT => handle_point::<NEG, HAS, BIG>(bytes, data64, scale),
         b => non_digit_dispatch_u64::<POINT, NEG, HAS, BIG, FIRST>(bytes, data64, scale, b),
     }
 }
 
 #[inline(never)]
-fn handle_digit_64<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool>(
+fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool>(
     bytes: &[u8],
     data64: u64,
     scale: u8,
@@ -209,7 +209,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const HAS: bool, const BI
         let next = *next;
         if POINT && BIG && scale >= 28 {
             maybe_round(data64 as u128, next, scale, POINT, NEG)
-        } else if HAS && BIG && overflow_64(data64) {
+        } else if BIG && overflow_64(data64) {
             handle_full_128::<POINT, NEG>(data64 as u128, bytes, scale, next)
         } else {
             byte_dispatch_u64::<POINT, NEG, true, BIG, false>(bytes, data64, scale, next)
