@@ -632,86 +632,105 @@ mod test {
 
     #[test]
     fn from_str_rounding_0() {
-        assert_eq!(parse_str_radix_10("1.234").unwrap(), Decimal::new(1234, 3));
+        assert_eq!(
+            parse_str_radix_10("1.234").unwrap().unpack(),
+            Decimal::new(1234, 3).unpack()
+        );
     }
 
     #[test]
     fn from_str_rounding_1() {
         assert_eq!(
-            parse_str_radix_10("11111_11111_11111.11111_11111_11111").unwrap(),
-            Decimal::from_i128_with_scale(11_111_111_111_111_111_111_111_111_111, 14)
+            parse_str_radix_10("11111_11111_11111.11111_11111_11111")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(11_111_111_111_111_111_111_111_111_111, 14).unpack()
         );
     }
 
     #[test]
     fn from_str_rounding_2() {
         assert_eq!(
-            parse_str_radix_10("11111_11111_11111.11111_11111_11115").unwrap(),
-            Decimal::from_i128_with_scale(11_111_111_111_111_111_111_111_111_112, 14)
+            parse_str_radix_10("11111_11111_11111.11111_11111_11115")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(11_111_111_111_111_111_111_111_111_112, 14).unpack()
         );
     }
 
     #[test]
     fn from_str_rounding_3() {
         assert_eq!(
-            parse_str_radix_10("11111_11111_11111.11111_11111_11195").unwrap(),
-            Decimal::from_i128_with_scale(1_111_111_111_111_111_111_111_111_112, 13)
+            parse_str_radix_10("11111_11111_11111.11111_11111_11195")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(1_111_111_111_111_111_111_111_111_1120, 14).unpack() // was Decimal::from_i128_with_scale(1_111_111_111_111_111_111_111_111_112, 13)
         );
     }
 
     #[test]
     fn from_str_rounding_4() {
         assert_eq!(
-            parse_str_radix_10("99999_99999_99999.99999_99999_99995").unwrap(),
-            Decimal::from_i128_with_scale(1_000_000_000_000_000_000_000_000_000, 12)
+            parse_str_radix_10("99999_99999_99999.99999_99999_99995")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(10_000_000_000_000_000_000_000_000_000, 13).unpack() // was Decimal::from_i128_with_scale(1_000_000_000_000_000_000_000_000_000, 12)
         );
     }
 
     #[test]
     fn from_str_many_pointless_chars() {
         assert_eq!(
-            parse_str_radix_10("00________________________________________________________________001.1").unwrap(),
-            Decimal::from_i128_with_scale(11, 1)
+            parse_str_radix_10("00________________________________________________________________001.1")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(11, 1).unpack()
         );
     }
 
     #[test]
     fn from_str_leading_0s_1() {
         assert_eq!(
-            parse_str_radix_10("00001.1").unwrap(),
-            Decimal::from_i128_with_scale(11, 1)
+            parse_str_radix_10("00001.1").unwrap().unpack(),
+            Decimal::from_i128_with_scale(11, 1).unpack()
         );
     }
 
     #[test]
     fn from_str_leading_0s_2() {
         assert_eq!(
-            parse_str_radix_10("00000_00000_00000_00000_00001.00001").unwrap(),
-            Decimal::from_i128_with_scale(100001, 5)
+            parse_str_radix_10("00000_00000_00000_00000_00001.00001")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(100001, 5).unpack()
         );
     }
 
     #[test]
     fn from_str_leading_0s_3() {
         assert_eq!(
-            parse_str_radix_10("0.00000_00000_00000_00000_00000_00100").unwrap(),
-            Decimal::from_i128_with_scale(1, 28)
+            parse_str_radix_10("0.00000_00000_00000_00000_00000_00100")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(1, 28).unpack()
         );
     }
 
     #[test]
     fn from_str_trailing_0s_1() {
         assert_eq!(
-            parse_str_radix_10("0.00001_00000_00000").unwrap(),
-            Decimal::from_i128_with_scale(1, 5)
+            parse_str_radix_10("0.00001_00000_00000").unwrap().unpack(),
+            Decimal::from_i128_with_scale(10_000_000_000, 15).unpack()
         );
     }
 
     #[test]
     fn from_str_trailing_0s_2() {
         assert_eq!(
-            parse_str_radix_10("0.00001_00000_00000_00000_00000_00000").unwrap(),
-            Decimal::from_i128_with_scale(1, 5)
+            parse_str_radix_10("0.00001_00000_00000_00000_00000_00000")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(100_000_000_000_000_000_000_000, 28).unpack()
         );
     }
 
@@ -748,8 +767,10 @@ mod test {
         assert_eq!(
             // This does not overflow, moving the decimal point 1 more step would result in
             // 'overflow from too many digits'
-            parse_str_radix_10("99999_99999_99999_99999_99999_999.99").unwrap(),
-            Decimal::from_i128_with_scale(10_000_000_000_000_000_000_000_000_000, 0)
+            parse_str_radix_10("99999_99999_99999_99999_99999_999.99")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(10_000_000_000_000_000_000_000_000_000, 0).unpack()
         );
     }
 

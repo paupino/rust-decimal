@@ -83,7 +83,7 @@ const NEGATIVE_ONE: Decimal = Decimal {
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UnpackedDecimal {
     pub negative: bool,
     pub scale: u32,
