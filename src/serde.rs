@@ -85,6 +85,45 @@ pub mod float {
     }
 }
 
+/// Serialize Decimals as floats in JSON.
+///
+/// ```
+/// # use serde::{Serialize, Deserialize};
+/// # use rust_decimal::Decimal;
+/// # use std::str::FromStr;
+///
+/// #[derive(Serialize, Deserialize)]
+/// pub struct StringExample {
+///     #[serde(with = "rust_decimal::serde::string")]
+///     value: Decimal,
+/// }
+///
+/// let value = StringExample { value: Decimal::from_str("123.400").unwrap() };
+/// assert_eq!(
+///     &serde_json::to_string(&value).unwrap(),
+///     r#"{"value":"123.400"}"#
+/// );
+/// ```
+#[cfg(feature = "serde-with-str")]
+pub mod str {
+    use super::*;
+    use serde::Serialize;
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(DecimalVisitor)
+    }
+
+    pub fn serialize<S>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        value.to_string().serialize(serializer)
+    }
+}
+
 #[cfg(not(feature = "serde-str"))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
@@ -483,6 +522,22 @@ mod test {
         assert_eq!(
             &serde_json::to_string(&value).unwrap(),
             r#"{"value":123.4}"#
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "serde-with-str")]
+    fn with_str() {
+        #[derive(Serialize, Deserialize)]
+        pub struct StringExample {
+            #[serde(with = "crate::serde::str")]
+            value: Decimal,
+        }
+
+        let value = StringExample { value: Decimal::from_str("123.400").unwrap() };
+        assert_eq!(
+            &serde_json::to_string(&value).unwrap(),
+            r#"{"value":"123.400"}"#
         );
     }
 }

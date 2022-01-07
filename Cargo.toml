@@ -59,9 +59,10 @@ rust-fuzz = ["arbitrary"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]
-serde-str = ["serde"]
+serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
 serde-with-float = ["serde"]
+serde-with-str = ["serde"]
 std = []
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
