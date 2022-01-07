@@ -190,7 +190,7 @@ mod postgres;
 #[cfg(feature = "rocket-traits")]
 mod rocket;
 #[cfg(feature = "serde")]
-mod serde;
+pub mod serde;
 
 pub use decimal::{Decimal, RoundingStrategy};
 pub use error::Error;
