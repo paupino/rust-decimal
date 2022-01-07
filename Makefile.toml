@@ -231,3 +231,7 @@ args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision,
 [tasks.test-serde-with-arbitrary-precision]
 command = "cargo"
 args = ["test", "--workspace", "--tests", "--features=serde-with-arbitrary-precision", "serde", "--", "--skip", "generated"]
+
+[tasks.test-serde-with-float]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=serde-with-float", "serde", "--", "--skip", "generated"]
