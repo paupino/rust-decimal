@@ -518,11 +518,10 @@ mod test {
             value: Decimal,
         }
 
-        let value = FloatExample { value: Decimal::from_str("123.400").unwrap() };
-        assert_eq!(
-            &serde_json::to_string(&value).unwrap(),
-            r#"{"value":123.4}"#
-        );
+        let value = FloatExample {
+            value: Decimal::from_str("123.400").unwrap(),
+        };
+        assert_eq!(&serde_json::to_string(&value).unwrap(), r#"{"value":123.4}"#);
     }
 
     #[test]
@@ -534,10 +533,9 @@ mod test {
             value: Decimal,
         }
 
-        let value = StringExample { value: Decimal::from_str("123.400").unwrap() };
-        assert_eq!(
-            &serde_json::to_string(&value).unwrap(),
-            r#"{"value":"123.400"}"#
-        );
+        let value = StringExample {
+            value: Decimal::from_str("123.400").unwrap(),
+        };
+        assert_eq!(&serde_json::to_string(&value).unwrap(), r#"{"value":"123.400"}"#);
     }
 }
