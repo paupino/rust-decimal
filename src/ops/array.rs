@@ -54,6 +54,7 @@ pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_
     }
 }
 
+#[cfg(feature = "legacy-ops")]
 pub(crate) fn add_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
     let mut carry: u64 = 0;
     let vl = value.len();
@@ -88,6 +89,25 @@ pub(crate) fn add_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
         }
     } else {
         panic!("Internal error: add using incompatible length arrays. {} <- {}", vl, bl);
+    }
+    carry as u32
+}
+
+pub(crate) fn add_by_internal_flattened(value: &mut [u32; 3], by: u32) -> u32 {
+    let mut carry: u64;
+    let mut sum: u64;
+    sum = u64::from(value[0]) + u64::from(by);
+    value[0] = (sum & U32_MASK) as u32;
+    carry = sum >> 32;
+    if carry > 0 {
+        sum = u64::from(value[1]) + carry;
+        value[1] = (sum & U32_MASK) as u32;
+        carry = sum >> 32;
+        if carry > 0 {
+            sum = u64::from(value[2]) + carry;
+            value[2] = (sum & U32_MASK) as u32;
+            carry = sum >> 32;
+        }
     }
     carry as u32
 }
