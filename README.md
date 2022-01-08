@@ -1,4 +1,4 @@
-# Decimal &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs Badge]][docs] 
+# Decimal &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs Badge]][docs]
 
 [Build Status]: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fpaupino%2Frust-decimal%2Fbadge&label=build&logo=none
 [actions]: https://actions-badge.atrox.dev/paupino/rust-decimal/goto
@@ -102,7 +102,7 @@ Enables the tokio postgres module allowing for async communication with PostgreS
 
 ### `db-diesel-postgres`
 
-Enable `diesel` PostgreSQL support. 
+Enable `diesel` PostgreSQL support.
 
 ### `db-diesel-mysql`
 
@@ -110,18 +110,18 @@ Enable `diesel` MySQL support.
 
 ### `legacy-ops`
 
-As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed improvements. 
+As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed improvements.
 To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
 
 ### `maths`
 
-The `maths` feature enables additional complex mathematical functions such as `pow`, `ln`, `enf`, `exp` etc. 
-Documentation detailing the additional functions can be found on the 
+The `maths` feature enables additional complex mathematical functions such as `pow`, `ln`, `enf`, `exp` etc.
+Documentation detailing the additional functions can be found on the
 [`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.  
 
 Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
-to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this 
-non-panicking behavior, please use the feature: `maths-nopanic`. 
+to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this
+non-panicking behavior, please use the feature: `maths-nopanic`.
 
 ### `rocket-traits`
 
@@ -146,20 +146,57 @@ e.g. with this turned on, JSON serialization would output:
 
 This is typically useful for `bincode` or `csv` like implementations.
 
-Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to 
-correctly be able to deserialize. Enabling this feature on its own will force deserialization to use `deserialize_str` 
-instead of `deserialize_any`. 
+Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to
+correctly be able to deserialize. Enabling this feature on its own will force deserialization to use `deserialize_str`
+instead of `deserialize_any`.
 
 If, for some reason, you also have `serde-float` enabled then this will use `deserialize_f64` as a type hint. Because
-converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with 
+converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with
 `bincode`. That being said, this will only use 8 bytes so is slightly more efficient in terms of storage size.
 
 ### `serde-arbitrary-precision`
 
-This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the 
-`arbitrary_precision` feature inside `serde_json` when parsing decimals. 
+This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the
+`arbitrary_precision` feature inside `serde_json` when parsing decimals.
 
 This is recommended when parsing "float" looking data as it will prevent data loss.
+
+### `serde-with-float`
+
+Enable this to access the module for serialising `Decimal` types to a float. This can be use in `struct` definitions like so:
+
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct FloatExample {
+    #[serde(with = "rust_decimal::serde::float")]
+    value: Decimal,
+}
+```
+
+### `serde-with-str`
+
+Enable this to access the module for serialising `Decimal` types to a `String`. This can be use in `struct` definitions like so:
+
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct StrExample {
+    #[serde(with = "rust_decimal::serde::str")]
+    value: Decimal,
+}
+```
+
+### `serde-with-arbitrary-precision`
+
+Enable this to access the module for serialising `Decimal` types to a `String`. This can be use in `struct` definitions like so:
+
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct ArbitraryExample {
+    #[serde(with = "rust_decimal::serde::arbitrary_precision")]
+    value: Decimal,
+}
+```
+
 
 ### `std`
 
@@ -177,6 +214,6 @@ which was released on `2021-03-25` and included support for "const generics".
 
 ### Updating the minimum supported version
 
-This library maintains support for rust compiler versions that are 5 minor versions away from the current stable rust compiler version. 
-For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and including `1.45.0`. 
-Of note, we will only update the minimum supported version if and when required. 
+This library maintains support for rust compiler versions that are 5 minor versions away from the current stable rust compiler version.
+For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and including `1.45.0`.
+Of note, we will only update the minimum supported version if and when required.

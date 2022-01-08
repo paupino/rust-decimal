@@ -42,6 +42,7 @@ futures = "0.3"
 serde_derive = "1.0"
 serde_json = "1.0"
 tokio = { features = ["rt-multi-thread", "test-util", "macros"], version = "1.0" }
+serde = { default-features = false, features = ["derive"], version = "1.0" }
 
 [features]
 c-repr = [] # Force Decimal to be repr(C)
@@ -55,10 +56,13 @@ maths = []
 maths-nopanic = ["maths"]
 rocket-traits = ["rocket"]
 rust-fuzz = ["arbitrary"]
-serde-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
+serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
-serde-float = ["serde"]
-serde-str = ["serde"]
+serde-float = ["serde-with-float"]
+serde-str = ["serde-with-str"]
+serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision"]
+serde-with-float = ["serde"]
+serde-with-str = ["serde"]
 std = []
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
