@@ -1183,7 +1183,7 @@ impl Decimal {
 
     /// Returns `Some(Decimal)` number rounded to the specified number of significant digits. If
     /// the resulting number is unable to be represented by the `Decimal` number then `None` will
-    /// be returned.  
+    /// be returned.
     /// When the number of significant figures of the `Decimal` being rounded is greater than the requested
     /// number of significant digits then rounding will be performed using `MidpointNearestEven` strategy.
     ///
@@ -1224,7 +1224,7 @@ impl Decimal {
 
     /// Returns `Some(Decimal)` number rounded to the specified number of significant digits. If
     /// the resulting number is unable to be represented by the `Decimal` number then `None` will
-    /// be returned.  
+    /// be returned.
     /// When the number of significant figures of the `Decimal` being rounded is greater than the requested
     /// number of significant digits then rounding will be performed using the provided [RoundingStrategy].
     ///
