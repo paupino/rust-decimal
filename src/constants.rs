@@ -9,7 +9,7 @@ pub const UNSIGN_MASK: u32 = 0x4FFF_FFFF;
 // contain a value between 0 and 28 inclusive.
 pub const SCALE_MASK: u32 = 0x00FF_0000;
 pub const U8_MASK: u32 = 0x0000_00FF;
-pub const U32_MASK: u64 = 0xFFFF_FFFF;
+pub const U32_MASK: u64 = u32::MAX as _;
 
 // Number of bits scale is shifted by.
 pub const SCALE_SHIFT: u32 = 16;

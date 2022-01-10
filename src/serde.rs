@@ -94,7 +94,7 @@ pub mod float {
 ///
 /// #[derive(Serialize, Deserialize)]
 /// pub struct StringExample {
-///     #[serde(with = "rust_decimal::serde::string")]
+///     #[serde(with = "rust_decimal::serde::str")]
 ///     value: Decimal,
 /// }
 ///
@@ -106,8 +106,12 @@ pub mod float {
 /// ```
 #[cfg(feature = "serde-with-str")]
 pub mod str {
+    use crate::constants::MAX_STR_BUFFER_SIZE;
+
     use super::*;
-    use serde::Serialize;
+    use arrayvec::ArrayString;
+    use core::convert::TryFrom;
+    use serde::{ser::Error, Serialize};
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
     where
@@ -120,7 +124,9 @@ pub mod str {
     where
         S: serde::Serializer,
     {
-        value.to_string().serialize(serializer)
+        ArrayString::<MAX_STR_BUFFER_SIZE>::try_from(format_args!("{}", value))
+            .map_err(S::Error::custom)?
+            .serialize(serializer)
     }
 }
 
