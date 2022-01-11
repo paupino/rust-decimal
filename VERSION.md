@@ -1,5 +1,23 @@
 # Version History
 
+## 1.20.0
+
+* Additional fuzz testing for deserialize ([#452](https://github.com/paupino/rust-decimal/pull/452))
+* Documentation fix for rounding strategy ([#458](https://github.com/paupino/rust-decimal/pull/458))
+* `from_str` is now over 4x faster, utilizing const generics and TCO ([#456](https://github.com/paupino/rust-decimal/pull/456))
+* Fixed `from_str` issue with rounding issues when too many digits in source string. ([#453](https://github.com/paupino/rust-decimal/issues/453))
+* New `serde-with` functionality for greater configurability when using `serde` ([#459](https://github.com/paupino/rust-decimal/pull/459))
+* Various maintenance tasks ([#460](https://github.com/paupino/rust-decimal/pull/460))
+
+This is truly a collaborative release and has some significant contributions from the community. A huge thank
+you to everyone involved:
+
+* [@chris-cantor](https://github.com/chris-cantor)
+* [@TradingTomatillo](https://github.com/TradingTomatillo)
+* [@c410-f3r](https://github.com/c410-f3r)
+* [@ShigotoMitame](https://github.com/ShigotoMitame)
+* [@luke-brown](https://github.com/luke-brown)
+
 ## 1.19.0
 
 This is a minor dot release and contains library updates ([#334](https://github.com/paupino/rust-decimal/pull/334)) and 
