@@ -17,8 +17,8 @@ To get started, add `rust_decimal` and optionally `rust_decimal_macros` to your 
 
 ```toml
 [dependencies]
-rust_decimal = "1.19"
-rust_decimal_macros = "1.19"
+rust_decimal = "1.20"
+rust_decimal_macros = "1.20"
 ```
 
 ## Usage
@@ -73,19 +73,30 @@ assert_eq!(total.to_string(), "27.26");
 
 ## Features
 
+**Behavior / Functionality**
+
 * [c-repr](#c-repr)
-* [db-postgres](#db-postgres)
-* [db-tokio-postgres](#db-tokio-postgres)
-* [db-diesel-postgres](#db-diesel-postgres)
-* [db-diesel-mysql](#db-diesel-mysql)
 * [legacy-ops](#legacy-ops)
 * [maths](#maths)
 * [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
+* [std](#std)
+
+**Database**
+
+* [db-postgres](#db-postgres)
+* [db-tokio-postgres](#db-tokio-postgres)
+* [db-diesel-postgres](#db-diesel-postgres)
+* [db-diesel-mysql](#db-diesel-mysql)
+
+**Serde**
+
 * [serde-float](#serde-float)
 * [serde-str](#serde-str)
 * [serde-arbitrary-precision](#serde-arbitrary-precision)
-* [std](#std)
+* [serde-with-float](#serde-with-float)
+* [serde-with-str](#serde-with-str)
+* [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
 
 ### `c-repr`
 
@@ -133,6 +144,9 @@ Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 
 ### `serde-float`
 
+**Note:** it is recommended to use the `serde-with-*` features for greater control. This allows configurability at the data
+level.
+
 Enable this so that JSON serialization of `Decimal` types are sent as a float instead of a string (default).
 
 e.g. with this turned on, JSON serialization would output:
@@ -143,6 +157,9 @@ e.g. with this turned on, JSON serialization would output:
 ```
 
 ### `serde-str`
+
+**Note:** it is recommended to use the `serde-with-*` features for greater control. This allows configurability at the data
+level.
 
 This is typically useful for `bincode` or `csv` like implementations.
 
@@ -155,6 +172,9 @@ converting to `f64` _loses_ precision, it's highly recommended that you do NOT e
 `bincode`. That being said, this will only use 8 bytes so is slightly more efficient in terms of storage size.
 
 ### `serde-arbitrary-precision`
+
+**Note:** it is recommended to use the `serde-with-*` features for greater control. This allows configurability at the data
+level.
 
 This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the
 `arbitrary_precision` feature inside `serde_json` when parsing decimals.
