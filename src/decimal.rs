@@ -643,6 +643,16 @@ impl Decimal {
     /// number.rescale(1);
     /// assert_eq!(number.to_string(), "1.5");
     /// assert_eq!(number.scale(), 1);
+    ///
+    /// // This function never fails. Consequently, if a scale is provided that is unable to be
+    /// // represented using the given mantissa, then the maximum possible scale is used.
+    /// let mut number = Decimal::from_str("11.76470588235294").unwrap();
+    /// assert_eq!(number.scale(), 14);
+    /// number.rescale(28);
+    /// // A scale of 28 cannot be represented given this mantissa, however it was able to represent
+    /// // a number with a scale of 27
+    /// assert_eq!(number.to_string(), "11.764705882352940000000000000");
+    /// assert_eq!(number.scale(), 27);
     /// ```
     pub fn rescale(&mut self, scale: u32) {
         let mut array = [self.lo, self.mid, self.hi];
