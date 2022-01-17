@@ -613,17 +613,18 @@ impl Decimal {
         Ok(())
     }
 
-    /// Modifies the `Decimal` to the given scale, attempting to do so without changing the
+    /// Modifies the `Decimal` towards the desired scale, attempting to do so without changing the
     /// underlying number itself.
     ///
-    /// Note that setting the scale to something less then the current `Decimal`s scale will
-    /// cause the newly created `Decimal` to have some rounding.
-    /// Scales greater than the maximum precision supported by `Decimal` will be automatically
-    /// rounded to `Decimal::MAX_PRECISION`.
-    /// Rounding leverages the half up strategy.
+    /// Setting the scale to something less then the current `Decimal`s scale will
+    /// cause the newly created `Decimal` to perform rounding using the `MidpointAwayFromZero` strategy.
+    ///
+    /// Scales greater than the maximum precision that can be represented by `Decimal` will be
+    /// automatically rounded to either `Decimal::MAX_PRECISION` or the maximum precision that can
+    /// be represented with the given mantissa.
     ///
     /// # Arguments
-    /// * `scale`: The scale to use for the new `Decimal` number.
+    /// * `scale`: The desired scale to use for the new `Decimal` number.
     ///
     /// # Example
     ///
