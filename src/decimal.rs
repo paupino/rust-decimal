@@ -18,9 +18,7 @@ use diesel::sql_types::Numeric;
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
-use num_traits::{
-    CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, FromPrimitive, Num, One, Signed, ToPrimitive, Zero,
-};
+use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 
 /// The smallest value that can be represented by this decimal type.
 const MIN: Decimal = Decimal {
@@ -1456,62 +1454,6 @@ impl Decimal {
         from_f64(n, false)
     }
 
-    /// Checked addition. Computes `self + other`, returning `None` if overflow occurred.
-    #[inline(always)]
-    #[must_use]
-    pub fn checked_add(self, other: Decimal) -> Option<Decimal> {
-        match ops::add_impl(&self, &other) {
-            CalculationResult::Ok(result) => Some(result),
-            CalculationResult::Overflow => None,
-            _ => None,
-        }
-    }
-
-    /// Checked subtraction. Computes `self - other`, returning `None` if overflow occurred.
-    #[inline(always)]
-    #[must_use]
-    pub fn checked_sub(self, other: Decimal) -> Option<Decimal> {
-        match ops::sub_impl(&self, &other) {
-            CalculationResult::Ok(result) => Some(result),
-            CalculationResult::Overflow => None,
-            _ => None,
-        }
-    }
-
-    /// Checked multiplication. Computes `self * other`, returning `None` if overflow occurred.
-    #[inline]
-    #[must_use]
-    pub fn checked_mul(self, other: Decimal) -> Option<Decimal> {
-        match ops::mul_impl(&self, &other) {
-            CalculationResult::Ok(result) => Some(result),
-            CalculationResult::Overflow => None,
-            _ => None,
-        }
-    }
-
-    /// Checked division. Computes `self / other`, returning `None` if `other == 0.0` or the
-    /// division results in overflow.
-    #[inline]
-    #[must_use]
-    pub fn checked_div(self, other: Decimal) -> Option<Decimal> {
-        match ops::div_impl(&self, &other) {
-            CalculationResult::Ok(quot) => Some(quot),
-            CalculationResult::Overflow => None,
-            CalculationResult::DivByZero => None,
-        }
-    }
-
-    /// Checked remainder. Computes `self % other`, returning `None` if `other == 0.0`.
-    #[inline]
-    #[must_use]
-    pub fn checked_rem(self, other: Decimal) -> Option<Decimal> {
-        match ops::rem_impl(&self, &other) {
-            CalculationResult::Ok(quot) => Some(quot),
-            CalculationResult::Overflow => None,
-            CalculationResult::DivByZero => None,
-        }
-    }
-
     pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, crate::Error> {
         if radix == 10 {
             crate::str::parse_str_radix_10(str)
@@ -1522,6 +1464,7 @@ impl Decimal {
 }
 
 impl Default for Decimal {
+    #[inline]
     fn default() -> Self {
         ZERO
     }
@@ -1561,53 +1504,6 @@ impl_from!(u64, FromPrimitive::from_u64);
 
 impl_from!(i128, FromPrimitive::from_i128);
 impl_from!(u128, FromPrimitive::from_u128);
-
-macro_rules! forward_val_val_binop {
-    (impl $imp:ident for $res:ty, $method:ident) => {
-        impl $imp<$res> for $res {
-            type Output = $res;
-
-            #[inline]
-            fn $method(self, other: $res) -> $res {
-                (&self).$method(&other)
-            }
-        }
-    };
-}
-
-macro_rules! forward_ref_val_binop {
-    (impl $imp:ident for $res:ty, $method:ident) => {
-        impl<'a> $imp<$res> for &'a $res {
-            type Output = $res;
-
-            #[inline]
-            fn $method(self, other: $res) -> $res {
-                self.$method(&other)
-            }
-        }
-    };
-}
-
-macro_rules! forward_val_ref_binop {
-    (impl $imp:ident for $res:ty, $method:ident) => {
-        impl<'a> $imp<&'a $res> for $res {
-            type Output = $res;
-
-            #[inline]
-            fn $method(self, other: &$res) -> $res {
-                (&self).$method(other)
-            }
-        }
-    };
-}
-
-macro_rules! forward_all_binop {
-    (impl $imp:ident for $res:ty, $method:ident) => {
-        forward_val_val_binop!(impl $imp for $res, $method);
-        forward_ref_val_binop!(impl $imp for $res, $method);
-        forward_val_ref_binop!(impl $imp for $res, $method);
-    };
-}
 
 impl Zero for Decimal {
     fn zero() -> Decimal {
@@ -1656,41 +1552,6 @@ impl Signed for Decimal {
 
     fn is_negative(&self) -> bool {
         self.is_sign_negative()
-    }
-}
-
-impl CheckedAdd for Decimal {
-    #[inline]
-    fn checked_add(&self, v: &Decimal) -> Option<Decimal> {
-        Decimal::checked_add(*self, *v)
-    }
-}
-
-impl CheckedSub for Decimal {
-    #[inline]
-    fn checked_sub(&self, v: &Decimal) -> Option<Decimal> {
-        Decimal::checked_sub(*self, *v)
-    }
-}
-
-impl CheckedMul for Decimal {
-    #[inline]
-    fn checked_mul(&self, v: &Decimal) -> Option<Decimal> {
-        Decimal::checked_mul(*self, *v)
-    }
-}
-
-impl CheckedDiv for Decimal {
-    #[inline]
-    fn checked_div(&self, v: &Decimal) -> Option<Decimal> {
-        Decimal::checked_div(*self, *v)
-    }
-}
-
-impl CheckedRem for Decimal {
-    #[inline]
-    fn checked_rem(&self, v: &Decimal) -> Option<Decimal> {
-        Decimal::checked_rem(*self, *v)
     }
 }
 
@@ -2209,20 +2070,6 @@ impl<'a> Neg for &'a Decimal {
     }
 }
 
-forward_all_binop!(impl Add for Decimal, add);
-
-impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
-    type Output = Decimal;
-
-    #[inline(always)]
-    fn add(self, other: &Decimal) -> Decimal {
-        match ops::add_impl(self, other) {
-            CalculationResult::Ok(sum) => sum,
-            _ => panic!("Addition overflowed"),
-        }
-    }
-}
-
 impl AddAssign for Decimal {
     fn add_assign(&mut self, other: Decimal) {
         let result = self.add(other);
@@ -2248,20 +2095,6 @@ impl<'a> AddAssign<Decimal> for &'a mut Decimal {
 impl<'a> AddAssign<&'a Decimal> for &'a mut Decimal {
     fn add_assign(&mut self, other: &'a Decimal) {
         Decimal::add_assign(*self, *other)
-    }
-}
-
-forward_all_binop!(impl Sub for Decimal, sub);
-
-impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
-    type Output = Decimal;
-
-    #[inline(always)]
-    fn sub(self, other: &Decimal) -> Decimal {
-        match ops::sub_impl(self, other) {
-            CalculationResult::Ok(sum) => sum,
-            _ => panic!("Subtraction overflowed"),
-        }
     }
 }
 
@@ -2293,20 +2126,6 @@ impl<'a> SubAssign<&'a Decimal> for &'a mut Decimal {
     }
 }
 
-forward_all_binop!(impl Mul for Decimal, mul);
-
-impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
-    type Output = Decimal;
-
-    #[inline]
-    fn mul(self, other: &Decimal) -> Decimal {
-        match ops::mul_impl(self, other) {
-            CalculationResult::Ok(prod) => prod,
-            _ => panic!("Multiplication overflowed"),
-        }
-    }
-}
-
 impl MulAssign for Decimal {
     fn mul_assign(&mut self, other: Decimal) {
         let result = self.mul(other);
@@ -2335,20 +2154,6 @@ impl<'a> MulAssign<&'a Decimal> for &'a mut Decimal {
     }
 }
 
-forward_all_binop!(impl Div for Decimal, div);
-
-impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
-    type Output = Decimal;
-
-    fn div(self, other: &Decimal) -> Decimal {
-        match ops::div_impl(self, other) {
-            CalculationResult::Ok(quot) => quot,
-            CalculationResult::Overflow => panic!("Division overflowed"),
-            CalculationResult::DivByZero => panic!("Division by zero"),
-        }
-    }
-}
-
 impl DivAssign for Decimal {
     fn div_assign(&mut self, other: Decimal) {
         let result = self.div(other);
@@ -2374,21 +2179,6 @@ impl<'a> DivAssign<Decimal> for &'a mut Decimal {
 impl<'a> DivAssign<&'a Decimal> for &'a mut Decimal {
     fn div_assign(&mut self, other: &'a Decimal) {
         Decimal::div_assign(*self, *other)
-    }
-}
-
-forward_all_binop!(impl Rem for Decimal, rem);
-
-impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
-    type Output = Decimal;
-
-    #[inline]
-    fn rem(self, other: &Decimal) -> Decimal {
-        match ops::rem_impl(self, other) {
-            CalculationResult::Ok(rem) => rem,
-            CalculationResult::Overflow => panic!("Division overflowed"),
-            CalculationResult::DivByZero => panic!("Division by zero"),
-        }
     }
 }
 
