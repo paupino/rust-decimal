@@ -169,12 +169,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 
-mod arithmetic_impls;
 mod constants;
 mod decimal;
 mod error;
 mod ops;
 mod str;
+
+// We purposely place this here for documentation ordering
+mod arithmetic_impls;
 
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;

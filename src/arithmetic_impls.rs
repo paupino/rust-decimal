@@ -28,28 +28,15 @@ macro_rules! impl_checked {
     };
 }
 
-macro_rules! impl_checked_and_saturating {
-    (
-        $checked_long:literal,
-        $checked_short:literal,
-        $checked_fun:ident,
-        $checked_impl:ident,
-
-        $saturating_fun:ident,
-        $saturating_cmp:ident
-    ) => {
-        impl_checked!($checked_long, $checked_short, $checked_fun, $checked_impl);
-        impl_saturating!($saturating_fun, $checked_fun, $saturating_cmp);
-    };
-}
-
 #[rustfmt::skip]
 macro_rules! impl_saturating {
-    ($fun:ident, $impl:ident, $cmp:ident) => {
+    ($long:literal, $short:literal, $fun:ident, $impl:ident, $cmp:ident) => {
         #[doc = concat!(
-            "Like [Decimal::",
-            stringify!($impl),
-            "] but instead of `None`, returns lower or upper bounds",
+            "Saturating ", 
+            $long, 
+            ". Computes `self ",
+            $short, 
+            " other`, saturating at the relevant upper or lower boundary.",
         )]
         #[inline(always)]
         #[must_use]
@@ -60,6 +47,27 @@ macro_rules! impl_saturating {
                 $cmp(&self, &other)
             }
         }
+    };
+}
+
+macro_rules! impl_checked_and_saturating {
+    (
+        $op_long:literal,
+        $op_short:literal,
+        $checked_fun:ident,
+        $checked_impl:ident,
+
+        $saturating_fun:ident,
+        $saturating_cmp:ident
+    ) => {
+        impl_checked!($op_long, $op_short, $checked_fun, $checked_impl);
+        impl_saturating!(
+            $op_long,
+            $op_short,
+            $saturating_fun,
+            $checked_fun,
+            $saturating_cmp
+        );
     };
 }
 
@@ -245,7 +253,7 @@ impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
 }
 
 // This function signature is expected by `impl_saturating`, thus the reason of `_b`.
-#[inline]
+#[inline(always)]
 const fn if_a_is_positive_then_max(a: &Decimal, _b: &Decimal) -> Decimal {
     if a.is_sign_positive() {
         Decimal::MAX
@@ -258,7 +266,7 @@ const fn if_a_is_positive_then_max(a: &Decimal, _b: &Decimal) -> Decimal {
 //
 // If the `a` and `b` combination represents a XNOR bit operation, returns MAX. Otherwise,
 // returns MIN.
-#[inline]
+#[inline(always)]
 const fn if_xnor_then_max(a: &Decimal, b: &Decimal) -> Decimal {
     match (a.is_sign_positive(), b.is_sign_positive()) {
         (true, true) => Decimal::MAX,
