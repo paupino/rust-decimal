@@ -169,6 +169,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 extern crate alloc;
 
+mod arithmetic_impls;
 mod constants;
 mod decimal;
 mod error;
