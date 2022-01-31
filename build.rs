@@ -7,7 +7,7 @@ fn main() {
     fs::write(output, prepare(&readme)).unwrap();
 }
 
-fn prepare(readme: &String) -> String {
+fn prepare(readme: &str) -> String {
     // This is a naive implementation to get things off the ground.
     // We just do a few things for this at the moment:
     // 1. Strip header stuff
