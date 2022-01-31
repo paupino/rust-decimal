@@ -9,7 +9,7 @@
 //! ```
 //!
 //! While this is convenient for most use cases, it is sometimes not desired behavior when looking
-//! to reexport the libray. Consequently, this behavior can be modified by enabling the feature
+//! to reexport the library. Consequently, this behavior can be modified by enabling the feature
 //! `reexportable`. When this feature is enabled, the macro will instead reproduce the functional
 //! equivalent of:
 //!

@@ -331,7 +331,7 @@ impl serde::Serialize for Decimal {
 #[cfg(test)]
 mod test {
     use super::*;
-    use serde_derive::{Deserialize, Serialize};
+    use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug)]
     struct Record {
