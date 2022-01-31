@@ -17,13 +17,13 @@ To get started, add `rust_decimal` and optionally `rust_decimal_macros` to your 
 
 ```toml
 [dependencies]
-rust_decimal = "1.20"
-rust_decimal_macros = "1.20"
+rust_decimal = "1.21"
+rust_decimal_macros = "1.21"
 ```
 
 ## Usage
 
-Decimal numbers can be created in a few distinct ways. The easiest and most optimal method of creating a Decimal is to use the procedural macro within the `rust_decimal_macros` crate:
+Decimal numbers can be created in a few distinct ways. The easiest and most efficient method of creating a Decimal is to use the procedural macro within the `rust_decimal_macros` crate:
 
 ```rust
 // Procedural macros need importing directly
@@ -104,7 +104,7 @@ Forces `Decimal` to use `[repr(C)]`. The corresponding target layout is 128 bit 
 
 ### `db-postgres`
 
-This feature enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
+Enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
 type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL.
 
 ### `db-tokio-postgres`
@@ -120,6 +120,8 @@ Enable `diesel` PostgreSQL support.
 Enable `diesel` MySQL support.
 
 ### `legacy-ops`
+
+**Warning:** This is deprecated and will be removed from a future versions.
 
 As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed improvements.
 To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
@@ -183,7 +185,7 @@ This is recommended when parsing "float" looking data as it will prevent data lo
 
 ### `serde-with-float`
 
-Enable this to access the module for serialising `Decimal` types to a float. This can be use in `struct` definitions like so:
+Enable this to access the module for serializing `Decimal` types to a float. This can be use in `struct` definitions like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -195,7 +197,7 @@ pub struct FloatExample {
 
 ### `serde-with-str`
 
-Enable this to access the module for serialising `Decimal` types to a `String`. This can be use in `struct` definitions like so:
+Enable this to access the module for serializing `Decimal` types to a `String`. This can be use in `struct` definitions like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -207,7 +209,7 @@ pub struct StrExample {
 
 ### `serde-with-arbitrary-precision`
 
-Enable this to access the module for serialising `Decimal` types to a `String`. This can be use in `struct` definitions like so:
+Enable this to access the module for serializing `Decimal` types to a `String`. This can be use in `struct` definitions like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -216,7 +218,6 @@ pub struct ArbitraryExample {
     value: Decimal,
 }
 ```
-
 
 ### `std`
 
@@ -231,8 +232,6 @@ Please refer to the [Build document](BUILD.md) for more information on building 
 
 The current _minimum_ compiler version is [`1.54.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1540-2021-07-29)
 which was released on `2021-07-29`.
-
-### Updating the minimum supported version
 
 This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust compiler version.
 For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and including `1.46.0`.

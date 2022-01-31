@@ -1,5 +1,13 @@
 # Version History
 
+## 1.21.0
+
+* Saturating op variants have been added: `saturating_add`, `saturating_sub` and `saturating_mul` ([#464](https://github.com/paupino/rust-decimal/pull/464))
+* Fixes issue with `log10` values `0 < x < 1` ([#469](https://github.com/paupino/rust-decimal/pull/469))
+* Various documentation fixes/cleanup.
+
+Thank you [@c410-f3r](https://github.com/c410-f3r) for your work in this release!
+
 ## 1.20.0
 
 * Additional fuzz testing for deserialize ([#452](https://github.com/paupino/rust-decimal/pull/452))

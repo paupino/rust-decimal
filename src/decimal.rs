@@ -156,25 +156,125 @@ pub enum RoundingStrategy {
 #[allow(dead_code)]
 impl Decimal {
     /// The smallest value that can be represented by this decimal type.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::MIN, dec!(-79_228_162_514_264_337_593_543_950_335));
+    /// ```
     pub const MIN: Decimal = MIN;
     /// The largest value that can be represented by this decimal type.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::MAX, dec!(79_228_162_514_264_337_593_543_950_335));
+    /// ```
     pub const MAX: Decimal = MAX;
     /// A constant representing 0.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::ZERO, dec!(0));
+    /// ```
     pub const ZERO: Decimal = ZERO;
     /// A constant representing 1.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::ONE, dec!(1));
+    /// ```
     pub const ONE: Decimal = ONE;
     /// A constant representing -1.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::NEGATIVE_ONE, dec!(-1));
+    /// ```
     pub const NEGATIVE_ONE: Decimal = NEGATIVE_ONE;
     /// A constant representing 2.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::TWO, dec!(2));
+    /// ```
     pub const TWO: Decimal = TWO;
     /// A constant representing 10.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::TEN, dec!(10));
+    /// ```
     pub const TEN: Decimal = TEN;
     /// A constant representing 100.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::ONE_HUNDRED, dec!(100));
+    /// ```
     pub const ONE_HUNDRED: Decimal = ONE_HUNDRED;
     /// A constant representing 1000.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::ONE_THOUSAND, dec!(1000));
+    /// ```
     pub const ONE_THOUSAND: Decimal = ONE_THOUSAND;
 
     /// A constant representing π as 3.1415926535897932384626433833
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::PI, dec!(3.1415926535897932384626433833));
+    /// ```
     #[cfg(feature = "maths")]
     pub const PI: Decimal = Decimal {
         flags: 1835008,
@@ -183,6 +283,16 @@ impl Decimal {
         hi: 1703060790,
     };
     /// A constant representing π/2 as 1.5707963267948966192313216916
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::HALF_PI, dec!(1.5707963267948966192313216916));
+    /// ```
     #[cfg(feature = "maths")]
     pub const HALF_PI: Decimal = Decimal {
         flags: 1835008,
@@ -191,6 +301,16 @@ impl Decimal {
         hi: 851530395,
     };
     /// A constant representing π/4 as 0.7853981633974483096156608458
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::QUARTER_PI, dec!(0.7853981633974483096156608458));
+    /// ```
     #[cfg(feature = "maths")]
     pub const QUARTER_PI: Decimal = Decimal {
         flags: 1835008,
@@ -199,6 +319,16 @@ impl Decimal {
         hi: 425765197,
     };
     /// A constant representing 2π as 6.2831853071795864769252867666
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::TWO_PI, dec!(6.2831853071795864769252867666));
+    /// ```
     #[cfg(feature = "maths")]
     pub const TWO_PI: Decimal = Decimal {
         flags: 1835008,
@@ -207,6 +337,16 @@ impl Decimal {
         hi: 3406121580,
     };
     /// A constant representing Euler's number (e) as 2.7182818284590452353602874714
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::E, dec!(2.7182818284590452353602874714));
+    /// ```
     #[cfg(feature = "maths")]
     pub const E: Decimal = Decimal {
         flags: 1835008,
@@ -215,6 +355,16 @@ impl Decimal {
         hi: 1473583531,
     };
     /// A constant representing the inverse of Euler's number (1/e) as 0.3678794411714423215955237702
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// use rust_decimal::Decimal;
+    /// use rust_decimal_macros::dec;
+    ///
+    /// assert_eq!(Decimal::E_INVERSE, dec!(0.3678794411714423215955237702));
+    /// ```
     #[cfg(feature = "maths")]
     pub const E_INVERSE: Decimal = Decimal {
         flags: 1835008,
@@ -470,6 +620,32 @@ impl Decimal {
             }
         }
         Ok(ret)
+    }
+
+    /// Converts a string slice in a given base to a decimal.
+    ///
+    /// The string is expected to be an optional + sign followed by digits.
+    /// Digits are a subset of these characters, depending on radix, and will return an error if outside
+    /// the expected range:
+    ///
+    /// * 0-9
+    /// * a-z
+    /// * A-Z
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use rust_decimal::prelude::*;
+    /// assert_eq!(Decimal::from_str_radix("A", 16).map(|d| d.to_string()), Ok("10".to_string()));
+    /// ```
+    pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, crate::Error> {
+        if radix == 10 {
+            crate::str::parse_str_radix_10(str)
+        } else {
+            crate::str::parse_str_radix_n(str, radix)
+        }
     }
 
     /// Returns the scale of the decimal number, otherwise known as `e`.
@@ -1452,14 +1628,6 @@ impl Decimal {
     /// ```
     pub fn from_f64_retain(n: f64) -> Option<Self> {
         from_f64(n, false)
-    }
-
-    pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, crate::Error> {
-        if radix == 10 {
-            crate::str::parse_str_radix_10(str)
-        } else {
-            crate::str::parse_str_radix_n(str, radix)
-        }
     }
 }
 
