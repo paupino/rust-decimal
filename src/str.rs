@@ -319,7 +319,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                         if ROUND {
                             maybe_round(data, next, scale, POINT, NEG)
                         } else {
-                            return Err(crate::Error::Underflow);
+                            Err(crate::Error::Underflow)
                         }
                     } else {
                         handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
