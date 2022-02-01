@@ -16,6 +16,7 @@ fn prepare(readme: &str) -> String {
     let mut cleaned = String::new();
     let mut body = false;
     let mut feature_section = false;
+    let mut feature = String::new();
     for line in readme.lines() {
         if !body {
             if line.starts_with("[docs]") {
@@ -31,10 +32,17 @@ fn prepare(readme: &str) -> String {
                 "(https://github.com/paupino/rust-decimal/blob/master/BUILD.md)",
             ));
         } else if feature_section && line.starts_with("```rust") {
-            cleaned.push_str("```ignore");
+            // This is a bit naive, but it's to make the Serde examples cleaner. Should probably
+            // be a bit more "defensive" here.
+            cleaned.push_str("```rust\n");
+            cleaned.push_str("# use rust_decimal::Decimal;\n");
+            cleaned.push_str("# use serde::{Serialize, Deserialize};\n");
+            cleaned.push_str(&format!("# #[cfg(features = \"{}\")]", feature));
         } else {
             if !feature_section && line.starts_with("## Features") {
                 feature_section = true;
+            } else if feature_section && line.starts_with("### ") {
+                feature = line.replace("### ", "").replace("`", "");
             }
             cleaned.push_str(line);
         }
