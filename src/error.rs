@@ -8,6 +8,7 @@ pub enum Error {
     ErrorString(String),
     ExceedsMaximumPossibleValue,
     LessThanMinimumPossibleValue,
+    Underflow,
     ScaleExceedsMaximumPrecision(u32),
 }
 
@@ -38,6 +39,9 @@ impl fmt::Display for Error {
             }
             Self::LessThanMinimumPossibleValue => {
                 write!(f, "Number less than minimum value that can be represented.")
+            }
+            Self::Underflow => {
+                write!(f, "Number has a high precision that can not be represented.")
             }
             Self::ScaleExceedsMaximumPrecision(ref scale) => {
                 write!(

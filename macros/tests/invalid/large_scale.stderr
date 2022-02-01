@@ -1,0 +1,7 @@
+error: proc macro panicked
+ --> tests/invalid/large_scale.rs:4:13
+  |
+4 |     let _ = dec!(0.00000_00000_00000_00000_00000_0001);
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: Number has a high precision that can not be represented.
