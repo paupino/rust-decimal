@@ -640,6 +640,28 @@ impl Decimal {
         }
     }
 
+    /// Parses a string slice into a decimal. If the value underflows and cannot be represented with the
+    /// given scale then this will return an error.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// # use rust_decimal::prelude::*;
+    /// # use rust_decimal::Error;
+    /// #
+    /// # fn main() -> Result<(), rust_decimal::Error> {
+    /// assert_eq!(Decimal::from_str_exact("0.001")?.to_string(), "0.001");
+    /// assert_eq!(Decimal::from_str_exact("0.00000_00000_00000_00000_00000_001")?.to_string(), "0.0000000000000000000000000001");
+    /// assert_eq!(Decimal::from_str_exact("0.00000_00000_00000_00000_00000_0001"), Err(Error::Underflow));
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn from_str_exact(str: &str) -> Result<Self, crate::Error> {
+        crate::str::parse_str_radix_10_exact(str)
+    }
+
     /// Returns the scale of the decimal number, otherwise known as `e`.
     ///
     /// # Example

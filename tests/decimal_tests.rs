@@ -2902,6 +2902,41 @@ fn it_can_parse_highly_significant_numbers() {
 }
 
 #[test]
+fn it_can_parse_exact_highly_significant_numbers() {
+    use rust_decimal::Error;
+
+    let tests = &[
+        (
+            "11.111111111111111111111111111",
+            Ok("11.111111111111111111111111111".to_string()),
+        ),
+        ("11.11111111111111111111111111111", Err(Error::Underflow)),
+        ("11.1111111111111111111111111115", Err(Error::Underflow)),
+        ("115.111111111111111111111111111", Err(Error::Underflow)),
+        ("1115.11111111111111111111111111", Err(Error::Underflow)),
+        ("11.1111111111111111111111111195", Err(Error::Underflow)),
+        ("99.9999999999999999999999999995", Err(Error::Underflow)),
+        ("-11.1111111111111111111111111195", Err(Error::Underflow)),
+        ("-99.9999999999999999999999999995", Err(Error::Underflow)),
+        (
+            "3.1415926535897932384626433832",
+            Ok("3.1415926535897932384626433832".to_string()),
+        ),
+        ("8808257419827262908.5944405087133154018", Err(Error::Underflow)),
+        ("8097370036018690744.2590371109596744091", Err(Error::Underflow)),
+        ("8097370036018690744.2590371149596744091", Err(Error::Underflow)),
+        ("8097370036018690744.2590371159596744091", Err(Error::Underflow)),
+        ("1.234567890123456789012345678949999", Err(Error::Underflow)),
+        (".00000000000000000000000000001", Err(Error::Underflow)),
+        (".10000000000000000000000000000", Err(Error::Underflow)),
+    ];
+    for &(value, ref expected) in tests.into_iter() {
+        let actual = Decimal::from_str_exact(value).map(|d| d.to_string());
+        assert_eq!(*expected, actual);
+    }
+}
+
+#[test]
 fn it_can_parse_alternative_formats() {
     let tests = &[
         ("1_000", "1000"),

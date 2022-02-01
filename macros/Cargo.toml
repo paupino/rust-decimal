@@ -15,6 +15,9 @@ license = "MIT"
 rust_decimal = { path = "..", version = "1.21.0" }
 quote = "1.0"
 
+[dev-dependencies]
+trybuild = "1.0.55"
+
 [features]
 default = []
 reexportable = []

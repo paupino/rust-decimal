@@ -1,0 +1,7 @@
+error: proc macro panicked
+ --> tests/invalid/too_big.rs:4:13
+  |
+4 |     let _ = dec!(79_228_162_514_264_337_593_543_950_336);
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: Invalid decimal: overflow from too many digits
