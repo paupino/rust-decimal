@@ -4,7 +4,7 @@ use core::{fmt, str::FromStr};
 use num_traits::FromPrimitive;
 use serde::{self, de::Unexpected};
 
-/// Serialize Decimals as arbitrary precision numbers in JSON.
+/// Serialize/deserialize Decimals as arbitrary precision numbers in JSON using the `arbitrary_precision` feature within `serde_json`.
 ///
 /// ```
 /// # use serde::{Serialize, Deserialize};
@@ -45,7 +45,7 @@ pub mod arbitrary_precision {
     }
 }
 
-/// Serialize Decimals as floats in JSON.
+/// Serialize/deserialize Decimals as floats.
 ///
 /// ```
 /// # use serde::{Serialize, Deserialize};
@@ -85,7 +85,7 @@ pub mod float {
     }
 }
 
-/// Serialize Decimals as floats in JSON.
+/// Serialize/deserialize Decimals as strings. This is particularly useful when using binary encoding formats.
 ///
 /// ```
 /// # use serde::{Serialize, Deserialize};
