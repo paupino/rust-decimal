@@ -19,8 +19,6 @@ use diesel::sql_types::Numeric;
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
-#[cfg(feature = "borsh")]
-use borsh::{BorshDeserialize, BorshSerialize};
 
 /// The smallest value that can be represented by this decimal type.
 const MIN: Decimal = Decimal {
@@ -99,7 +97,7 @@ pub struct UnpackedDecimal {
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), sql_type = "Numeric")]
 #[cfg_attr(feature = "c-repr", repr(C))]
-#[cfg_attr(feature = "borsh", derive(BorshDeserialize, BorshSerialize))]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale

@@ -75,6 +75,7 @@ assert_eq!(total.to_string(), "27.26");
 
 **Behavior / Functionality**
 
+* [borsh](#borsh)
 * [c-repr](#c-repr)
 * [legacy-ops](#legacy-ops)
 * [maths](#maths)
@@ -97,6 +98,9 @@ assert_eq!(total.to_string(), "27.26");
 * [serde-with-float](#serde-with-float)
 * [serde-with-str](#serde-with-str)
 * [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
+
+### `borsh`
+Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
 
 ### `c-repr`
 
