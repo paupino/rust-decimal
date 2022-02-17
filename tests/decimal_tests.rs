@@ -133,6 +133,23 @@ fn it_can_serialize_deserialize() {
 }
 
 #[test]
+#[cfg(feature = "borsh")]
+fn it_can_serialize_deserialize_borsh() {
+    let tests = [
+        "12.3456789",
+        "5233.9008808150288439427720175",
+        "-5233.9008808150288439427720175",
+    ];
+    for test in &tests {
+        let a = Decimal::from_str(test).unwrap();
+        let mut bytes: Vec<u8> = Vec::new();
+        borsh::BorshSerialize::serialize(&a, &mut bytes).unwrap();
+        let b: Decimal = borsh::BorshDeserialize::deserialize(&mut bytes.as_slice()).unwrap();
+        assert_eq!(test.to_string(), b.to_string());
+    }
+}
+
+#[test]
 fn it_can_deserialize_unbounded_values() {
     // Mantissa for these: 19393111376951473493673267553
     let tests = [
