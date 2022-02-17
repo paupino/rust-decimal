@@ -33,6 +33,7 @@ rocket = { default-features = false, optional = true, version = "0.5.0-rc.1" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
+borsh = { default-features = false, optional = true, version = "0.9.3" }
 
 [dev-dependencies]
 bincode = "1.3"
