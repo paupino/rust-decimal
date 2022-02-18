@@ -1672,6 +1672,9 @@ impl Decimal {
 }
 
 impl Default for Decimal {
+    /// Returns the default value for a `Decimal` (equivalent to `Decimal::ZERO`). [Read more]
+    ///
+    /// [Read more]: core::default::Default#tymethod.default
     #[inline]
     fn default() -> Self {
         ZERO
