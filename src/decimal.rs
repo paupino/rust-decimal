@@ -953,6 +953,7 @@ impl Decimal {
     /// assert_eq!(false, Decimal::new(1, 0).is_sign_negative());
     /// ```
     #[inline(always)]
+    #[must_use]
     pub const fn is_sign_negative(&self) -> bool {
         self.flags & SIGN_MASK > 0
     }
@@ -1588,6 +1589,7 @@ impl Decimal {
     ///     negative: false, scale: 28, hi: 1703060790, mid: 185874565, lo: 1102470952 \
     /// }");
     /// ```
+    #[must_use]
     pub const fn unpack(&self) -> UnpackedDecimal {
         UnpackedDecimal {
             negative: self.is_sign_negative(),
