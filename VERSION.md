@@ -1,5 +1,14 @@
 # Version History
 
+## 1.22.0
+
+* Add support for `borsh` serialization/deserialization ([#478](https://github.com/paupino/rust-decimal/pull/478)).
+* Fixes an issue with `serde-with-str` where it wasn't behaving the same as `serde-str` when using `bincode` ([#484](https://github.com/paupino/rust-decimal/pull/484)).
+* Added `must_use` to `is_sign_negative` and `unpack` ([#482](https://github.com/paupino/rust-decimal/pull/482)).
+* Minor documentation fixes.
+
+Thank you [@jkbpvsc](https://github.com/jkbpvsc) for your help in this release.
+
 ## 1.21.0
 
 * Saturating op variants have been added: `saturating_add`, `saturating_sub` and `saturating_mul` ([#464](https://github.com/paupino/rust-decimal/pull/464))
