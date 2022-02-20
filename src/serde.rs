@@ -106,27 +106,21 @@ pub mod float {
 /// ```
 #[cfg(feature = "serde-with-str")]
 pub mod str {
-    use crate::constants::MAX_STR_BUFFER_SIZE;
-
     use super::*;
-    use arrayvec::ArrayString;
-    use core::convert::TryFrom;
-    use serde::{ser::Error, Serialize};
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
-        deserializer.deserialize_any(DecimalVisitor)
+        deserializer.deserialize_str(DecimalVisitor)
     }
 
     pub fn serialize<S>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        ArrayString::<MAX_STR_BUFFER_SIZE>::try_from(format_args!("{}", value))
-            .map_err(S::Error::custom)?
-            .serialize(serializer)
+        let value = crate::str::to_str_internal(value, true, None);
+        serializer.serialize_str(value.0.as_ref())
     }
 }
 
@@ -543,5 +537,35 @@ mod test {
             value: Decimal::from_str("123.400").unwrap(),
         };
         assert_eq!(&serde_json::to_string(&value).unwrap(), r#"{"value":"123.400"}"#);
+    }
+
+    #[test]
+    #[cfg(feature = "serde-with-str")]
+    fn with_str_bincode() {
+        use bincode::{deserialize, serialize};
+
+        #[derive(Serialize, Deserialize)]
+        pub struct BincodeExample {
+            #[serde(with = "crate::serde::str")]
+            value: Decimal,
+        }
+
+        let data = [
+            ("0", "0"),
+            ("0.00", "0.00"),
+            ("3.14159", "3.14159"),
+            ("-3.14159", "-3.14159"),
+            ("1234567890123.4567890", "1234567890123.4567890"),
+            ("-1234567890123.4567890", "-1234567890123.4567890"),
+        ];
+        for &(value, expected) in data.iter() {
+            let value = Decimal::from_str(value).unwrap();
+            let expected = Decimal::from_str(expected).unwrap();
+            let input = BincodeExample { value };
+
+            let encoded = serialize(&input).unwrap();
+            let decoded: BincodeExample = deserialize(&encoded[..]).unwrap();
+            assert_eq!(expected, decoded.value);
+        }
     }
 }
