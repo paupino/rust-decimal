@@ -510,6 +510,19 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "serde-with-arbitrary-precision")]
+    fn with_arbitrary_precision_from_string() {
+        #[derive(Serialize, Deserialize)]
+        pub struct ArbitraryExample {
+            #[serde(with = "crate::serde::arbitrary_precision")]
+            value: Decimal,
+        }
+
+        let value: ArbitraryExample = serde_json::from_str(r#"{"value":"1.1234127836128763"}"#).unwrap();
+        assert_eq!(value.value.to_string(), "1.1234127836128763");
+    }
+
+    #[test]
     #[cfg(feature = "serde-with-float")]
     fn with_float() {
         #[derive(Serialize, Deserialize)]
