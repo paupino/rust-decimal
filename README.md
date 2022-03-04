@@ -7,7 +7,7 @@
 [Docs Badge]: https://docs.rs/rust_decimal/badge.svg
 [docs]: https://docs.rs/rust_decimal
 
-A Decimal implementation written in pure Rust suitable for financial calculations that require significant integral and fractional digits with no round-off errors.
+A Decimal number implementation written in pure Rust suitable for financial calculations that require significant integral and fractional digits with no round-off errors.
 
 The binary representation consists of a 96 bit integer number, a scaling factor used to specify the decimal fraction and a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These can be truncated using the `normalize` or `round_dp` functions.
 

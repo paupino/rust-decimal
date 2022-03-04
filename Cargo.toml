@@ -5,12 +5,12 @@ path = "benches/comparison.rs"
 
 [package]
 authors = ["Paul Mason <paul@form1.co.nz>"]
-categories = ["science","data-structures"]
-description = "A Decimal Implementation written in pure Rust suitable for financial calculations."
+categories = ["science","mathematics","data-structures"]
+description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
 documentation = "https://docs.rs/rust_decimal/"
 edition = "2018"
 exclude = [ "tests/generated/*" ]
-keywords = ["decimal","financial","fixed","precision"]
+keywords = ["decimal","financial","fixed","precision","number","fixed-point"]
 license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
