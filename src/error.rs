@@ -10,6 +10,7 @@ pub enum Error {
     LessThanMinimumPossibleValue,
     Underflow,
     ScaleExceedsMaximumPrecision(u32),
+    ConversionTo(String),
 }
 
 impl<S> From<S> for Error
@@ -49,6 +50,9 @@ impl fmt::Display for Error {
                     "Scale exceeds the maximum precision allowed: {} > {}",
                     scale, MAX_PRECISION_U32
                 )
+            }
+            Self::ConversionTo(ref type_name) => {
+                write!(f, "Error while converting to {}", type_name)
             }
         }
     }
