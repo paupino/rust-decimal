@@ -32,10 +32,10 @@ macro_rules! impl_checked {
 macro_rules! impl_saturating {
     ($long:literal, $short:literal, $fun:ident, $impl:ident, $cmp:ident) => {
         #[doc = concat!(
-            "Saturating ", 
-            $long, 
+            "Saturating ",
+            $long,
             ". Computes `self ",
-            $short, 
+            $short,
             " other`, saturating at the relevant upper or lower boundary.",
         )]
         #[inline(always)]
