@@ -3,7 +3,7 @@
 
 use crate::{decimal::CalculationResult, ops, Decimal};
 use core::ops::{Add, Div, Mul, Rem, Sub};
-use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub};
+use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Inv};
 
 // Macros and `Decimal` implementations
 
@@ -32,10 +32,10 @@ macro_rules! impl_checked {
 macro_rules! impl_saturating {
     ($long:literal, $short:literal, $fun:ident, $impl:ident, $cmp:ident) => {
         #[doc = concat!(
-            "Saturating ", 
-            $long, 
+            "Saturating ",
+            $long,
             ". Computes `self ",
-            $short, 
+            $short,
             " other`, saturating at the relevant upper or lower boundary.",
         )]
         #[inline(always)]
@@ -195,6 +195,15 @@ impl CheckedRem for Decimal {
     #[inline]
     fn checked_rem(&self, v: &Decimal) -> Option<Decimal> {
         Decimal::checked_rem(*self, *v)
+    }
+}
+
+impl Inv for Decimal {
+    type Output = Self;
+
+    #[inline]
+    fn inv(self) -> Self {
+        Decimal::ONE / self
     }
 }
 

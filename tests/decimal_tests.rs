@@ -5,7 +5,7 @@ use core::{
     convert::{TryFrom, TryInto},
     str::FromStr,
 };
-use num_traits::{Signed, ToPrimitive};
+use num_traits::{Inv, Signed, ToPrimitive};
 use rust_decimal::{Decimal, Error, RoundingStrategy};
 
 #[test]
@@ -3364,6 +3364,11 @@ fn test_constants() {
     assert_eq!("100", Decimal::ONE_HUNDRED.to_string());
     assert_eq!("1000", Decimal::ONE_THOUSAND.to_string());
     assert_eq!("2", Decimal::TWO.to_string());
+}
+
+#[test]
+fn test_inv() {
+    assert_eq!("0.01", Decimal::ONE_HUNDRED.inv().to_string());
 }
 
 // Mathematical features
