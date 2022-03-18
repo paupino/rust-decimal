@@ -1694,8 +1694,84 @@ const fn flags(neg: bool, scale: u32) -> u32 {
     (scale << SCALE_SHIFT) | ((neg as u32) << SIGN_SHIFT)
 }
 
+macro_rules! integer_docs {
+    ( true ) => {
+        " by truncating and returning the integer component"
+    };
+    ( false ) => {
+        ""
+    };
+}
+
+// #[doc] attributes are formatted poorly with rustfmt so skip for now.
+// See https://github.com/rust-lang/rustfmt/issues/5062 for more information.
+#[rustfmt::skip]
+macro_rules! impl_try_from_decimal {
+    ($TInto:ty, $conversion_fn:path, $additional_docs:expr) => {
+        #[doc = concat!(
+            "Try to convert a `Decimal` to `",
+            stringify!($TInto),
+            "`",
+            $additional_docs,
+            ".\n\nCan fail if the `Decimal` is out of range for `",
+            stringify!($TInto),
+            "`.",
+        )]
+        impl core::convert::TryFrom<Decimal> for $TInto {
+            type Error = crate::Error;
+
+            #[inline]
+            fn try_from(t: Decimal) -> Result<Self, Error> {
+                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).to_string()))
+            }
+        }
+    };
+}
+
+impl_try_from_decimal!(f32, Decimal::to_f32, integer_docs!(false));
+impl_try_from_decimal!(f64, Decimal::to_f64, integer_docs!(false));
+impl_try_from_decimal!(isize, Decimal::to_isize, integer_docs!(true));
+impl_try_from_decimal!(i8, Decimal::to_i8, integer_docs!(true));
+impl_try_from_decimal!(i16, Decimal::to_i16, integer_docs!(true));
+impl_try_from_decimal!(i32, Decimal::to_i32, integer_docs!(true));
+impl_try_from_decimal!(i64, Decimal::to_i64, integer_docs!(true));
+impl_try_from_decimal!(i128, Decimal::to_i128, integer_docs!(true));
+impl_try_from_decimal!(usize, Decimal::to_usize, integer_docs!(true));
+impl_try_from_decimal!(u8, Decimal::to_u8, integer_docs!(true));
+impl_try_from_decimal!(u16, Decimal::to_u16, integer_docs!(true));
+impl_try_from_decimal!(u32, Decimal::to_u32, integer_docs!(true));
+impl_try_from_decimal!(u64, Decimal::to_u64, integer_docs!(true));
+impl_try_from_decimal!(u128, Decimal::to_u128, integer_docs!(true));
+
+// #[doc] attributes are formatted poorly with rustfmt so skip for now.
+// See https://github.com/rust-lang/rustfmt/issues/5062 for more information.
+#[rustfmt::skip]
+macro_rules! impl_try_from_primitive {
+    ($TFrom:ty, $conversion_fn:path) => {
+        #[doc = concat!(
+            "Try to convert a `",
+            stringify!($TFrom),
+            "` into a `Decimal`.\n\nCan fail if the value is out of range for `Decimal`."
+        )]
+        impl core::convert::TryFrom<$TFrom> for Decimal {
+            type Error = crate::Error;
+
+            #[inline]
+            fn try_from(t: $TFrom) -> Result<Self, Error> {
+                $conversion_fn(t).ok_or_else(|| Error::ConversionTo("Decimal".to_string()))
+            }
+        }
+    };
+}
+
+impl_try_from_primitive!(f32, Self::from_f32);
+impl_try_from_primitive!(f64, Self::from_f64);
+
 macro_rules! impl_from {
     ($T:ty, $from_ty:path) => {
+        ///
+        /// Conversion to `Decimal`.
+        ///
         impl core::convert::From<$T> for Decimal {
             #[inline]
             fn from(t: $T) -> Self {
@@ -1704,6 +1780,7 @@ macro_rules! impl_from {
         }
     };
 }
+
 impl_from!(isize, FromPrimitive::from_isize);
 impl_from!(i8, FromPrimitive::from_i8);
 impl_from!(i16, FromPrimitive::from_i16);
@@ -2195,38 +2272,6 @@ impl ToPrimitive for Decimal {
             let round_to = 10f64.powi(self.scale() as i32);
             Some((value * round_to).round() / round_to)
         }
-    }
-}
-
-impl core::convert::TryFrom<f32> for Decimal {
-    type Error = crate::Error;
-
-    fn try_from(value: f32) -> Result<Self, Error> {
-        Self::from_f32(value).ok_or_else(|| Error::from("Failed to convert to Decimal"))
-    }
-}
-
-impl core::convert::TryFrom<f64> for Decimal {
-    type Error = crate::Error;
-
-    fn try_from(value: f64) -> Result<Self, Error> {
-        Self::from_f64(value).ok_or_else(|| Error::from("Failed to convert to Decimal"))
-    }
-}
-
-impl core::convert::TryFrom<Decimal> for f32 {
-    type Error = crate::Error;
-
-    fn try_from(value: Decimal) -> Result<Self, Self::Error> {
-        Decimal::to_f32(&value).ok_or_else(|| Error::from("Failed to convert to f32"))
-    }
-}
-
-impl core::convert::TryFrom<Decimal> for f64 {
-    type Error = crate::Error;
-
-    fn try_from(value: Decimal) -> Result<Self, Self::Error> {
-        Decimal::to_f64(&value).ok_or_else(|| Error::from("Failed to convert to f64"))
     }
 }
 
