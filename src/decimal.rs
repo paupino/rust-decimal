@@ -1704,6 +1704,7 @@ macro_rules! integer_docs {
 }
 
 // #[doc] attributes are formatted poorly with rustfmt so skip for now.
+// See https://github.com/rust-lang/rustfmt/issues/5062 for more information.
 #[rustfmt::skip]
 macro_rules! impl_try_from_decimal {
     ($TInto:ty, $conversion_fn:path, $additional_docs:expr) => {
@@ -1742,13 +1743,16 @@ impl_try_from_decimal!(u32, Decimal::to_u32, integer_docs!(true));
 impl_try_from_decimal!(u64, Decimal::to_u64, integer_docs!(true));
 impl_try_from_decimal!(u128, Decimal::to_u128, integer_docs!(true));
 
+// #[doc] attributes are formatted poorly with rustfmt so skip for now.
+// See https://github.com/rust-lang/rustfmt/issues/5062 for more information.
+#[rustfmt::skip]
 macro_rules! impl_try_from_primitive {
     ($TFrom:ty, $conversion_fn:path) => {
         #[doc = concat!(
-                            "Try to convert a `",
-                            stringify!($TFrom),
-                            "` into a `Decimal`.\n\nCan fail if the value is out of range for `Decimal`."
-                        )]
+            "Try to convert a `",
+            stringify!($TFrom),
+            "` into a `Decimal`.\n\nCan fail if the value is out of range for `Decimal`."
+        )]
         impl core::convert::TryFrom<$TFrom> for Decimal {
             type Error = crate::Error;
 
