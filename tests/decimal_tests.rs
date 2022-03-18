@@ -2638,10 +2638,15 @@ fn it_converts_to_i64() {
     assert_eq!(5i64, Decimal::from_str("5.12345").unwrap().to_i64().unwrap());
     assert_eq!(-5i64, Decimal::from_str("-5.12345").unwrap().to_i64().unwrap());
     assert_eq!(
-        0x7FFF_FFFF_FFFF_FFFF,
-        Decimal::from_str("9223372036854775807").unwrap().to_i64().unwrap()
+        Some(i64::MIN),
+        Decimal::from_str("-9223372036854775808").unwrap().to_i64()
     );
-    assert_eq!(None, Decimal::from_str("92233720368547758089").unwrap().to_i64());
+    assert_eq!(
+        Some(i64::MAX),
+        Decimal::from_str("9223372036854775807").unwrap().to_i64()
+    );
+    assert_eq!(None, Decimal::from_str("-92233720368547758089").unwrap().to_i64());
+    assert_eq!(None, Decimal::from_str("92233720368547758088").unwrap().to_i64());
 }
 
 #[test]
