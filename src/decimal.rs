@@ -1703,17 +1703,19 @@ macro_rules! integer_docs {
     };
 }
 
+// #[doc] attributes are formatted poorly with rustfmt so skip for now.
+#[rustfmt::skip]
 macro_rules! impl_try_from_decimal {
     ($TInto:ty, $conversion_fn:path, $additional_docs:expr) => {
         #[doc = concat!(
-                            "Try to convert a `Decimal` to `",
-                            stringify!($TInto),
-                            "`",
-                            $additional_docs,
-                            ".\n\nCan fail if the `Decimal` is out of range for `",
-                            stringify!($TInto),
-                            "`.",
-                        )]
+            "Try to convert a `Decimal` to `",
+            stringify!($TInto),
+            "`",
+            $additional_docs,
+            ".\n\nCan fail if the `Decimal` is out of range for `",
+            stringify!($TInto),
+            "`.",
+        )]
         impl core::convert::TryFrom<Decimal> for $TInto {
             type Error = crate::Error;
 
