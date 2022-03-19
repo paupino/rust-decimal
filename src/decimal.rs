@@ -2203,15 +2203,26 @@ fn base2_to_decimal(
 impl ToPrimitive for Decimal {
     fn to_i64(&self) -> Option<i64> {
         let d = self.trunc();
-        // Quick overflow check
-        if d.hi != 0 || (d.mid & 0x8000_0000) > 0 {
+        // If it is in the hi bit then it is a clear overflow.
+        if d.hi != 0 {
             // Overflow
+            return None;
+        }
+        let negative = self.is_sign_negative();
+
+        // A bit more convoluted in terms of checking when it comes to the hi bit due to twos-complement
+        if d.mid & 0x8000_0000 > 0 {
+            if negative && d.mid == 0x8000_0000 && d.lo == 0 {
+                // We do this because below we try to convert the i64 to a positive first - of which
+                // doesn't fit into an i64.
+                return Some(i64::MIN);
+            }
             return None;
         }
 
         let raw: i64 = (i64::from(d.mid) << 32) | i64::from(d.lo);
-        if self.is_sign_negative() {
-            Some(-raw)
+        if negative {
+            Some(raw.neg())
         } else {
             Some(raw)
         }

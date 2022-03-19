@@ -2633,15 +2633,26 @@ fn it_converts_to_f64_try() {
 
 #[test]
 fn it_converts_to_i64() {
-    assert_eq!(5i64, Decimal::from_str("5").unwrap().to_i64().unwrap());
-    assert_eq!(-5i64, Decimal::from_str("-5").unwrap().to_i64().unwrap());
-    assert_eq!(5i64, Decimal::from_str("5.12345").unwrap().to_i64().unwrap());
-    assert_eq!(-5i64, Decimal::from_str("-5.12345").unwrap().to_i64().unwrap());
-    assert_eq!(
-        0x7FFF_FFFF_FFFF_FFFF,
-        Decimal::from_str("9223372036854775807").unwrap().to_i64().unwrap()
-    );
-    assert_eq!(None, Decimal::from_str("92233720368547758089").unwrap().to_i64());
+    let tests = [
+        ("5", Some(5_i64)),
+        ("-5", Some(-5_i64)),
+        ("5.12345", Some(5_i64)),
+        ("-5.12345", Some(-5_i64)),
+        ("-9223372036854775808", Some(-9223372036854775808_i64)),
+        ("-9223372036854775808", Some(i64::MIN)),
+        ("9223372036854775807", Some(9223372036854775807_i64)),
+        ("9223372036854775807", Some(i64::MAX)),
+        ("-9223372036854775809", None), // i64::MIN - 1
+        ("9223372036854775808", None),  // i64::MAX + 1
+        // Clear overflows in hi bit
+        ("-92233720368547758089", None),
+        ("92233720368547758088", None),
+    ];
+    for (input, expected) in tests {
+        let input = Decimal::from_str(input).unwrap();
+        let actual = input.to_i64();
+        assert_eq!(expected, actual, "Input: {}", input);
+    }
 }
 
 #[test]
