@@ -147,6 +147,7 @@ fn it_can_serialize_deserialize_borsh() {
         let b: Decimal = borsh::BorshDeserialize::deserialize(&mut bytes.as_slice()).unwrap();
         assert_eq!(test.to_string(), b.to_string());
     }
+    let _it_has_a_schema = <Decimal as BorshSchema>::schema_container();
 }
 
 #[test]
