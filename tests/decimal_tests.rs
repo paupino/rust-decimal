@@ -146,6 +146,9 @@ fn it_can_serialize_deserialize_borsh() {
         borsh::BorshSerialize::serialize(&a, &mut bytes).unwrap();
         let b: Decimal = borsh::BorshDeserialize::deserialize(&mut bytes.as_slice()).unwrap();
         assert_eq!(test.to_string(), b.to_string());
+        let bytes = borsh::schema_helper::serialize_with_schema(&a);
+        let b: Decimal = borsh::schema_helper::deserialize_with_schema(&bytes);
+        assert_eq!(test.to_string(), b.to_string());
     }
 }
 
