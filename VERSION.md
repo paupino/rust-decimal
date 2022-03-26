@@ -1,5 +1,9 @@
 # Version History
 
+## 1.23.1
+
+Fixes issue with `no_std` compatability introduced in `1.23.0` ([#501](https://github.com/paupino/rust-decimal/pull/501)).
+
 ## 1.23.0
 
 * Add `BorschSchema` support for the `borsh` feature ([#498](https://github.com/paupino/rust-decimal/pull/498)).
