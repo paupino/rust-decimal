@@ -12,7 +12,7 @@ categories = ["science","data-structures"]
 license = "MIT"
 
 [dependencies]
-rust_decimal = { path = "..", version = "1.23.1" }
+rust_decimal = { path = "..", version = "1.23.1", default-features = false }
 quote = "1.0"
 
 [dev-dependencies]
