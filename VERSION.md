@@ -1,5 +1,16 @@
 # Version History
 
+## 1.23.0
+
+* Add `BorschSchema` support for the `borsh` feature ([#498](https://github.com/paupino/rust-decimal/pull/498)).
+* Implement `TryFrom` for Decimal primitive types ([#493](https://github.com/paupino/rust-decimal/pull/493)).
+* Fix `to_i64` to support `i64::MIN` ([#496](https://github.com/paupino/rust-decimal/pull/496)).
+* Implement `Inv` from `num_traits` ([#495](https://github.com/paupino/rust-decimal/pull/495)).
+* Some minor housekeeping tasks ([#487](https://github.com/paupino/rust-decimal/pull/487), [#490](https://github.com/paupino/rust-decimal/pull/490)).
+
+Thank you [@turion](https://github.com/turion), [@arthurprs](https://github.com/arthurprs) and [@jnitard](https://github.com/jnitard) for your help with this release.
+
+
 ## 1.22.0
 
 * Add support for `borsh` serialization/deserialization ([#478](https://github.com/paupino/rust-decimal/pull/478)).
