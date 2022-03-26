@@ -1725,7 +1725,7 @@ macro_rules! impl_try_from_decimal {
 
             #[inline]
             fn try_from(t: Decimal) -> Result<Self, Error> {
-                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).to_string()))
+                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).into()))
             }
         }
     };
@@ -1761,7 +1761,7 @@ macro_rules! impl_try_from_primitive {
 
             #[inline]
             fn try_from(t: $TFrom) -> Result<Self, Error> {
-                $conversion_fn(t).ok_or_else(|| Error::ConversionTo("Decimal".to_string()))
+                $conversion_fn(t).ok_or_else(|| Error::ConversionTo("Decimal".into()))
             }
         }
     };
