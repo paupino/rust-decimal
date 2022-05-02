@@ -18,7 +18,7 @@ serde_json = { default-features = false, features = ["alloc"], version = "1.0" }
 
 [package]
 authors = ["Automatically generated"]
-edition = "2018"
+edition = "2021"
 name = "rust-decimal-fuzz"
 publish = false
 version = "0.0.0"
