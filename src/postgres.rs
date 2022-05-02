@@ -1,10 +1,11 @@
-use crate::constants::MAX_PRECISION_U32;
-use crate::{
-    ops::array::{div_by_u32, is_all_zero, mul_by_u32},
-    Decimal,
-};
 use core::{convert::TryInto, fmt};
 use std::error;
+
+use crate::{
+    Decimal,
+    ops::array::{div_by_u32, is_all_zero, mul_by_u32},
+};
+use crate::constants::MAX_PRECISION_U32;
 
 #[derive(Debug, Clone)]
 pub struct InvalidDecimal {
@@ -31,7 +32,7 @@ struct PostgresDecimal<D> {
 }
 
 impl Decimal {
-    fn from_postgres<D: ExactSizeIterator<Item = u16>>(
+    fn from_postgres<D: ExactSizeIterator<Item=u16>>(
         PostgresDecimal {
             neg,
             scale,
@@ -141,7 +142,8 @@ impl Decimal {
 
 #[cfg(feature = "db-diesel-postgres")]
 mod diesel_postgres {
-    use super::*;
+    use core::convert::{TryFrom, TryInto};
+
     use ::diesel::{
         deserialize::{self, FromSql},
         pg::data_types::PgNumeric,
@@ -149,8 +151,9 @@ mod diesel_postgres {
         serialize::{self, Output, ToSql},
         sql_types::Numeric,
     };
-    use core::convert::{TryFrom, TryInto};
-    use std::io::Write;
+    use diesel::pg::PgValue;
+
+    use super::*;
 
     impl<'a> TryFrom<&'a PgNumeric> for Decimal {
         type Error = Box<dyn error::Error + Send + Sync>;
@@ -211,22 +214,23 @@ mod diesel_postgres {
     }
 
     impl ToSql<Numeric, Pg> for Decimal {
-        fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+        fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
             let numeric = PgNumeric::from(self);
-            ToSql::<Numeric, Pg>::to_sql(&numeric, out)
+            ToSql::<Numeric, Pg>::to_sql(&numeric, &mut out.reborrow())
         }
     }
 
     impl FromSql<Numeric, Pg> for Decimal {
-        fn from_sql(numeric: Option<&[u8]>) -> deserialize::Result<Self> {
+        fn from_sql(numeric: PgValue) -> deserialize::Result<Self> {
             PgNumeric::from_sql(numeric)?.try_into()
         }
     }
 
     #[cfg(test)]
     mod tests {
-        use super::*;
         use core::str::FromStr;
+
+        use super::*;
 
         #[test]
         fn test_unnecessary_zeroes() {
@@ -461,11 +465,13 @@ mod diesel_postgres {
 
 #[cfg(any(feature = "db-postgres", feature = "db-tokio-postgres"))]
 mod _postgres {
-    use super::*;
-    use ::postgres::types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
+    use std::io::Cursor;
+
+    use ::postgres::types::{FromSql, IsNull, to_sql_checked, ToSql, Type};
     use byteorder::{BigEndian, ReadBytesExt};
     use bytes::{BufMut, BytesMut};
-    use std::io::Cursor;
+
+    use super::*;
 
     impl<'a> FromSql<'a> for Decimal {
         // Decimals are represented as follows:
@@ -525,7 +531,7 @@ mod _postgres {
             let mut raw = Cursor::new(raw);
             let num_groups = raw.read_u16::<BigEndian>()?;
             let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
-                                                       // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
+            // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
             let sign = raw.read_u16::<BigEndian>()?;
             // Number of digits (in base 10) to print after decimal separator
             let scale = raw.read_u16::<BigEndian>()?;
@@ -592,9 +598,11 @@ mod _postgres {
 
     #[cfg(test)]
     mod test {
-        use super::*;
-        use ::postgres::{Client, NoTls};
         use core::str::FromStr;
+
+        use ::postgres::{Client, NoTls};
+
+        use super::*;
 
         /// Gets the URL for connecting to PostgreSQL for testing. Set the POSTGRES_URL
         /// environment variable to change from the default of "postgres://postgres@localhost".

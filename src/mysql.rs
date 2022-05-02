@@ -11,21 +11,21 @@ mod diesel_mysql {
     };
     use std::io::Write;
     use std::str::FromStr;
+    use diesel::mysql::MysqlValue;
 
     impl ToSql<Numeric, Mysql> for Decimal {
-        fn to_sql<W: Write>(&self, out: &mut Output<W, Mysql>) -> serialize::Result {
+        fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Mysql>) -> serialize::Result {
             // From what I can ascertain, MySQL simply writes to a string format for the Decimal type.
             write!(out, "{}", *self).map(|_| IsNull::No).map_err(|e| e.into())
         }
     }
 
     impl FromSql<Numeric, Mysql> for Decimal {
-        fn from_sql(numeric: Option<&[u8]>) -> deserialize::Result<Self> {
+        fn from_sql(numeric: MysqlValue) -> deserialize::Result<Self> {
             // From what I can ascertain, MySQL simply reads from a string format for the Decimal type.
             // Explicitly, it looks like it is length followed by the string. Regardless, we can leverage
             // internal types.
-            let bytes = numeric.ok_or("Invalid decimal")?;
-            let s = std::str::from_utf8(bytes)?;
+            let s = std::str::from_utf8(numeric.as_bytes())?;
             Decimal::from_str(s).map_err(|e| e.into())
         }
     }
