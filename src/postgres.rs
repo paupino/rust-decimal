@@ -1,11 +1,11 @@
 use core::{convert::TryInto, fmt};
 use std::error;
 
-use crate::{
-    Decimal,
-    ops::array::{div_by_u32, is_all_zero, mul_by_u32},
-};
 use crate::constants::MAX_PRECISION_U32;
+use crate::{
+    ops::array::{div_by_u32, is_all_zero, mul_by_u32},
+    Decimal,
+};
 
 #[derive(Debug, Clone)]
 pub struct InvalidDecimal {
@@ -32,7 +32,7 @@ struct PostgresDecimal<D> {
 }
 
 impl Decimal {
-    fn from_postgres<D: ExactSizeIterator<Item=u16>>(
+    fn from_postgres<D: ExactSizeIterator<Item = u16>>(
         PostgresDecimal {
             neg,
             scale,
@@ -467,7 +467,7 @@ mod diesel_postgres {
 mod _postgres {
     use std::io::Cursor;
 
-    use ::postgres::types::{FromSql, IsNull, to_sql_checked, ToSql, Type};
+    use ::postgres::types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
     use byteorder::{BigEndian, ReadBytesExt};
     use bytes::{BufMut, BytesMut};
 
@@ -531,7 +531,7 @@ mod _postgres {
             let mut raw = Cursor::new(raw);
             let num_groups = raw.read_u16::<BigEndian>()?;
             let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
-            // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
+                                                       // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
             let sign = raw.read_u16::<BigEndian>()?;
             // Number of digits (in base 10) to print after decimal separator
             let scale = raw.read_u16::<BigEndian>()?;

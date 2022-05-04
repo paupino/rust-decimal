@@ -9,9 +9,9 @@ mod diesel_mysql {
         serialize::{self, IsNull, Output, ToSql},
         sql_types::Numeric,
     };
+    use diesel::mysql::MysqlValue;
     use std::io::Write;
     use std::str::FromStr;
-    use diesel::mysql::MysqlValue;
 
     impl ToSql<Numeric, Mysql> for Decimal {
         fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Mysql>) -> serialize::Result {
@@ -48,15 +48,15 @@ mod diesel_mysql {
         }
 
         impl QueryableByName<Mysql> for Test {
-            fn build<R: NamedRow<Mysql>>(row: &R) -> deserialize::Result<Self> {
-                let value = row.get("value")?;
+            fn build<'a>(row: &impl NamedRow<'a, Mysql>) -> deserialize::Result<Self> {
+                let value = NamedRow::get(row, "value")?;
                 Ok(Test { value })
             }
         }
 
         impl QueryableByName<Mysql> for NullableTest {
-            fn build<R: NamedRow<Mysql>>(row: &R) -> deserialize::Result<Self> {
-                let value = row.get("value")?;
+            fn build<'a>(row: &impl NamedRow<'a, Mysql>) -> deserialize::Result<Self> {
+                let value = NamedRow::get(row, "value")?;
                 Ok(NullableTest { value })
             }
         }
@@ -96,11 +96,11 @@ mod diesel_mysql {
 
         #[test]
         fn test_null() {
-            let connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
+            let mut connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
 
             // Test NULL
             let items: Vec<NullableTest> = sql_query("SELECT CAST(NULL AS DECIMAL) AS value")
-                .load(&connection)
+                .load(&mut connection)
                 .expect("Unable to query value");
             let result = items.first().unwrap().value;
             assert_eq!(None, result);
@@ -108,13 +108,13 @@ mod diesel_mysql {
 
         #[test]
         fn read_numeric_type() {
-            let connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
+            let mut connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
                 let items: Vec<Test> = sql_query(format!(
                     "SELECT CAST('{}' AS DECIMAL({}, {})) AS value",
                     sent, precision, scale
                 ))
-                .load(&connection)
+                .load(&mut connection)
                 .expect("Unable to query value");
                 assert_eq!(
                     expected,
@@ -129,12 +129,12 @@ mod diesel_mysql {
 
         #[test]
         fn write_numeric_type() {
-            let connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
+            let mut connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
             for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
                 let items: Vec<Test> =
                     sql_query(format!("SELECT CAST($1 AS DECIMAL({}, {})) AS value", precision, scale))
                         .bind::<Text, _>(sent)
-                        .load(&connection)
+                        .load(&mut connection)
                         .expect("Unable to query value");
                 assert_eq!(
                     expected,
