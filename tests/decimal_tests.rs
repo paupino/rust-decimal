@@ -1,10 +1,6 @@
 mod macros;
 
-use core::{
-    cmp::Ordering::*,
-    convert::{TryFrom, TryInto},
-    str::FromStr,
-};
+use core::{cmp::Ordering::*, str::FromStr};
 use num_traits::{Inv, Signed, ToPrimitive};
 use rust_decimal::{Decimal, Error, RoundingStrategy};
 

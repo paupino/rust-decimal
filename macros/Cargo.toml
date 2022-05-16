@@ -2,7 +2,7 @@
 name = "rust_decimal_macros"
 version = "1.23.1"
 authors = ["Paul Mason <paul@form1.co.nz>"]
-edition = "2018"
+edition = "2021"
 description = "Shorthand macros to assist creating Decimal types."
 documentation = "https://docs.rs/rust_decimal/"
 repository = "https://github.com/paupino/rust-decimal"
