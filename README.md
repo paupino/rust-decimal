@@ -140,6 +140,10 @@ Please note that `ln` and `log10` will panic on invalid input with `checked_ln` 
 to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this
 non-panicking behavior, please use the feature: `maths-nopanic`.
 
+### `rand`
+
+Implements `rand::distributions::Distribution<Decimal>` to allow the creation of random instances.
+
 ### `rocket-traits`
 
 Enable support for Rocket forms by implementing the `FromFormField` trait.

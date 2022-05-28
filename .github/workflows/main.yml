@@ -113,6 +113,12 @@ jobs:
           command: make
           args: test-macros
 
+      - name: Run `rand` tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-rand
+
   check_style:
     name: Check file formatting and style
     runs-on: ubuntu-latest
