@@ -25,7 +25,5 @@ impl Distribution<Decimal> for Standard {
 fn has_random_decimal_instances() {
     let mut rng = rand::rngs::OsRng;
     let random: [Decimal; 32] = rng.gen();
-    assert!(random.windows(2).any(|slice| {
-        slice[0] != slice[1]
-    }));
+    assert!(random.windows(2).any(|slice| { slice[0] != slice[1] }));
 }
