@@ -30,6 +30,7 @@ bytes = { default-features = false, optional = true, version = "1.0" }
 diesel = { default-features = false, optional = true, version = "1.4" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres = { default-features = false, optional = true, version = "0.19" }
+rand = { default-features = false, optional = true, version = "0.8" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.1" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
@@ -41,6 +42,7 @@ bytes = { default-features = false, version = "1.0" }
 criterion = { default-features = false, version = "0.3" }
 csv = "1"
 futures = { default-features = false, version = "0.3" }
+rand = { default-features = false, features = ["getrandom"], version = "0.8" }
 rust_decimal_macros = { path = "macros" } # This should be ok since it's just for tests
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"

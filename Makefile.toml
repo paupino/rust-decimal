@@ -251,3 +251,7 @@ args = ["test", "--workspace", "--tests", "--features=serde-with-str", "serde", 
 command = "cargo"
 args = ["test", "--workspace", "--features=borsh"]
 
+[tasks.test-rand]
+command = "cargo"
+args = ["test", "--workspace", "--features=rand"]
+
