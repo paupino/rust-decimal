@@ -1,8 +1,9 @@
-#![cfg(feature = "rand")]
-
 use crate::Decimal;
 use rand::{
-    distributions::{Distribution, Standard},
+    distributions::{
+        uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler},
+        Distribution, Standard,
+    },
     Rng,
 };
 
@@ -21,9 +22,100 @@ impl Distribution<Decimal> for Standard {
     }
 }
 
-#[test]
-fn has_random_decimal_instances() {
-    let mut rng = rand::rngs::OsRng;
-    let random: [Decimal; 32] = rng.gen();
-    assert!(random.windows(2).any(|slice| { slice[0] != slice[1] }));
+impl SampleUniform for Decimal {
+    type Sampler = DecimalSampler;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DecimalSampler {
+    mantissa_sampler: UniformInt<i128>,
+    scale: u32,
+}
+
+impl UniformSampler for DecimalSampler {
+    type X = Decimal;
+
+    #[inline]
+    fn new<B1, B2>(low: B1, high: B2) -> Self
+    where
+        B1: SampleBorrow<Self::X> + Sized,
+        B2: SampleBorrow<Self::X> + Sized,
+    {
+        let high = *high.borrow();
+        let high = Decimal::from_i128_with_scale(high.mantissa() - 1, high.scale());
+        UniformSampler::new_inclusive(low, high)
+    }
+
+    #[inline]
+    fn new_inclusive<B1, B2>(low: B1, high: B2) -> Self
+    where
+        B1: SampleBorrow<Self::X> + Sized,
+        B2: SampleBorrow<Self::X> + Sized,
+    {
+        let mut low = *low.borrow();
+        let mut high = *high.borrow();
+
+        // Set scales to match one another, because we are relying on mantissas'
+        // being comparable in order outsource the actual sampling implementation.
+        low.rescale(low.scale().max(high.scale()));
+        high.rescale(low.scale().max(high.scale()));
+
+        // Return our sampler, which contains an underlying i128 sampler so we
+        // outsource the actual randomness implementation.
+        Self {
+            mantissa_sampler: UniformInt::new_inclusive(low.mantissa(), high.mantissa()),
+            scale: low.scale(),
+        }
+    }
+
+    #[inline]
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Self::X {
+        let mantissa = self.mantissa_sampler.sample(rng);
+        Decimal::from_i128_with_scale(mantissa, self.scale)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    macro_rules! dec {
+        ($e:expr) => {
+            Decimal::from_str_exact(stringify!($e)).unwrap()
+        };
+    }
+
+    #[test]
+    fn has_random_decimal_instances() {
+        let mut rng = rand::rngs::OsRng;
+        let random: [Decimal; 32] = rng.gen();
+        assert!(random.windows(2).any(|slice| { slice[0] != slice[1] }));
+    }
+
+    #[test]
+    fn generates_within_range() {
+        let mut rng = rand::rngs::OsRng;
+        for _ in 0..128 {
+            let random = rng.gen_range(dec!(1.00)..dec!(1.05));
+            assert!(random < dec!(1.05));
+            assert!(random >= dec!(1.00));
+        }
+    }
+
+    #[test]
+    fn generates_within_inclusive_range() {
+        let mut rng = rand::rngs::OsRng;
+        let mut values: HashSet<Decimal> = HashSet::new();
+        for _ in 0..256 {
+            let random = rng.gen_range(dec!(1.00)..=dec!(1.01));
+            // The scale is 2, so 1.00 and 1.01 are the only two valid choices.
+            assert!(random == dec!(1.00) || random == dec!(1.01));
+            values.insert(random);
+        }
+        // Somewhat flaky, will fail 1 out of every 2^255 times this is run.
+        // Probably acceptable in the real world.
+        assert_eq!(values.len(), 2);
+    }
 }
