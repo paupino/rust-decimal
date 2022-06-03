@@ -41,7 +41,7 @@ impl UniformSampler for DecimalSampler {
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
     {
-        let high = *high.borrow();
+        let (low, high) = sync_scales(*low.borrow(), *high.borrow());
         let high = Decimal::from_i128_with_scale(high.mantissa() - 1, high.scale());
         UniformSampler::new_inclusive(low, high)
     }
@@ -52,13 +52,7 @@ impl UniformSampler for DecimalSampler {
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
     {
-        let mut low = *low.borrow();
-        let mut high = *high.borrow();
-
-        // Set scales to match one another, because we are relying on mantissas'
-        // being comparable in order outsource the actual sampling implementation.
-        low.rescale(low.scale().max(high.scale()));
-        high.rescale(low.scale().max(high.scale()));
+        let (low, high) = sync_scales(*low.borrow(), *high.borrow());
 
         // Return our sampler, which contains an underlying i128 sampler so we
         // outsource the actual randomness implementation.
@@ -73,6 +67,29 @@ impl UniformSampler for DecimalSampler {
         let mantissa = self.mantissa_sampler.sample(rng);
         Decimal::from_i128_with_scale(mantissa, self.scale)
     }
+}
+
+/// Return equivalent Decimal objects with the same scale as one another.
+#[inline]
+fn sync_scales(mut a: Decimal, mut b: Decimal) -> (Decimal, Decimal) {
+    if a.scale() == b.scale() {
+        return (a, b);
+    }
+
+    // Set scales to match one another, because we are relying on mantissas'
+    // being comparable in order outsource the actual sampling implementation.
+    a.rescale(a.scale().max(b.scale()));
+    b.rescale(a.scale().max(b.scale()));
+
+    // Edge case: If the values have _wildly_ different scales, the values may not have rescaled far enough to match one another.
+    //
+    // In this case, we accept some precision loss because the randomization approach we are using assumes that the scales will necessarily match.
+    if a.scale() != b.scale() {
+        a.rescale(a.scale().min(b.scale()));
+        b.rescale(a.scale().min(b.scale()));
+    }
+
+    (a, b)
 }
 
 #[cfg(test)]
@@ -117,5 +134,11 @@ mod tests {
         // Somewhat flaky, will fail 1 out of every 2^255 times this is run.
         // Probably acceptable in the real world.
         assert_eq!(values.len(), 2);
+    }
+
+    #[test]
+    fn test_edge_case_scales_match() {
+        let (low, high) = sync_scales(dec!(1.000_000_000_000_000_000_01), dec!(100_000_000_000_000_000_001));
+        assert_eq!(low.scale(), high.scale());
     }
 }
