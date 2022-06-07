@@ -176,7 +176,8 @@ args = ["test", "--workspace", "--no-default-features", "--features=maths-nopani
 [tasks.test-misc]
 dependencies = [
     "test-rust-fuzz",
-    "test-borsh"
+    "test-borsh",
+    "test-rkyv"
 ]
 
 [tasks.test-rust-fuzz]
@@ -250,6 +251,10 @@ args = ["test", "--workspace", "--tests", "--features=serde-with-str", "serde", 
 [tasks.test-borsh]
 command = "cargo"
 args = ["test", "--workspace", "--features=borsh"]
+
+[tasks.test-rkyv]
+command = "cargo"
+args = ["test", "--workspace", "--features=rkyv", "--features=rkyv-safe"]
 
 [tasks.test-rand]
 command = "cargo"
