@@ -32,7 +32,7 @@ diesel = { default-features = false, optional = true, version = "1.4" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres = { default-features = false, optional = true, version = "0.19" }
 rand = { default-features = false, optional = true, version = "0.8" }
-rkyv = { default-features = false, optional = true, version = "0.7" }
+rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.1" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
@@ -61,7 +61,6 @@ default = ["serde", "std"]
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
-rkyv = ["rkyv/size_32", "rkyv/std", "std"]
 rkyv-safe = ["bytecheck", "rkyv", "rkyv/validation"]
 rocket-traits = ["rocket"]
 rust-fuzz = ["arbitrary"]
