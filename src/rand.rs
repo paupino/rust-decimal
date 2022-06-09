@@ -35,6 +35,22 @@ pub struct DecimalSampler {
 impl UniformSampler for DecimalSampler {
     type X = Decimal;
 
+    /// Creates a new sampler that will yield random decimal objects between `low` and `high`.
+    ///
+    /// The sampler will always provide decimals at the same scale as the inputs; if the inputs
+    /// have different scales, the higher scale is used.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rand::Rng;
+    /// # use rust_decimal_macros::dec;
+    /// let mut rng = rand::rngs::OsRng;
+    /// let random = rng.gen_range(dec!(1.00)..dec!(2.00));
+    /// assert!(random >= dec!(1.00));
+    /// assert!(random < dec!(2.00));
+    /// assert_eq!(random.scale(), 2);
+    /// ```
     #[inline]
     fn new<B1, B2>(low: B1, high: B2) -> Self
     where
@@ -46,6 +62,22 @@ impl UniformSampler for DecimalSampler {
         UniformSampler::new_inclusive(low, high)
     }
 
+    /// Creates a new sampler that will yield random decimal objects between `low` and `high`.
+    ///
+    /// The sampler will always provide decimals at the same scale as the inputs; if the inputs
+    /// have different scales, the higher scale is used.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rand::Rng;
+    /// # use rust_decimal_macros::dec;
+    /// let mut rng = rand::rngs::OsRng;
+    /// let random = rng.gen_range(dec!(1.00)..=dec!(2.00));
+    /// assert!(random >= dec!(1.00));
+    /// assert!(random <= dec!(2.00));
+    /// assert_eq!(random.scale(), 2);
+    /// ```
     #[inline]
     fn new_inclusive<B1, B2>(low: B1, high: B2) -> Self
     where
