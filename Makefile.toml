@@ -250,13 +250,13 @@ args = ["test", "--workspace", "--tests", "--features=serde-with-str", "serde", 
 
 [tasks.test-borsh]
 command = "cargo"
-args = ["test", "--workspace", "--features=borsh"]
+args = ["test", "--workspace", "--features=borsh", "--", "--skip", "generated"]
 
 [tasks.test-rkyv]
 command = "cargo"
-args = ["test", "--workspace", "--features=rkyv", "--features=rkyv-safe"]
+args = ["test", "--workspace", "--features=rkyv", "--features=rkyv-safe", "--", "--skip", "generated"]
 
 [tasks.test-rand]
 command = "cargo"
-args = ["test", "--workspace", "--features=rand"]
+args = ["test", "--workspace", "--features=rand", "--", "--skip", "generated"]
 
