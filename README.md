@@ -209,7 +209,8 @@ pub struct FloatExample {
     #[serde(with = "rust_decimal::serde::float")]
     value: Decimal,
 }
-
+```
+```rust
 #[derive(Serialize, Deserialize)]
 pub struct OptionFloatExample {
     #[serde(with = "rust_decimal::serde::float_option")]
@@ -227,7 +228,8 @@ pub struct StrExample {
     #[serde(with = "rust_decimal::serde::str")]
     value: Decimal,
 }
-
+```
+```rust
 #[derive(Serialize, Deserialize)]
 pub struct OptionStrExample {
     #[serde(with = "rust_decimal::serde::str_option")]
@@ -245,7 +247,8 @@ pub struct ArbitraryExample {
     #[serde(with = "rust_decimal::serde::arbitrary_precision")]
     value: Decimal,
 }
-
+```
+```rust
 #[derive(Serialize, Deserialize)]
 pub struct OptionArbitraryExample {
     #[serde(with = "rust_decimal::serde::arbitrary_precision_option")]
