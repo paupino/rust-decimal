@@ -209,6 +209,12 @@ pub struct FloatExample {
     #[serde(with = "rust_decimal::serde::float")]
     value: Decimal,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct OptionFloatExample {
+    #[serde(with = "rust_decimal::serde::float_option")]
+    value: Option<Decimal>,
+}
 ```
 
 ### `serde-with-str`
@@ -221,6 +227,12 @@ pub struct StrExample {
     #[serde(with = "rust_decimal::serde::str")]
     value: Decimal,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct OptionStrExample {
+    #[serde(with = "rust_decimal::serde::str_option")]
+    value: Option<Decimal>,
+}
 ```
 
 ### `serde-with-arbitrary-precision`
@@ -232,6 +244,12 @@ Enable this to access the module for serializing `Decimal` types to a `String`. 
 pub struct ArbitraryExample {
     #[serde(with = "rust_decimal::serde::arbitrary_precision")]
     value: Decimal,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OptionArbitraryExample {
+    #[serde(with = "rust_decimal::serde::arbitrary_precision_option")]
+    value: Option<Decimal>,
 }
 ```
 
