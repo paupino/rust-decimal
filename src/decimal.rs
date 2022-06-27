@@ -11,7 +11,7 @@ use core::{
     cmp::{Ordering::Equal, *},
     fmt,
     hash::{Hash, Hasher},
-    iter::Sum,
+    iter::{Product, Sum},
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign},
     str::FromStr,
 };
@@ -2522,6 +2522,28 @@ impl PartialOrd for Decimal {
 impl Ord for Decimal {
     fn cmp(&self, other: &Decimal) -> Ordering {
         ops::cmp_impl(self, other)
+    }
+}
+
+impl Product for Decimal {
+    /// Panics if out-of-bounds
+    fn product<I: Iterator<Item = Decimal>>(iter: I) -> Self {
+        let mut sum = ONE;
+        for i in iter {
+            sum *= i;
+        }
+        sum
+    }
+}
+
+impl<'a> Product<&'a Decimal> for Decimal {
+    /// Panics if out-of-bounds
+    fn product<I: Iterator<Item = &'a Decimal>>(iter: I) -> Self {
+        let mut sum = ONE;
+        for i in iter {
+            sum *= i;
+        }
+        sum
     }
 }
 
