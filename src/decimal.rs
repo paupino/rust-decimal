@@ -2528,22 +2528,22 @@ impl Ord for Decimal {
 impl Product for Decimal {
     /// Panics if out-of-bounds
     fn product<I: Iterator<Item = Decimal>>(iter: I) -> Self {
-        let mut sum = ONE;
+        let mut product = ONE;
         for i in iter {
-            sum *= i;
+            product *= i;
         }
-        sum
+        product
     }
 }
 
 impl<'a> Product<&'a Decimal> for Decimal {
     /// Panics if out-of-bounds
     fn product<I: Iterator<Item = &'a Decimal>>(iter: I) -> Self {
-        let mut sum = ONE;
+        let mut product = ONE;
         for i in iter {
-            sum *= i;
+            product *= i;
         }
-        sum
+        product
     }
 }
 
