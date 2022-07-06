@@ -4,7 +4,7 @@ use crate::ops::common::Dec64;
 
 use core::cmp::Ordering;
 
-pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
+pub const fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
     if d2.is_zero() {
         return if d1.is_zero() {
             return Ordering::Equal;
@@ -42,7 +42,7 @@ pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
     }
 }
 
-pub(in crate::ops) fn cmp_internal(d1: &Dec64, d2: &Dec64) -> Ordering {
+pub(in crate::ops) const fn cmp_internal(d1: &Dec64, d2: &Dec64) -> Ordering {
     // This function ignores sign
     let mut d1_low = d1.low64;
     let mut d1_high = d1.hi;
@@ -54,23 +54,37 @@ pub(in crate::ops) fn cmp_internal(d1: &Dec64, d2: &Dec64) -> Ordering {
         let mut diff = d2.scale as i32 - d1.scale as i32;
         if diff < 0 {
             diff = -diff;
-            if !rescale(&mut d2_low, &mut d2_high, diff as u32) {
+            let (scaled, low, high) = rescale(d2_low, d2_high, diff as u32);
+            d2_low = low;
+            d2_high = high;
+            if !scaled {
                 return Ordering::Less;
             }
-        } else if !rescale(&mut d1_low, &mut d1_high, diff as u32) {
-            return Ordering::Greater;
+        } else {
+            let (scaled, low, high) = rescale(d1_low, d1_high, diff as u32);
+            d1_low = low;
+            d1_high = high;
+            if !scaled {
+                return Ordering::Greater;
+            };
         }
     }
 
     // They're the same scale, do a standard bitwise comparison
-    let hi_order = d1_high.cmp(&d2_high);
-    if hi_order != Ordering::Equal {
-        return hi_order;
+    if d1_high < d2_high {
+        Ordering::Less
+    } else if d1_high > d2_high {
+        Ordering::Greater
+    } else if d1_low < d2_low {
+        Ordering::Less
+    } else if d1_low > d2_low {
+        Ordering::Greater
+    } else {
+        Ordering::Equal
     }
-    d1_low.cmp(&d2_low)
 }
 
-fn rescale(low64: &mut u64, high: &mut u32, diff: u32) -> bool {
+const fn rescale(mut low64: u64, mut high: u32, diff: u32) -> (bool, u64, u32) {
     let mut diff = diff as i32;
     // We need to modify d1 by 10^diff to get it to the same scale as d2
     loop {
@@ -79,16 +93,16 @@ fn rescale(low64: &mut u64, high: &mut u32, diff: u32) -> bool {
         } else {
             POWERS_10[diff as usize]
         } as u64;
-        let tmp_lo_32 = (*low64 & U32_MASK) * power;
-        let mut tmp = (*low64 >> 32) * power + (tmp_lo_32 >> 32);
-        *low64 = (tmp_lo_32 & U32_MASK) + (tmp << 32);
+        let tmp_lo_32 = (low64 & U32_MASK) * power;
+        let mut tmp = (low64 >> 32) * power + (tmp_lo_32 >> 32);
+        low64 = (tmp_lo_32 & U32_MASK) + (tmp << 32);
         tmp >>= 32;
-        tmp = tmp.wrapping_add((*high as u64) * power);
+        tmp = tmp.wrapping_add((high as u64) * power);
         // Indicates > 96 bits
         if tmp > U32_MAX {
-            return false;
+            return (false, low64, high);
         }
-        *high = tmp as u32;
+        high = tmp as u32;
 
         // Keep scaling if there is more to go
         diff -= MAX_I32_SCALE;
@@ -97,5 +111,5 @@ fn rescale(low64: &mut u64, high: &mut u32, diff: u32) -> bool {
         }
     }
 
-    true
+    (true, low64, high)
 }

@@ -6,7 +6,7 @@ extern crate alloc;
 mod constants;
 mod decimal;
 mod error;
-mod ops;
+pub mod ops;
 mod str;
 
 // We purposely place this here for documentation ordering
@@ -60,6 +60,7 @@ pub mod prelude {
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
     pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
+    pub use crate::ops;
 }
 
 #[cfg(feature = "diesel")]

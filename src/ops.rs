@@ -25,7 +25,7 @@ mod rem;
 #[cfg(not(feature = "legacy-ops"))]
 pub(crate) use add::{add_impl, sub_impl};
 #[cfg(not(feature = "legacy-ops"))]
-pub(crate) use cmp::cmp_impl;
+pub use cmp::cmp_impl;
 #[cfg(not(feature = "legacy-ops"))]
 pub(crate) use div::div_impl;
 #[cfg(not(feature = "legacy-ops"))]
