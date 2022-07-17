@@ -381,7 +381,10 @@ fn tail_no_has() -> Result<Decimal, crate::Error> {
 
 #[inline]
 fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, crate::Error> {
-    debug_assert_eq!(data >> 96, 0);
+    // Raising an error on malformed data, letting the client decide when to panic.
+    if data >> 96 != 0 {
+        return Err(Error::from("Invalid decimal: data >> 96 != 0"));
+    }
     if !HAS {
         tail_no_has()
     } else {

@@ -826,4 +826,18 @@ mod test {
         let deserialized: StringExample = serde_json::from_str(r#"{"value":null}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
     }
+
+    #[test]
+    fn with_overflow() {
+        #[derive(Serialize, Deserialize)]
+        pub struct OverflowExample {
+            value: Decimal,
+        }
+        // Going a fraction about the MAX number expecting it to fail but not panic.
+        let res: Result<Decimal, _> = Decimal::from_str(format!("{}.999999", Decimal::MAX).as_str());
+        // Avoiding `#[should_panic]` to ensure we're returning an error.
+        if res.is_ok() {
+            panic!("Expected to fail deserialization with overflow");
+        }
+    }
 }
