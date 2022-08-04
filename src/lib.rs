@@ -16,12 +16,12 @@ mod arithmetic_impls;
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
-#[cfg(any(feature = "db-diesel-mysql"))]
+#[cfg(feature = "db-diesel-mysql")]
 mod mysql;
 #[cfg(any(
     feature = "db-tokio-postgres",
     feature = "db-postgres",
-    feature = "db-diesel-postgres",
+    feature = "db-diesel-postgres"
 ))]
 mod postgres;
 #[cfg(feature = "rand")]
