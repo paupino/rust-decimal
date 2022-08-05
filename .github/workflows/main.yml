@@ -59,11 +59,11 @@ jobs:
 
       - uses: davidB/rust-cargo-make@v1
 
-      - name: Build default rust-decimal
+      - name: Build rust-decimal
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace
+          args: --workspace --all-features # Important to keep this to ensure docs.rs passes
 
       - name: Run no_std tests
         uses: actions-rs/cargo@v1
@@ -151,11 +151,11 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Run clippy (default features)
+      - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace
+          args: --workspace --all-features
 
   fuzz:
     name: Fuzz
