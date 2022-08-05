@@ -17,8 +17,8 @@ To get started, add `rust_decimal` and optionally `rust_decimal_macros` to your 
 
 ```toml
 [dependencies]
-rust_decimal = "1.25"
-rust_decimal_macros = "1.25"
+rust_decimal = "1.26"
+rust_decimal_macros = "1.26"
 ```
 
 ## Usage
@@ -120,12 +120,14 @@ Enables the tokio postgres module allowing for async communication with PostgreS
 ### `db-diesel-postgres`
 
 Enable `diesel` PostgreSQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `diesel`
-release candidates then you can do so by using `db-diesel2-postgres`.
+release candidates then you can do so by using `db-diesel2-postgres`. Please note, the `db-diesel2-*` features are considered
+unstable and will be upgraded as and when new `diesel 2.x` features are released.
 
 ### `db-diesel-mysql`
 
 Enable `diesel` MySQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `diesel`
-release candidates then you can do so by using `db-diesel2-mysql`.
+release candidates then you can do so by using `db-diesel2-mysql`. Please note, the `db-diesel2-*` features are considered
+unstable and will be upgraded as and when new `diesel 2.x` features are released.
 
 ### `legacy-ops`
 
