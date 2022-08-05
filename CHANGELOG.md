@@ -1,5 +1,14 @@
 # Version History
 
+## 1.26.1
+
+### Fixed
+
+* Fixes `docs.rs` [failing to compile](https://docs.rs/crate/rust_decimal/1.26.0/builds/605522) due to mutually exclusive `diesel1` and `diesel2` features. The previous `compile_error!`
+  was in fact an [anti-pattern](https://doc.rust-lang.org/cargo/reference/features.html#mutually-exclusive-features). Consequently,
+  if both `diesel1` and `diesel2` features are specified then it will favor `diesel2`. This helps prevent any conflict scenarios
+  and ultimately resolves the downstream `docs.rs` issue. 
+
 ## 1.26.0
 
 ### Added
@@ -10,7 +19,12 @@
 
 ### Fixed
 
-* Fixes a silent overflow in `from_str` when parsing `Decimal::MAX` with a fractional portion. ([#530](https://github.com/paupino/rust-decimal/pull/530)). 
+* Fixes a silent overflow in `from_str` when parsing `Decimal::MAX` with a fractional portion. ([#530](https://github.com/paupino/rust-decimal/pull/530)).
+
+### Credit
+
+Thank you to [@Guara92](https://github.com/Guara92) who made the initial `diesel2` PR which made parallel implementation a breeze! Also, once again, thank you
+to [@c410-f3r](https://github.com/c410-f3r) for implementing the missing `Product` trait!
 
 ## 1.25.0
 
