@@ -15,8 +15,15 @@ use core::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, RemAssign, Sub, SubAssign},
     str::FromStr,
 };
-#[cfg(feature = "diesel")]
+
+// Diesel configuration
+#[cfg(feature = "diesel2")]
+use diesel::deserialize::FromSqlRow;
+#[cfg(feature = "diesel2")]
+use diesel::expression::AsExpression;
+#[cfg(any(feature = "diesel1", feature = "diesel2"))]
 use diesel::sql_types::Numeric;
+
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
@@ -99,7 +106,8 @@ pub struct UnpackedDecimal {
 /// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
-#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), sql_type = "Numeric")]
+#[cfg_attr(feature = "diesel1", derive(FromSqlRow, AsExpression), sql_type = "Numeric")]
+#[cfg_attr(feature = "diesel2", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(
     feature = "borsh",

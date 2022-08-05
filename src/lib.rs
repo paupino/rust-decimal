@@ -16,12 +16,13 @@ mod arithmetic_impls;
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
-#[cfg(feature = "db-diesel-mysql")]
+#[cfg(any(feature = "db-diesel1-mysql", feature = "db-diesel2-mysql"))]
 mod mysql;
 #[cfg(any(
     feature = "db-tokio-postgres",
     feature = "db-postgres",
-    feature = "db-diesel-postgres"
+    feature = "db-diesel1-postgres",
+    feature = "db-diesel2-postgres",
 ))]
 mod postgres;
 #[cfg(feature = "rand")]
@@ -62,9 +63,15 @@ pub mod prelude {
     pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
 }
 
-#[cfg(feature = "diesel")]
+#[cfg(all(feature = "diesel1", feature = "diesel2"))]
+compile_error!("Only one diesel version can be compiled. Please select either diesel1 or diesel2.");
+
+#[cfg(feature = "diesel1")]
 #[macro_use]
-extern crate diesel;
+extern crate diesel1 as diesel;
+
+#[cfg(feature = "diesel2")]
+extern crate diesel2 as diesel;
 
 /// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish
 /// between `rust_decimal` and `std` types.
