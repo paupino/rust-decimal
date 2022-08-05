@@ -8,7 +8,7 @@ use diesel::{
 use std::io::Write;
 use std::str::FromStr;
 
-#[cfg(feature = "diesel1")]
+#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
 impl ToSql<Numeric, Mysql> for Decimal {
     fn to_sql<W: Write>(&self, out: &mut Output<W, Mysql>) -> serialize::Result {
         write!(out, "{}", *self).map(|_| IsNull::No).map_err(|e| e.into())
@@ -22,7 +22,7 @@ impl ToSql<Numeric, Mysql> for Decimal {
     }
 }
 
-#[cfg(feature = "diesel1")]
+#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
 impl FromSql<Numeric, Mysql> for Decimal {
     fn from_sql(numeric: Option<&[u8]>) -> deserialize::Result<Self> {
         // From what I can ascertain, MySQL simply reads from a string format for the Decimal type.
@@ -95,7 +95,7 @@ mod tests {
         "mysql://root@127.0.0.1/mysql".to_string()
     }
 
-    #[cfg(feature = "diesel1")]
+    #[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
     mod diesel1 {
         use super::*;
 

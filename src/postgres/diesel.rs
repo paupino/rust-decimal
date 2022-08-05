@@ -67,7 +67,7 @@ impl From<Decimal> for PgNumeric {
     }
 }
 
-#[cfg(feature = "diesel1")]
+#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
 impl ToSql<Numeric, Pg> for Decimal {
     fn to_sql<W: std::io::Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
         let numeric = PgNumeric::from(self);
@@ -83,7 +83,7 @@ impl ToSql<Numeric, Pg> for Decimal {
     }
 }
 
-#[cfg(feature = "diesel1")]
+#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
 impl FromSql<Numeric, Pg> for Decimal {
     fn from_sql(numeric: Option<&[u8]>) -> deserialize::Result<Self> {
         PgNumeric::from_sql(numeric)?.try_into()
