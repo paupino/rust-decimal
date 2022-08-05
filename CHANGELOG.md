@@ -1,5 +1,17 @@
 # Version History
 
+## 1.26.0
+
+### Added
+
+* `serde-with-*` features now support `Option<T>` variants ([#524](https://github.com/paupino/rust-decimal/pull/524)).
+* Implementation support for `core::iter::Product` ([#525](https://github.com/paupino/rust-decimal/pull/525)).
+* Diesel `2.0.0-rc.1` support via `db-diesel2-mysql` and `db-diesel2-postgres` features. ([#533](https://github.com/paupino/rust-decimal/pull/533) and ([#532](https://github.com/paupino/rust-decimal/pull/532))).
+
+### Fixed
+
+* Fixes a silent overflow in `from_str` when parsing `Decimal::MAX` with a fractional portion. ([#530](https://github.com/paupino/rust-decimal/pull/530)). 
+
 ## 1.25.0
 
 ### Added
