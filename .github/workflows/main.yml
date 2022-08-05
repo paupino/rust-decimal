@@ -151,11 +151,11 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Run clippy
+      - name: Run clippy (default features)
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-features
+          args: --workspace
 
   fuzz:
     name: Fuzz

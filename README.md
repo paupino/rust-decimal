@@ -101,6 +101,7 @@ assert_eq!(total.to_string(), "27.26");
 * [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
 
 ### `borsh`
+
 Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
 
 ### `c-repr`
