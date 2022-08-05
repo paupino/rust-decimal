@@ -63,10 +63,7 @@ pub mod prelude {
     pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
 }
 
-#[cfg(all(feature = "diesel1", feature = "diesel2"))]
-compile_error!("Only one diesel version can be compiled. Please select either diesel1 or diesel2.");
-
-#[cfg(feature = "diesel1")]
+#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
 #[macro_use]
 extern crate diesel1 as diesel;
 
