@@ -210,7 +210,8 @@ args = ["test", "--workspace", "--tests", "--features=db-diesel2-mysql", "mysql"
 dependencies = [
     "test-db-postgres",
     "test-db-tokio-postgres",
-    "test-db-diesel1-postgres"
+    "test-db-diesel1-postgres",
+    "test-db-diesel2-postgres"
 ]
 
 [tasks.test-db-postgres]
