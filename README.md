@@ -101,6 +101,7 @@ assert_eq!(total.to_string(), "27.26");
 * [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
 
 ### `borsh`
+
 Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
 
 ### `c-repr`
@@ -118,11 +119,13 @@ Enables the tokio postgres module allowing for async communication with PostgreS
 
 ### `db-diesel-postgres`
 
-Enable `diesel` PostgreSQL support.
+Enable `diesel` PostgreSQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `diesel`
+release candidates then you can do so by using `db-diesel2-postgres`.
 
 ### `db-diesel-mysql`
 
-Enable `diesel` MySQL support.
+Enable `diesel` MySQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `diesel`
+release candidates then you can do so by using `db-diesel2-mysql`.
 
 ### `legacy-ops`
 
