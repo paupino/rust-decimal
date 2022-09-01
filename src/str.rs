@@ -361,7 +361,13 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: bool) -> Result<Decimal, crate::Error> {
+fn maybe_round(
+    mut data: u128,
+    next_byte: u8,
+    mut scale: u8,
+    point: bool,
+    negative: bool,
+) -> Result<Decimal, crate::Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // this should be an invalid string?
@@ -372,9 +378,16 @@ fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: 
     // Round at midpoint
     if digit >= 5 {
         data += 1;
+
+        // If the mantissa is now overflowing, round to the next
+        // next least significant digit and discard precision
         if overflow_128(data) {
-            // Highly unlikely scenario which is more indicative of a bug
-            return tail_error("Invalid decimal: overflow when rounding");
+            if scale == 0 {
+                return tail_error("Invalid decimal: overflow from mantissa after rounding");
+            }
+            data += 4;
+            data /= 10;
+            scale -= 1;
         }
     }
 
@@ -892,11 +905,10 @@ mod test {
     #[test]
     fn from_str_mantissa_overflow_3() {
         assert_eq!(
-            parse_str_radix_10("7.92281625142643375935439503356"),
-            Err(Error::from("Invalid decimal: overflow when rounding"))
+            parse_str_radix_10("7.92281625142643375935439503356").unwrap().unpack(),
+            Decimal::from_i128_with_scale(7922816251426433759354395034, 27).unpack()
         );
-        // this case should round to 7.922816251426433759354395034, but this is
-        // a separate codepath which is more complicated to fix.
+        // this hits the other avoidable overflow case in maybe_round
     }
 
     #[test]
