@@ -3,7 +3,7 @@ use crate::constants::{
     UNSIGN_MASK,
 };
 use crate::ops;
-use crate::Error;
+use crate::{ParseDecimalError, TryFromDecimalError, TryIntoDecimalError};
 
 #[cfg(feature = "rkyv-safe")]
 use bytecheck::CheckBytes;
@@ -422,9 +422,9 @@ impl Decimal {
     /// let max = Decimal::try_new(i64::MAX, u32::MAX);
     /// assert!(max.is_err());
     /// ```
-    pub const fn try_new(num: i64, scale: u32) -> crate::Result<Decimal> {
+    pub const fn try_new(num: i64, scale: u32) -> Result<Decimal, ParseDecimalError> {
         if scale > MAX_PRECISION_U32 {
-            return Err(Error::ScaleExceedsMaximumPrecision(scale));
+            return Err(ParseDecimalError::Underflow);
         }
         let flags: u32 = scale << SCALE_SHIFT;
         if num < 0 {
@@ -482,16 +482,16 @@ impl Decimal {
     /// let max = Decimal::try_from_i128_with_scale(i128::MAX, u32::MAX);
     /// assert!(max.is_err());
     /// ```
-    pub const fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
+    pub const fn try_from_i128_with_scale(num: i128, scale: u32) -> Result<Decimal, ParseDecimalError> {
         if scale > MAX_PRECISION_U32 {
-            return Err(Error::ScaleExceedsMaximumPrecision(scale));
+            return Err(ParseDecimalError::Underflow);
         }
         let mut neg = false;
         let mut wrapped = num;
         if num > MAX_I128_REPR {
-            return Err(Error::ExceedsMaximumPossibleValue);
+            return Err(ParseDecimalError::PosOverflow);
         } else if num < -MAX_I128_REPR {
-            return Err(Error::LessThanMinimumPossibleValue);
+            return Err(ParseDecimalError::NegOverflow);
         } else if num < 0 {
             neg = true;
             wrapped = -num;
@@ -579,22 +579,30 @@ impl Decimal {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
+    pub fn from_scientific(value: &str) -> Result<Decimal, ParseDecimalError> {
         const ERROR_MESSAGE: &str = "Failed to parse";
+        let std_int_err_to_decimal = |e: core::num::ParseIntError| match e.kind() {
+            core::num::IntErrorKind::Empty => ParseDecimalError::Empty,
+            core::num::IntErrorKind::InvalidDigit => ParseDecimalError::InvalidDigit,
+            core::num::IntErrorKind::PosOverflow => ParseDecimalError::PosOverflow,
+            core::num::IntErrorKind::NegOverflow => ParseDecimalError::NegOverflow,
+            core::num::IntErrorKind::Zero if cfg!(debug_assertions) => unreachable!(),
+            _ => ParseDecimalError::__Generic,
+        };
 
         let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
 
-        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
-        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let base = split.next().ok_or(ParseDecimalError::Empty)?;
+        let exp = split.next().ok_or(ParseDecimalError::__Generic)?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = stripped.parse().map_err(std_int_err_to_decimal)?;
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = exp.parse().map_err(std_int_err_to_decimal)?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -606,7 +614,7 @@ impl Decimal {
                 // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
                 // zero.
                 if exp > MAX_PRECISION_U32 {
-                    return Err(Error::ScaleExceedsMaximumPrecision(exp));
+                    return Err(ParseDecimalError::PosOverflow);
                 }
                 let mut exp = exp as usize;
                 // Max two iterations. If exp is 1 then it needs to index position 0 of the array.
@@ -628,7 +636,7 @@ impl Decimal {
                     };
                     match ret.checked_mul(pow) {
                         Some(r) => ret = r,
-                        None => return Err(Error::ExceedsMaximumPossibleValue),
+                        None => return Err(ParseDecimalError::PosOverflow),
                     };
                 }
                 ret.normalize_assign();
@@ -659,7 +667,7 @@ impl Decimal {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, crate::Error> {
+    pub fn from_str_radix(str: &str, radix: u32) -> Result<Self, ParseDecimalError> {
         if radix == 10 {
             crate::str::parse_str_radix_10(str)
         } else {
@@ -676,16 +684,16 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::prelude::*;
-    /// # use rust_decimal::Error;
+    /// # use rust_decimal::ParseDecimalError;
     /// #
     /// # fn main() -> Result<(), rust_decimal::Error> {
     /// assert_eq!(Decimal::from_str_exact("0.001")?.to_string(), "0.001");
     /// assert_eq!(Decimal::from_str_exact("0.00000_00000_00000_00000_00000_001")?.to_string(), "0.0000000000000000000000000001");
-    /// assert_eq!(Decimal::from_str_exact("0.00000_00000_00000_00000_00000_0001"), Err(Error::Underflow));
+    /// assert_eq!(Decimal::from_str_exact("0.00000_00000_00000_00000_00000_0001"), Err(ParseDecimalError::Underflow));
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn from_str_exact(str: &str) -> Result<Self, crate::Error> {
+    pub fn from_str_exact(str: &str) -> Result<Self, ParseDecimalError> {
         crate::str::parse_str_radix_10_exact(str)
     }
 
@@ -824,9 +832,9 @@ impl Decimal {
     /// #    Ok(())
     /// # }
     /// ```
-    pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
+    pub fn set_scale(&mut self, scale: u32) -> Result<(), ParseDecimalError> {
         if scale > MAX_PRECISION_U32 {
-            return Err(Error::ScaleExceedsMaximumPrecision(scale));
+            return Err(ParseDecimalError::Underflow);
         }
         self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
         Ok(())
@@ -1744,11 +1752,11 @@ macro_rules! impl_try_from_decimal {
             "`.",
         )]
         impl TryFrom<Decimal> for $TInto {
-            type Error = crate::Error;
+            type Error = crate::TryFromDecimalError;
 
             #[inline]
-            fn try_from(t: Decimal) -> Result<Self, Error> {
-                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).into()))
+            fn try_from(t: Decimal) -> Result<Self, TryFromDecimalError> {
+                $conversion_fn(&t).ok_or_else(|| TryFromDecimalError { _priv: () })
             }
         }
     };
@@ -1780,11 +1788,11 @@ macro_rules! impl_try_from_primitive {
             "` into a `Decimal`.\n\nCan fail if the value is out of range for `Decimal`."
         )]
         impl TryFrom<$TFrom> for Decimal {
-            type Error = crate::Error;
+            type Error = TryIntoDecimalError;
 
             #[inline]
-            fn try_from(t: $TFrom) -> Result<Self, Error> {
-                $conversion_fn(t).ok_or_else(|| Error::ConversionTo("Decimal".into()))
+            fn try_from(t: $TFrom) -> Result<Self, TryIntoDecimalError> {
+                $conversion_fn(t).ok_or_else(|| TryIntoDecimalError { _priv: () })
             }
         }
     };
@@ -1818,8 +1826,8 @@ impl_from!(u16, FromPrimitive::from_u16);
 impl_from!(u32, FromPrimitive::from_u32);
 impl_from!(u64, FromPrimitive::from_u64);
 
-impl_from!(i128, FromPrimitive::from_i128);
-impl_from!(u128, FromPrimitive::from_u128);
+impl_try_from_primitive!(i128, FromPrimitive::from_i128);
+impl_try_from_primitive!(u128, FromPrimitive::from_u128);
 
 impl Zero for Decimal {
     fn zero() -> Decimal {
@@ -1872,17 +1880,17 @@ impl Signed for Decimal {
 }
 
 impl Num for Decimal {
-    type FromStrRadixErr = Error;
+    type FromStrRadixErr = ParseDecimalError;
 
-    fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
+    fn from_str_radix(str: &str, radix: u32) -> Result<Self, ParseDecimalError> {
         Decimal::from_str_radix(str, radix)
     }
 }
 
 impl FromStr for Decimal {
-    type Err = Error;
+    type Err = ParseDecimalError;
 
-    fn from_str(value: &str) -> Result<Decimal, Self::Err> {
+    fn from_str(value: &str) -> Result<Decimal, ParseDecimalError> {
         crate::str::parse_str_radix_10(value)
     }
 }

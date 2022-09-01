@@ -1,6 +1,6 @@
 use crate::{
     constants::{BYTES_TO_OVERFLOW_U64, MAX_PRECISION, MAX_STR_BUFFER_SIZE, OVERFLOW_U96, WILL_OVERFLOW_U64},
-    error::{tail_error, Error},
+    error::ParseDecimalError,
     ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
 };
@@ -123,7 +123,7 @@ pub(crate) fn fmt_scientific_notation(
 
 // dedicated implementation for the most common case.
 #[inline]
-pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
+pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::ParseDecimalError> {
     let bytes = str.as_bytes();
     if bytes.len() < BYTES_TO_OVERFLOW_U64 {
         parse_str_radix_10_dispatch::<false, true>(bytes)
@@ -133,7 +133,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 }
 
 #[inline]
-pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, crate::Error> {
+pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, crate::ParseDecimalError> {
     let bytes = str.as_bytes();
     if bytes.len() < BYTES_TO_OVERFLOW_U64 {
         parse_str_radix_10_dispatch::<false, false>(bytes)
@@ -143,10 +143,12 @@ pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, crate::Erro
 }
 
 #[inline]
-fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(bytes: &[u8]) -> Result<Decimal, crate::Error> {
+fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(
+    bytes: &[u8],
+) -> Result<Decimal, crate::ParseDecimalError> {
     match bytes {
         [b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG, true, ROUND>(rest, 0, 0, *b),
-        [] => tail_error("Invalid decimal: empty"),
+        [] => Err(ParseDecimalError::Empty),
     }
 }
 
@@ -172,7 +174,7 @@ fn dispatch_next<const POINT: bool, const NEG: bool, const HAS: bool, const BIG:
     bytes: &[u8],
     data64: u64,
     scale: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, crate::ParseDecimalError> {
     if let Some((next, bytes)) = bytes.split_first() {
         byte_dispatch_u64::<POINT, NEG, HAS, BIG, false, ROUND>(bytes, data64, scale, *next)
     } else {
@@ -193,7 +195,7 @@ fn non_digit_dispatch_u64<
     data64: u64,
     scale: u8,
     b: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, crate::ParseDecimalError> {
     match b {
         b'-' if FIRST && !HAS => dispatch_next::<false, true, false, BIG, ROUND>(bytes, data64, scale),
         b'+' if FIRST && !HAS => dispatch_next::<false, false, false, BIG, ROUND>(bytes, data64, scale),
@@ -215,7 +217,7 @@ fn byte_dispatch_u64<
     data64: u64,
     scale: u8,
     b: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, crate::ParseDecimalError> {
     match b {
         b'0'..=b'9' => handle_digit_64::<POINT, NEG, BIG, ROUND>(bytes, data64, scale, b - b'0'),
         b'.' if !POINT => handle_point::<NEG, HAS, BIG, ROUND>(bytes, data64, scale),
@@ -229,7 +231,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
     data64: u64,
     scale: u8,
     digit: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, crate::ParseDecimalError> {
     // we have already validated that we cannot overflow
     let data64 = data64 * 10 + digit as u64;
     let scale = if POINT { scale + 1 } else { 0 };
@@ -240,7 +242,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
             if ROUND {
                 maybe_round(data64 as u128, next, scale, POINT, NEG)
             } else {
-                Err(crate::Error::Underflow)
+                Err(crate::ParseDecimalError::Underflow)
             }
         } else if BIG && overflow_64(data64) {
             handle_full_128::<POINT, NEG, ROUND>(data64 as u128, bytes, scale, next)
@@ -259,7 +261,7 @@ fn handle_point<const NEG: bool, const HAS: bool, const BIG: bool, const ROUND: 
     bytes: &[u8],
     data64: u64,
     scale: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, crate::ParseDecimalError> {
     dispatch_next::<true, NEG, HAS, BIG, ROUND>(bytes, data64, scale)
 }
 
@@ -268,18 +270,14 @@ fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool, const R
     bytes: &[u8],
     data64: u64,
     scale: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, crate::ParseDecimalError> {
     dispatch_next::<POINT, NEG, true, BIG, ROUND>(bytes, data64, scale)
 }
 
 #[inline(never)]
 #[cold]
-fn tail_invalid_digit(digit: u8) -> Result<Decimal, crate::Error> {
-    match digit {
-        b'.' => tail_error("Invalid decimal: two decimal points"),
-        b'_' => tail_error("Invalid decimal: must start lead with a number"),
-        _ => tail_error("Invalid decimal: unknown character"),
-    }
+fn tail_invalid_digit(digit: u8) -> Result<Decimal, crate::ParseDecimalError> {
+    Err(ParseDecimalError::InvalidDigit)
 }
 
 #[inline(never)]
@@ -289,7 +287,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
     bytes: &[u8],
     scale: u8,
     next_byte: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, crate::ParseDecimalError> {
     let b = next_byte;
     match b {
         b'0'..=b'9' => {
@@ -299,7 +297,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
             let next = (data * 10) + digit as u128;
             if overflow_128(next) {
                 if !POINT {
-                    return tail_error("Invalid decimal: overflow from too many digits");
+                    if NEG {
+                        return Err(ParseDecimalError::NegOverflow);
+                    } else {
+                        return Err(ParseDecimalError::PosOverflow);
+                    }
                 }
 
                 if ROUND {
@@ -308,11 +310,15 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
                         // Make sure that the mantissa isn't now overflowing
                         if overflow_128(data) {
-                            return tail_error("Invalid decimal: overflow from mantissa after rounding");
+                            if NEG {
+                                return Err(ParseDecimalError::NegOverflow);
+                            } else {
+                                return Err(ParseDecimalError::PosOverflow);
+                            }
                         }
                     }
                 } else {
-                    return Err(Error::Underflow);
+                    return Err(ParseDecimalError::Underflow);
                 }
                 handle_data::<NEG, true>(data, scale)
             } else {
@@ -324,7 +330,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                         if ROUND {
                             maybe_round(data, next, scale, POINT, NEG)
                         } else {
-                            Err(crate::Error::Underflow)
+                            Err(crate::ParseDecimalError::Underflow)
                         }
                     } else {
                         handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
@@ -355,7 +361,13 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: bool) -> Result<Decimal, crate::Error> {
+fn maybe_round(
+    mut data: u128,
+    next_byte: u8,
+    scale: u8,
+    point: bool,
+    negative: bool,
+) -> Result<Decimal, crate::ParseDecimalError> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // this should be an invalid string?
@@ -368,7 +380,10 @@ fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: 
         data += 1;
         if overflow_128(data) {
             // Highly unlikely scenario which is more indicative of a bug
-            return tail_error("Invalid decimal: overflow when rounding");
+            if cfg!(debug_assertions) {
+                unreachable!("overflow from mantissa after rounding")
+            }
+            return Err(ParseDecimalError::__Internal);
         }
     }
 
@@ -380,12 +395,12 @@ fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: 
 }
 
 #[inline(never)]
-fn tail_no_has() -> Result<Decimal, crate::Error> {
-    tail_error("Invalid decimal: no digits found")
+fn tail_no_has() -> Result<Decimal, crate::ParseDecimalError> {
+    Err(ParseDecimalError::Empty)
 }
 
 #[inline]
-fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, crate::Error> {
+fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, crate::ParseDecimalError> {
     debug_assert_eq!(data >> 96, 0);
     if !HAS {
         tail_no_has()
@@ -400,16 +415,15 @@ fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Resul
     }
 }
 
-pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::Error> {
+pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::ParseDecimalError> {
+    assert!(
+        (2..=36).contains(&radix),
+        "Decimal::from_str_radix: must lie in the range `[2, 36]` - found {}",
+        radix
+    );
+
     if str.is_empty() {
-        return Err(Error::from("Invalid decimal: empty"));
-    }
-    if radix < 2 {
-        return Err(Error::from("Unsupported radix < 2"));
-    }
-    if radix > 36 {
-        // As per trait documentation
-        return Err(Error::from("Unsupported radix > 36"));
+        return Err(ParseDecimalError::Empty);
     }
 
     let mut offset = 0;
@@ -479,7 +493,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
         34 => 19,
         35 => 19,
         36 => 19,
-        _ => return Err(Error::from("Unsupported radix")),
+        _ => unreachable!(),
     };
 
     let mut maybe_round = false;
@@ -488,7 +502,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
         match b {
             b'0'..=b'9' => {
                 if b > max_n {
-                    return Err(Error::from("Invalid decimal: invalid character"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 coeff.push(u32::from(b - b'0'));
                 offset += 1;
@@ -502,7 +516,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             }
             b'a'..=b'z' => {
                 if b > max_alpha_lower {
-                    return Err(Error::from("Invalid decimal: invalid character"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 coeff.push(u32::from(b - b'a') + 10);
                 offset += 1;
@@ -515,7 +529,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             }
             b'A'..=b'Z' => {
                 if b > max_alpha_upper {
-                    return Err(Error::from("Invalid decimal: invalid character"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 coeff.push(u32::from(b - b'A') + 10);
                 offset += 1;
@@ -528,7 +542,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             }
             b'.' => {
                 if digits_before_dot >= 0 {
-                    return Err(Error::from("Invalid decimal: two decimal points"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 digits_before_dot = coeff.len() as i32;
                 offset += 1;
@@ -537,12 +551,12 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             b'_' => {
                 // Must start with a number...
                 if coeff.is_empty() {
-                    return Err(Error::from("Invalid decimal: must start lead with a number"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 offset += 1;
                 len -= 1;
             }
-            _ => return Err(Error::from("Invalid decimal: unknown character")),
+            _ => return Err(ParseDecimalError::InvalidDigit),
         }
     }
 
@@ -552,19 +566,19 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
         let digit = match next_byte {
             b'0'..=b'9' => {
                 if next_byte > max_n {
-                    return Err(Error::from("Invalid decimal: invalid character"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 u32::from(next_byte - b'0')
             }
             b'a'..=b'z' => {
                 if next_byte > max_alpha_lower {
-                    return Err(Error::from("Invalid decimal: invalid character"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 u32::from(next_byte - b'a') + 10
             }
             b'A'..=b'Z' => {
                 if next_byte > max_alpha_upper {
-                    return Err(Error::from("Invalid decimal: invalid character"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 u32::from(next_byte - b'A') + 10
             }
@@ -572,11 +586,11 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             b'.' => {
                 // Still an error if we have a second dp
                 if digits_before_dot >= 0 {
-                    return Err(Error::from("Invalid decimal: two decimal points"));
+                    return Err(ParseDecimalError::InvalidDigit);
                 }
                 0
             }
-            _ => return Err(Error::from("Invalid decimal: unknown character")),
+            _ => return Err(ParseDecimalError::InvalidDigit),
         };
 
         // Round at midpoint
@@ -604,7 +618,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
 
     // here when no characters left
     if coeff.is_empty() {
-        return Err(Error::from("Invalid decimal: no digits found"));
+        return Err(ParseDecimalError::Empty);
     }
 
     let mut scale = if digits_before_dot >= 0 {
@@ -629,20 +643,30 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             // This may or may not be an issue - depending on whether we're past a decimal point
             // or not.
             if (i as i32) < digits_before_dot && i + 1 < len {
-                return Err(Error::from("Invalid decimal: overflow from too many digits"));
+                if negative {
+                    return Err(ParseDecimalError::NegOverflow);
+                } else {
+                    return Err(ParseDecimalError::PosOverflow);
+                }
             }
 
             if *digit >= 5 {
                 let carry = add_one_internal(&mut data);
                 if carry > 0 {
                     // Highly unlikely scenario which is more indicative of a bug
-                    return Err(Error::from("Invalid decimal: overflow when rounding"));
+                    if cfg!(debug_assertions) {
+                        unreachable!("overflow when rounding");
+                    }
+                    return Err(ParseDecimalError::__Internal);
                 }
             }
             // We're also one less digit so reduce the scale
             let diff = (len - i) as u32;
             if diff > scale {
-                return Err(Error::from("Invalid decimal: overflow from scale mismatch"));
+                if cfg!(debug_assertions) {
+                    unreachable!("overflow from scale mismatch");
+                }
+                return Err(ParseDecimalError::__Internal);
             }
             scale -= diff;
             break;
@@ -653,7 +677,10 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate:
             let carry = add_by_internal_flattened(&mut data, *digit);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
-                return Err(Error::from("Invalid decimal: overflow from carry"));
+                if cfg!(debug_assertions) {
+                    unreachable!("overflow from carry");
+                }
+                return Err(ParseDecimalError::__Internal);
             }
         }
     }
@@ -736,7 +763,7 @@ mod test {
     fn from_str_no_rounding_1() {
         assert_eq!(
             parse_str_radix_10_exact("11111_11111_11111.11111_11111_11111"),
-            Err(Error::Underflow)
+            Err(ParseDecimalError::Underflow)
         );
     }
 
@@ -744,7 +771,7 @@ mod test {
     fn from_str_no_rounding_2() {
         assert_eq!(
             parse_str_radix_10_exact("11111_11111_11111.11111_11111_11115"),
-            Err(Error::Underflow)
+            Err(ParseDecimalError::Underflow)
         );
     }
 
@@ -752,7 +779,7 @@ mod test {
     fn from_str_no_rounding_3() {
         assert_eq!(
             parse_str_radix_10_exact("11111_11111_11111.11111_11111_11195"),
-            Err(Error::Underflow)
+            Err(ParseDecimalError::Underflow)
         );
     }
 
@@ -760,7 +787,7 @@ mod test {
     fn from_str_no_rounding_4() {
         assert_eq!(
             parse_str_radix_10_exact("99999_99999_99999.99999_99999_99995"),
-            Err(Error::Underflow)
+            Err(ParseDecimalError::Underflow)
         );
     }
 
@@ -827,7 +854,7 @@ mod test {
             // The original implementation returned
             //              Ok(10000_00000_00000_00000_00000_0000)
             // Which is a bug!
-            Err(Error::from("Invalid decimal: overflow from too many digits"))
+            Err(ParseDecimalError::PosOverflow)
         );
     }
 
@@ -862,39 +889,27 @@ mod test {
 
     #[test]
     fn from_str_edge_cases_1() {
-        assert_eq!(parse_str_radix_10(""), Err(Error::from("Invalid decimal: empty")));
+        assert_eq!(parse_str_radix_10(""), Err(ParseDecimalError::Empty));
     }
 
     #[test]
     fn from_str_edge_cases_2() {
-        assert_eq!(
-            parse_str_radix_10("0.1."),
-            Err(Error::from("Invalid decimal: two decimal points"))
-        );
+        assert_eq!(parse_str_radix_10("0.1."), Err(ParseDecimalError::InvalidDigit));
     }
 
     #[test]
     fn from_str_edge_cases_3() {
-        assert_eq!(
-            parse_str_radix_10("_"),
-            Err(Error::from("Invalid decimal: must start lead with a number"))
-        );
+        assert_eq!(parse_str_radix_10("_"), Err(ParseDecimalError::InvalidDigit));
     }
 
     #[test]
     fn from_str_edge_cases_4() {
-        assert_eq!(
-            parse_str_radix_10("1?2"),
-            Err(Error::from("Invalid decimal: unknown character"))
-        );
+        assert_eq!(parse_str_radix_10("1?2"), Err(ParseDecimalError::InvalidDigit));
     }
 
     #[test]
     fn from_str_edge_cases_5() {
-        assert_eq!(
-            parse_str_radix_10("."),
-            Err(Error::from("Invalid decimal: no digits found"))
-        );
+        assert_eq!(parse_str_radix_10("."), Err(ParseDecimalError::Empty));
     }
 
     #[test]
@@ -902,7 +917,7 @@ mod test {
         // Decimal::MAX + 0.99999
         assert_eq!(
             parse_str_radix_10("79_228_162_514_264_337_593_543_950_335.99999"),
-            Err(Error::from("Invalid decimal: overflow from mantissa after rounding"))
+            Err(ParseDecimalError::PosOverflow)
         );
     }
 }

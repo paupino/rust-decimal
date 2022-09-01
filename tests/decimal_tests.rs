@@ -2,7 +2,7 @@ mod macros;
 
 use core::{cmp::Ordering::*, str::FromStr};
 use num_traits::{Inv, Signed, ToPrimitive};
-use rust_decimal::{Decimal, Error, RoundingStrategy};
+use rust_decimal::{Decimal, ParseDecimalError, RoundingStrategy, TryFromDecimalError};
 
 #[test]
 #[cfg(feature = "c-repr")]
@@ -2908,7 +2908,7 @@ fn it_converts_from_f64_retaining_bits() {
 #[test]
 fn it_converts_to_integers() {
     assert_eq!(i64::try_from(Decimal::ONE), Ok(1));
-    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64".to_string())));
+    assert!(matches!(i64::try_from(Decimal::MAX), Err(TryFromDecimalError { .. })));
     assert_eq!(u128::try_from(Decimal::ONE_HUNDRED), Ok(100));
 }
 
@@ -2968,32 +2968,44 @@ fn it_can_parse_highly_significant_numbers() {
 
 #[test]
 fn it_can_parse_exact_highly_significant_numbers() {
-    use rust_decimal::Error;
+    use rust_decimal::ParseDecimalError;
 
     let tests = &[
         (
             "11.111111111111111111111111111",
             Ok("11.111111111111111111111111111".to_string()),
         ),
-        ("11.11111111111111111111111111111", Err(Error::Underflow)),
-        ("11.1111111111111111111111111115", Err(Error::Underflow)),
-        ("115.111111111111111111111111111", Err(Error::Underflow)),
-        ("1115.11111111111111111111111111", Err(Error::Underflow)),
-        ("11.1111111111111111111111111195", Err(Error::Underflow)),
-        ("99.9999999999999999999999999995", Err(Error::Underflow)),
-        ("-11.1111111111111111111111111195", Err(Error::Underflow)),
-        ("-99.9999999999999999999999999995", Err(Error::Underflow)),
+        ("11.11111111111111111111111111111", Err(ParseDecimalError::Underflow)),
+        ("11.1111111111111111111111111115", Err(ParseDecimalError::Underflow)),
+        ("115.111111111111111111111111111", Err(ParseDecimalError::Underflow)),
+        ("1115.11111111111111111111111111", Err(ParseDecimalError::Underflow)),
+        ("11.1111111111111111111111111195", Err(ParseDecimalError::Underflow)),
+        ("99.9999999999999999999999999995", Err(ParseDecimalError::Underflow)),
+        ("-11.1111111111111111111111111195", Err(ParseDecimalError::Underflow)),
+        ("-99.9999999999999999999999999995", Err(ParseDecimalError::Underflow)),
         (
             "3.1415926535897932384626433832",
             Ok("3.1415926535897932384626433832".to_string()),
         ),
-        ("8808257419827262908.5944405087133154018", Err(Error::Underflow)),
-        ("8097370036018690744.2590371109596744091", Err(Error::Underflow)),
-        ("8097370036018690744.2590371149596744091", Err(Error::Underflow)),
-        ("8097370036018690744.2590371159596744091", Err(Error::Underflow)),
-        ("1.234567890123456789012345678949999", Err(Error::Underflow)),
-        (".00000000000000000000000000001", Err(Error::Underflow)),
-        (".10000000000000000000000000000", Err(Error::Underflow)),
+        (
+            "8808257419827262908.5944405087133154018",
+            Err(ParseDecimalError::Underflow),
+        ),
+        (
+            "8097370036018690744.2590371109596744091",
+            Err(ParseDecimalError::Underflow),
+        ),
+        (
+            "8097370036018690744.2590371149596744091",
+            Err(ParseDecimalError::Underflow),
+        ),
+        (
+            "8097370036018690744.2590371159596744091",
+            Err(ParseDecimalError::Underflow),
+        ),
+        ("1.234567890123456789012345678949999", Err(ParseDecimalError::Underflow)),
+        (".00000000000000000000000000001", Err(ParseDecimalError::Underflow)),
+        (".10000000000000000000000000000", Err(ParseDecimalError::Underflow)),
     ];
     for &(value, ref expected) in tests.into_iter() {
         let actual = Decimal::from_str_exact(value).map(|d| d.to_string());
@@ -3116,16 +3128,16 @@ fn it_errors_parsing_large_scientific_notation() {
     assert!(result.is_err());
     assert_eq!(
         result.err(),
-        Some(Error::ScaleExceedsMaximumPrecision(32)) // 4 + 28
+        Some(ParseDecimalError::Underflow) // 4 + 28
     );
 
     let result = Decimal::from_scientific("12345E29");
     assert!(result.is_err());
-    assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
+    assert_eq!(result.err(), Some(ParseDecimalError::PosOverflow));
 
     let result = Decimal::from_scientific("12345E28");
     assert!(result.is_err());
-    assert_eq!(result.err(), Some(Error::ExceedsMaximumPossibleValue));
+    assert_eq!(result.err(), Some(ParseDecimalError::PosOverflow));
 }
 
 #[test]
@@ -3216,7 +3228,7 @@ fn it_can_calculate_abs_sub() {
 }
 
 #[test]
-#[should_panic(expected = "Scale exceeds the maximum precision allowed: 29 > 28")]
+#[should_panic(expected = "number has too many digits to fit in a decimal")]
 fn it_panics_when_scale_too_large() {
     let _ = Decimal::new(1, 29);
 }
@@ -3374,7 +3386,7 @@ fn it_computes_equal_hashes_for_positive_and_negative_zero() {
 }
 
 #[test]
-#[should_panic(expected = "Number less than minimum value that can be represented.")]
+#[should_panic(expected = "number is too small to fit in a decimal")]
 fn it_handles_i128_min() {
     let _ = Decimal::from_i128_with_scale(i128::MIN, 0);
 }
@@ -3383,7 +3395,7 @@ fn it_handles_i128_min() {
 fn it_handles_i128_min_safely() {
     let result = Decimal::try_from_i128_with_scale(i128::MIN, 0);
     assert!(result.is_err());
-    assert_eq!(result.err().unwrap(), Error::LessThanMinimumPossibleValue);
+    assert_eq!(result.err().unwrap(), ParseDecimalError::NegOverflow);
 }
 
 #[test]
