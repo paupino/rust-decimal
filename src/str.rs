@@ -7,6 +7,7 @@ use crate::{
 
 use arrayvec::{ArrayString, ArrayVec};
 
+#[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 use core::fmt;
 
@@ -76,6 +77,7 @@ pub(crate) fn to_str_internal(
     (rep, additional)
 }
 
+#[cfg(feature = "alloc")]
 pub(crate) fn fmt_scientific_notation(
     value: &Decimal,
     exponent_symbol: &str,

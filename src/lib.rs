@@ -1,6 +1,7 @@
 #![doc = include_str!(concat!(env!("OUT_DIR"), "/README-lib.md"))]
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 mod constants;

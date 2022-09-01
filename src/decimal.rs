@@ -2320,6 +2320,7 @@ impl ToPrimitive for Decimal {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let (rep, additional) = crate::str::to_str_internal(self, false, f.precision());
@@ -2332,18 +2333,21 @@ impl fmt::Display for Decimal {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::Debug for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         fmt::Display::fmt(self, f)
     }
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::LowerExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "e", f)
     }
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::UpperExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "E", f)
