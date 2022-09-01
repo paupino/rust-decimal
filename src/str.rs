@@ -306,9 +306,15 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                     if digit >= 5 {
                         data += 1;
 
-                        // Make sure that the mantissa isn't now overflowing
+                        // If the mantissa is now overflowing, round to the next
+                        // next least significant digit and discard precision
                         if overflow_128(data) {
-                            return tail_error("Invalid decimal: overflow from mantissa after rounding");
+                            if scale == 0 {
+                                return tail_error("Invalid decimal: overflow from mantissa after rounding");
+                            }
+                            data += 4;
+                            data /= 10;
+                            return handle_data::<NEG, true>(data, scale - 1);
                         }
                     }
                 } else {
@@ -858,6 +864,39 @@ mod test {
                 .unpack(),
             Decimal::from_i128_with_scale(10_000_000_000_000_000_000_000_000_000, 0).unpack()
         );
+    }
+
+    #[test]
+    fn from_str_mantissa_overflow_1() {
+        // reminder:
+        assert_eq!(OVERFLOW_U96, 79228162514264337593543950336);
+        assert_eq!(
+            parse_str_radix_10("7922816251426433759354395033.56").unwrap().unpack(),
+            Decimal::from_i128_with_scale(7922816251426433759354395034, 0).unpack()
+        );
+        // This is a mantissa of OVERFLOW_U96 - 1 just before reaching the last digit.
+        // Previously, this would return Err("overflow from mantissa after rounding")
+        // instead of successfully rounding.
+    }
+
+    #[test]
+    fn from_str_mantissa_overflow_2() {
+        assert_eq!(
+            parse_str_radix_10("79228162514264337593543950335.6"),
+            Err(Error::from("Invalid decimal: overflow from mantissa after rounding"))
+        );
+        // this case wants to round to 79228162514264337593543950340. which is
+        // too large for the mantissa, so should fail.
+    }
+
+    #[test]
+    fn from_str_mantissa_overflow_3() {
+        assert_eq!(
+            parse_str_radix_10("7.92281625142643375935439503356"),
+            Err(Error::from("Invalid decimal: overflow when rounding"))
+        );
+        // this case should round to 7.922816251426433759354395034, but this is
+        // a separate codepath which is more complicated to fix.
     }
 
     #[test]
