@@ -200,7 +200,7 @@ fn non_digit_dispatch_u64<
         b'-' if FIRST && !HAS => dispatch_next::<false, true, false, BIG, ROUND>(bytes, data64, scale),
         b'+' if FIRST && !HAS => dispatch_next::<false, false, false, BIG, ROUND>(bytes, data64, scale),
         b'_' if HAS => handle_separator::<POINT, NEG, BIG, ROUND>(bytes, data64, scale),
-        b => tail_invalid_digit(b),
+        _ => Err(ParseDecimalError::InvalidDigit),
     }
 }
 
@@ -272,12 +272,6 @@ fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool, const R
     scale: u8,
 ) -> Result<Decimal, crate::ParseDecimalError> {
     dispatch_next::<POINT, NEG, true, BIG, ROUND>(bytes, data64, scale)
-}
-
-#[inline(never)]
-#[cold]
-fn tail_invalid_digit(digit: u8) -> Result<Decimal, crate::ParseDecimalError> {
-    Err(ParseDecimalError::InvalidDigit)
 }
 
 #[inline(never)]
@@ -355,7 +349,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                 handle_data::<NEG, true>(data, scale)
             }
         }
-        b => tail_invalid_digit(b),
+        _ => Err(ParseDecimalError::InvalidDigit),
     }
 }
 
@@ -372,7 +366,7 @@ fn maybe_round(
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // this should be an invalid string?
         b'.' if point => 0,
-        b => return tail_invalid_digit(b),
+        _ => return Err(ParseDecimalError::InvalidDigit),
     };
 
     // Round at midpoint
@@ -394,16 +388,11 @@ fn maybe_round(
     }
 }
 
-#[inline(never)]
-fn tail_no_has() -> Result<Decimal, crate::ParseDecimalError> {
-    Err(ParseDecimalError::Empty)
-}
-
 #[inline]
 fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, crate::ParseDecimalError> {
     debug_assert_eq!(data >> 96, 0);
     if !HAS {
-        tail_no_has()
+        Err(ParseDecimalError::Empty)
     } else {
         Ok(Decimal::from_parts(
             data as u32,
