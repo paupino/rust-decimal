@@ -303,24 +303,10 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                 }
 
                 if ROUND {
-                    if digit >= 5 {
-                        data += 1;
-
-                        // If the mantissa is now overflowing, round to the next
-                        // next least significant digit and discard precision
-                        if overflow_128(data) {
-                            if scale == 0 {
-                                return tail_error("Invalid decimal: overflow from mantissa after rounding");
-                            }
-                            data += 4;
-                            data /= 10;
-                            return handle_data::<NEG, true>(data, scale - 1);
-                        }
-                    }
+                    maybe_round(data, next_byte, scale, POINT, NEG)
                 } else {
-                    return Err(Error::Underflow);
+                    Err(Error::Underflow)
                 }
-                handle_data::<NEG, true>(data, scale)
             } else {
                 data = next;
                 let scale = scale + POINT as u8;

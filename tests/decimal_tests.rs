@@ -3076,11 +3076,9 @@ fn it_can_reject_large_numbers_with_panic() {
         "79228162514264337593543950340",
     ];
     for &value in tests {
-        assert!(
-            Decimal::from_str(value).is_err(),
-            "This succeeded unexpectedly: {}",
-            value
-        );
+        if let Ok(out) = Decimal::from_str(value) {
+            panic!("Unexpectedly parsed {} into {}", value, out)
+        }
     }
 }
 
