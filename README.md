@@ -141,15 +141,15 @@ Enables the tokio postgres module allowing for async communication with PostgreS
 
 ### `db-diesel-postgres`
 
-Enable `diesel` PostgreSQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `diesel`
-release candidates then you can do so by using `db-diesel2-postgres`. Please note, the `db-diesel2-*` features are considered
-unstable and will be upgraded as and when new `diesel 2.x` features are released.
+Enable `diesel` PostgreSQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `2.0` 
+version of `diesel` then you can do so by using the feature `db-diesel2-postgres`. Please note, if both features are 
+enabled then version 2 will supersede version 1.
 
 ### `db-diesel-mysql`
 
-Enable `diesel` MySQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `diesel`
-release candidates then you can do so by using `db-diesel2-mysql`. Please note, the `db-diesel2-*` features are considered
-unstable and will be upgraded as and when new `diesel 2.x` features are released.
+Enable `diesel` MySQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `2.0` 
+version of `diesel` then you can do so by using the feature `db-diesel2-mysql`. Please note, if both features are
+enabled then version 2 will supersede version 1.
 
 ### `legacy-ops`
 
