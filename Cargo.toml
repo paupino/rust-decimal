@@ -53,6 +53,7 @@ tokio = { default-features = false, features = ["macros", "rt-multi-thread", "te
 version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
 
 [features]
+alloc = []
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["db-diesel1-mysql"]
 db-diesel-postgres = ["db-diesel1-postgres"]
@@ -76,7 +77,7 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = []
+std = ["alloc"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [workspace]

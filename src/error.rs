@@ -1,69 +1,70 @@
-use crate::{constants::MAX_PRECISION_U32, Decimal};
-use alloc::string::String;
+#[cfg(doc)]
+use crate::Decimal;
 use core::fmt;
 
-/// Error type for the library.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Error {
-    /// A generic error from Rust Decimal with the `String` containing more information as to what
-    /// went wrong.
-    ///
-    /// This is a legacy/deprecated error type retained for backwards compatibility.  
-    ErrorString(String),
-    /// The value provided exceeds `Decimal::MAX`.
-    ExceedsMaximumPossibleValue,
-    /// The value provided is less than `Decimal::MIN`.
-    LessThanMinimumPossibleValue,
-    /// An underflow is when there are more fractional digits than can be represented within `Decimal`.
+/// An error which can be returned when parsing [`Decimal`]s.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ParseDecimalError {
+    /// Value being parsed is empty.
+    Empty,
+    /// Contains an invalid digit in its context.
+    InvalidDigit,
+    /// Number is too large to fit in a `Decimal`.
+    PosOverflow,
+    /// Number is too small to fit in a `Decimal`.
+    NegOverflow,
+    /// Number has too many digits to fit in a `Decimal`.
     Underflow,
-    /// The scale provided exceeds the maximum scale that `Decimal` can represent.
-    ScaleExceedsMaximumPrecision(u32),
-    /// Represents a failure to convert to/from `Decimal` to the specified type. This is typically
-    /// due to type constraints (e.g. `Decimal::MAX` cannot be converted into `i32`).
-    ConversionTo(String),
+    #[doc(hidden)]
+    __Internal,
+    #[doc(hidden)]
+    __Generic,
 }
 
-impl<S> From<S> for Error
-where
-    S: Into<String>,
-{
-    #[inline]
-    fn from(from: S) -> Self {
-        Self::ErrorString(from.into())
-    }
+/// The error type returned when checked type conversion from [`Decimal`] fails.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TryFromDecimalError {
+    pub(crate) _priv: (),
 }
 
-#[cold]
-pub(crate) fn tail_error(from: &'static str) -> Result<Decimal, Error> {
-    Err(from.into())
+/// The error type returned when checked type conversion into [`Decimal`] fails.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TryIntoDecimalError {
+    pub(crate) _priv: (),
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for Error {}
+impl std::error::Error for ParseDecimalError {}
 
-impl fmt::Display for Error {
+#[cfg(feature = "std")]
+impl std::error::Error for TryFromDecimalError {}
+
+#[cfg(feature = "std")]
+impl std::error::Error for TryIntoDecimalError {}
+
+impl fmt::Display for ParseDecimalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Self::ErrorString(ref err) => f.pad(err),
-            Self::ExceedsMaximumPossibleValue => {
-                write!(f, "Number exceeds maximum value that can be represented.")
-            }
-            Self::LessThanMinimumPossibleValue => {
-                write!(f, "Number less than minimum value that can be represented.")
-            }
-            Self::Underflow => {
-                write!(f, "Number has a high precision that can not be represented.")
-            }
-            Self::ScaleExceedsMaximumPrecision(ref scale) => {
-                write!(
-                    f,
-                    "Scale exceeds the maximum precision allowed: {} > {}",
-                    scale, MAX_PRECISION_U32
-                )
-            }
-            Self::ConversionTo(ref type_name) => {
-                write!(f, "Error while converting to {}", type_name)
-            }
+            ParseDecimalError::Empty => "cannot parse decimal from empty string".fmt(f),
+            ParseDecimalError::InvalidDigit => "invalid digit found in string".fmt(f),
+            ParseDecimalError::PosOverflow => "number is too large to fit in a decimal".fmt(f),
+            ParseDecimalError::NegOverflow => "number is too small to fit in a decimal".fmt(f),
+            ParseDecimalError::Underflow => "number has too many digits to fit in a decimal".fmt(f),
+            ParseDecimalError::__Internal => "rust_decimal encountered an unexpected error condition".fmt(f),
+            ParseDecimalError::__Generic => "failed to parse".fmt(f),
         }
+    }
+}
+
+impl fmt::Display for TryFromDecimalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        "lossy conversion from decimal attempted".fmt(f)
+    }
+}
+
+impl fmt::Display for TryIntoDecimalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        "lossy conversion into decimal attempted".fmt(f)
     }
 }

@@ -1,6 +1,7 @@
 #![doc = include_str!(concat!(env!("OUT_DIR"), "/README-lib.md"))]
 #![forbid(unsafe_code)]
 #![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 mod constants;
@@ -50,7 +51,7 @@ mod serde;
 pub mod serde;
 
 pub use decimal::{Decimal, RoundingStrategy};
-pub use error::Error;
+pub use error::{ParseDecimalError, TryFromDecimalError, TryIntoDecimalError};
 #[cfg(feature = "maths")]
 pub use maths::MathematicalOps;
 
@@ -70,9 +71,9 @@ extern crate diesel1 as diesel;
 #[cfg(feature = "diesel2")]
 extern crate diesel2 as diesel;
 
-/// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish
-/// between `rust_decimal` and `std` types.
-pub type Result<T> = core::result::Result<T, Error>;
+// /// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish
+// /// between `rust_decimal` and `std` types.
+// pub type Result<T> = core::result::Result<T, Error>;
 
 // #[cfg(feature = "legacy-ops")]
 // compiler_error!("legacy-ops has been removed as 1.x");
