@@ -29,7 +29,7 @@ bytecheck = { default-features= false, optional = true, version = "0.6" }
 byteorder = { default-features = false, optional = true, version = "1.3" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.4" }
-diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.0.0-rc.1" }
+diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.0" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres = { default-features = false, optional = true, version = "0.19" }
 rand = { default-features = false, optional = true, version = "0.8" }
