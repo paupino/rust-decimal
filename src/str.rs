@@ -868,10 +868,12 @@ mod test {
     #[test]
     fn from_str_mantissa_overflow_1() {
         // reminder:
-        assert_eq!(OVERFLOW_U96, 79228162514264337593543950336);
+        assert_eq!(OVERFLOW_U96, 79_228_162_514_264_337_593_543_950_336);
         assert_eq!(
-            parse_str_radix_10("7922816251426433759354395033.56").unwrap().unpack(),
-            Decimal::from_i128_with_scale(7922816251426433759354395034, 0).unpack()
+            parse_str_radix_10("79_228_162_514_264_337_593_543_950_33.56")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 0).unpack()
         );
         // This is a mantissa of OVERFLOW_U96 - 1 just before reaching the last digit.
         // Previously, this would return Err("overflow from mantissa after rounding")
@@ -881,18 +883,21 @@ mod test {
     #[test]
     fn from_str_mantissa_overflow_2() {
         assert_eq!(
-            parse_str_radix_10("79228162514264337593543950335.6"),
+            parse_str_radix_10("79_228_162_514_264_337_593_543_950_335.6"),
             Err(Error::from("Invalid decimal: overflow from mantissa after rounding"))
         );
-        // this case wants to round to 79228162514264337593543950340. which is
-        // too large for the mantissa, so should fail.
+        // this case wants to round to 79_228_162_514_264_337_593_543_950_340.
+        // (79_228_162_514_264_337_593_543_950_336 is OVERFLOW_U96 and too large
+        // to fit in 96 bits) which is also too large for the mantissa so fails.
     }
 
     #[test]
     fn from_str_mantissa_overflow_3() {
         assert_eq!(
-            parse_str_radix_10("7.92281625142643375935439503356").unwrap().unpack(),
-            Decimal::from_i128_with_scale(7922816251426433759354395034, 27).unpack()
+            parse_str_radix_10("7.9_228_162_514_264_337_593_543_950_335_6")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 27).unpack()
         );
         // this hits the other avoidable overflow case in maybe_round
     }
