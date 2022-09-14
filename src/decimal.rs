@@ -556,7 +556,7 @@ impl Decimal {
     }
 
     #[must_use]
-    pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
+    pub const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
         if lo == 0 && mid == 0 && hi == 0 {
             Decimal {
                 lo,
