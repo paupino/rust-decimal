@@ -390,7 +390,7 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
     where
         D: serde::de::Deserializer<'de>,
     {
-        d.deserialize_any(DecimalVisitor).map(Some)
+        <Decimal as serde::Deserialize>::deserialize(d).map(Some)
     }
 }
 
@@ -773,6 +773,23 @@ mod test {
         assert_eq!(&serde_json::to_string(&original).unwrap(), r#"{"value":"123.400"}"#);
         let deserialized: StringExample = serde_json::from_str(r#"{"value":"123.400"}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
+
+        // Test roundtrip through csv
+        let to_csv_string = |val| {
+            let mut wtr = csv::WriterBuilder::new().has_headers(false).from_writer(Vec::new());
+            wtr.serialize(&val).unwrap();
+            String::from_utf8(wtr.into_inner().unwrap()).unwrap()
+        };
+        let serialized = &to_csv_string(original);
+        let deserialized: StringExample = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(serialized.as_bytes())
+            .deserialize()
+            .next()
+            .unwrap()
+            .unwrap();
+        let reserialized = &to_csv_string(deserialized);
+        assert_eq!(serialized, reserialized);
 
         // Null tests
         let original = StringExample { value: None };
