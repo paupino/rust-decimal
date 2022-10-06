@@ -294,8 +294,8 @@ Please refer to the [Build document](BUILD.md) for more information on building 
 
 ## Minimum Rust Compiler Version
 
-The current _minimum_ compiler version is [`1.56.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1560-2021-10-21)
-which was released on `2021-10-21`.
+The current _minimum_ compiler version is [`1.60.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1600-2022-04-07)
+which was released on `2022-04-07`.
 
 This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust compiler version.
 For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and including `1.46.0`.
