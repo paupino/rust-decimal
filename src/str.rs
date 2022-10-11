@@ -102,18 +102,34 @@ pub(crate) fn fmt_scientific_notation(
     // point in the right place and adjust the exponent accordingly.
 
     let len = chars.len();
+    let precision = f.precision().unwrap_or(0);
     let mut rep;
     if len > 1 {
-        if chars.iter().take(len - 1).all(|c| *c == '0') {
-            // Chomp off the zero's.
+        if precision == 0 && chars.iter().take(len - 1).all(|c| *c == '0') {
             rep = chars.iter().skip(len - 1).collect::<String>();
         } else {
-            chars.insert(len - 1, '.');
-            rep = chars.iter().rev().collect::<String>();
+            if precision > 0 || f.precision().is_none() {
+                chars.insert(len - 1, '.');
+            }
+            rep = chars
+                .iter()
+                .rev()
+                .chain(core::iter::repeat(&'0'))
+                .take(f.precision().map(|p| if p == 0 { 1 } else { 2 + p }).unwrap_or(len + 1))
+                .collect::<String>();
         }
         exponent += (len - 1) as isize;
     } else {
-        rep = chars.iter().collect::<String>();
+        if precision > 0 {
+            chars.push('.');
+            rep = chars
+                .iter()
+                .chain(core::iter::repeat(&'0'))
+                .take(2 + precision)
+                .collect::<String>();
+        } else {
+            rep = chars.iter().collect::<String>();
+        }
     }
 
     rep.push_str(exponent_symbol);
@@ -904,5 +920,94 @@ mod test {
             parse_str_radix_10("79_228_162_514_264_337_593_543_950_335.99999"),
             Err(Error::from("Invalid decimal: overflow from mantissa after rounding"))
         );
+    }
+
+    #[test]
+    fn display_scientific_precision() {
+        for (num, scale, expected_no_precision, expected_precision) in [
+            (
+                123456,
+                10,
+                "1.23456e-5",
+                [
+                    "1e-5",
+                    "1.2e-5",
+                    "1.23e-5",
+                    "1.234e-5",
+                    "1.2345e-5",
+                    "1.23456e-5",
+                    "1.234560e-5",
+                    "1.2345600e-5",
+                ],
+            ),
+            (
+                123456,
+                0,
+                "1.23456e5",
+                [
+                    "1e5",
+                    "1.2e5",
+                    "1.23e5",
+                    "1.234e5",
+                    "1.2345e5",
+                    "1.23456e5",
+                    "1.234560e5",
+                    "1.2345600e5",
+                ],
+            ),
+            (
+                1,
+                0,
+                "1e0",
+                [
+                    "1e0",
+                    "1.0e0",
+                    "1.00e0",
+                    "1.000e0",
+                    "1.0000e0",
+                    "1.00000e0",
+                    "1.000000e0",
+                    "1.0000000e0",
+                ],
+            ),
+            (
+                -123456,
+                10,
+                "-1.23456e-5",
+                [
+                    "-1e-5",
+                    "-1.2e-5",
+                    "-1.23e-5",
+                    "-1.234e-5",
+                    "-1.2345e-5",
+                    "-1.23456e-5",
+                    "-1.234560e-5",
+                    "-1.2345600e-5",
+                ],
+            ),
+            (
+                -100000,
+                10,
+                "-1e-5",
+                [
+                    "-1e-5",
+                    "-1.0e-5",
+                    "-1.00e-5",
+                    "-1.000e-5",
+                    "-1.0000e-5",
+                    "-1.00000e-5",
+                    "-1.000000e-5",
+                    "-1.0000000e-5",
+                ],
+            ),
+        ] {
+            assert_eq!(format!("{:e}", Decimal::new(num, scale)), expected_no_precision);
+            for i in 0..expected_precision.len() {
+                assert_eq!(
+                    format!("{:.prec$e}", Decimal::new(num, scale), prec = i),
+                    expected_precision[i]
+                );
+            }
+        }
     }
 }
