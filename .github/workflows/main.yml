@@ -63,7 +63,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --all-features # Important to keep this to ensure docs.rs passes
+          args: --workspace --features rkyv/size_32 --all-features # Important to keep this to ensure docs.rs passes
 
       - name: Run no_std tests
         uses: actions-rs/cargo@v1
@@ -155,7 +155,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-features
+          args: --workspace --features rkyv/size_32 --all-features
 
   fuzz:
     name: Fuzz
