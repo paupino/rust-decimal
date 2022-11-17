@@ -119,17 +119,15 @@ pub(crate) fn fmt_scientific_notation(
                 .collect::<String>();
         }
         exponent += (len - 1) as isize;
+    } else if precision > 0 {
+        chars.push('.');
+        rep = chars
+            .iter()
+            .chain(core::iter::repeat(&'0'))
+            .take(2 + precision)
+            .collect::<String>();
     } else {
-        if precision > 0 {
-            chars.push('.');
-            rep = chars
-                .iter()
-                .chain(core::iter::repeat(&'0'))
-                .take(2 + precision)
-                .collect::<String>();
-        } else {
-            rep = chars.iter().collect::<String>();
-        }
+        rep = chars.iter().collect::<String>();
     }
 
     rep.push_str(exponent_symbol);
