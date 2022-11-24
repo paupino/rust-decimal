@@ -102,16 +102,30 @@ pub(crate) fn fmt_scientific_notation(
     // point in the right place and adjust the exponent accordingly.
 
     let len = chars.len();
+    let precision = f.precision().unwrap_or(0);
     let mut rep;
     if len > 1 {
-        if chars.iter().take(len - 1).all(|c| *c == '0') {
-            // Chomp off the zero's.
+        if precision == 0 && chars.iter().take(len - 1).all(|c| *c == '0') {
             rep = chars.iter().skip(len - 1).collect::<String>();
         } else {
-            chars.insert(len - 1, '.');
-            rep = chars.iter().rev().collect::<String>();
+            if precision > 0 || f.precision().is_none() {
+                chars.insert(len - 1, '.');
+            }
+            rep = chars
+                .iter()
+                .rev()
+                .chain(core::iter::repeat(&'0'))
+                .take(f.precision().map(|p| if p == 0 { 1 } else { 2 + p }).unwrap_or(len + 1))
+                .collect::<String>();
         }
         exponent += (len - 1) as isize;
+    } else if precision > 0 {
+        chars.push('.');
+        rep = chars
+            .iter()
+            .chain(core::iter::repeat(&'0'))
+            .take(2 + precision)
+            .collect::<String>();
     } else {
         rep = chars.iter().collect::<String>();
     }
