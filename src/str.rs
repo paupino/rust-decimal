@@ -336,18 +336,10 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                 }
 
                 if ROUND {
-                    if digit >= 5 {
-                        data += 1;
-
-                        // Make sure that the mantissa isn't now overflowing
-                        if overflow_128(data) {
-                            return tail_error("Invalid decimal: overflow from mantissa after rounding");
-                        }
-                    }
+                    maybe_round(data, next_byte, scale, POINT, NEG)
                 } else {
-                    return Err(Error::Underflow);
+                    Err(Error::Underflow)
                 }
-                handle_data::<NEG, true>(data, scale)
             } else {
                 data = next;
                 let scale = scale + POINT as u8;
@@ -388,7 +380,13 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
+fn maybe_round(
+    mut data: u128,
+    next_byte: u8,
+    mut scale: u8,
+    point: bool,
+    negative: bool,
+) -> Result<Decimal, crate::Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // this should be an invalid string?
@@ -399,9 +397,16 @@ fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: 
     // Round at midpoint
     if digit >= 5 {
         data += 1;
+
+        // If the mantissa is now overflowing, round to the next
+        // next least significant digit and discard precision
         if overflow_128(data) {
-            // Highly unlikely scenario which is more indicative of a bug
-            return tail_error("Invalid decimal: overflow when rounding");
+            if scale == 0 {
+                return tail_error("Invalid decimal: overflow from mantissa after rounding");
+            }
+            data += 4;
+            data /= 10;
+            scale -= 1;
         }
     }
 
@@ -890,6 +895,53 @@ mod test {
                 .unwrap()
                 .unpack(),
             Decimal::from_i128_with_scale(10_000_000_000_000_000_000_000_000_000, 0).unpack()
+        );
+    }
+
+    #[test]
+    fn from_str_mantissa_overflow_1() {
+        // reminder:
+        assert_eq!(OVERFLOW_U96, 79_228_162_514_264_337_593_543_950_336);
+        assert_eq!(
+            parse_str_radix_10("79_228_162_514_264_337_593_543_950_33.56")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 0).unpack()
+        );
+        // This is a mantissa of OVERFLOW_U96 - 1 just before reaching the last digit.
+        // Previously, this would return Err("overflow from mantissa after rounding")
+        // instead of successfully rounding.
+    }
+
+    #[test]
+    fn from_str_mantissa_overflow_2() {
+        assert_eq!(
+            parse_str_radix_10("79_228_162_514_264_337_593_543_950_335.6"),
+            Err(Error::from("Invalid decimal: overflow from mantissa after rounding"))
+        );
+        // this case wants to round to 79_228_162_514_264_337_593_543_950_340.
+        // (79_228_162_514_264_337_593_543_950_336 is OVERFLOW_U96 and too large
+        // to fit in 96 bits) which is also too large for the mantissa so fails.
+    }
+
+    #[test]
+    fn from_str_mantissa_overflow_3() {
+        // this hits the other avoidable overflow case in maybe_round
+        assert_eq!(
+            parse_str_radix_10("7.92281625142643375935439503356").unwrap().unpack(),
+            Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 27).unpack()
+        );
+    }
+
+    #[ignore]
+    #[test]
+    fn from_str_mantissa_overflow_4() {
+        // Same test as above, however with underscores. This causes issues.
+        assert_eq!(
+            parse_str_radix_10("7.9_228_162_514_264_337_593_543_950_335_6")
+                .unwrap()
+                .unpack(),
+            Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 27).unpack()
         );
     }
 
