@@ -386,11 +386,20 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
         Ok(None)
     }
 
+    #[cfg(not(feature = "serde-float"))]
     fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
         <Decimal as serde::Deserialize>::deserialize(d).map(Some)
+    }
+
+    #[cfg(feature = "serde-float")]
+    fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        d.deserialize_any(DecimalVisitor).map(Some)
     }
 }
 
@@ -774,23 +783,6 @@ mod test {
         let deserialized: StringExample = serde_json::from_str(r#"{"value":"123.400"}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
 
-        // Test roundtrip through csv
-        let to_csv_string = |val| {
-            let mut wtr = csv::WriterBuilder::new().has_headers(false).from_writer(Vec::new());
-            wtr.serialize(&val).unwrap();
-            String::from_utf8(wtr.into_inner().unwrap()).unwrap()
-        };
-        let serialized = &to_csv_string(original);
-        let deserialized: StringExample = csv::ReaderBuilder::new()
-            .has_headers(false)
-            .from_reader(serialized.as_bytes())
-            .deserialize()
-            .next()
-            .unwrap()
-            .unwrap();
-        let reserialized = &to_csv_string(deserialized);
-        assert_eq!(serialized, reserialized);
-
         // Null tests
         let original = StringExample { value: None };
         assert_eq!(&serde_json::to_string(&original).unwrap(), r#"{"value":null}"#);
@@ -842,5 +834,38 @@ mod test {
         assert_eq!(&serde_json::to_string(&original).unwrap(), r#"{"value":null}"#);
         let deserialized: StringExample = serde_json::from_str(r#"{"value":null}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
+    }
+
+    #[test]
+    #[cfg(all(feature = "serde-with-str", not(feature = "serde-float")))]
+    fn csv_roundtrip() {
+        #[derive(Serialize, Deserialize, Copy, Clone)]
+        pub struct StringExample {
+            #[serde(with = "crate::serde::str_option")]
+            value: Option<Decimal>,
+        }
+
+        let original = StringExample {
+            value: Some(Decimal::from_str("123.400").unwrap()),
+        };
+
+        // Test roundtrip through csv
+        let to_csv_string = |val| {
+            let mut wtr = csv::WriterBuilder::new().has_headers(false).from_writer(Vec::new());
+            wtr.serialize(&val).unwrap();
+            String::from_utf8(wtr.into_inner().unwrap()).unwrap()
+        };
+        let serialized = &to_csv_string(original);
+        let deserialized: StringExample = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(serialized.as_bytes())
+            .deserialize()
+            .next()
+            .unwrap()
+            .unwrap();
+        assert!(deserialized.value.is_some());
+        assert_eq!(original.value.unwrap().unpack(), deserialized.value.unwrap().unpack());
+        let reserialized = &to_csv_string(deserialized);
+        assert_eq!(serialized, reserialized);
     }
 }
