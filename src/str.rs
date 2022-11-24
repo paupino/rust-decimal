@@ -103,11 +103,44 @@ pub(crate) fn fmt_scientific_notation(
 
     let len = chars.len();
     let mut rep;
-    if len > 1 {
+    // We either are operating with a precision specified, or on defaults. Defaults will perform "smart"
+    // reduction of precision.
+    if let Some(precision) = f.precision() {
+        if len > 1 {
+            // If we're zero precision AND it's trailing zeros then strip them
+            if precision == 0 && chars.iter().take(len - 1).all(|c| *c == '0') {
+                rep = chars.iter().skip(len - 1).collect::<String>();
+            } else {
+                // We may still be zero precision, however we aren't trailing zeros
+                if precision > 0 {
+                    chars.insert(len - 1, '.');
+                }
+                rep = chars
+                    .iter()
+                    .rev()
+                    // Add on extra zeros according to the precision. At least one, since we added a decimal place.
+                    .chain(core::iter::repeat(&'0'))
+                    .take(if precision == 0 { 1 } else { 2 + precision })
+                    .collect::<String>();
+            }
+            exponent += (len - 1) as isize;
+        } else if precision > 0 {
+            // We have precision that we want to add
+            chars.push('.');
+            rep = chars
+                .iter()
+                .chain(core::iter::repeat(&'0'))
+                .take(2 + precision)
+                .collect::<String>();
+        } else {
+            rep = chars.iter().collect::<String>();
+        }
+    } else if len > 1 {
+        // If the number is just trailing zeros then we treat it like 0 precision
         if chars.iter().take(len - 1).all(|c| *c == '0') {
-            // Chomp off the zero's.
             rep = chars.iter().skip(len - 1).collect::<String>();
         } else {
+            // Otherwise, we need to insert a decimal place and make it a scientific number
             chars.insert(len - 1, '.');
             rep = chars.iter().rev().collect::<String>();
         }
@@ -123,7 +156,7 @@ pub(crate) fn fmt_scientific_notation(
 
 // dedicated implementation for the most common case.
 #[inline]
-pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
+pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, Error> {
     let bytes = str.as_bytes();
     if bytes.len() < BYTES_TO_OVERFLOW_U64 {
         parse_str_radix_10_dispatch::<false, true>(bytes)
@@ -133,7 +166,7 @@ pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, crate::Error> {
 }
 
 #[inline]
-pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, crate::Error> {
+pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, Error> {
     let bytes = str.as_bytes();
     if bytes.len() < BYTES_TO_OVERFLOW_U64 {
         parse_str_radix_10_dispatch::<false, false>(bytes)
@@ -143,7 +176,7 @@ pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, crate::Erro
 }
 
 #[inline]
-fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(bytes: &[u8]) -> Result<Decimal, crate::Error> {
+fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(bytes: &[u8]) -> Result<Decimal, Error> {
     match bytes {
         [b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG, true, ROUND>(rest, 0, 0, *b),
         [] => tail_error("Invalid decimal: empty"),
@@ -172,7 +205,7 @@ fn dispatch_next<const POINT: bool, const NEG: bool, const HAS: bool, const BIG:
     bytes: &[u8],
     data64: u64,
     scale: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, Error> {
     if let Some((next, bytes)) = bytes.split_first() {
         byte_dispatch_u64::<POINT, NEG, HAS, BIG, false, ROUND>(bytes, data64, scale, *next)
     } else {
@@ -193,7 +226,7 @@ fn non_digit_dispatch_u64<
     data64: u64,
     scale: u8,
     b: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, Error> {
     match b {
         b'-' if FIRST && !HAS => dispatch_next::<false, true, false, BIG, ROUND>(bytes, data64, scale),
         b'+' if FIRST && !HAS => dispatch_next::<false, false, false, BIG, ROUND>(bytes, data64, scale),
@@ -215,7 +248,7 @@ fn byte_dispatch_u64<
     data64: u64,
     scale: u8,
     b: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, Error> {
     match b {
         b'0'..=b'9' => handle_digit_64::<POINT, NEG, BIG, ROUND>(bytes, data64, scale, b - b'0'),
         b'.' if !POINT => handle_point::<NEG, HAS, BIG, ROUND>(bytes, data64, scale),
@@ -229,7 +262,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
     data64: u64,
     scale: u8,
     digit: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, Error> {
     // we have already validated that we cannot overflow
     let data64 = data64 * 10 + digit as u64;
     let scale = if POINT { scale + 1 } else { 0 };
@@ -240,7 +273,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
             if ROUND {
                 maybe_round(data64 as u128, next, scale, POINT, NEG)
             } else {
-                Err(crate::Error::Underflow)
+                Err(Error::Underflow)
             }
         } else if BIG && overflow_64(data64) {
             handle_full_128::<POINT, NEG, ROUND>(data64 as u128, bytes, scale, next)
@@ -259,7 +292,7 @@ fn handle_point<const NEG: bool, const HAS: bool, const BIG: bool, const ROUND: 
     bytes: &[u8],
     data64: u64,
     scale: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, Error> {
     dispatch_next::<true, NEG, HAS, BIG, ROUND>(bytes, data64, scale)
 }
 
@@ -268,13 +301,13 @@ fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool, const R
     bytes: &[u8],
     data64: u64,
     scale: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, Error> {
     dispatch_next::<POINT, NEG, true, BIG, ROUND>(bytes, data64, scale)
 }
 
 #[inline(never)]
 #[cold]
-fn tail_invalid_digit(digit: u8) -> Result<Decimal, crate::Error> {
+fn tail_invalid_digit(digit: u8) -> Result<Decimal, Error> {
     match digit {
         b'.' => tail_error("Invalid decimal: two decimal points"),
         b'_' => tail_error("Invalid decimal: must start lead with a number"),
@@ -289,7 +322,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
     bytes: &[u8],
     scale: u8,
     next_byte: u8,
-) -> Result<Decimal, crate::Error> {
+) -> Result<Decimal, Error> {
     let b = next_byte;
     match b {
         b'0'..=b'9' => {
@@ -324,7 +357,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                         if ROUND {
                             maybe_round(data, next, scale, POINT, NEG)
                         } else {
-                            Err(crate::Error::Underflow)
+                            Err(Error::Underflow)
                         }
                     } else {
                         handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
@@ -355,7 +388,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: bool) -> Result<Decimal, crate::Error> {
+fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // this should be an invalid string?
@@ -380,12 +413,12 @@ fn maybe_round(mut data: u128, next_byte: u8, scale: u8, point: bool, negative: 
 }
 
 #[inline(never)]
-fn tail_no_has() -> Result<Decimal, crate::Error> {
+fn tail_no_has() -> Result<Decimal, Error> {
     tail_error("Invalid decimal: no digits found")
 }
 
 #[inline]
-fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, crate::Error> {
+fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, Error> {
     debug_assert_eq!(data >> 96, 0);
     if !HAS {
         tail_no_has()
@@ -400,7 +433,7 @@ fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Resul
     }
 }
 
-pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, crate::Error> {
+pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error> {
     if str.is_empty() {
         return Err(Error::from("Invalid decimal: empty"));
     }
