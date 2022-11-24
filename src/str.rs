@@ -928,9 +928,7 @@ mod test {
     fn from_str_mantissa_overflow_3() {
         // this hits the other avoidable overflow case in maybe_round
         assert_eq!(
-            parse_str_radix_10("7.92281625142643375935439503356")
-                .unwrap()
-                .unpack(),
+            parse_str_radix_10("7.92281625142643375935439503356").unwrap().unpack(),
             Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 27).unpack()
         );
     }
