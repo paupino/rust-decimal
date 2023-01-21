@@ -1,5 +1,20 @@
 # Version History
 
+## 1.28.0
+
+### Added
+
+* Implement `TryFrom<&str>` for `Decimal` ([#560](https://github.com/paupino/rust-decimal/pull/560))
+
+### Fixed
+
+* Explicit string deserialize for `Option<Decimal>` when using `serde-with-str` ([#565](https://github.com/paupino/rust-decimal/pull/565))
+* Fix for `rescale` preventing `Decimal::ZERO` to be rescaled to an invalid precision ([#566](https://github.com/paupino/rust-decimal/pull/566))
+
+### Credit
+
+Thank you to [@c410-f3r](https://github.com/c410-f3r) for your diligent help adding features to this library!
+
 ## 1.27.0
 
 ### Added
