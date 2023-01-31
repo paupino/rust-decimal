@@ -25,7 +25,7 @@ all-features = true
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
-borsh = { default-features = false, optional = true, version = "0.9" }
+borsh = { default-features = false, optional = true, version = "0.10.0" }
 bytecheck = { default-features= false, optional = true, version = "0.6" }
 byteorder = { default-features = false, optional = true, version = "1.0" }
 bytes = { default-features = false, optional = true, version = "1.0" }
@@ -43,7 +43,7 @@ tokio-postgres = { default-features = false, optional = true, version = "0.7" }
 [dev-dependencies]
 bincode = { default-features = false, version = "1.0" }
 bytes = { default-features = false, version = "1.0" }
-criterion = { default-features = false, version = "0.3" }
+criterion = { default-features = false, version = "0.4.0" }
 csv = "1"
 futures = { default-features = false, version = "0.3" }
 rand = { default-features = false, features = ["getrandom"], version = "0.8" }
@@ -63,7 +63,7 @@ db-diesel2-mysql = ["diesel2/mysql", "std"]
 db-diesel2-postgres = ["diesel2/postgres", "std"]
 db-postgres = ["byteorder", "bytes", "postgres", "std"]
 db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
-default = ["serde", "std"]
+default = ["dep:serde", "std"]
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
@@ -74,9 +74,9 @@ serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]
 serde-str = ["serde-with-str"]
-serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
-serde-with-float = ["serde"]
-serde-with-str = ["serde"]
+serde-with-arbitrary-precision = ["dep:serde", "serde_json/arbitrary_precision", "serde_json/std"]
+serde-with-float = ["dep:serde"]
+serde-with-str = ["dep:serde"]
 std = ["arrayvec/std", "borsh?/std", "bytecheck?/std", "byteorder?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
