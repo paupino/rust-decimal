@@ -54,6 +54,8 @@ tokio = { default-features = false, features = ["macros", "rt-multi-thread", "te
 version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
 
 [features]
+default = ["serde", "std"]
+
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["db-diesel1-mysql"]
 db-diesel-postgres = ["db-diesel1-postgres"]
@@ -63,20 +65,21 @@ db-diesel2-mysql = ["diesel2/mysql", "std"]
 db-diesel2-postgres = ["diesel2/postgres", "std"]
 db-postgres = ["byteorder", "bytes", "postgres", "std"]
 db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
-default = ["dep:serde", "std"]
+
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
 rkyv-safe = ["bytecheck", "rkyv/validation"]
 rocket-traits = ["rocket"]
 rust-fuzz = ["arbitrary"]
+serde = ["dep:serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]
 serde-str = ["serde-with-str"]
-serde-with-arbitrary-precision = ["dep:serde", "serde_json/arbitrary_precision", "serde_json/std"]
-serde-with-float = ["dep:serde"]
-serde-with-str = ["dep:serde"]
+serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
+serde-with-float = ["serde"]
+serde-with-str = ["serde"]
 std = ["arrayvec/std", "borsh?/std", "bytecheck?/std", "byteorder?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
