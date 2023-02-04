@@ -412,7 +412,6 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
     type Value = Option<Decimal>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        println!("Here4");
         formatter.write_str("a Decimal type representing a fixed-point number")
     }
 
@@ -420,7 +419,6 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
     where
         E: serde::de::Error,
     {
-        println!("Here2");
         Ok(None)
     }
 
@@ -428,7 +426,6 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
     where
         D: serde::de::Deserializer<'de>,
     {
-        println!("Here3");
         d.deserialize_str(DecimalVisitor).map(Some)
     }
 }
