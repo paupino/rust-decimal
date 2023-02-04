@@ -25,7 +25,7 @@ all-features = true
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
-borsh = { default-features = false, optional = true, version = "0.9" }
+borsh = { default-features = false, optional = true, version = "0.10.0" }
 bytecheck = { default-features= false, optional = true, version = "0.6" }
 byteorder = { default-features = false, optional = true, version = "1.0" }
 bytes = { default-features = false, optional = true, version = "1.0" }
@@ -43,7 +43,7 @@ tokio-postgres = { default-features = false, optional = true, version = "0.7" }
 [dev-dependencies]
 bincode = { default-features = false, version = "1.0" }
 bytes = { default-features = false, version = "1.0" }
-criterion = { default-features = false, version = "0.3" }
+criterion = { default-features = false, version = "0.4.0" }
 csv = "1"
 futures = { default-features = false, version = "0.3" }
 rand = { default-features = false, features = ["getrandom"], version = "0.8" }
@@ -54,6 +54,8 @@ tokio = { default-features = false, features = ["macros", "rt-multi-thread", "te
 version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
 
 [features]
+default = ["serde", "std"]
+
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["db-diesel1-mysql"]
 db-diesel-postgres = ["db-diesel1-postgres"]
@@ -63,13 +65,14 @@ db-diesel2-mysql = ["diesel2/mysql", "std"]
 db-diesel2-postgres = ["diesel2/postgres", "std"]
 db-postgres = ["byteorder", "bytes", "postgres", "std"]
 db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
-default = ["serde", "std"]
+
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
 rkyv-safe = ["bytecheck", "rkyv/validation"]
 rocket-traits = ["rocket"]
 rust-fuzz = ["arbitrary"]
+serde = ["dep:serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]

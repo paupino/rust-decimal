@@ -1,5 +1,9 @@
 # Version History
 
+## Unreleased
+
+* Bumped `borsh` and `criterion` dependencies to latest versions
+
 ## 1.28.0
 
 ### Added
