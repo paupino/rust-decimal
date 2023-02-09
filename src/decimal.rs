@@ -89,7 +89,7 @@ const NEGATIVE_ONE: Decimal = Decimal {
 
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct UnpackedDecimal {
     pub negative: bool,
     pub scale: u32,
@@ -1274,6 +1274,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn round_dp_with_strategy(&self, dp: u32, strategy: RoundingStrategy) -> Decimal {
+        assert!(dp <= 28, "scale and hence dp must be smaller than 29");
         // Short circuit for zero
         if self.is_zero() {
             return Decimal {

@@ -2472,6 +2472,7 @@ fn it_can_round_complex_numbers() {
 }
 
 #[test]
+#[should_panic(expected = "scale and hence dp must be smaller than 29")]
 fn it_does_not_round_decimals_to_too_many_dp() {
     // Issue 574
     let zero = Decimal::new(0, 1);

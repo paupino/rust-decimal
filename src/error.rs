@@ -3,7 +3,7 @@ use alloc::string::String;
 use core::fmt;
 
 /// Error type for the library.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
     /// A generic error from Rust Decimal with the `String` containing more information as to what
     /// went wrong.
