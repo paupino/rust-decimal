@@ -1274,6 +1274,14 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn round_dp_with_strategy(&self, dp: u32, strategy: RoundingStrategy) -> Decimal {
+        let old_scale = self.scale();
+
+        // return early if decimal has a smaller number of fractional places than dp
+        // e.g. 2.51 rounded to 3 decimal places is 2.51
+        if old_scale <= dp {
+            return *self;
+        }
+
         // Short circuit for zero
         if self.is_zero() {
             return Decimal {
@@ -1282,14 +1290,6 @@ impl Decimal {
                 hi: 0,
                 flags: flags(self.is_sign_negative(), dp),
             };
-        }
-
-        let old_scale = self.scale();
-
-        // return early if decimal has a smaller number of fractional places than dp
-        // e.g. 2.51 rounded to 3 decimal places is 2.51
-        if old_scale <= dp {
-            return *self;
         }
 
         let mut value = [self.lo, self.mid, self.hi];
