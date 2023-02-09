@@ -2472,6 +2472,15 @@ fn it_can_round_complex_numbers() {
 }
 
 #[test]
+fn it_does_not_round_decimals_to_too_many_dp() {
+    // Issue 574
+    let zero = Decimal::new(0, 1);
+    let rounded = zero.round_dp(32);
+    assert_eq!(rounded.scale(), 32);
+    rounded.to_string();
+}
+
+#[test]
 fn it_can_round_down() {
     let tests = &[
         ("0.470", 1, "0.4"),
