@@ -2472,12 +2472,11 @@ fn it_can_round_complex_numbers() {
 }
 
 #[test]
-#[should_panic(expected = "scale and hence dp must be smaller than 29")]
 fn it_does_not_round_decimals_to_too_many_dp() {
     // Issue 574
-    let zero = Decimal::new(0, 1);
+    let zero = Decimal::new(0, 28);
     let rounded = zero.round_dp(32);
-    assert_eq!(rounded.scale(), 32);
+    assert_eq!(rounded.scale(), 28); // If dp > old_scale, we retain the old scale.
     rounded.to_string();
 }
 
