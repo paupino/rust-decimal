@@ -54,7 +54,7 @@ tokio = { default-features = false, features = ["macros", "rt-multi-thread", "te
 version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
 
 [features]
-default = ["dep:serde", "std"]
+default = ["serde", "std"]
 
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
@@ -64,16 +64,16 @@ db-diesel1-mysql = ["diesel1/mysql", "std"]
 db-diesel1-postgres = ["diesel1/postgres", "std"]
 db-diesel2-mysql = ["diesel2/mysql", "std"]
 db-diesel2-postgres = ["diesel2/postgres", "std"]
-db-postgres = ["byteorder", "bytes", "postgres", "std"]
-db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
+db-postgres = ["dep:byteorder", "dep:bytes", "dep:postgres", "std"]
+db-tokio-postgres = ["dep:byteorder", "dep:bytes", "dep:postgres", "std", "dep:tokio-postgres"]
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
 rand = ["dep:rand"]
 rkyv = ["dep:rkyv"]
-rkyv-safe = ["bytecheck", "rkyv/validation"]
-rocket-traits = ["rocket"]
-rust-fuzz = ["arbitrary"]
+rkyv-safe = ["dep:bytecheck", "rkyv/validation"]
+rocket-traits = ["dep:rocket"]
+rust-fuzz = ["dep:arbitrary"]
 serde = ["dep:serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
