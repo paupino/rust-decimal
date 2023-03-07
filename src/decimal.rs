@@ -1050,6 +1050,21 @@ impl Decimal {
         }
     }
 
+    /// Returns a new `Decimal` with the fractional portion delimited by `scale`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rust_decimal::Decimal;
+    /// #
+    /// let pi = Decimal::new(3141592, 6);
+    /// assert_eq!(pi.trunc_with_scale(2), Decimal::new(314, 2));
+    /// ```
+    #[must_use]
+    pub fn trunc_with_scale(&self, scale: u32) -> Decimal {
+        self.round_dp_with_strategy(scale, RoundingStrategy::ToZero)
+    }
+
     /// Returns a new `Decimal` representing the fractional portion of the number.
     ///
     /// # Example

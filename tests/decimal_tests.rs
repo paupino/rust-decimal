@@ -2631,6 +2631,29 @@ fn it_can_trunc() {
 }
 
 #[test]
+fn it_can_trunc_with_scale() {
+    let cmp = Decimal::from_str("1.2345").unwrap();
+    assert_eq!(Decimal::from_str("1.23450").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.234500001").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23451").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23454").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23455").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23456").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23459").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.234599999").unwrap().trunc_with_scale(4), cmp);
+
+    let cmp = Decimal::from_str("-1.2345").unwrap();
+    assert_eq!(Decimal::from_str("-1.23450").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.234500001").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23451").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23454").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23455").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23456").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23459").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.234599999").unwrap().trunc_with_scale(4), cmp);
+}
+
+#[test]
 fn it_can_fract() {
     let tests = &[
         ("1.00000000000000000000", "0.00000000000000000000"),
