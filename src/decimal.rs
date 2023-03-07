@@ -699,7 +699,7 @@ impl Decimal {
     #[inline]
     #[must_use]
     pub const fn scale(&self) -> u32 {
-        ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
+        (self.flags & SCALE_MASK) >> SCALE_SHIFT
     }
 
     /// Returns the mantissa of the decimal number.
@@ -1017,52 +1017,55 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// #
-    /// let pi = Decimal::new(3141, 3);
-    /// let trunc = Decimal::new(3, 0);
-    /// // note that it returns a decimal
-    /// assert_eq!(pi.trunc(), trunc);
+    /// let pi = dec!(3.141);
+    /// assert_eq!(pi.trunc(), dec!(3));
+    ///
+    /// // Negative numbers are similarly truncated without rounding
+    /// let neg = dec!(-1.98765);
+    /// assert_eq!(neg.trunc(), Decimal::NEGATIVE_ONE);
     /// ```
     #[must_use]
     pub fn trunc(&self) -> Decimal {
-        let mut scale = self.scale();
-        if scale == 0 {
-            // Nothing to do
-            return *self;
-        }
         let mut working = [self.lo, self.mid, self.hi];
-        while scale > 0 {
-            // We're removing precision, so we don't care about overflow
-            if scale < 10 {
-                ops::array::div_by_u32(&mut working, POWERS_10[scale as usize]);
-                break;
-            } else {
-                ops::array::div_by_u32(&mut working, POWERS_10[9]);
-                // Only 9 as this array starts with 1
-                scale -= 9;
-            }
-        }
+        let mut working_scale = self.scale();
+        ops::array::truncate_internal(&mut working, &mut working_scale, 0);
         Decimal {
             lo: working[0],
             mid: working[1],
             hi: working[2],
-            flags: flags(self.is_sign_negative(), 0),
+            flags: flags(self.is_sign_negative(), working_scale),
         }
     }
 
     /// Returns a new `Decimal` with the fractional portion delimited by `scale`.
+    /// This is a true truncation whereby no rounding is performed.
     ///
     /// # Example
     ///
     /// ```
     /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// #
-    /// let pi = Decimal::new(3141592, 6);
-    /// assert_eq!(pi.trunc_with_scale(2), Decimal::new(314, 2));
+    /// let pi = dec!(3.141592);
+    /// assert_eq!(pi.trunc_with_scale(2), dec!(3.14));
+    ///
+    /// // Negative numbers are similarly truncated without rounding
+    /// let neg = dec!(-1.98765);
+    /// assert_eq!(neg.trunc_with_scale(1), dec!(-1.9));
     /// ```
     #[must_use]
     pub fn trunc_with_scale(&self, scale: u32) -> Decimal {
-        self.round_dp_with_strategy(scale, RoundingStrategy::ToZero)
+        let mut working = [self.lo, self.mid, self.hi];
+        let mut working_scale = self.scale();
+        ops::array::truncate_internal(&mut working, &mut working_scale, scale);
+        Decimal {
+            lo: working[0],
+            mid: working[1],
+            hi: working[2],
+            flags: flags(self.is_sign_negative(), working_scale),
+        }
     }
 
     /// Returns a new `Decimal` representing the fractional portion of the number.

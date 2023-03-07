@@ -58,6 +58,30 @@ pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_
     }
 }
 
+#[inline]
+pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, desired_scale: u32) {
+    if *value_scale <= desired_scale {
+        // Nothing to do, we're already at the desired scale (or less)
+        return;
+    }
+    if is_all_zero(value) {
+        *value_scale = desired_scale;
+        return;
+    }
+    while *value_scale > desired_scale {
+        // We're removing precision, so we don't care about handling the remainder
+        if *value_scale < 10 {
+            let adjustment = *value_scale - desired_scale;
+            div_by_u32(value, POWERS_10[adjustment as usize]);
+            *value_scale = desired_scale;
+        } else {
+            div_by_u32(value, POWERS_10[9]);
+            // Only 9 as this array starts with 1
+            *value_scale -= 9;
+        }
+    }
+}
+
 #[cfg(feature = "legacy-ops")]
 pub(crate) fn add_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
     let mut carry: u64 = 0;

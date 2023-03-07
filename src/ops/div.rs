@@ -38,7 +38,7 @@ impl Buf12 {
             }
             let q32 = (temp / divisor64) as u32;
             self.data[0] = q32;
-            ((temp as u32).wrapping_sub(q32.wrapping_mul(divisor))) as u32
+            (temp as u32).wrapping_sub(q32.wrapping_mul(divisor))
         } else {
             // Super easy divisor
             let low64 = self.low64();
@@ -121,7 +121,7 @@ impl Buf16 {
 
         let mid64 = self.mid64();
         let divisor_hi32_64 = divisor_hi32 as u64;
-        if mid64 < divisor_hi32_64 as u64 {
+        if mid64 < divisor_hi32_64 {
             // similar situation as above where we've got nothing left to divide
             return 0;
         }
