@@ -1,0 +1,18 @@
+[tasks.format]
+clear = true
+workspace = true
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--emit=files"]
+
+[tasks.clippy]
+clear = true
+workspace = true
+install_crate = "clippy"
+command = "cargo"
+args = ["clippy"]
+
+[tasks.outdated]
+install_crate = "cargo-outdated"
+command = "cargo"
+args = ["outdated", "-R"]

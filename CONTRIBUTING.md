@@ -25,7 +25,11 @@ efforts from contributors on the same issue.
   it, you can @-reply a reviewer asking for a review in the pull request or inside a
   comment.
 
-- Add tests relevant to the fixed bug or new feature.
+- Add tests relevant to the fixed bug or new feature. If your addition is feature gated,
+  please make sure the tests are run by the makefile and if necessary, GitHub actions.
+
+- If necessary, add documentation for the new feature to the readme and/or to the public 
+  functions. 
 
 ## Conduct
 
