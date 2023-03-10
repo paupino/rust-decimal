@@ -1,0 +1,76 @@
+[tasks.test-db]
+dependencies = [
+    "test-db-mysql-all",
+    "test-db-postgres-all"
+]
+
+[tasks.test-db-postgres-all]
+dependencies = [
+    "test-db-postgres",
+    "test-db-tokio-postgres",
+    "test-db-diesel1-postgres",
+    "test-db-diesel2-postgres"
+]
+
+# DB Tests require cleaning beforehand to avoid target conflicts
+[tasks.clean-db-postgres]
+alias = "clean"
+
+[tasks.test-db-postgres]
+dependencies = ["clean-db-postgres"]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-postgres", "postgres", "--", "--skip", "generated"]
+
+[tasks.clean-db-tokio-postgres]
+alias = "clean"
+
+[tasks.test-db-tokio-postgres]
+dependencies = ["clean-db-tokio-postgres"]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres", "postgres", "--", "--skip", "generated"]
+
+[tasks.test-db-mysql-all]
+dependencies = [
+    "test-db-diesel1-mysql",
+    "test-db-diesel2-mysql",
+]
+
+[tasks.test-db-diesel]
+dependencies = [
+    "test-db-diesel1-mysql",
+    "test-db-diesel1-postgres",
+    "test-db-diesel2-mysql",
+    "test-db-diesel2-postgres",
+]
+
+[tasks.clean-db-diesel1-mysql]
+alias = "clean"
+
+[tasks.test-db-diesel1-mysql]
+dependencies = ["clean-db-diesel1-mysql"]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-diesel1-mysql", "mysql", "--", "--skip", "generated"]
+
+[tasks.clean-db-diesel2-mysql]
+alias = "clean"
+
+[tasks.test-db-diesel2-mysql]
+dependencies = ["clean-db-diesel2-mysql"]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-diesel2-mysql", "mysql", "--", "--skip", "generated"]
+
+[tasks.clean-db-diesel1-postgres]
+alias = "clean"
+
+[tasks.test-db-diesel1-postgres]
+dependencies = ["clean-db-diesel1-postgres"]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-diesel1-postgres", "postgres", "--", "--skip", "generated"]
+
+[tasks.clean-db-diesel2-postgres]
+alias = "clean"
+
+[tasks.test-db-diesel2-postgres]
+dependencies = ["clean-db-diesel2-postgres"]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=db-diesel2-postgres", "postgres", "--", "--skip", "generated"]
