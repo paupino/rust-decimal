@@ -1,5 +1,26 @@
 # Version History
 
+## 1.29.0
+
+### Added
+
+* New `trunc_with_scale` function which allows you to truncate a decimal number whilst retaining a specified precision. ([#576](https://github.com/paupino/rust-decimal/pull/576)), ([#578](https://github.com/paupino/rust-decimal/pull/578))
+
+### Fixed
+
+* Fix issue when rouding using a high precision decimal place on zero values. This would previously allow the `Decimal` number to enter into an invalid state. ([#575](https://github.com/paupino/rust-decimal/pull/575))
+
+### Changed
+
+There were also a couple of housekeeping tasks, to help pave the way for v2 of Rust Decimal.
+
+* Clean up features so that they are explicit in the `cargo.toml` and leverage the new `dep:` syntax where required. ([#579](https://github.com/paupino/rust-decimal/pull/579))
+* Restructure and compartamentalize Makefile. ([#580](https://github.com/paupino/rust-decimal/pull/580))
+
+### Credit
+
+Thank you [@c410-f3r](https://github.com/c410-f3r) and [@jon-chuang](https://github.com/jon-chuang) for your contributions to this release!
+
 ## 1.28.1
 
 ### Fixed
