@@ -19,6 +19,10 @@ args = ["test", "--workspace", "--features=rocket-traits"]
 command = "cargo"
 args = ["test", "--workspace", "--features=borsh", "--", "--skip", "generated"]
 
+[tasks.test-ndarray]
+command = "cargo"
+args = ["test", "--workspace", "--features=ndarray", "--", "--skip", "generated"]
+
 [tasks.test-rkyv]
 command = "cargo"
 args = ["test", "--workspace", "--features=rkyv", "--features=rkyv-safe", "--", "--skip", "generated"]

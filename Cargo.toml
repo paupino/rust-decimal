@@ -31,6 +31,7 @@ byteorder = { default-features = false, optional = true, version = "1.0" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.0" }
 diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.0" }
+ndarray = { default-features = false, optional = true, version = "0.15.6" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres = { default-features = false, optional = true, version = "0.19" }
 rand = { default-features = false, optional = true, version = "0.8" }
@@ -69,6 +70,7 @@ db-tokio-postgres = ["dep:byteorder", "dep:bytes", "dep:postgres", "std", "dep:t
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
+ndarray = ["dep:ndarray"]
 rand = ["dep:rand"]
 rkyv = ["dep:rkyv"]
 rkyv-safe = ["dep:bytecheck", "rkyv/validation"]

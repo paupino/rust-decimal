@@ -134,6 +134,9 @@ pub struct Decimal {
     mid: u32,
 }
 
+#[cfg(feature = "ndarray")]
+impl ndarray::ScalarOperand for Decimal {}
+
 /// `RoundingStrategy` represents the different rounding strategies that can be used by
 /// `round_dp_with_strategy`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
