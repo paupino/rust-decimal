@@ -101,6 +101,7 @@ assert_eq!(total, dec!(27.26));
 * [c-repr](#c-repr)
 * [legacy-ops](#legacy-ops)
 * [maths](#maths)
+* [ndarray](#ndarray)
 * [rkyv](#rkyv)
 * [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
@@ -167,6 +168,10 @@ Documentation detailing the additional functions can be found on the
 Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
 to curb against this. When the `maths` feature was first developed the library would instead return `0` on invalid input. To re-enable this
 non-panicking behavior, please use the feature: `maths-nopanic`.
+
+### `ndarray`
+
+Enables arithmetic operations using [`ndarray`](https://github.com/rust-ndarray/ndarray) on arrays of `Decimal`.
 
 ### `rand`
 
