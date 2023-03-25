@@ -549,7 +549,7 @@ impl MathematicalOps for Decimal {
             // -Sin(x-π)
             return (self - Decimal::PI).checked_sin().map(|x| -x);
         }
-        if self >= &Decimal::QUARTER_PI {
+        if self > &Decimal::QUARTER_PI {
             // Cos(π2-x)
             return (Decimal::HALF_PI - self).checked_cos();
         }
@@ -595,7 +595,7 @@ impl MathematicalOps for Decimal {
             // -Cos(x-π)
             return (self - Decimal::PI).checked_cos().map(|x| -x);
         }
-        if self >= &Decimal::QUARTER_PI {
+        if self > &Decimal::QUARTER_PI {
             // Sin(π2-x)
             return (Decimal::HALF_PI - self).checked_sin();
         }
