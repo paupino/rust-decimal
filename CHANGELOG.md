@@ -1,5 +1,11 @@
 # Version History
 
+## 1.29.1
+
+### Fixed
+
+* Fixes an issue with `checked_cos` and `checked_sin` where `QUARTER_PI` would send the calculation into an infinite loop. (#[585](https://github.com/paupino/rust-decimal/pull/585))
+
 ## 1.29.0
 
 ### Added
