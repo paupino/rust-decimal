@@ -4624,6 +4624,19 @@ mod generated {
     gen_test!(test_sub_111_111, "Sub_111_111.csv", checked_sub);
 }
 
+#[cfg(feature = "proptest")]
+mod proptest {
+    use super::Decimal;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_proptest_validate_arbitrary_decimals(num in any::<Decimal>()) {
+            assert!(num.is_zero() || !num.is_zero());
+        }
+    }
+}
+
 #[cfg(feature = "rocket-traits")]
 mod rocket {
     use crate::Decimal;

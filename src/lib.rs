@@ -26,6 +26,8 @@ mod mysql;
     feature = "db-diesel2-postgres",
 ))]
 mod postgres;
+#[cfg(feature = "proptest")]
+mod proptest;
 #[cfg(feature = "rand")]
 mod rand;
 #[cfg(feature = "rocket-traits")]

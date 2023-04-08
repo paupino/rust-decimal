@@ -1,11 +1,16 @@
 [tasks.test-misc]
 dependencies = [
+    "test-proptest",
     "test-rust-fuzz",
     "test-rocket-traits",
     "test-borsh",
     "test-rkyv",
     "test-rand"
 ]
+
+[tasks.test-proptest]
+command = "cargo"
+args = ["test", "--workspace", "--no-default-features", "--features=proptest", "--", "--skip", "generated"]
 
 [tasks.test-rust-fuzz]
 command = "cargo"
