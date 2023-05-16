@@ -260,9 +260,11 @@ pub(crate) fn div_by_u32<const N: usize>(bits: &mut [u32; N], divisor: u32) -> u
     }
 }
 
-pub(crate) fn div_by_1x(bits: &mut [u32; 3], power: usize) -> u32 {
+// This function should be used with caution. It unwraps the standard divide loop - it is intended
+// for small inputs (<10) and is optimized to be left as unchecked.
+pub(crate) fn div_by_power<const POWER: usize>(bits: &mut [u32; 3]) -> u32 {
     let mut remainder = 0u32;
-    let divisor = POWERS_10[power] as u64;
+    let divisor = POWERS_10[POWER] as u64;
     let temp = ((remainder as u64) << 32) + (bits[2] as u64);
     remainder = (temp % divisor) as u32;
     bits[2] = (temp / divisor) as u32;
@@ -315,13 +317,13 @@ mod test {
     use super::*;
     use crate::prelude::*;
 
+    fn to_mantissa_array_with_scale(value: &str) -> ([u32; 3], u32) {
+        let v = Decimal::from_str(value).unwrap();
+        (v.mantissa_array3(), v.scale())
+    }
+
     #[test]
     fn it_can_rescale_internal() {
-        fn extract(value: &str) -> ([u32; 3], u32) {
-            let v = Decimal::from_str(value).unwrap();
-            (v.mantissa_array3(), v.scale())
-        }
-
         let tests = &[
             ("1", 0, "1", 0),
             ("1", 1, "1.0", 1),
@@ -350,8 +352,8 @@ mod test {
         ];
 
         for &(value_raw, new_scale, expected_value, expected_scale) in tests {
-            let (expected_value, _) = extract(expected_value);
-            let (mut value, mut value_scale) = extract(value_raw);
+            let (expected_value, _) = to_mantissa_array_with_scale(expected_value);
+            let (mut value, mut value_scale) = to_mantissa_array_with_scale(value_raw);
             rescale_internal(&mut value, &mut value_scale, new_scale);
             assert_eq!(value, expected_value);
             assert_eq!(

@@ -742,6 +742,46 @@ impl Decimal {
         self.lo == 0 && self.mid == 0 && self.hi == 0
     }
 
+    /// Returns true if this Decimal number has zero fractional part (is equal to an integer)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rust_decimal::prelude::*;
+    /// # use rust_decimal_macros::dec;
+    /// #
+    /// assert_eq!(dec!(5).is_integer(), true);
+    /// // Trailing zeros are also ignored
+    /// assert_eq!(dec!(5.0000).is_integer(), true);
+    /// // If there is a fractional part then it is not an integer
+    /// assert_eq!(dec!(5.1).is_integer(), false);
+    /// ```
+    #[must_use]
+    pub fn is_integer(&self) -> bool {
+        let scale = self.scale();
+        if scale == 0 || self.is_zero() {
+            return true;
+        }
+
+        // Check if it can be divided by 10^scale without remainder
+        let mut bits = self.mantissa_array3();
+        let mut scale = scale;
+        while scale > 0 {
+            let remainder = if scale > 9 {
+                scale -= 10;
+                ops::array::div_by_u32(&mut bits, POWERS_10[9])
+            } else {
+                let power = POWERS_10[scale as usize];
+                scale = 0;
+                ops::array::div_by_u32(&mut bits, power)
+            };
+            if remainder > 0 {
+                return false;
+            }
+        }
+        true
+    }
+
     /// An optimized method for changing the sign of a decimal number.
     ///
     /// # Arguments
@@ -939,9 +979,9 @@ impl Decimal {
         if raw.scale() > MAX_PRECISION_U32 {
             let mut bits = raw.mantissa_array3();
             let remainder = match raw.scale() {
-                29 => crate::ops::array::div_by_1x(&mut bits, 1),
-                30 => crate::ops::array::div_by_1x(&mut bits, 2),
-                31 => crate::ops::array::div_by_1x(&mut bits, 3),
+                29 => ops::array::div_by_power::<1>(&mut bits),
+                30 => ops::array::div_by_power::<2>(&mut bits),
+                31 => ops::array::div_by_power::<3>(&mut bits),
                 _ => 0,
             };
             if remainder >= 5 {
