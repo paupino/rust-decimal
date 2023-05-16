@@ -3617,6 +3617,23 @@ fn test_inv() {
     assert_eq!("0.01", Decimal::ONE_HUNDRED.inv().to_string());
 }
 
+#[test]
+fn test_is_integer() {
+    let tests = &[
+        ("0", true),
+        ("1", true),
+        ("79_228_162_514_264_337_593_543_950_335", true),
+        ("1.0", true),
+        ("1.1", false),
+        ("3.1415926535897932384626433833", false),
+        ("3.0000000000000000000000000000", true),
+    ];
+    for &(raw, integer) in tests {
+        let value = Decimal::from_str(raw).unwrap();
+        assert_eq!(value.is_integer(), integer, "value: {}", raw)
+    }
+}
+
 // Mathematical features
 #[cfg(feature = "maths")]
 mod maths {
