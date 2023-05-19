@@ -35,10 +35,10 @@ jobs:
           - 3306:3306
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Cache cargo registry
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -51,83 +51,52 @@ jobs:
           sudo apt-get -y install libpq-dev
 
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
 
       - uses: davidB/rust-cargo-make@v1
 
       - name: Build rust-decimal
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --all-features # Important to keep this to ensure docs.rs passes
+        run: cargo build --workspace --all-features # Important to keep this to ensure docs.rs passes
 
       - name: Run no_std tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-no-std
+        run: cargo make test-no-std
 
       - name: Run default tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-default
+        run: cargo make test-default
 
       - name: Run legacy operation tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-legacy-ops
+        run: cargo make test-legacy-ops
 
       - name: Run mathematical function tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-maths
+        run: cargo make test-maths
 
       - name: Run miscellaneous tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-misc
+        run: cargo make test-misc
 
       - name: Run database tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-db
+        run: cargo make test-db
 
       - name: Run serde tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-serde
+        run: cargo make test-serde
 
       - name: Run macro tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: test-macros
+        run: cargo make test-macros
 
   check_style:
     name: Check file formatting and style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          profile: minimal
           components: clippy, rustfmt
-          override: true
 
       - name: Cache cargo registry
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -140,58 +109,43 @@ jobs:
           sudo apt-get -y install libpq-dev
 
       - name: Check file formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
 
       - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --workspace --all-features
+        run: cargo clippy --workspace --all-features
 
   fuzz:
     name: Fuzz
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          override: true
-          profile: minimal
           toolchain: nightly
+
+      - name: Install Cargo Fuzz
+        run: cargo install cargo-fuzz
 
       - uses: davidB/rust-cargo-make@v1
 
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-fuzz
-          use-tool-cache: true
-
       - name: Run fuzz tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: fuzz
+        run: cargo make fuzz
 
   minimum_rust_version:
     name: Check minimum rust version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.60.0
-          profile: minimal
-          override: true
 
       - name: Cache cargo registry
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
@@ -208,7 +162,4 @@ jobs:
           RUSTC_BOOTSTRAP=1 cargo update -Z minimal-versions
 
       - name: Check build
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace
+        run: cargo check --workspace
