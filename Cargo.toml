@@ -23,6 +23,8 @@ version = "1.29.1"
 all-features = true
 
 [dependencies]
+abomonation = { default-features = false, optional = true, version = "0.7.3" }
+abomonation_derive = { default-features = false, optional = true, version = "0.5.0" }
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, optional = true, version = "0.10.0" }
@@ -58,6 +60,7 @@ version-sync = { default-features = false, features = ["html_root_url_updated", 
 [features]
 default = ["serde", "std"]
 
+abomonation = ["dep:abomonation", "dep:abomonation_derive"]
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["db-diesel1-mysql"]
