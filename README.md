@@ -173,6 +173,10 @@ non-panicking behavior, please use the feature: `maths-nopanic`.
 
 Enables arithmetic operations using [`ndarray`](https://github.com/rust-ndarray/ndarray) on arrays of `Decimal`.
 
+### `proptest`
+
+Enables a [`proptest`](https://github.com/proptest-rs/proptest) strategy to generate values for Rust Decimal.
+
 ### `rand`
 
 Implements `rand::distributions::Distribution<Decimal>` to allow the creation of random instances.

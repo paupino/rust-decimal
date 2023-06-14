@@ -1,5 +1,24 @@
 # Version History
 
+## 1.30.0
+
+As the minor releases for Rust Decimal are getting smaller, I'll be looking at formally starting version 2 of the
+Decimal library. This will be unstable as we find experiment with a new API and address some of the constraints the current
+implementation of the library has (e.g. revised error types for better const support).
+
+### Added
+
+* Add `proptest` feature support for `Decimal` ([#582](https://github.com/paupino/rust-decimal/pull/582)).
+* Implement an `is_integer` function for an efficient means to check whether a `Decimal` is an integer with no fractional portion. ([#591](https://github.com/paupino/rust-decimal/pull/591)).
+
+### Changed
+
+* Improved GitHub Actions Workflow ([#592](https://github.com/paupino/rust-decimal/pull/592)).
+
+### Credit
+
+Thank you to [@cardoe](https://github.com/cardoe/) for your contribution!
+
 ## 1.29.1
 
 ### Fixed
@@ -14,14 +33,14 @@
 
 ### Fixed
 
-* Fix issue when rouding using a high precision decimal place on zero values. This would previously allow the `Decimal` number to enter into an invalid state. ([#575](https://github.com/paupino/rust-decimal/pull/575))
+* Fix issue when rounding using a high precision decimal place on zero values. This would previously allow the `Decimal` number to enter into an invalid state. ([#575](https://github.com/paupino/rust-decimal/pull/575))
 
 ### Changed
 
 There were also a couple of housekeeping tasks, to help pave the way for v2 of Rust Decimal.
 
 * Clean up features so that they are explicit in the `cargo.toml` and leverage the new `dep:` syntax where required. ([#579](https://github.com/paupino/rust-decimal/pull/579))
-* Restructure and compartamentalize Makefile. ([#580](https://github.com/paupino/rust-decimal/pull/580))
+* Restructure and compartmentalize Makefile. ([#580](https://github.com/paupino/rust-decimal/pull/580))
 
 ### Credit
 
