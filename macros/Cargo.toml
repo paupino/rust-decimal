@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal_macros"
-version = "1.29.1"
+version = "1.30.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2021"
 description = "Shorthand macros to assist creating Decimal types."
