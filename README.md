@@ -29,8 +29,8 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.29"
-rust_decimal_macros = "1.29"
+rust_decimal = "1.30"
+rust_decimal_macros = "1.30"
 ```
 
 ## Usage
@@ -172,6 +172,10 @@ non-panicking behavior, please use the feature: `maths-nopanic`.
 ### `ndarray`
 
 Enables arithmetic operations using [`ndarray`](https://github.com/rust-ndarray/ndarray) on arrays of `Decimal`.
+
+### `proptest`
+
+Enables a [`proptest`](https://github.com/proptest-rs/proptest) strategy to generate values for Rust Decimal.
 
 ### `rand`
 
