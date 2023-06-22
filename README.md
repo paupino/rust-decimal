@@ -29,8 +29,8 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.26"
-rust_decimal_macros = "1.26"
+rust_decimal = "1.30"
+rust_decimal_macros = "1.30"
 ```
 
 ## Usage
@@ -101,6 +101,7 @@ assert_eq!(total, dec!(27.26));
 * [c-repr](#c-repr)
 * [legacy-ops](#legacy-ops)
 * [maths](#maths)
+* [ndarray](#ndarray)
 * [rkyv](#rkyv)
 * [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
@@ -165,8 +166,16 @@ Documentation detailing the additional functions can be found on the
 [`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.  
 
 Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
-to curb against this. When the `maths` feature was first developed the library would return `0` on invalid input. To re-enable this
+to curb against this. When the `maths` feature was first developed the library would instead return `0` on invalid input. To re-enable this
 non-panicking behavior, please use the feature: `maths-nopanic`.
+
+### `ndarray`
+
+Enables arithmetic operations using [`ndarray`](https://github.com/rust-ndarray/ndarray) on arrays of `Decimal`.
+
+### `proptest`
+
+Enables a [`proptest`](https://github.com/proptest-rs/proptest) strategy to generate values for Rust Decimal.
 
 ### `rand`
 
@@ -294,8 +303,8 @@ Please refer to the [Build document](BUILD.md) for more information on building 
 
 ## Minimum Rust Compiler Version
 
-The current _minimum_ compiler version is [`1.56.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1560-2021-10-21)
-which was released on `2021-10-21`.
+The current _minimum_ compiler version is [`1.60.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1600-2022-04-07)
+which was released on `2022-04-07`.
 
 This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust compiler version.
 For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and including `1.46.0`.

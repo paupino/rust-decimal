@@ -4,9 +4,6 @@ use crate::constants::{
 };
 use crate::ops;
 use crate::Error;
-
-#[cfg(feature = "rkyv-safe")]
-use bytecheck::CheckBytes;
 use core::{
     cmp::{Ordering::Equal, *},
     fmt,
@@ -132,6 +129,7 @@ pub struct UnpackedDecimal {
 feature = "scale-codec",
 derive(Decode, Encode, TypeInfo, MaxEncodedLen),
 )]
+#[cfg_attr(feature = "rkyv-safe", archive_attr(derive(bytecheck::CheckBytes)))]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
@@ -144,6 +142,9 @@ pub struct Decimal {
     lo: u32,
     mid: u32,
 }
+
+#[cfg(feature = "ndarray")]
+impl ndarray::ScalarOperand for Decimal {}
 
 /// `RoundingStrategy` represents the different rounding strategies that can be used by
 /// `round_dp_with_strategy`.
@@ -710,7 +711,7 @@ impl Decimal {
     #[inline]
     #[must_use]
     pub const fn scale(&self) -> u32 {
-        ((self.flags & SCALE_MASK) >> SCALE_SHIFT) as u32
+        (self.flags & SCALE_MASK) >> SCALE_SHIFT
     }
 
     /// Returns the mantissa of the decimal number.
@@ -748,6 +749,46 @@ impl Decimal {
     #[must_use]
     pub const fn is_zero(&self) -> bool {
         self.lo == 0 && self.mid == 0 && self.hi == 0
+    }
+
+    /// Returns true if this Decimal number has zero fractional part (is equal to an integer)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rust_decimal::prelude::*;
+    /// # use rust_decimal_macros::dec;
+    /// #
+    /// assert_eq!(dec!(5).is_integer(), true);
+    /// // Trailing zeros are also ignored
+    /// assert_eq!(dec!(5.0000).is_integer(), true);
+    /// // If there is a fractional part then it is not an integer
+    /// assert_eq!(dec!(5.1).is_integer(), false);
+    /// ```
+    #[must_use]
+    pub fn is_integer(&self) -> bool {
+        let scale = self.scale();
+        if scale == 0 || self.is_zero() {
+            return true;
+        }
+
+        // Check if it can be divided by 10^scale without remainder
+        let mut bits = self.mantissa_array3();
+        let mut scale = scale;
+        while scale > 0 {
+            let remainder = if scale > 9 {
+                scale -= 10;
+                ops::array::div_by_u32(&mut bits, POWERS_10[9])
+            } else {
+                let power = POWERS_10[scale as usize];
+                scale = 0;
+                ops::array::div_by_u32(&mut bits, power)
+            };
+            if remainder > 0 {
+                return false;
+            }
+        }
+        true
     }
 
     /// An optimized method for changing the sign of a decimal number.
@@ -947,9 +988,9 @@ impl Decimal {
         if raw.scale() > MAX_PRECISION_U32 {
             let mut bits = raw.mantissa_array3();
             let remainder = match raw.scale() {
-                29 => crate::ops::array::div_by_1x(&mut bits, 1),
-                30 => crate::ops::array::div_by_1x(&mut bits, 2),
-                31 => crate::ops::array::div_by_1x(&mut bits, 3),
+                29 => ops::array::div_by_power::<1>(&mut bits),
+                30 => ops::array::div_by_power::<2>(&mut bits),
+                31 => ops::array::div_by_power::<3>(&mut bits),
                 _ => 0,
             };
             if remainder >= 5 {
@@ -1028,36 +1069,54 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// #
-    /// let pi = Decimal::new(3141, 3);
-    /// let trunc = Decimal::new(3, 0);
-    /// // note that it returns a decimal
-    /// assert_eq!(pi.trunc(), trunc);
+    /// let pi = dec!(3.141);
+    /// assert_eq!(pi.trunc(), dec!(3));
+    ///
+    /// // Negative numbers are similarly truncated without rounding
+    /// let neg = dec!(-1.98765);
+    /// assert_eq!(neg.trunc(), Decimal::NEGATIVE_ONE);
     /// ```
     #[must_use]
     pub fn trunc(&self) -> Decimal {
-        let mut scale = self.scale();
-        if scale == 0 {
-            // Nothing to do
-            return *self;
-        }
         let mut working = [self.lo, self.mid, self.hi];
-        while scale > 0 {
-            // We're removing precision, so we don't care about overflow
-            if scale < 10 {
-                ops::array::div_by_u32(&mut working, POWERS_10[scale as usize]);
-                break;
-            } else {
-                ops::array::div_by_u32(&mut working, POWERS_10[9]);
-                // Only 9 as this array starts with 1
-                scale -= 9;
-            }
-        }
+        let mut working_scale = self.scale();
+        ops::array::truncate_internal(&mut working, &mut working_scale, 0);
         Decimal {
             lo: working[0],
             mid: working[1],
             hi: working[2],
-            flags: flags(self.is_sign_negative(), 0),
+            flags: flags(self.is_sign_negative(), working_scale),
+        }
+    }
+
+    /// Returns a new `Decimal` with the fractional portion delimited by `scale`.
+    /// This is a true truncation whereby no rounding is performed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
+    /// #
+    /// let pi = dec!(3.141592);
+    /// assert_eq!(pi.trunc_with_scale(2), dec!(3.14));
+    ///
+    /// // Negative numbers are similarly truncated without rounding
+    /// let neg = dec!(-1.98765);
+    /// assert_eq!(neg.trunc_with_scale(1), dec!(-1.9));
+    /// ```
+    #[must_use]
+    pub fn trunc_with_scale(&self, scale: u32) -> Decimal {
+        let mut working = [self.lo, self.mid, self.hi];
+        let mut working_scale = self.scale();
+        ops::array::truncate_internal(&mut working, &mut working_scale, scale);
+        Decimal {
+            lo: working[0],
+            mid: working[1],
+            hi: working[2],
+            flags: flags(self.is_sign_negative(), working_scale),
         }
     }
 
@@ -1285,6 +1344,14 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn round_dp_with_strategy(&self, dp: u32, strategy: RoundingStrategy) -> Decimal {
+        let old_scale = self.scale();
+
+        // return early if decimal has a smaller number of fractional places than dp
+        // e.g. 2.51 rounded to 3 decimal places is 2.51
+        if old_scale <= dp {
+            return *self;
+        }
+
         // Short circuit for zero
         if self.is_zero() {
             return Decimal {
@@ -1293,14 +1360,6 @@ impl Decimal {
                 hi: 0,
                 flags: flags(self.is_sign_negative(), dp),
             };
-        }
-
-        let old_scale = self.scale();
-
-        // return early if decimal has a smaller number of fractional places than dp
-        // e.g. 2.51 rounded to 3 decimal places is 2.51
-        if old_scale <= dp {
-            return *self;
         }
 
         let mut value = [self.lo, self.mid, self.hi];
@@ -1781,7 +1840,7 @@ impl_try_from_decimal!(u128, Decimal::to_u128, integer_docs!(true));
 // See https://github.com/rust-lang/rustfmt/issues/5062 for more information.
 #[rustfmt::skip]
 macro_rules! impl_try_from_primitive {
-    ($TFrom:ty, $conversion_fn:path) => {
+    ($TFrom:ty, $conversion_fn:path $(, $err:expr)?) => {
         #[doc = concat!(
             "Try to convert a `",
             stringify!($TFrom),
@@ -1792,14 +1851,15 @@ macro_rules! impl_try_from_primitive {
 
             #[inline]
             fn try_from(t: $TFrom) -> Result<Self, Error> {
-                $conversion_fn(t).ok_or_else(|| Error::ConversionTo("Decimal".into()))
+                $conversion_fn(t) $( .ok_or_else(|| $err) )?
             }
         }
     };
 }
 
-impl_try_from_primitive!(f32, Self::from_f32);
-impl_try_from_primitive!(f64, Self::from_f64);
+impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal".into()));
+impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal".into()));
+impl_try_from_primitive!(&str, core::str::FromStr::from_str);
 
 macro_rules! impl_from {
     ($T:ty, $from_ty:path) => {

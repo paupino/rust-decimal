@@ -1,5 +1,98 @@
 # Version History
 
+## 1.30.0
+
+As the minor releases for Rust Decimal are getting smaller, I'll be looking at formally starting version 2 of the
+Decimal library. This will be unstable as we find experiment with a new API and address some of the constraints the current
+implementation of the library has (e.g. revised error types for better const support).
+
+### Added
+
+* Add `proptest` feature support for `Decimal` ([#582](https://github.com/paupino/rust-decimal/pull/582)).
+* Implement an `is_integer` function for an efficient means to check whether a `Decimal` is an integer with no fractional portion. ([#591](https://github.com/paupino/rust-decimal/pull/591)).
+
+### Changed
+
+* Improved GitHub Actions Workflow ([#592](https://github.com/paupino/rust-decimal/pull/592)).
+
+### Credit
+
+Thank you to [@cardoe](https://github.com/cardoe/) for your contribution!
+
+## 1.29.1
+
+### Fixed
+
+* Fixes an issue with `checked_cos` and `checked_sin` where `QUARTER_PI` would send the calculation into an infinite loop. (#[585](https://github.com/paupino/rust-decimal/pull/585))
+
+## 1.29.0
+
+### Added
+
+* New `trunc_with_scale` function which allows you to truncate a decimal number whilst retaining a specified precision. ([#576](https://github.com/paupino/rust-decimal/pull/576)), ([#578](https://github.com/paupino/rust-decimal/pull/578))
+
+### Fixed
+
+* Fix issue when rounding using a high precision decimal place on zero values. This would previously allow the `Decimal` number to enter into an invalid state. ([#575](https://github.com/paupino/rust-decimal/pull/575))
+
+### Changed
+
+There were also a couple of housekeeping tasks, to help pave the way for v2 of Rust Decimal.
+
+* Clean up features so that they are explicit in the `cargo.toml` and leverage the new `dep:` syntax where required. ([#579](https://github.com/paupino/rust-decimal/pull/579))
+* Restructure and compartmentalize Makefile. ([#580](https://github.com/paupino/rust-decimal/pull/580))
+
+### Credit
+
+Thank you [@c410-f3r](https://github.com/c410-f3r) and [@jon-chuang](https://github.com/jon-chuang) for your contributions to this release!
+
+## 1.28.1
+
+### Fixed
+
+* Bumped `borsh` and `criterion` dependencies to the latest versions. ([#568](https://github.com/paupino/rust-decimal/pull/568))
+* Removed erroneous debug statements in `serde-with-str` feature. ([#571](https://github.com/paupino/rust-decimal/pull/571))
+
+Thanks [@attila-lin](https://github.com/attila-lin) for your help bumping dependencies.
+
+## 1.28.0
+
+### Added
+
+* Implement `TryFrom<&str>` for `Decimal` ([#560](https://github.com/paupino/rust-decimal/pull/560))
+
+### Fixed
+
+* Explicit string deserialize for `Option<Decimal>` when using `serde-with-str` ([#565](https://github.com/paupino/rust-decimal/pull/565))
+* Fix for `rescale` preventing `Decimal::ZERO` to be rescaled to an invalid precision ([#566](https://github.com/paupino/rust-decimal/pull/566))
+
+### Credit
+
+Thank you to [@c410-f3r](https://github.com/c410-f3r) for your diligent help adding features to this library!
+
+## 1.27.0
+
+### Added
+
+* Added `Copy`/`Clone` traits for `rkvy::Archive` ([#539](https://github.com/paupino/rust-decimal/pull/539))
+* Support precision for scientific notation formatting ([#555](https://github.com/paupino/rust-decimal/pull/555), [#557](https://github.com/paupino/rust-decimal/pull/557))
+
+### Fixed
+
+* Fixed edge case parsing of strings whereby it would incorrectly error instead of round ([#541](https://github.com/paupino/rust-decimal/pull/541)) 
+
+### Changed
+
+* Update diesel feature to use release version ([#546](https://github.com/paupino/rust-decimal/pull/546))
+* Updated documentation to include `cargo-edit` instructions ([#538](https://github.com/paupino/rust-decimal/pull/538))
+* Start using new feature resolver for cargo dependencies ([#551](https://github.com/paupino/rust-decimal/pull/551))
+* Optional serde deserialization avoids using `deserialize_any` except in explicit use cases ([#558](https://github.com/paupino/rust-decimal/pull/558))
+
+### Credit
+
+This release wouldn't have been possible without the help of the community. Special call out and thank you to [@icy-ux](https://github.com/icy-ux), [@CAD97](https://github.com/CAD97), [@nicksenger](https://github.com/nicksenger),
+[@c410-f3r](https://github.com/c410-f3r) and [@yongqli](https://github.com/yongqli).
+
 ## 1.26.1
 
 ### Fixed

@@ -112,7 +112,7 @@ impl Decimal {
             digits.push(digit.try_into().unwrap());
         }
         digits.reverse();
-        let digits_after_decimal = (scale + 3) as u16 / 4;
+        let digits_after_decimal = (scale + 3) / 4;
         let weight = digits.len() as i16 - digits_after_decimal as i16 - 1;
 
         let unnecessary_zeroes = if weight >= 0 {

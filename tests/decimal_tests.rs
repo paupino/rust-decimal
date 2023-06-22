@@ -153,6 +153,55 @@ fn it_can_serialize_deserialize_borsh() {
 }
 
 #[test]
+#[cfg(feature = "ndarray")]
+fn it_can_do_scalar_ops_in_ndarray() {
+    use ndarray::Array1;
+    use num_traits::FromPrimitive;
+
+    let array_a = Array1::from(vec![
+        Decimal::from_f32(1.0).unwrap(),
+        Decimal::from_f32(2.0).unwrap(),
+        Decimal::from_f32(3.0).unwrap(),
+    ]);
+
+    // Add
+    let output = array_a.clone() + Decimal::from_f32(5.0).unwrap();
+    let expectation = Array1::from(vec![
+        Decimal::from_f32(6.0).unwrap(),
+        Decimal::from_f32(7.0).unwrap(),
+        Decimal::from_f32(8.0).unwrap(),
+    ]);
+    assert_eq!(output, expectation);
+
+    // Sub
+    let output = array_a.clone() - Decimal::from_f32(5.0).unwrap();
+    let expectation = Array1::from(vec![
+        Decimal::from_f32(-4.0).unwrap(),
+        Decimal::from_f32(-3.0).unwrap(),
+        Decimal::from_f32(-2.0).unwrap(),
+    ]);
+    assert_eq!(output, expectation);
+
+    // Mul
+    let output = array_a.clone() * Decimal::from_f32(5.0).unwrap();
+    let expectation = Array1::from(vec![
+        Decimal::from_f32(5.0).unwrap(),
+        Decimal::from_f32(10.0).unwrap(),
+        Decimal::from_f32(15.0).unwrap(),
+    ]);
+    assert_eq!(output, expectation);
+
+    // Div
+    let output = array_a / Decimal::from_f32(5.0).unwrap();
+    let expectation = Array1::from(vec![
+        Decimal::from_f32(0.2).unwrap(),
+        Decimal::from_f32(0.4).unwrap(),
+        Decimal::from_f32(0.6).unwrap(),
+    ]);
+    assert_eq!(output, expectation);
+}
+
+#[test]
 #[cfg(feature = "rkyv")]
 fn it_can_serialize_deserialize_rkyv() {
     use rkyv::Deserialize;
@@ -316,6 +365,95 @@ fn it_formats_lower_exp_padding() {
     for (value, expected) in &tests {
         let a = Decimal::from_str(value).unwrap();
         assert_eq!(&format!("{:05e}", a), *expected, "format!(\"{{:05e}}\", {})", a);
+    }
+}
+
+#[test]
+fn it_formats_scientific_precision() {
+    for (num, scale, expected_no_precision, expected_precision) in [
+        (
+            123456,
+            10,
+            "1.23456e-5",
+            [
+                "1e-5",
+                "1.2e-5",
+                "1.23e-5",
+                "1.234e-5",
+                "1.2345e-5",
+                "1.23456e-5",
+                "1.234560e-5",
+                "1.2345600e-5",
+            ],
+        ),
+        (
+            123456,
+            0,
+            "1.23456e5",
+            [
+                "1e5",
+                "1.2e5",
+                "1.23e5",
+                "1.234e5",
+                "1.2345e5",
+                "1.23456e5",
+                "1.234560e5",
+                "1.2345600e5",
+            ],
+        ),
+        (
+            1,
+            0,
+            "1e0",
+            [
+                "1e0",
+                "1.0e0",
+                "1.00e0",
+                "1.000e0",
+                "1.0000e0",
+                "1.00000e0",
+                "1.000000e0",
+                "1.0000000e0",
+            ],
+        ),
+        (
+            -123456,
+            10,
+            "-1.23456e-5",
+            [
+                "-1e-5",
+                "-1.2e-5",
+                "-1.23e-5",
+                "-1.234e-5",
+                "-1.2345e-5",
+                "-1.23456e-5",
+                "-1.234560e-5",
+                "-1.2345600e-5",
+            ],
+        ),
+        (
+            -100000,
+            10,
+            "-1e-5",
+            [
+                "-1e-5",
+                "-1.0e-5",
+                "-1.00e-5",
+                "-1.000e-5",
+                "-1.0000e-5",
+                "-1.00000e-5",
+                "-1.000000e-5",
+                "-1.0000000e-5",
+            ],
+        ),
+    ] {
+        assert_eq!(format!("{:e}", Decimal::new(num, scale)), expected_no_precision);
+        for i in 0..expected_precision.len() {
+            assert_eq!(
+                format!("{:.prec$e}", Decimal::new(num, scale), prec = i),
+                expected_precision[i]
+            );
+        }
     }
 }
 
@@ -2383,6 +2521,15 @@ fn it_can_round_complex_numbers() {
 }
 
 #[test]
+fn it_does_not_round_decimals_to_too_many_dp() {
+    // Issue 574
+    let zero = Decimal::new(0, 28);
+    let rounded = zero.round_dp(32);
+    assert_eq!(rounded.scale(), 28); // If dp > old_scale, we retain the old scale.
+    rounded.to_string();
+}
+
+#[test]
 fn it_can_round_down() {
     let tests = &[
         ("0.470", 1, "0.4"),
@@ -2522,7 +2669,19 @@ fn it_can_round_significant_figures_with_strategy() {
 
 #[test]
 fn it_can_trunc() {
-    let tests = &[("1.00000000000000000000", "1"), ("1.000000000000000000000001", "1")];
+    let tests = &[
+        ("1.00000000000000000000", "1"),
+        ("1.000000000000000000000001", "1"),
+        ("1.123456789", "1"),
+        ("1.9", "1"),
+        ("1", "1"),
+        // Also the inflection
+        ("-1.00000000000000000000", "-1"),
+        ("-1.000000000000000000000001", "-1"),
+        ("-1.123456789", "-1"),
+        ("-1.9", "-1"),
+        ("-1", "-1"),
+    ];
 
     for &(value, expected) in tests {
         let value = Decimal::from_str(value).unwrap();
@@ -2530,6 +2689,29 @@ fn it_can_trunc() {
         let trunc = value.trunc();
         assert_eq!(expected.to_string(), trunc.to_string());
     }
+}
+
+#[test]
+fn it_can_trunc_with_scale() {
+    let cmp = Decimal::from_str("1.2345").unwrap();
+    assert_eq!(Decimal::from_str("1.23450").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.234500001").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23451").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23454").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23455").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23456").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.23459").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("1.234599999").unwrap().trunc_with_scale(4), cmp);
+
+    let cmp = Decimal::from_str("-1.2345").unwrap();
+    assert_eq!(Decimal::from_str("-1.23450").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.234500001").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23451").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23454").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23455").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23456").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.23459").unwrap().trunc_with_scale(4), cmp);
+    assert_eq!(Decimal::from_str("-1.234599999").unwrap().trunc_with_scale(4), cmp);
 }
 
 #[test]
@@ -2768,6 +2950,12 @@ fn it_converts_from_u128() {
             assert_eq!(num_traits::FromPrimitive::from_u128(*value), Some(decimal));
         }
     }
+}
+
+#[test]
+fn it_converts_from_str() {
+    assert_eq!(Decimal::try_from("1").unwrap(), Decimal::ONE);
+    assert_eq!(Decimal::try_from("10").unwrap(), Decimal::TEN);
 }
 
 #[test]
@@ -3076,11 +3264,9 @@ fn it_can_reject_large_numbers_with_panic() {
         "79228162514264337593543950340",
     ];
     for &value in tests {
-        assert!(
-            Decimal::from_str(value).is_err(),
-            "This succeeded unexpectedly: {}",
-            value
-        );
+        if let Ok(out) = Decimal::from_str(value) {
+            panic!("Unexpectedly parsed {} into {}", value, out)
+        }
     }
 }
 
@@ -3429,6 +3615,23 @@ fn test_constants() {
 #[test]
 fn test_inv() {
     assert_eq!("0.01", Decimal::ONE_HUNDRED.inv().to_string());
+}
+
+#[test]
+fn test_is_integer() {
+    let tests = &[
+        ("0", true),
+        ("1", true),
+        ("79_228_162_514_264_337_593_543_950_335", true),
+        ("1.0", true),
+        ("1.1", false),
+        ("3.1415926535897932384626433833", false),
+        ("3.0000000000000000000000000000", true),
+    ];
+    for &(raw, integer) in tests {
+        let value = Decimal::from_str(raw).unwrap();
+        assert_eq!(value.is_integer(), integer, "value: {}", raw)
+    }
 }
 
 // Mathematical features
@@ -3980,6 +4183,7 @@ mod maths {
                 "-79228162514264.337593543950335",
                 Some(either!("-0.893653245236708", "-0.8963358176")),
             ),
+            ("0.7853981633974483096156608458", Some("0.7071067811865475244008443621")),
         ];
         for (input, result) in test_cases {
             let radians = Decimal::from_str(input).unwrap();
@@ -4021,6 +4225,8 @@ mod maths {
                 "-79228162514264.337593543950335",
                 Some(either!("0.448758150096352", "0.443375802326")),
             ),
+            ("0.7853981633974483096156608458", Some("0.7071067810719247405681474639")),
+            ("8.639379797371931405772269304", Some("-0.7071067811796194351866715184")),
         ];
         for (input, result) in test_cases {
             let radians = Decimal::from_str(input).unwrap();
@@ -4433,6 +4639,19 @@ mod generated {
     gen_test!(test_sub_111_101, "Sub_111_101.csv", checked_sub);
     gen_test!(test_sub_111_110, "Sub_111_110.csv", checked_sub);
     gen_test!(test_sub_111_111, "Sub_111_111.csv", checked_sub);
+}
+
+#[cfg(feature = "proptest")]
+mod proptest {
+    use super::Decimal;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_proptest_validate_arbitrary_decimals(num in any::<Decimal>()) {
+            assert!(num.is_zero() || !num.is_zero());
+        }
+    }
 }
 
 #[cfg(feature = "rocket-traits")]
