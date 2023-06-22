@@ -23,9 +23,6 @@ version = "1.30.0"
 all-features = true
 
 [dependencies]
-parity-scale-codec = {package = "parity-scale-codec", optional = true, version = "3.1.5", features = ["max-encoded-len"], default-features = false}
-parity-scale-codec-derive = {package = "parity-scale-codec-derive", optional = true, version = "3.1.3",default-features = false}
-scale-info = {optional=true, version = "2.1.2", features = ["derive"],default-features = false}
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, optional = true, version = "0.10.0" }
@@ -36,11 +33,14 @@ diesel1 = { default-features = false, optional = true, package = "diesel", versi
 diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.0" }
 ndarray = { default-features = false, optional = true, version = "0.15.6" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
+parity-scale-codec = { optional = true, version = "3.1.5", features = ["max-encoded-len"], default-features = false}
+parity-scale-codec-derive = { optional = true, version = "3.1.3",default-features = false}
 postgres = { default-features = false, optional = true, version = "0.19" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
 rand = { default-features = false, optional = true, version = "0.8" }
 rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.1" }
+scale-info = {optional=true, version = "2.1.2", features = ["derive"], default-features = false}
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
@@ -81,6 +81,7 @@ rkyv = ["dep:rkyv"]
 rkyv-safe = ["dep:bytecheck", "rkyv/validation"]
 rocket-traits = ["dep:rocket"]
 rust-fuzz = ["dep:arbitrary"]
+scale-codec =  ["parity-scale-codec-derive","parity-scale-codec","scale-info"]
 serde = ["dep:serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
@@ -89,9 +90,8 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = ["arrayvec/std", "borsh?/std", "bytecheck?/std", "byteorder?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
+std = ["arrayvec/std", "borsh?/std", "bytecheck?/std", "byteorder?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std", "parity-scale-codec?/std","scale-info?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
-scale-codec =  ["parity-scale-codec-derive","parity-scale-codec","scale-info"]
 
 [workspace]
 members = [".", "./macros"]
