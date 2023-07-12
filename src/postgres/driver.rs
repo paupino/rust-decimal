@@ -213,7 +213,7 @@ mod test {
 
         // Test NULL
         let result: Option<Decimal> = match client.query("SELECT NULL::numeric", &[]) {
-            Ok(x) => x.iter().next().unwrap().get(0),
+            Ok(x) => x.first().unwrap().get(0),
             Err(err) => panic!("{:#?}", err),
         };
         assert_eq!(None, result);
@@ -229,9 +229,9 @@ mod test {
         let connection = connection.map(|e| e.unwrap());
         tokio::spawn(connection);
 
-        let statement = client.prepare(&"SELECT NULL::numeric").await.unwrap();
+        let statement = client.prepare("SELECT NULL::numeric").await.unwrap();
         let rows = client.query(&statement, &[]).await.unwrap();
-        let result: Option<Decimal> = rows.iter().next().unwrap().get(0);
+        let result: Option<Decimal> = rows.first().unwrap().get(0);
 
         assert_eq!(None, result);
     }
@@ -243,7 +243,7 @@ mod test {
             Err(err) => panic!("{:#?}", err),
         };
         let result: Decimal = match client.query("SELECT 1e-130::NUMERIC(130, 0)", &[]) {
-            Ok(x) => x.iter().next().unwrap().get(0),
+            Ok(x) => x.first().unwrap().get(0),
             Err(err) => panic!("error - {:#?}", err),
         };
         // We compare this to zero since it is so small that it is effectively zero
@@ -259,7 +259,7 @@ mod test {
         for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
             let result: Decimal =
                 match client.query(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale), &[]) {
-                    Ok(x) => x.iter().next().unwrap().get(0),
+                    Ok(x) => x.first().unwrap().get(0),
                     Err(err) => panic!("SELECT {}::NUMERIC({}, {}), error - {:#?}", sent, precision, scale, err),
                 };
             assert_eq!(
@@ -284,11 +284,11 @@ mod test {
         tokio::spawn(connection);
         for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
             let statement = client
-                .prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale))
+                .prepare(&format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale))
                 .await
                 .unwrap();
             let rows = client.query(&statement, &[]).await.unwrap();
-            let result: Decimal = rows.iter().next().unwrap().get(0);
+            let result: Decimal = rows.first().unwrap().get(0);
 
             assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
         }
@@ -304,7 +304,7 @@ mod test {
             let number = Decimal::from_str(sent).unwrap();
             let result: Decimal =
                 match client.query(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale), &[&number]) {
-                    Ok(x) => x.iter().next().unwrap().get(0),
+                    Ok(x) => x.first().unwrap().get(0),
                     Err(err) => panic!("{:#?}", err),
                 };
             assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
@@ -323,12 +323,12 @@ mod test {
 
         for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
             let statement = client
-                .prepare(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale))
+                .prepare(&format!("SELECT $1::NUMERIC({}, {})", precision, scale))
                 .await
                 .unwrap();
             let number = Decimal::from_str(sent).unwrap();
             let rows = client.query(&statement, &[&number]).await.unwrap();
-            let result: Decimal = rows.iter().next().unwrap().get(0);
+            let result: Decimal = rows.first().unwrap().get(0);
 
             assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
         }
@@ -367,7 +367,7 @@ mod test {
 
         for &(precision, scale, sent) in tests.iter() {
             let statement = client
-                .prepare(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale))
+                .prepare(&format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale))
                 .await
                 .unwrap();
 

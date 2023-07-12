@@ -29,7 +29,7 @@ fn it_can_extract_the_mantissa() {
 #[test]
 fn it_creates_a_new_negative_decimal() {
     let a = Decimal::new(-100, 2);
-    assert_eq!(a.is_sign_negative(), true);
+    assert!(a.is_sign_negative());
     assert_eq!(a.scale(), 2);
     assert_eq!("-1.00", a.to_string());
 }
@@ -37,12 +37,12 @@ fn it_creates_a_new_negative_decimal() {
 #[test]
 fn it_creates_a_new_decimal_using_numeric_boundaries() {
     let a = Decimal::new(i64::MAX, 2);
-    assert_eq!(a.is_sign_negative(), false);
+    assert!(!a.is_sign_negative());
     assert_eq!(a.scale(), 2);
     assert_eq!("92233720368547758.07", a.to_string());
 
     let b = Decimal::new(i64::MIN, 2);
-    assert_eq!(b.is_sign_negative(), true);
+    assert!(b.is_sign_negative());
     assert_eq!(b.scale(), 2);
     assert_eq!("-92233720368547758.08", b.to_string());
 }
@@ -56,7 +56,7 @@ fn it_parses_empty_string() {
 #[test]
 fn it_parses_positive_int_string() {
     let a = Decimal::from_str("233").unwrap();
-    assert_eq!(a.is_sign_negative(), false);
+    assert!(!a.is_sign_negative());
     assert_eq!(a.scale(), 0);
     assert_eq!("233", a.to_string());
 }
@@ -64,7 +64,7 @@ fn it_parses_positive_int_string() {
 #[test]
 fn it_parses_negative_int_string() {
     let a = Decimal::from_str("-233").unwrap();
-    assert_eq!(a.is_sign_negative(), true);
+    assert!(a.is_sign_negative());
     assert_eq!(a.scale(), 0);
     assert_eq!("-233", a.to_string());
 }
@@ -72,7 +72,7 @@ fn it_parses_negative_int_string() {
 #[test]
 fn it_parses_positive_float_string() {
     let a = Decimal::from_str("233.323223").unwrap();
-    assert_eq!(a.is_sign_negative(), false);
+    assert!(!a.is_sign_negative());
     assert_eq!(a.scale(), 6);
     assert_eq!("233.323223", a.to_string());
 }
@@ -80,7 +80,7 @@ fn it_parses_positive_float_string() {
 #[test]
 fn it_parses_negative_float_string() {
     let a = Decimal::from_str("-233.43343").unwrap();
-    assert_eq!(a.is_sign_negative(), true);
+    assert!(a.is_sign_negative());
     assert_eq!(a.scale(), 5);
     assert_eq!("-233.43343", a.to_string());
 }
@@ -88,7 +88,7 @@ fn it_parses_negative_float_string() {
 #[test]
 fn it_parses_positive_tiny_float_string() {
     let a = Decimal::from_str(".000001").unwrap();
-    assert_eq!(a.is_sign_negative(), false);
+    assert!(!a.is_sign_negative());
     assert_eq!(a.scale(), 6);
     assert_eq!("0.000001", a.to_string());
 }
@@ -96,7 +96,7 @@ fn it_parses_positive_tiny_float_string() {
 #[test]
 fn it_parses_negative_tiny_float_string() {
     let a = Decimal::from_str("-0.000001").unwrap();
-    assert_eq!(a.is_sign_negative(), true);
+    assert!(a.is_sign_negative());
     assert_eq!(a.scale(), 6);
     assert_eq!("-0.000001", a.to_string());
 }
@@ -448,11 +448,8 @@ fn it_formats_scientific_precision() {
         ),
     ] {
         assert_eq!(format!("{:e}", Decimal::new(num, scale)), expected_no_precision);
-        for i in 0..expected_precision.len() {
-            assert_eq!(
-                format!("{:.prec$e}", Decimal::new(num, scale), prec = i),
-                expected_precision[i]
-            );
+        for (i, precision) in expected_precision.iter().enumerate() {
+            assert_eq!(&format!("{:.prec$e}", Decimal::new(num, scale), prec = i), precision);
         }
     }
 }
@@ -463,7 +460,7 @@ fn it_negates_decimals() {
     fn neg(a: &str, b: &str) {
         let a = Decimal::from_str(a).unwrap();
         let result = -a;
-        assert_eq!(b, result.to_string(), "- {}", a.to_string());
+        assert_eq!(b, result.to_string(), "- {}", a);
     }
 
     let tests = &[
@@ -495,9 +492,9 @@ fn it_adds_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a + b;
-        assert_eq!(c, result.to_string(), "{} + {}", a.to_string(), b.to_string());
+        assert_eq!(c, result.to_string(), "{} + {}", a, b);
         let result = b + a;
-        assert_eq!(c, result.to_string(), "{} + {}", b.to_string(), a.to_string());
+        assert_eq!(c, result.to_string(), "{} + {}", b, a);
     }
 
     let tests = &[
@@ -630,7 +627,7 @@ fn it_subtracts_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a - b;
-        assert_eq!(c, result.to_string(), "{} - {}", a.to_string(), b.to_string());
+        assert_eq!(c, result.to_string(), "{} - {}", a, b);
     }
 
     let tests = &[
@@ -691,9 +688,9 @@ fn it_multiplies_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a * b;
-        assert_eq!(c, result.to_string(), "{} * {}", a.to_string(), b.to_string());
+        assert_eq!(c, result.to_string(), "{} * {}", a, b);
         let result = b * a;
-        assert_eq!(c, result.to_string(), "{} * {}", b.to_string(), a.to_string());
+        assert_eq!(c, result.to_string(), "{} * {}", b, a);
     }
 
     let tests = &[
@@ -780,7 +777,7 @@ fn it_divides_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a / b;
-        assert_eq!(c, result.to_string(), "{} / {}", a.to_string(), b.to_string());
+        assert_eq!(c, result.to_string(), "{} / {}", a, b);
     }
 
     let tests = &[
@@ -866,7 +863,7 @@ fn it_rems_decimals() {
         let b = Decimal::from_str(b).unwrap();
         // a = qb + r
         let result = a % b;
-        assert_eq!(c, result.to_string(), "{} % {}", a.to_string(), b.to_string());
+        assert_eq!(c, result.to_string(), "{} % {}", a, b);
     }
 
     let tests = &[
@@ -916,8 +913,8 @@ fn it_eqs_decimals() {
     fn eq(a: &str, b: &str, c: bool) {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
-        assert_eq!(c, a.eq(&b), "{} == {}", a.to_string(), b.to_string());
-        assert_eq!(c, b.eq(&a), "{} == {}", b.to_string(), a.to_string());
+        assert_eq!(c, a.eq(&b), "{} == {}", a, b);
+        assert_eq!(c, b.eq(&a), "{} == {}", b, a);
     }
 
     let tests = &[
@@ -946,13 +943,13 @@ fn it_cmps_decimals() {
             c,
             a.cmp(&b),
             "{} {} {}",
-            a.to_string(),
+            a,
             match c {
                 Less => "<",
                 Equal => "==",
                 Greater => ">",
             },
-            b.to_string()
+            b
         );
     }
 
@@ -3183,7 +3180,7 @@ fn it_can_parse_exact_highly_significant_numbers() {
         (".00000000000000000000000000001", Err(Error::Underflow)),
         (".10000000000000000000000000000", Err(Error::Underflow)),
     ];
-    for &(value, ref expected) in tests.into_iter() {
+    for &(value, ref expected) in tests.iter() {
         let actual = Decimal::from_str_exact(value).map(|d| d.to_string());
         assert_eq!(*expected, actual);
     }
@@ -3207,7 +3204,7 @@ fn it_can_parse_alternative_formats() {
 #[test]
 fn it_can_parse_fractional_numbers_with_underscore_separators() {
     let a = Decimal::from_str("0.1_23_456").unwrap();
-    assert_eq!(a.is_sign_negative(), false);
+    assert!(!a.is_sign_negative());
     assert_eq!(a.scale(), 6);
     assert_eq!("0.123456", a.to_string());
 }
@@ -3215,7 +3212,7 @@ fn it_can_parse_fractional_numbers_with_underscore_separators() {
 #[test]
 fn it_can_parse_numbers_with_underscore_separators_before_decimal_point() {
     let a = Decimal::from_str("1_234.56").unwrap();
-    assert_eq!(a.is_sign_negative(), false);
+    assert!(!a.is_sign_negative());
     assert_eq!(a.scale(), 2);
     assert_eq!("1234.56", a.to_string());
 }
@@ -4655,6 +4652,7 @@ mod proptest {
 }
 
 #[cfg(feature = "rocket-traits")]
+#[allow(clippy::disallowed_names)]
 mod rocket {
     use crate::Decimal;
     use rocket::form::{Form, FromForm};

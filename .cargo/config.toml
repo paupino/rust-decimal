@@ -6,5 +6,6 @@ rustflags = [
     "-Aclippy::inconsistent_digit_grouping",
     "-Aclippy::large_digit_groups",
     "-Aclippy::excessive_precision",
+    "-Aclippy::zero_prefixed_literal",
 ]
 
