@@ -57,12 +57,11 @@ impl fmt::Display for Error {
             Self::ScaleExceedsMaximumPrecision(ref scale) => {
                 write!(
                     f,
-                    "Scale exceeds the maximum precision allowed: {} > {}",
-                    scale, MAX_PRECISION_U32
+                    "Scale exceeds the maximum precision allowed: {scale} > {MAX_PRECISION_U32}"
                 )
             }
             Self::ConversionTo(ref type_name) => {
-                write!(f, "Error while converting to {}", type_name)
+                write!(f, "Error while converting to {type_name}")
             }
         }
     }

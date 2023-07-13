@@ -19,8 +19,8 @@ fn it_can_extract_the_mantissa() {
     ];
     for &(input, mantissa, scale) in &tests {
         let num = Decimal::from_str(input).unwrap();
-        assert_eq!(num.mantissa(), mantissa, "Mantissa for {}", input);
-        assert_eq!(num.scale(), scale, "Scale for {}", input);
+        assert_eq!(num.mantissa(), mantissa, "Mantissa for {input}");
+        assert_eq!(num.scale(), scale, "Scale for {input}");
     }
 }
 
@@ -255,7 +255,7 @@ fn it_can_deserialize_unbounded_values() {
     ];
     for &(bytes, expected) in &tests {
         let dec = Decimal::deserialize(bytes);
-        let string = format!("{:.9999}", dec);
+        let string = format!("{dec:.9999}");
         let dec2 = Decimal::from_str(&string).unwrap();
         assert_eq!(dec, dec2);
         assert_eq!(dec.to_string(), expected, "dec.to_string()");
@@ -268,74 +268,74 @@ fn it_can_deserialize_unbounded_values() {
 #[test]
 fn it_formats() {
     let a = Decimal::from_str("233.323223").unwrap();
-    assert_eq!(format!("{}", a), "233.323223");
-    assert_eq!(format!("{:.9}", a), "233.323223000");
-    assert_eq!(format!("{:.0}", a), "233");
-    assert_eq!(format!("{:.2}", a), "233.32");
-    assert_eq!(format!("{:010.2}", a), "0000233.32");
-    assert_eq!(format!("{:0<10.2}", a), "233.320000");
+    assert_eq!(format!("{a}"), "233.323223");
+    assert_eq!(format!("{a:.9}"), "233.323223000");
+    assert_eq!(format!("{a:.0}"), "233");
+    assert_eq!(format!("{a:.2}"), "233.32");
+    assert_eq!(format!("{a:010.2}"), "0000233.32");
+    assert_eq!(format!("{a:0<10.2}"), "233.320000");
 }
 #[test]
 fn it_formats_neg() {
     let a = Decimal::from_str("-233.323223").unwrap();
-    assert_eq!(format!("{}", a), "-233.323223");
-    assert_eq!(format!("{:.9}", a), "-233.323223000");
-    assert_eq!(format!("{:.0}", a), "-233");
-    assert_eq!(format!("{:.2}", a), "-233.32");
-    assert_eq!(format!("{:010.2}", a), "-000233.32");
-    assert_eq!(format!("{:0<10.2}", a), "-233.32000");
+    assert_eq!(format!("{a}"), "-233.323223");
+    assert_eq!(format!("{a:.9}"), "-233.323223000");
+    assert_eq!(format!("{a:.0}"), "-233");
+    assert_eq!(format!("{a:.2}"), "-233.32");
+    assert_eq!(format!("{a:010.2}"), "-000233.32");
+    assert_eq!(format!("{a:0<10.2}"), "-233.32000");
 }
 #[test]
 fn it_formats_small() {
     let a = Decimal::from_str("0.2223").unwrap();
-    assert_eq!(format!("{}", a), "0.2223");
-    assert_eq!(format!("{:.9}", a), "0.222300000");
-    assert_eq!(format!("{:.0}", a), "0");
-    assert_eq!(format!("{:.2}", a), "0.22");
-    assert_eq!(format!("{:010.2}", a), "0000000.22");
-    assert_eq!(format!("{:0<10.2}", a), "0.22000000");
+    assert_eq!(format!("{a}"), "0.2223");
+    assert_eq!(format!("{a:.9}"), "0.222300000");
+    assert_eq!(format!("{a:.0}"), "0");
+    assert_eq!(format!("{a:.2}"), "0.22");
+    assert_eq!(format!("{a:010.2}"), "0000000.22");
+    assert_eq!(format!("{a:0<10.2}"), "0.22000000");
 }
 #[test]
 fn it_formats_small_leading_zeros() {
     let a = Decimal::from_str("0.0023554701772169").unwrap();
-    assert_eq!(format!("{}", a), "0.0023554701772169");
-    assert_eq!(format!("{:.9}", a), "0.002355470");
-    assert_eq!(format!("{:.0}", a), "0");
-    assert_eq!(format!("{:.2}", a), "0.00");
-    assert_eq!(format!("{:010.2}", a), "0000000.00");
-    assert_eq!(format!("{:0<10.2}", a), "0.00000000");
+    assert_eq!(format!("{a}"), "0.0023554701772169");
+    assert_eq!(format!("{a:.9}"), "0.002355470");
+    assert_eq!(format!("{a:.0}"), "0");
+    assert_eq!(format!("{a:.2}"), "0.00");
+    assert_eq!(format!("{a:010.2}"), "0000000.00");
+    assert_eq!(format!("{a:0<10.2}"), "0.00000000");
 }
 #[test]
 fn it_formats_small_neg() {
     let a = Decimal::from_str("-0.2223").unwrap();
-    assert_eq!(format!("{}", a), "-0.2223");
-    assert_eq!(format!("{:.9}", a), "-0.222300000");
-    assert_eq!(format!("{:.0}", a), "-0");
-    assert_eq!(format!("{:.2}", a), "-0.22");
-    assert_eq!(format!("{:010.2}", a), "-000000.22");
-    assert_eq!(format!("{:0<10.2}", a), "-0.2200000");
+    assert_eq!(format!("{a}"), "-0.2223");
+    assert_eq!(format!("{a:.9}"), "-0.222300000");
+    assert_eq!(format!("{a:.0}"), "-0");
+    assert_eq!(format!("{a:.2}"), "-0.22");
+    assert_eq!(format!("{a:010.2}"), "-000000.22");
+    assert_eq!(format!("{a:0<10.2}"), "-0.2200000");
 }
 
 #[test]
 fn it_formats_zero() {
     let a = Decimal::from_str("0").unwrap();
-    assert_eq!(format!("{}", a), "0");
-    assert_eq!(format!("{:.9}", a), "0.000000000");
-    assert_eq!(format!("{:.0}", a), "0");
-    assert_eq!(format!("{:.2}", a), "0.00");
-    assert_eq!(format!("{:010.2}", a), "0000000.00");
-    assert_eq!(format!("{:0<10.2}", a), "0.00000000");
+    assert_eq!(format!("{a}"), "0");
+    assert_eq!(format!("{a:.9}"), "0.000000000");
+    assert_eq!(format!("{a:.0}"), "0");
+    assert_eq!(format!("{a:.2}"), "0.00");
+    assert_eq!(format!("{a:010.2}"), "0000000.00");
+    assert_eq!(format!("{a:0<10.2}"), "0.00000000");
 }
 
 #[test]
 fn it_formats_int() {
     let a = Decimal::from_str("5").unwrap();
-    assert_eq!(format!("{}", a), "5");
-    assert_eq!(format!("{:.9}", a), "5.000000000");
-    assert_eq!(format!("{:.0}", a), "5");
-    assert_eq!(format!("{:.2}", a), "5.00");
-    assert_eq!(format!("{:010.2}", a), "0000005.00");
-    assert_eq!(format!("{:0<10.2}", a), "5.00000000");
+    assert_eq!(format!("{a}"), "5");
+    assert_eq!(format!("{a:.9}"), "5.000000000");
+    assert_eq!(format!("{a:.0}"), "5");
+    assert_eq!(format!("{a:.2}"), "5.00");
+    assert_eq!(format!("{a:010.2}"), "0000005.00");
+    assert_eq!(format!("{a:0<10.2}"), "5.00000000");
 }
 
 #[test]
@@ -349,7 +349,7 @@ fn it_formats_lower_exp() {
     ];
     for (value, expected) in &tests {
         let a = Decimal::from_str(value).unwrap();
-        assert_eq!(&format!("{:e}", a), *expected, "format!(\"{{:e}}\", {})", a);
+        assert_eq!(&format!("{a:e}"), *expected, "format!(\"{{:e}}\", {a})");
     }
 }
 
@@ -364,7 +364,7 @@ fn it_formats_lower_exp_padding() {
     ];
     for (value, expected) in &tests {
         let a = Decimal::from_str(value).unwrap();
-        assert_eq!(&format!("{:05e}", a), *expected, "format!(\"{{:05e}}\", {})", a);
+        assert_eq!(&format!("{a:05e}"), *expected, "format!(\"{{:05e}}\", {a})");
     }
 }
 
@@ -460,7 +460,7 @@ fn it_negates_decimals() {
     fn neg(a: &str, b: &str) {
         let a = Decimal::from_str(a).unwrap();
         let result = -a;
-        assert_eq!(b, result.to_string(), "- {}", a);
+        assert_eq!(b, result.to_string(), "- {a}");
     }
 
     let tests = &[
@@ -492,9 +492,9 @@ fn it_adds_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a + b;
-        assert_eq!(c, result.to_string(), "{} + {}", a, b);
+        assert_eq!(c, result.to_string(), "{a} + {b}");
         let result = b + a;
-        assert_eq!(c, result.to_string(), "{} + {}", b, a);
+        assert_eq!(c, result.to_string(), "{b} + {a}");
     }
 
     let tests = &[
@@ -627,7 +627,7 @@ fn it_subtracts_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a - b;
-        assert_eq!(c, result.to_string(), "{} - {}", a, b);
+        assert_eq!(c, result.to_string(), "{a} - {b}");
     }
 
     let tests = &[
@@ -688,9 +688,9 @@ fn it_multiplies_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a * b;
-        assert_eq!(c, result.to_string(), "{} * {}", a, b);
+        assert_eq!(c, result.to_string(), "{a} * {b}");
         let result = b * a;
-        assert_eq!(c, result.to_string(), "{} * {}", b, a);
+        assert_eq!(c, result.to_string(), "{b} * {a}");
     }
 
     let tests = &[
@@ -777,7 +777,7 @@ fn it_divides_decimals() {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
         let result = a / b;
-        assert_eq!(c, result.to_string(), "{} / {}", a, b);
+        assert_eq!(c, result.to_string(), "{a} / {b}");
     }
 
     let tests = &[
@@ -863,7 +863,7 @@ fn it_rems_decimals() {
         let b = Decimal::from_str(b).unwrap();
         // a = qb + r
         let result = a % b;
-        assert_eq!(c, result.to_string(), "{} % {}", a, b);
+        assert_eq!(c, result.to_string(), "{a} % {b}");
     }
 
     let tests = &[
@@ -913,8 +913,8 @@ fn it_eqs_decimals() {
     fn eq(a: &str, b: &str, c: bool) {
         let a = Decimal::from_str(a).unwrap();
         let b = Decimal::from_str(b).unwrap();
-        assert_eq!(c, a.eq(&b), "{} == {}", a, b);
-        assert_eq!(c, b.eq(&a), "{} == {}", b, a);
+        assert_eq!(c, a.eq(&b), "{a} == {b}");
+        assert_eq!(c, b.eq(&a), "{b} == {a}");
     }
 
     let tests = &[
@@ -2095,7 +2095,7 @@ fn it_floors_decimals() {
     ];
     for &(a, expected) in tests {
         let a = Decimal::from_str(a).unwrap();
-        assert_eq!(expected, a.floor().to_string(), "Failed flooring {}", a);
+        assert_eq!(expected, a.floor().to_string(), "Failed flooring {a}");
     }
 }
 
@@ -2111,7 +2111,7 @@ fn it_ceils_decimals() {
     ];
     for &(a, expected) in tests {
         let a = Decimal::from_str(a).unwrap();
-        assert_eq!(expected, a.ceil().to_string(), "Failed ceiling {}", a);
+        assert_eq!(expected, a.ceil().to_string(), "Failed ceiling {a}");
     }
 }
 
@@ -2169,16 +2169,12 @@ fn it_can_parse_from_i32() {
         assert_eq!(
             expected,
             parsed.to_string(),
-            "expected {} does not match parsed {}",
-            expected,
-            parsed
+            "expected {expected} does not match parsed {parsed}"
         );
         assert_eq!(
             input.to_string(),
             parsed.to_string(),
-            "i32 to_string {} does not match parsed {}",
-            input,
-            parsed
+            "i32 to_string {input} does not match parsed {parsed}"
         );
     }
 }
@@ -2199,16 +2195,12 @@ fn it_can_parse_from_i64() {
         assert_eq!(
             expected,
             parsed.to_string(),
-            "expected {} does not match parsed {}",
-            expected,
-            parsed
+            "expected {expected} does not match parsed {parsed}"
         );
         assert_eq!(
             input.to_string(),
             parsed.to_string(),
-            "i64 to_string {} does not match parsed {}",
-            input,
-            parsed
+            "i64 to_string {input} does not match parsed {parsed}"
         );
     }
 }
@@ -2276,7 +2268,7 @@ fn it_can_round_using_basic_midpoint_rules() {
     for &(input, strategy, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
         let b = a.round_dp_with_strategy(0, strategy);
-        assert_eq!(expected, b.to_string(), "{} > {} for {:?}", input, expected, strategy);
+        assert_eq!(expected, b.to_string(), "{input} > {expected} for {strategy:?}");
     }
 }
 
@@ -2614,10 +2606,10 @@ fn it_can_round_significant_figures() {
         let input = Decimal::from_str(input).unwrap();
         let result = input.round_sf(sf);
         if let Some(expected) = expected {
-            assert!(result.is_some(), "Expected result for {}.round_sf({})", input, sf);
-            assert_eq!(expected, result.unwrap().to_string(), "{}.round_sf({})", input, sf);
+            assert!(result.is_some(), "Expected result for {input}.round_sf({sf})");
+            assert_eq!(expected, result.unwrap().to_string(), "{input}.round_sf({sf})");
         } else {
-            assert!(result.is_none(), "Unexpected result for {}.round_sf({})", input, sf);
+            assert!(result.is_none(), "Unexpected result for {input}.round_sf({sf})");
         }
     }
 }
@@ -2639,26 +2631,17 @@ fn it_can_round_significant_figures_with_strategy() {
         if let Some(expected) = expected {
             assert!(
                 result.is_some(),
-                "Expected result for {}.round_sf_with_strategy({}, {:?})",
-                input,
-                sf,
-                strategy
+                "Expected result for {input}.round_sf_with_strategy({sf}, {strategy:?})"
             );
             assert_eq!(
                 expected,
                 result.unwrap().to_string(),
-                "{}.round_sf_with_strategy({}, {:?})",
-                input,
-                sf,
-                strategy
+                "{input}.round_sf_with_strategy({sf}, {strategy:?})"
             );
         } else {
             assert!(
                 result.is_none(),
-                "Unexpected result for {}.round_sf_with_strategy({}, {:?})",
-                input,
-                sf,
-                strategy
+                "Unexpected result for {input}.round_sf_with_strategy({sf}, {strategy:?})"
             );
         }
     }
@@ -2860,7 +2843,7 @@ fn it_converts_to_i64() {
     for (input, expected) in tests {
         let input = Decimal::from_str(input).unwrap();
         let actual = input.to_i64();
-        assert_eq!(expected, actual, "Input: {}", input);
+        assert_eq!(expected, actual, "Input: {input}");
     }
 }
 
@@ -2974,14 +2957,12 @@ fn it_converts_from_f32() {
         assert_eq!(
             expected,
             Decimal::from_f32(input).unwrap().to_string(),
-            "from_f32({})",
-            input
+            "from_f32({input})"
         );
         assert_eq!(
             expected,
             Decimal::try_from(input).unwrap().to_string(),
-            "try_from({})",
-            input
+            "try_from({input})"
         );
     }
 }
@@ -3015,8 +2996,7 @@ fn it_converts_from_f32_retaining_bits() {
         assert_eq!(
             expected,
             Decimal::from_f32_retain(input).unwrap().to_string(),
-            "from_f32_retain({})",
-            input
+            "from_f32_retain({input})"
         );
     }
 }
@@ -3043,14 +3023,12 @@ fn it_converts_from_f64() {
         assert_eq!(
             expected,
             Decimal::from_f64(input).unwrap().to_string(),
-            "from_f64({})",
-            input
+            "from_f64({input})"
         );
         assert_eq!(
             expected,
             Decimal::try_from(input).unwrap().to_string(),
-            "try_from({})",
-            input
+            "try_from({input})"
         );
     }
 }
@@ -3084,8 +3062,7 @@ fn it_converts_from_f64_retaining_bits() {
         assert_eq!(
             expected,
             Decimal::from_f64_retain(input).unwrap().to_string(),
-            "from_f64_retain({})",
-            input
+            "from_f64_retain({input})"
         );
     }
 }
@@ -3244,8 +3221,7 @@ fn it_can_reject_invalid_formats() {
     for &value in tests {
         assert!(
             Decimal::from_str(value).is_err(),
-            "This succeeded unexpectedly: {}",
-            value
+            "This succeeded unexpectedly: {value}"
         );
     }
 }
@@ -3262,7 +3238,7 @@ fn it_can_reject_large_numbers_with_panic() {
     ];
     for &value in tests {
         if let Ok(out) = Decimal::from_str(value) {
-            panic!("Unexpectedly parsed {} into {}", value, out)
+            panic!("Unexpectedly parsed {value} into {out}")
         }
     }
 }
@@ -3356,9 +3332,7 @@ fn it_can_parse_different_radix() {
             assert_eq!(
                 expected,
                 result.unwrap().to_string(),
-                "Original input: {} radix {}",
-                input,
-                radix
+                "Original input: {input} radix {radix}"
             );
         }
     }
@@ -3370,7 +3344,7 @@ fn it_can_calculate_signum() {
 
     for &(input, expected) in tests {
         let input = Decimal::from_str(input).unwrap();
-        assert_eq!(expected, input.signum().to_i32().unwrap(), "Input: {}", input);
+        assert_eq!(expected, input.signum().to_i32().unwrap(), "Input: {input}");
     }
 }
 
@@ -3391,9 +3365,7 @@ fn it_can_calculate_abs_sub() {
         assert_eq!(
             expected,
             input1.abs_sub(&input2).to_i32().unwrap(),
-            "Input: {} {}",
-            input1,
-            input2
+            "Input: {input1} {input2}"
         );
     }
 }
@@ -3627,7 +3599,7 @@ fn test_is_integer() {
     ];
     for &(raw, integer) in tests {
         let value = Decimal::from_str(raw).unwrap();
-        assert_eq!(value.is_integer(), integer, "value: {}", raw)
+        assert_eq!(value.is_integer(), integer, "value: {raw}")
     }
 }
 
