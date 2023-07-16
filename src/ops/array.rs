@@ -358,8 +358,7 @@ mod test {
             assert_eq!(value, expected_value);
             assert_eq!(
                 value_scale, expected_scale,
-                "value: {}, requested scale: {}",
-                value_raw, new_scale
+                "value: {value_raw}, requested scale: {new_scale}"
             );
         }
     }

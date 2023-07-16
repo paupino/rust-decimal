@@ -555,8 +555,7 @@ mod test {
         ];
         for &(serialized, value) in data.iter() {
             let result = serde_json::from_str(serialized);
-            assert_eq!(
-                true,
+            assert!(
                 result.is_ok(),
                 "expected successful deserialization for {}. Error: {:?}",
                 serialized,
@@ -568,7 +567,7 @@ mod test {
                 record.amount.to_string(),
                 "expected: {}, actual: {}",
                 value,
-                record.amount.to_string()
+                record.amount
             );
         }
     }

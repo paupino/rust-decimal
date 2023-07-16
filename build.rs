@@ -43,14 +43,14 @@ fn prepare(readme: &str) -> Result<String, Box<dyn std::error::Error>> {
             writeln!(cleaned, "```rust")?;
             writeln!(cleaned, "# use rust_decimal::Decimal;")?;
             writeln!(cleaned, "# use serde::{{Serialize, Deserialize}};")?;
-            write!(cleaned, "# #[cfg(features = \"{}\")]", feature)?;
+            write!(cleaned, "# #[cfg(features = \"{feature}\")]")?;
         } else {
             if !feature_section && line.starts_with("## Features") {
                 feature_section = true;
             } else if feature_section && line.starts_with("### ") {
                 feature = line.replace("### ", "").replace('`', "");
             }
-            write!(cleaned, "{}", line)?;
+            write!(cleaned, "{line}")?;
         }
         writeln!(cleaned)?;
     }
