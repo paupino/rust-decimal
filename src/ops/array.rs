@@ -2,8 +2,13 @@ use crate::constants::{MAX_PRECISION_U32, POWERS_10, U32_MASK};
 
 /// Rescales the given decimal to new scale.
 /// e.g. with 1.23 and new scale 3 rescale the value to 1.230
-#[inline(always)]
+#[inline]
 pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
+    rescale::<true>(value, value_scale, new_scale);
+}
+
+#[inline(always)]
+fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
     if *value_scale == new_scale {
         // Nothing to do
         return;
@@ -32,7 +37,7 @@ pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_
             // Any remainder is discarded if diff > 0 still (i.e. lost precision)
             remainder = div_by_u32(value, 10);
         }
-        if remainder >= 5 {
+        if ROUND && remainder >= 5 {
             for part in value.iter_mut() {
                 let digit = u64::from(*part) + 1u64;
                 remainder = if digit > U32_MASK { 1 } else { 0 };
@@ -60,26 +65,7 @@ pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_
 
 #[inline]
 pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, desired_scale: u32) {
-    if *value_scale <= desired_scale {
-        // Nothing to do, we're already at the desired scale (or less)
-        return;
-    }
-    if is_all_zero(value) {
-        *value_scale = desired_scale;
-        return;
-    }
-    while *value_scale > desired_scale {
-        // We're removing precision, so we don't care about handling the remainder
-        if *value_scale < 10 {
-            let adjustment = *value_scale - desired_scale;
-            div_by_u32(value, POWERS_10[adjustment as usize]);
-            *value_scale = desired_scale;
-        } else {
-            div_by_u32(value, POWERS_10[9]);
-            // Only 9 as this array starts with 1
-            *value_scale -= 9;
-        }
-    }
+    rescale::<false>(value, value_scale, desired_scale);
 }
 
 #[cfg(feature = "legacy-ops")]
