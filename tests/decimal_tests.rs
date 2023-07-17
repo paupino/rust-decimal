@@ -2674,24 +2674,78 @@ fn it_can_trunc() {
 #[test]
 fn it_can_trunc_with_scale() {
     let cmp = Decimal::from_str("1.2345").unwrap();
-    assert_eq!(Decimal::from_str("1.23450").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("1.234500001").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("1.23451").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("1.23454").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("1.23455").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("1.23456").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("1.23459").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("1.234599999").unwrap().trunc_with_scale(4), cmp);
+    let tests = [
+        "1.23450",
+        "1.234500001",
+        "1.23451",
+        "1.23454",
+        "1.23455",
+        "1.23456",
+        "1.23459",
+        "1.234599999",
+    ];
+    for test in tests {
+        assert_eq!(
+            Decimal::from_str(test).unwrap().trunc_with_scale(4),
+            cmp,
+            "Original: {}",
+            test
+        );
+    }
 
     let cmp = Decimal::from_str("-1.2345").unwrap();
-    assert_eq!(Decimal::from_str("-1.23450").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("-1.234500001").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("-1.23451").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("-1.23454").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("-1.23455").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("-1.23456").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("-1.23459").unwrap().trunc_with_scale(4), cmp);
-    assert_eq!(Decimal::from_str("-1.234599999").unwrap().trunc_with_scale(4), cmp);
+    let tests = [
+        "-1.23450",
+        "-1.234500001",
+        "-1.23451",
+        "-1.23454",
+        "-1.23455",
+        "-1.23456",
+        "-1.23459",
+        "-1.234599999",
+    ];
+    for test in tests {
+        assert_eq!(
+            Decimal::from_str(test).unwrap().trunc_with_scale(4),
+            cmp,
+            "Original: {}",
+            test
+        );
+    }
+
+    // Complex cases
+    let cmp = Decimal::from_str("0.5156").unwrap();
+    let tests = [
+        "0.51560089",
+        "0.515600893",
+        "0.5156008936",
+        "0.51560089369",
+        "0.515600893691",
+        "0.5156008936910",
+        "0.51560089369101",
+        "0.515600893691016",
+        "0.5156008936910161",
+        "0.51560089369101613",
+        "0.515600893691016134",
+        "0.5156008936910161349",
+        "0.51560089369101613494",
+        "0.515600893691016134941",
+        "0.5156008936910161349411",
+        "0.51560089369101613494115",
+        "0.515600893691016134941151",
+        "0.5156008936910161349411515",
+        "0.51560089369101613494115158",
+        "0.515600893691016134941151581",
+        "0.5156008936910161349411515818",
+    ];
+    for test in tests {
+        assert_eq!(
+            Decimal::from_str(test).unwrap().trunc_with_scale(4),
+            cmp,
+            "Original: {}",
+            test
+        );
+    }
 }
 
 #[test]
