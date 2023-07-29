@@ -21,7 +21,7 @@ authors = ["Automatically generated"]
 edition = "2021"
 name = "rust-decimal-fuzz"
 publish = false
-version = "1.30.0"
+version = "1.31.0"
 
 [package.metadata]
 cargo-fuzz = true

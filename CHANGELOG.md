@@ -1,5 +1,19 @@
 # Version History
 
+## 1.31.0
+
+### Fixed
+
+* Fixes an issue with `trunc_with_scale` implicitly rounding in some scenarios ([#600](https://github.com/paupino/rust-decimal/pull/600))
+
+### Changed
+
+* Various dependency features were updated.
+
+### Credit
+
+Thank you to [@mkatychev](https://github.com/mkatychev) for your contribution this release.
+
 ## 1.30.0
 
 As the minor releases for Rust Decimal are getting smaller, I'll be looking at formally starting version 2 of the
