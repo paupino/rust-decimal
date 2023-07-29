@@ -29,8 +29,8 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.30"
-rust_decimal_macros = "1.30"
+rust_decimal = "1.31"
+rust_decimal_macros = "1.31"
 ```
 
 ## Usage
