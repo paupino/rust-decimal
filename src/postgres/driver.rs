@@ -1,9 +1,14 @@
 use crate::postgres::common::*;
 use crate::Decimal;
-use byteorder::{BigEndian, ReadBytesExt};
 use bytes::{BufMut, BytesMut};
 use postgres::types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
-use std::io::Cursor;
+use std::io::{Cursor, Read};
+
+fn read_two_bytes(cursor: &mut Cursor<&[u8]>) -> std::io::Result<[u8; 2]> {
+    let mut result = [0; 2];
+    cursor.read_exact(&mut result)?;
+    Ok(result)
+}
 
 impl<'a> FromSql<'a> for Decimal {
     // Decimals are represented as follows:
@@ -61,17 +66,17 @@ impl<'a> FromSql<'a> for Decimal {
 
     fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<dyn std::error::Error + 'static + Sync + Send>> {
         let mut raw = Cursor::new(raw);
-        let num_groups = raw.read_u16::<BigEndian>()?;
-        let weight = raw.read_i16::<BigEndian>()?; // 10000^weight
-                                                   // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
-        let sign = raw.read_u16::<BigEndian>()?;
+        let num_groups = u16::from_be_bytes(read_two_bytes(&mut raw)?);
+        let weight = i16::from_be_bytes(read_two_bytes(&mut raw)?); // 10000^weight
+                                                                    // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
+        let sign = u16::from_be_bytes(read_two_bytes(&mut raw)?);
         // Number of digits (in base 10) to print after decimal separator
-        let scale = raw.read_u16::<BigEndian>()?;
+        let scale = u16::from_be_bytes(read_two_bytes(&mut raw)?);
 
         // Read all of the groups
         let mut groups = Vec::new();
         for _ in 0..num_groups as usize {
-            groups.push(raw.read_u16::<BigEndian>()?);
+            groups.push(u16::from_be_bytes(read_two_bytes(&mut raw)?));
         }
 
         Ok(Self::from_postgres(PostgresDecimal {

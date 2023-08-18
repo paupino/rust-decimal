@@ -21,7 +21,6 @@ all-features = true
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, optional = true, version = "0.10.0" }
-byteorder = { default-features = false, optional = true, version = "1.0" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.0" }
 diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.1" }
@@ -60,8 +59,8 @@ db-diesel1-mysql = ["diesel1/mysql", "std"]
 db-diesel1-postgres = ["diesel1/postgres", "std"]
 db-diesel2-mysql = ["diesel2/mysql", "std"]
 db-diesel2-postgres = ["diesel2/postgres", "std"]
-db-postgres = ["dep:byteorder", "dep:bytes", "dep:postgres", "std"]
-db-tokio-postgres = ["dep:byteorder", "dep:bytes", "dep:postgres", "std", "dep:tokio-postgres"]
+db-postgres = ["dep:bytes", "dep:postgres", "std"]
+db-tokio-postgres = ["dep:bytes", "dep:postgres", "std", "dep:tokio-postgres"]
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
@@ -80,7 +79,7 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = ["arrayvec/std", "borsh?/std", "byteorder?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
+std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [[bench]]
