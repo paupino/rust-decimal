@@ -10,6 +10,10 @@
 
 * `byteorder` is no longer required as a dependency for the postgres feature. ([#603](https://github.com/paupino/rust-decimal/pull/603))
 
+### Credit
+
+Thank you to [@psychon](https://github.com/psychon) for your contribution!
+
 ## 1.31.0
 
 ### Fixed
