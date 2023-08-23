@@ -1,5 +1,15 @@
 # Version History
 
+## 1.32.0
+
+### Fixed
+
+* Fixes an issue with `is_integer` returning incorrect results for mantissa's 10^n where n >= 10. ([#605](https://github.com/paupino/rust-decimal/pull/605))
+
+### Changed
+
+* `byteorder` is no longer required as a dependency for the postgres feature. ([#603](https://github.com/paupino/rust-decimal/pull/603))
+
 ## 1.31.0
 
 ### Fixed
