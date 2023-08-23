@@ -768,7 +768,7 @@ impl Decimal {
         let mut scale = scale;
         while scale > 0 {
             let remainder = if scale > 9 {
-                scale -= 10;
+                scale -= 9;
                 ops::array::div_by_u32(&mut bits, POWERS_10[9])
             } else {
                 let power = POWERS_10[scale as usize];

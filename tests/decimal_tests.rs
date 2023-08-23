@@ -3650,6 +3650,10 @@ fn test_is_integer() {
         ("1.1", false),
         ("3.1415926535897932384626433833", false),
         ("3.0000000000000000000000000000", true),
+        ("0.400000000", false),
+        ("0.4000000000", false),
+        ("0.4000000000000000000", false),
+        ("0.4000000000000000001", false),
     ];
     for &(raw, integer) in tests {
         let value = Decimal::from_str(raw).unwrap();
