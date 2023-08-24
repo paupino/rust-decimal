@@ -426,7 +426,22 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
     where
         D: serde::de::Deserializer<'de>,
     {
-        d.deserialize_str(DecimalVisitor).map(Some)
+        d.deserialize_str(Self)
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match v.is_empty() {
+            true => Ok(None),
+            false => {
+                let d = Decimal::from_str(v)
+                    .or_else(|_| Decimal::from_scientific(v))
+                    .map_err(serde::de::Error::custom)?;
+                Ok(Some(d))
+            }
+        }
     }
 }
 
@@ -841,6 +856,12 @@ mod test {
         let original = StringExample { value: None };
         assert_eq!(&serde_json::to_string(&original).unwrap(), r#"{"value":null}"#);
         let deserialized: StringExample = serde_json::from_str(r#"{"value":null}"#).unwrap();
+        assert_eq!(deserialized.value, original.value);
+        assert!(deserialized.value.is_none());
+
+        // Empty string deserialization tests
+        let original = StringExample { value: None };
+        let deserialized: StringExample = serde_json::from_str(r#"{"value":""}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
         assert!(deserialized.value.is_none());
     }
