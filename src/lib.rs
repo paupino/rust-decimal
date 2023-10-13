@@ -51,6 +51,8 @@ mod serde;
     )
 ))]
 pub mod serde;
+#[cfg(feature = "wasm-bindgen")]
+pub mod wasm;
 
 pub use decimal::{Decimal, RoundingStrategy};
 pub use error::Error;
