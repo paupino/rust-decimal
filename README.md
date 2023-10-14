@@ -301,7 +301,8 @@ libraries, this crate can be compiled with `--no-default-features`.
 ### `wasm-bindgen`
 
 Enable [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) support which makes `Decimal` compatible with the
-`wasm_bindgen` attribute macro and exposes a `toNumber()` method for use in JavaScript.
+`wasm_bindgen` attribute macro and exposes `fromNumber()` and `toNumber()` methods to convert between `Decimal` and
+the primitive `number` type across boundaries.
 
 ## Building
 
