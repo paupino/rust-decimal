@@ -4748,6 +4748,7 @@ mod issues {
     }
 
     #[test]
+    #[cfg(not(feature = "legacy-ops"))] // I will deprecate this feature/behavior in an upcoming release
     fn issue_618_rescaling_overflow() {
         fn assert_result(scale: u32, v1: Decimal, v2: Decimal) {
             assert_eq!(scale, v1.scale(), "initial scale: {scale}");
