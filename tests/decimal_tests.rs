@@ -4746,4 +4746,37 @@ mod issues {
         assert!(c.is_some());
         assert_eq!("-429391.87200000000002327170816", c.unwrap().to_string())
     }
+
+    #[test]
+    fn issue_618_rescaling_overflow() {
+        fn assert_result(scale: u32, v1: Decimal, v2: Decimal) {
+            assert_eq!(scale, v1.scale(), "initial scale: {scale}");
+            let result1 = v1 + -v2;
+            assert_eq!(
+                result1.to_string(),
+                "-0.0999999999999999999999999999",
+                "a + -b : {scale}"
+            );
+            assert_eq!(28, result1.scale(), "a + -b : {scale}");
+            let result2 = v1 - v2;
+            assert_eq!(
+                result2.to_string(),
+                "-0.0999999999999999999999999999",
+                "a - b : {scale}"
+            );
+            assert_eq!(28, result2.scale(), "a - b : {scale}");
+        }
+
+        let mut a = Decimal::from_str("0.0000000000000000000000000001").unwrap();
+        let b = Decimal::from_str("0.1").unwrap();
+        assert_result(28, a, b);
+
+        // Try at a new scale (this works)
+        a.rescale(30);
+        assert_result(30, a, b);
+
+        // And finally the scale causing an issue
+        a.rescale(29);
+        assert_result(29, a, b);
+    }
 }
