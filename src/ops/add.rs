@@ -1,4 +1,6 @@
-use crate::constants::{MAX_I32_SCALE, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK, U32_MAX};
+use crate::constants::{
+    MAX_I32_SCALE, MAX_PRECISION_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK, U32_MAX,
+};
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf24, Dec64};
 
@@ -261,7 +263,7 @@ fn unaligned_add(
 
         rescale_factor -= MAX_I32_SCALE;
 
-        if tmp64 > U32_MAX {
+        if tmp64 > U32_MAX || scale > MAX_PRECISION_U32 {
             break;
         } else {
             high = tmp64 as u32;

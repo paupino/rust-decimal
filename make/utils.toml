@@ -29,3 +29,8 @@ run_task = "propagate-version"
 private = true
 script_runner = "@rust"
 script = { file = "${CARGO_MAKE_WORKING_DIRECTORY}/make/scripts/version.rs", absolute_path = true }
+
+[tasks.semver-check]
+install_crate = "cargo-semver-checks"
+command = "cargo"
+args = ["semver-checks"]
