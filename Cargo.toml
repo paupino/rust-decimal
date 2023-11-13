@@ -20,7 +20,7 @@ all-features = true
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
-borsh = { default-features = false, optional = true, version = "0.10.0" }
+borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1.1.1" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.0" }
 diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.1" }
