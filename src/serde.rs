@@ -658,7 +658,7 @@ mod test {
 
     #[test]
     #[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
-    fn bincode_serialization() {
+    fn bincode_serialization_not_float() {
         use bincode::{deserialize, serialize};
 
         let data = [
@@ -682,7 +682,7 @@ mod test {
 
     #[test]
     #[cfg(all(feature = "serde-str", feature = "serde-float"))]
-    fn bincode_serialization() {
+    fn bincode_serialization_serde_float() {
         use bincode::{deserialize, serialize};
 
         let data = [

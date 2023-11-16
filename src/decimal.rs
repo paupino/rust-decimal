@@ -2354,7 +2354,7 @@ impl ToPrimitive for Decimal {
             let integer = self.to_i128();
             integer.map(|i| i as f64)
         } else {
-            let sign: f64 = if self.is_sign_negative() { -1.0 } else { 1.0 };
+            let neg = self.is_sign_negative();
             let mut mantissa: u128 = self.lo.into();
             mantissa |= (self.mid as u128) << 32;
             mantissa |= (self.hi as u128) << 64;
@@ -2364,9 +2364,24 @@ impl ToPrimitive for Decimal {
             let integral_part = mantissa / precision;
             let frac_part = mantissa % precision;
             let frac_f64 = (frac_part as f64) / (precision as f64);
-            let value = sign * ((integral_part as f64) + frac_f64);
+            let integral = integral_part as f64;
+            // If there is a fractional component then we will need to add that and remove any
+            // inaccuracies that creep in during addition. Otherwise, if the fractional component
+            // is zero we can exit early.
+            if frac_f64.is_zero() {
+                if neg {
+                    return Some(-integral);
+                }
+                return Some(integral);
+            }
+            let value = integral + frac_f64;
             let round_to = 10f64.powi(self.scale() as i32);
-            Some((value * round_to).round() / round_to)
+            let rounded = (value * round_to).round() / round_to;
+            if neg {
+                Some(-rounded)
+            } else {
+                Some(rounded)
+            }
         }
     }
 }
