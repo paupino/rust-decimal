@@ -1,12 +1,17 @@
 # Version History
 
+## 1.33.1
+
+### Fixed
+
+* Fixes an issue when converting from a `Decimal` to a float whereby the float would be inaccurate after rounding. ([#625](https://github.com/paupino/rust-decimal/pull/625))
+
 ## 1.33.0
 
 ### Fixed  
 
 * Fixes an issue when adding/subtracting two `Decimal`s when one has a scale of 29. ([#619](https://github.com/paupino/rust-decimal/pull/619))
 * An empty string will be parsed as `None` during JSON deserialization instead of panicking. ([#607](https://github.com/paupino/rust-decimal/pull/607))
-
 
 ### Changed
 
