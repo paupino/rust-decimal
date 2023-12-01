@@ -1,5 +1,15 @@
 # Version History
 
+## 1.x
+
+### Added
+
+* `rust_decimal_macros` can now be utilized using the `macros` feature flag.
+
+### Changed
+
+* Added documentation for serde features as well as a few examples.
+
 ## 1.33.1
 
 ### Fixed
