@@ -5,7 +5,8 @@ This contains some more advanced examples of using the rust decimal library of c
 All examples are crate based to demonstrate feature configurations. Examples can be run by using:
 
 ```shell
-cargo run -p <example-name>
+cd examples/<example-name>
+cargo run
 ```
 
 ## serde-json-scenarios

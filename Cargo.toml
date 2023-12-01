@@ -92,8 +92,6 @@ path = "benches/comparison.rs"
 [workspace]
 members = [
     ".",
-    "./macros",
-    "examples/*"
+    "./macros"
 ]
-default-members = [".", "./macros"]
 resolver = "2"
