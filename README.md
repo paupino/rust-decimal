@@ -38,8 +38,9 @@ Decimal numbers can be created in a few distinct ways. The easiest and most effi
 
 ```rust
 // The macros feature exposes a `dec` macro which will parse the input into a raw decimal number at compile time.
-// It is also exposed when using `rust_decimal::prelude::*`.
-use rust_decimal::dec;
+// It is also exposed when using `rust_decimal::prelude::*`. That said, you can also import the 
+// `rust_decimal_macros` crate and use the macro directly from there.
+use rust_decimal_macros::dec;
 
 let number = dec!(-1.23) + dec!(3.45);
 assert_eq!(number, dec!(2.22));
@@ -85,6 +86,7 @@ Once you have instantiated your `Decimal` number you can perform calculations wi
 
 ```rust
 use rust_decimal::prelude::*;
+use rust_decimal_macros::dec;
 
 let amount = dec!(25.12);
 let tax_percentage = dec!(0.085);
