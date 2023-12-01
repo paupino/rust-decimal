@@ -44,7 +44,7 @@ impl UniformSampler for DecimalSampler {
     ///
     /// ```
     /// # use rand::Rng;
-    /// # use rust_decimal_macros::dec;
+    /// # use rust_decimal::dec;
     /// let mut rng = rand::rngs::OsRng;
     /// let random = rng.gen_range(dec!(1.00)..dec!(2.00));
     /// assert!(random >= dec!(1.00));
@@ -71,7 +71,7 @@ impl UniformSampler for DecimalSampler {
     ///
     /// ```
     /// # use rand::Rng;
-    /// # use rust_decimal_macros::dec;
+    /// # use rust_decimal::dec;
     /// let mut rng = rand::rngs::OsRng;
     /// let random = rng.gen_range(dec!(1.00)..=dec!(2.00));
     /// assert!(random >= dec!(1.00));

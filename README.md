@@ -19,27 +19,27 @@ Using [`cargo-edit`](https://crates.io/crates/cargo-edit):
 $ cargo add rust_decimal
 ```
 
-In addition, if you would like to use the optimized macro for convenient creation of decimals:
+If you would like to use the optimized macro for convenient creation of decimals you can add `rust_decimal` with the `macros` feature flag:
 
 ```sh
-$ cargo add rust_decimal_macros
+$ cargo add rust_decimal --features macros
 ```
 
 Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.33"
-rust_decimal_macros = "1.33"
+rust_decimal = { version = "1.33", features = ["macros"] }
 ```
 
 ## Usage
 
-Decimal numbers can be created in a few distinct ways. The easiest and most efficient method of creating a Decimal is to use the procedural macro within the `rust_decimal_macros` crate:
+Decimal numbers can be created in a few distinct ways. The easiest and most efficient method of creating a Decimal is to use the procedural macro that can be enabled using the `macros` feature:
 
 ```rust
-// Procedural macros need importing directly
-use rust_decimal_macros::dec;
+// The macros feature exposes a `dec` macro which will parse the input into a raw decimal number at compile time.
+// It is also exposed when using `rust_decimal::prelude::*`.
+use rust_decimal::dec;
 
 let number = dec!(-1.23) + dec!(3.45);
 assert_eq!(number, dec!(2.22));
@@ -85,7 +85,6 @@ Once you have instantiated your `Decimal` number you can perform calculations wi
 
 ```rust
 use rust_decimal::prelude::*;
-use rust_decimal_macros::dec;
 
 let amount = dec!(25.12);
 let tax_percentage = dec!(0.085);
@@ -198,8 +197,8 @@ Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 
 ### `serde-float`
 
-**Note:** it is recommended to use the `serde-with-*` features for greater control. This allows configurability at the data
-level.
+> **Note:** This feature applies float serialization/deserialization rules as the default method for handling `Decimal` numbers. 
+See also the `serde-with-*` features for greater flexibility.
 
 Enable this so that JSON serialization of `Decimal` types are sent as a float instead of a string (default).
 
@@ -212,8 +211,8 @@ e.g. with this turned on, JSON serialization would output:
 
 ### `serde-str`
 
-**Note:** it is recommended to use the `serde-with-*` features for greater control. This allows configurability at the data
-level.
+> **Note:** This feature applies string serialization/deserialization rules as the default method for handling `Decimal` numbers.
+See also the `serde-with-*` features for greater flexibility.
 
 This is typically useful for `bincode` or `csv` like implementations.
 
@@ -227,17 +226,20 @@ converting to `f64` _loses_ precision, it's highly recommended that you do NOT e
 
 ### `serde-arbitrary-precision`
 
-**Note:** it is recommended to use the `serde-with-*` features for greater control. This allows configurability at the data
-level.
+> **Note:** This feature applies arbitrary serialization/deserialization rules as the default method for handling `Decimal` numbers.
+See also the `serde-with-*` features for greater flexibility.
 
 This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the
 `arbitrary_precision` feature inside `serde_json` when parsing decimals.
 
 This is recommended when parsing "float" looking data as it will prevent data loss.
 
+Please note, this currently serializes numbers in a float like format by default, which can be an unexpected consequence. For greater
+control over the serialization format, please use the `serde-with-arbitrary-precision` feature.
+
 ### `serde-with-float`
 
-Enable this to access the module for serializing `Decimal` types to a float. This can be use in `struct` definitions like so:
+Enable this to access the module for serializing `Decimal` types to a float. This can be used in `struct` definitions like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -254,9 +256,18 @@ pub struct OptionFloatExample {
 }
 ```
 
+Alternatively, if only the serialization feature is desired (e.g. to keep flexibility while deserialization):
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct FloatExample {
+    #[serde(serialize_with = "rust_decimal::serde::float::serialize")]
+    value: Decimal,
+}
+```
+
 ### `serde-with-str`
 
-Enable this to access the module for serializing `Decimal` types to a `String`. This can be use in `struct` definitions like so:
+Enable this to access the module for serializing `Decimal` types to a `String`. This can be used in `struct` definitions like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -273,9 +284,19 @@ pub struct OptionStrExample {
 }
 ```
 
+This feature isn't typically required for serialization however can be useful for deserialization purposes since it does not require
+a type hint. Consequently, you can force this for just deserialization by:
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct StrExample {
+    #[serde(deserialize_with = "rust_decimal::serde::str::deserialize")]
+    value: Decimal,
+}
+```
+
 ### `serde-with-arbitrary-precision`
 
-Enable this to access the module for serializing `Decimal` types to a `String`. This can be use in `struct` definitions like so:
+Enable this to access the module for deserializing `Decimal` types using the `serde_json/arbitrary_precision` feature. This can be used in `struct` definitions like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -291,6 +312,20 @@ pub struct OptionArbitraryExample {
     value: Option<Decimal>,
 }
 ```
+
+An unexpected consequence of this feature is that it will serialize as a float like number. To prevent this, you can 
+target the struct to only deserialize with the `arbitrary_precision` feature:
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct ArbitraryExample {
+    #[serde(deserialize_with = "rust_decimal::serde::arbitrary_precision::deserialize")]
+    value: Decimal,
+}
+```
+
+This will ensure that serialization still occurs as a string.
+
+Please see the `examples` directory for more information regarding `serde_json` scenarios.
 
 ### `std`
 
