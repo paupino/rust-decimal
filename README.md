@@ -346,3 +346,25 @@ which was released on `2022-04-07`.
 This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust compiler version.
 For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and including `1.46.0`.
 Of note, we will only update the minimum supported version if and when required.
+
+## Comparison to other Decimal implementations
+
+During the development of this library, there were various design decisions made to ensure that decimal calculations would 
+be quick, accurate and efficient. Some decisions, however, put limitations on what this library can do and ultimately what 
+it is suitable for. One such decision was the structure of the internal decimal representation. 
+
+This library uses a mantissa of 96 bits made up of three 32-bit unsigned integers with a fourth 32-bit unsigned integer to represent the scale/sign
+(similar to the C and .NET Decimal implementations). 
+This structure allows us to make use of algorithmic optimizations to implement basic arithmetic; ultimately this gives us the ability 
+to squeeze out performance and make it one of the fastest implementations available. The downside of this approach however is that 
+the maximum number of significant digits that can be represented is roughly 28 base-10 digits (29 in some cases).
+
+While this constraint is not an issue for many applications (e.g. when dealing with money), some applications may require a higher number of significant digits to be represented. Fortunately,
+there are alternative implementations that may be worth investigating, such as:
+
+* [bigdecimal](https://crates.io/crates/bigdecimal)
+* [decimal-rs](https://crates.io/crates/decimal-rs)
+
+If you have further questions about the suitability of this library for your project, then feel free to either start a 
+[discussion](https://github.com/paupino/rust-decimal/discussions) or open an [issue](https://github.com/paupino/rust-decimal/issues) and we'll
+do our best to help.
