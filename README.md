@@ -13,8 +13,6 @@ The binary representation consists of a 96 bit integer number, a scaling factor 
 
 ## Installing
 
-Using [`cargo-edit`](https://crates.io/crates/cargo-edit):
-
 ```sh
 $ cargo add rust_decimal
 ```
