@@ -16,6 +16,7 @@ version = "1.33.1"
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
