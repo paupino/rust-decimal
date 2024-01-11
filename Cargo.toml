@@ -30,7 +30,7 @@ num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres = { default-features = false, optional = true, version = "0.19" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
 rand = { default-features = false, optional = true, version = "0.8" }
-rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7.42" }
+rkyv = { default-features = false, optional = true, version = "0.7.42" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
 rust_decimal_macros = { default-features = false, optional = true, version = "1.33" } # This needs to be the n-1 published version
 serde = { default-features = false, optional = true, version = "1.0" }
@@ -70,8 +70,11 @@ maths-nopanic = ["maths"]
 ndarray = ["dep:ndarray"]
 proptest = ["dep:proptest"]
 rand = ["dep:rand"]
-rkyv = ["dep:rkyv"]
 rkyv-safe = ["rkyv/validation"]
+# Note that rkyv-16, rkyv-32, and rkyv-64 are mutually exclusive.
+rkyv-16 = ["rkyv", "rkyv?/size_16"]
+rkyv-32 = ["rkyv", "rkyv?/size_32"]
+rkyv-64 = ["rkyv", "rkyv?/size_64"]
 rocket-traits = ["dep:rocket"]
 rust-fuzz = ["dep:arbitrary"]
 serde = ["dep:serde"]
