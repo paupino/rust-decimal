@@ -380,17 +380,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(
-    mut data: u128,
-    next_byte: u8,
-    mut scale: u8,
-    point: bool,
-    negative: bool,
-) -> Result<Decimal, crate::Error> {
+fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // this should be an invalid string?
-        b'.' if point => 0,
+        b'.' if !point => 0,
         b => return tail_invalid_digit(b),
     };
 
@@ -942,6 +936,22 @@ mod test {
                 .unwrap()
                 .unpack(),
             Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 27).unpack()
+        );
+    }
+
+    #[test]
+    fn invalid_input_1() {
+        assert_eq!(
+            parse_str_radix_10("1.0000000000000000000000000000.5"),
+            Err(Error::from("Invalid decimal: two decimal points"))
+        );
+    }
+
+    #[test]
+    fn invalid_input_2() {
+        assert_eq!(
+            parse_str_radix_10("1.0.5"),
+            Err(Error::from("Invalid decimal: two decimal points"))
         );
     }
 
