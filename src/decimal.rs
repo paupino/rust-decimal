@@ -2586,7 +2586,18 @@ impl PartialEq for Decimal {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl PartialEq for ArchivedDecimal {
+    #[inline]
+    fn eq(&self, other: &ArchivedDecimal) -> bool {
+        self.cmp(other) == Equal
+    }
+}
 impl Eq for Decimal {}
+
+#[cfg(feature = "rkyv")]
+impl Eq for ArchivedDecimal {}
+
 
 impl Hash for Decimal {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -2605,9 +2616,32 @@ impl PartialOrd for Decimal {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl PartialOrd<Self> for ArchivedDecimal {
+    fn partial_cmp(&self, other: &ArchivedDecimal) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+#[cfg(feature = "rkyv")]
+impl PartialOrd<Decimal> for ArchivedDecimal {
+    fn partial_cmp(&self, other: &Decimal) -> Option<Ordering> {
+        let self_dec = Decimal { flags: self.flags, hi: self.hi, lo: self.lo, mid: self.mid };
+        Some(ops::cmp_impl(&self_dec, other))
+    }
+}
+
 impl Ord for Decimal {
     fn cmp(&self, other: &Decimal) -> Ordering {
         ops::cmp_impl(self, other)
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl Ord for ArchivedDecimal {
+    fn cmp(&self, other: &ArchivedDecimal) -> Ordering {
+        let self_dec = Decimal { flags: self.flags, hi: self.hi, lo: self.lo, mid: self.mid };
+        let other_dec = Decimal { flags: other.flags, hi: other.hi, lo: other.lo, mid: other.mid };
+        ops::cmp_impl(&self_dec, &other_dec)
     }
 }
 
