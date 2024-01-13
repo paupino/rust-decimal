@@ -213,6 +213,14 @@ fn dispatch_next<const POINT: bool, const NEG: bool, const HAS: bool, const BIG:
     }
 }
 
+/// Dispatch the next non-digit byte:
+///
+/// * POINT - a decimal point has been seen
+/// * NEG - we've encountered a `-` and the number is negative
+/// * HAS - a digit has been encountered (when HAS is false it's invalid)
+/// * BIG - a number that uses 96 bits instead of only 64 bits
+/// * FIRST - true if it is the first byte in the string
+/// * ROUND - attempt to round underflow
 #[inline(never)]
 fn non_digit_dispatch_u64<
     const POINT: bool,
@@ -347,6 +355,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                     let next = *next;
                     if POINT && scale >= 28 {
                         if ROUND {
+                            // This is the call site
                             maybe_round(data, next, scale, POINT, NEG)
                         } else {
                             Err(Error::Underflow)
@@ -699,6 +708,7 @@ mod test {
     use crate::Decimal;
     use arrayvec::ArrayString;
     use core::{fmt::Write, str::FromStr};
+    use futures::StreamExt;
 
     #[test]
     fn display_does_not_overflow_max_capacity() {
@@ -953,6 +963,40 @@ mod test {
             parse_str_radix_10("1.0.5"),
             Err(Error::from("Invalid decimal: two decimal points"))
         );
+    }
+
+    #[test]
+    fn character_at_rounding_position() {
+        let tests = [
+            // 6 is at the rounding position, so we round up
+            (
+                "1.000_000_000_000_000_000_000_000_000_06",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    28,
+                )),
+            ),
+            // Decimal point is at the rounding position
+            (
+                "1_000_000_000_000_000_000_000_000_000_0.6",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    0,
+                )),
+            ),
+            // Placeholder is at the rounding position
+            (
+                "1.000_000_000_000_000_000_000_000_000_0_6",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    28,
+                )),
+            ),
+        ];
+
+        for (index, (input, expected)) in tests.iter().enumerate() {
+            assert_eq!(parse_str_radix_10(input), *expected, "Test Index {}", index);
+        }
     }
 
     #[test]
