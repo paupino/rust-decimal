@@ -227,6 +227,9 @@ impl MathematicalOps for Decimal {
     }
 
     fn checked_powu(&self, exp: u64) -> Option<Decimal> {
+        if exp == 0 {
+            return Some(Decimal::ONE);
+        }
         if self.is_zero() {
             return Some(Decimal::ZERO);
         }
@@ -235,7 +238,7 @@ impl MathematicalOps for Decimal {
         }
 
         match exp {
-            0 => Some(Decimal::ONE),
+            0 => unreachable!(),
             1 => Some(*self),
             2 => self.checked_mul(*self),
             // Do the exponentiation by multiplying squares:
