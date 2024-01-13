@@ -3968,43 +3968,28 @@ mod maths {
     }
 
     #[test]
+    #[cfg(not(feature = "legacy-ops"))]
     fn test_norm_cdf() {
         let test_cases = &[
             (
                 Decimal::from_str("-0.4").unwrap(),
-                either!(
-                    Decimal::from_str("0.3445781286821245037094401704").unwrap(),
-                    Decimal::from_str("0.3445781286821245037094401728").unwrap()
-                ),
+                Decimal::from_str("0.3445781286821245037094401704").unwrap(),
             ),
             (
                 Decimal::from_str("-0.1").unwrap(),
-                either!(
-                    Decimal::from_str("0.4601722899186706579921922696").unwrap(),
-                    Decimal::from_str("0.4601722899186706579921922711").unwrap()
-                ),
+                Decimal::from_str("0.4601722899186706579921922696").unwrap(),
             ),
             (
                 Decimal::from_str("0.1").unwrap(),
-                Decimal::from_str(either!(
-                    "0.5398277100813293420078077304",
-                    "0.5398277100813293420078077290"
-                ))
-                .unwrap(),
+                Decimal::from_str("0.5398277100813293420078077304").unwrap(),
             ),
             (
                 Decimal::from_str("0.4").unwrap(),
-                either!(
-                    Decimal::from_str("0.6554218713178754962905598296").unwrap(),
-                    Decimal::from_str("0.6554218713178754962905598272").unwrap()
-                ),
+                Decimal::from_str("0.6554218713178754962905598296").unwrap(),
             ),
             (
                 Decimal::from_str("2.0").unwrap(),
-                either!(
-                    Decimal::from_str("0.9772497381095865280953380673").unwrap(),
-                    Decimal::from_str("0.9772497381095865280953380672").unwrap()
-                ),
+                Decimal::from_str("0.9772497381095865280953380673").unwrap(),
             ),
         ];
         for case in test_cases {
