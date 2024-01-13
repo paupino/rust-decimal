@@ -213,6 +213,14 @@ fn dispatch_next<const POINT: bool, const NEG: bool, const HAS: bool, const BIG:
     }
 }
 
+/// Dispatch the next non-digit byte:
+///
+/// * POINT - a decimal point has been seen
+/// * NEG - we've encountered a `-` and the number is negative
+/// * HAS - a digit has been encountered (when HAS is false it's invalid)
+/// * BIG - a number that uses 96 bits instead of only 64 bits
+/// * FIRST - true if it is the first byte in the string
+/// * ROUND - attempt to round underflow
 #[inline(never)]
 fn non_digit_dispatch_u64<
     const POINT: bool,
@@ -347,7 +355,17 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                     let next = *next;
                     if POINT && scale >= 28 {
                         if ROUND {
-                            maybe_round(data, next, scale, POINT, NEG)
+                            // If it is an underscore at the rounding position we require slightly different handling to look ahead another digit
+                            if next == b'_' {
+                                if let Some((next, bytes)) = bytes.split_first() {
+                                    handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, *next)
+                                } else {
+                                    handle_data::<NEG, true>(data, scale)
+                                }
+                            } else {
+                                // Otherwise, we round as usual
+                                maybe_round(data, next, scale, POINT, NEG)
+                            }
                         } else {
                             Err(Error::Underflow)
                         }
@@ -380,17 +398,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(
-    mut data: u128,
-    next_byte: u8,
-    mut scale: u8,
-    point: bool,
-    negative: bool,
-) -> Result<Decimal, crate::Error> {
+fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
-        b'_' => 0, // this should be an invalid string?
-        b'.' if point => 0,
+        b'_' => 0, // This is perhaps an error case, but keep this here for compatibility
+        b'.' if !point => 0,
         b => return tail_invalid_digit(b),
     };
 
@@ -933,7 +945,6 @@ mod test {
         );
     }
 
-    #[ignore]
     #[test]
     fn from_str_mantissa_overflow_4() {
         // Same test as above, however with underscores. This causes issues.
@@ -943,6 +954,92 @@ mod test {
                 .unpack(),
             Decimal::from_i128_with_scale(79_228_162_514_264_337_593_543_950_34, 27).unpack()
         );
+    }
+
+    #[test]
+    fn invalid_input_1() {
+        assert_eq!(
+            parse_str_radix_10("1.0000000000000000000000000000.5"),
+            Err(Error::from("Invalid decimal: two decimal points"))
+        );
+    }
+
+    #[test]
+    fn invalid_input_2() {
+        assert_eq!(
+            parse_str_radix_10("1.0.5"),
+            Err(Error::from("Invalid decimal: two decimal points"))
+        );
+    }
+
+    #[test]
+    fn character_at_rounding_position() {
+        let tests = [
+            // digit is at the rounding position
+            (
+                "1.000_000_000_000_000_000_000_000_000_04",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    28,
+                )),
+            ),
+            (
+                "1.000_000_000_000_000_000_000_000_000_06",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    28,
+                )),
+            ),
+            // Decimal point is at the rounding position
+            (
+                "1_000_000_000_000_000_000_000_000_000_0.4",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    0,
+                )),
+            ),
+            (
+                "1_000_000_000_000_000_000_000_000_000_0.6",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    0,
+                )),
+            ),
+            // Placeholder is at the rounding position
+            (
+                "1.000_000_000_000_000_000_000_000_000_0_4",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    28,
+                )),
+            ),
+            (
+                "1.000_000_000_000_000_000_000_000_000_0_6",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    28,
+                )),
+            ),
+            // Multiple placeholders at rounding position
+            (
+                "1.000_000_000_000_000_000_000_000_000_0__4",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    28,
+                )),
+            ),
+            (
+                "1.000_000_000_000_000_000_000_000_000_0__6",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    28,
+                )),
+            ),
+        ];
+
+        for (input, expected) in tests.iter() {
+            assert_eq!(parse_str_radix_10(input), *expected, "Test input {}", input);
+        }
     }
 
     #[test]
