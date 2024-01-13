@@ -227,33 +227,40 @@ impl MathematicalOps for Decimal {
     }
 
     fn checked_powu(&self, exp: u64) -> Option<Decimal> {
+        if exp == 0 {
+            return Some(Decimal::ONE);
+        }
+        if self.is_zero() {
+            return Some(Decimal::ZERO);
+        }
+        if self.is_one() {
+            return Some(Decimal::ONE);
+        }
+
         match exp {
-            0 => Some(Decimal::ONE),
+            0 => unreachable!(),
             1 => Some(*self),
             2 => self.checked_mul(*self),
+            // Do the exponentiation by multiplying squares:
+            //   y = Sum (for each 1 bit in binary representation) of (2 ^ bit)
+            //   x ^ y = Sum (for each 1 bit in y) of (x ^ (2 ^ bit))
+            // See: https://en.wikipedia.org/wiki/Exponentiation_by_squaring
             _ => {
-                // Get the squared value
-                let squared = match self.checked_mul(*self) {
-                    Some(s) => s,
-                    None => return None,
-                };
-                // Square self once and make an infinite sized iterator of the square.
-                let iter = core::iter::repeat(squared);
-
-                // We then take half of the exponent to create a finite iterator and then multiply those together.
                 let mut product = Decimal::ONE;
-                for x in iter.take((exp >> 1) as usize) {
-                    match product.checked_mul(x) {
-                        Some(r) => product = r,
-                        None => return None,
-                    };
-                }
+                let mut mask = exp;
+                let mut power = *self;
 
-                // If the exponent is odd we still need to multiply once more
-                if exp & 0x1 > 0 {
-                    match self.checked_mul(product) {
-                        Some(p) => product = p,
-                        None => return None,
+                // Run through just enough 1 bits
+                for n in 0..(64 - exp.leading_zeros()) {
+                    if n > 0 {
+                        power = power.checked_mul(power)?;
+                        mask >>= 1;
+                    }
+                    if mask & 0x01 > 0 {
+                        match product.checked_mul(power) {
+                            Some(r) => product = r,
+                            None => return None,
+                        };
                     }
                 }
                 product.normalize_assign();
