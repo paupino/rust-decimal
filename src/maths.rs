@@ -231,29 +231,26 @@ impl MathematicalOps for Decimal {
             0 => Some(Decimal::ONE),
             1 => Some(*self),
             2 => self.checked_mul(*self),
+            // Do the exponentiation by multiplying squares:
+            //   y = Sum (for each 1 bit in binary representation) of (2 ^ bit)
+            //   x ^ y = Sum (for each 1 bit in y) of (x ^ (2 ^ bit))
             _ => {
-                // Get the squared value
-                let squared = match self.checked_mul(*self) {
-                    Some(s) => s,
-                    None => return None,
-                };
-                // Square self once and make an infinite sized iterator of the square.
-                let iter = core::iter::repeat(squared);
-
-                // We then take half of the exponent to create a finite iterator and then multiply those together.
                 let mut product = Decimal::ONE;
-                for x in iter.take((exp >> 1) as usize) {
-                    match product.checked_mul(x) {
-                        Some(r) => product = r,
-                        None => return None,
-                    };
-                }
+                let mut mask = 1_u64;
+                let mut power = Some(*self);
 
-                // If the exponent is odd we still need to multiply once more
-                if exp & 0x1 > 0 {
-                    match self.checked_mul(product) {
-                        Some(p) => product = p,
-                        None => return None,
+                // Run through just enough 1 bits
+                for n in 0..(64 - exp.leading_zeros()) {
+                    if n > 0 {
+                        // Avoid unnecessarily calculating too high a power
+                        power = power.and_then(|p| p.checked_mul(p));
+                        mask <<= 1;
+                    }
+                    if exp & mask > 0 {
+                        match product.checked_mul(power?) {
+                            Some(r) => product = r,
+                            None => return None,
+                        };
                     }
                 }
                 product.normalize_assign();
