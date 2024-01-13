@@ -355,8 +355,17 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                     let next = *next;
                     if POINT && scale >= 28 {
                         if ROUND {
-                            // This is the call site
-                            maybe_round(data, next, scale, POINT, NEG)
+                            // If it is an underscore at the rounding position we require slightly different handling to look ahead another digit
+                            if next == b'_' {
+                                if let Some((next, bytes)) = bytes.split_first() {
+                                    handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, *next)
+                                } else {
+                                    handle_data::<NEG, true>(data, scale)
+                                }
+                            } else {
+                                // Otherwise, we round as usual
+                                maybe_round(data, next, scale, POINT, NEG)
+                            }
                         } else {
                             Err(Error::Underflow)
                         }
@@ -392,7 +401,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
-        b'_' => 0, // this should be an invalid string?
+        b'_' => 0, // This is perhaps an error case, but keep this here for compatibility
         b'.' if !point => 0,
         b => return tail_invalid_digit(b),
     };
@@ -708,7 +717,6 @@ mod test {
     use crate::Decimal;
     use arrayvec::ArrayString;
     use core::{fmt::Write, str::FromStr};
-    use futures::StreamExt;
 
     #[test]
     fn display_does_not_overflow_max_capacity() {
@@ -937,7 +945,6 @@ mod test {
         );
     }
 
-    #[ignore]
     #[test]
     fn from_str_mantissa_overflow_4() {
         // Same test as above, however with underscores. This causes issues.
@@ -968,7 +975,14 @@ mod test {
     #[test]
     fn character_at_rounding_position() {
         let tests = [
-            // 6 is at the rounding position, so we round up
+            // digit is at the rounding position
+            (
+                "1.000_000_000_000_000_000_000_000_000_04",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    28,
+                )),
+            ),
             (
                 "1.000_000_000_000_000_000_000_000_000_06",
                 Ok(Decimal::from_i128_with_scale(
@@ -978,6 +992,13 @@ mod test {
             ),
             // Decimal point is at the rounding position
             (
+                "1_000_000_000_000_000_000_000_000_000_0.4",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    0,
+                )),
+            ),
+            (
                 "1_000_000_000_000_000_000_000_000_000_0.6",
                 Ok(Decimal::from_i128_with_scale(
                     1_000_000_000_000_000_000_000_000_000_1,
@@ -986,7 +1007,29 @@ mod test {
             ),
             // Placeholder is at the rounding position
             (
+                "1.000_000_000_000_000_000_000_000_000_0_4",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    28,
+                )),
+            ),
+            (
                 "1.000_000_000_000_000_000_000_000_000_0_6",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_1,
+                    28,
+                )),
+            ),
+            // Multiple placeholders at rounding position
+            (
+                "1.000_000_000_000_000_000_000_000_000_0__4",
+                Ok(Decimal::from_i128_with_scale(
+                    1_000_000_000_000_000_000_000_000_000_0,
+                    28,
+                )),
+            ),
+            (
+                "1.000_000_000_000_000_000_000_000_000_0__6",
                 Ok(Decimal::from_i128_with_scale(
                     1_000_000_000_000_000_000_000_000_000_1,
                     28,
@@ -994,8 +1037,8 @@ mod test {
             ),
         ];
 
-        for (index, (input, expected)) in tests.iter().enumerate() {
-            assert_eq!(parse_str_radix_10(input), *expected, "Test Index {}", index);
+        for (input, expected) in tests.iter() {
+            assert_eq!(parse_str_radix_10(input), *expected, "Test input {}", input);
         }
     }
 
