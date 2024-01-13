@@ -244,20 +244,20 @@ impl MathematicalOps for Decimal {
             // Do the exponentiation by multiplying squares:
             //   y = Sum (for each 1 bit in binary representation) of (2 ^ bit)
             //   x ^ y = Sum (for each 1 bit in y) of (x ^ (2 ^ bit))
+            // See: https://en.wikipedia.org/wiki/Exponentiation_by_squaring
             _ => {
                 let mut product = Decimal::ONE;
-                let mut mask = 1_u64;
-                let mut power = Some(*self);
+                let mut mask = exp;
+                let mut power = *self;
 
                 // Run through just enough 1 bits
                 for n in 0..(64 - exp.leading_zeros()) {
                     if n > 0 {
-                        // Avoid unnecessarily calculating too high a power
-                        power = power.and_then(|p| p.checked_mul(p));
-                        mask <<= 1;
+                        power = power.checked_mul(power)?;
+                        mask >>= 1;
                     }
-                    if exp & mask > 0 {
-                        match product.checked_mul(power?) {
+                    if mask & 0x01 > 0 {
+                        match product.checked_mul(power) {
                             Some(r) => product = r,
                             None => return None,
                         };
