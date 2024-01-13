@@ -227,6 +227,13 @@ impl MathematicalOps for Decimal {
     }
 
     fn checked_powu(&self, exp: u64) -> Option<Decimal> {
+        if self.is_zero() {
+            return Some(Decimal::ZERO);
+        }
+        if self.is_one() {
+            return Some(Decimal::ONE);
+        }
+
         match exp {
             0 => Some(Decimal::ONE),
             1 => Some(*self),
