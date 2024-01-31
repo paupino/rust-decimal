@@ -27,7 +27,7 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = { version = "1.33", features = ["macros"] }
+rust_decimal = { version = "1.34", features = ["macros"] }
 ```
 
 ## Usage
