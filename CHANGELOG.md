@@ -1,14 +1,26 @@
 # Version History
 
-## 1.x
+## 1.34.0
 
 ### Added
 
-* `rust_decimal_macros` can now be utilized using the `macros` feature flag.
+* `rust_decimal_macros` can now be utilized using the `macros` feature flag. ([#628](https://github.com/paupino/rust-decimal/pull/628))
+
+### Fixed
+
+* Reimplement `pow` function to more effectively handle larger exponents ([#638](https://github.com/paupino/rust-decimal/pull/638))
+* Fixes error handling when parsing a `Decimal` from a string when a decimal point or placeholder is at the rounding position ([#636](https://github.com/paupino/rust-decimal/pull/636))
 
 ### Changed
 
-* Added documentation for serde features as well as a few examples.
+* Added documentation for serde features as well as a few examples. ([#630](https://github.com/paupino/rust-decimal/pull/630))
+* Documentation and rustdoc generation improvements ([#633](https://github.com/paupino/rust-decimal/pull/633), [#634](https://github.com/paupino/rust-decimal/pull/634))
+
+### Credit
+
+Thank you to [@robjtede](https://github.com/robjtede) and [@schungx](https://github.com/schungx) for your contributions this release.
+
+Last but not least, a special thank you to [@Tony-Samuels](https://github.com/Tony-Samuels) for your help with managing `rust_decimal`! 
 
 ## 1.33.1
 
