@@ -1,5 +1,11 @@
 # Version History
 
+## 1.34.1
+
+### Fixed
+
+* Hotfix for circular dependency when using the `macros` feature.
+
 ## 1.34.0
 
 ### Added
