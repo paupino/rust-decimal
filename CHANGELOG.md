@@ -1,5 +1,11 @@
 # Version History
 
+## 1.34.2
+
+### Fixed
+
+* Deprecate `macros` feature until circular dependency issue is resolved properly. 
+
 ## 1.34.1
 
 ### Fixed

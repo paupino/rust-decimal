@@ -1,6 +1,6 @@
 [package]
 name = "rust_decimal_macros"
-version = "1.34.1"
+version = "1.34.2"
 authors = ["Paul Mason <paul@form1.co.nz>"]
 edition = "2021"
 description = "Shorthand macros to assist creating Decimal types."
@@ -12,8 +12,7 @@ categories = ["science","data-structures"]
 license = "MIT"
 
 [dependencies]
-# This needs to be a locked version until we can remove this dependency altogether
-rust_decimal = { version = "=1.33.1", default-features = false }
+rust_decimal = { version = "1.33", default-features = false }
 quote = "1.0"
 
 [dev-dependencies]
