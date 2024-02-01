@@ -12,7 +12,7 @@ name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
 rust-version = "1.60"
-version = "1.34.1"
+version = "1.34.2"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -32,7 +32,7 @@ proptest = { default-features = false, optional = true, features = ["std"], vers
 rand = { default-features = false, optional = true, version = "0.8" }
 rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7.42" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
-rust_decimal_macros = { default-features = false, optional = true, version = "1.34" } # This needs to a published version
+#rust_decimal_macros = { default-features = false, optional = true, version = "1.34" } # This needs to a published version
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
@@ -52,7 +52,8 @@ version-sync = { default-features = false, features = ["html_root_url_updated", 
 
 [features]
 default = ["serde", "std"]
-macros = ["dep:rust_decimal_macros"]
+# Removed in 1.34.2 due to an issue during version resolution
+#macros = ["dep:rust_decimal_macros"]
 
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
