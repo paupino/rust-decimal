@@ -156,6 +156,7 @@ pub(crate) fn fmt_scientific_notation(
 }
 
 impl From<DecimalComponents> for Decimal {
+    #[inline]
     fn from(value: DecimalComponents) -> Self {
         Decimal::from_parts(value.lo, value.mid, value.hi, value.negative, value.scale)
     }
