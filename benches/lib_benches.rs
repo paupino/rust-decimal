@@ -160,6 +160,24 @@ const SAMPLE_STRS: &[&str] = &[
     "12340.56789",
 ];
 
+const SAMPLE_SCIENTIFIC_STRS: &[&str] = &[
+    "3950123456e-6",
+    "3950e0",
+    "1e-1",
+    "1e-2",
+    "1e-3",
+    "1e-4",
+    "1e-5",
+    "1e-6",
+    "1e0",
+    "-1e2",
+    "-12.3456e1",
+    "1.1999625e7",
+    "1e6",
+    "9.99999999999e12",
+    "1.234056789e9",
+];
+
 #[bench]
 fn serialize_bincode(b: &mut test::Bencher) {
     let decimals: Vec<Decimal> = SAMPLE_STRS.iter().map(|s| Decimal::from_str(s).unwrap()).collect();
@@ -193,6 +211,16 @@ fn decimal_from_str(b: &mut test::Bencher) {
     b.iter(|| {
         for s in SAMPLE_STRS {
             let result = Decimal::from_str(s).unwrap();
+            test::black_box(result);
+        }
+    })
+}
+
+#[bench]
+fn decimal_scientific_from_str(b: &mut test::Bencher) {
+    b.iter(|| {
+        for s in SAMPLE_SCIENTIFIC_STRS {
+            let result = Decimal::from_scientific(s).unwrap();
             test::black_box(result);
         }
     })
