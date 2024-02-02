@@ -163,6 +163,8 @@ impl From<DecimalComponents> for Decimal {
 
 impl From<ParserError> for Error {
     fn from(value: ParserError) -> Self {
+        #[cfg(not(feature = "std"))]
+        use alloc::format;
         match value {
             ParserError::ExceedsMaximumPossibleValue => Error::ExceedsMaximumPossibleValue,
             ParserError::Underflow => Error::Underflow,
