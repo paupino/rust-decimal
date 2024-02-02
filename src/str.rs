@@ -1,7 +1,7 @@
 use crate::{
-    constants::{BYTES_TO_OVERFLOW_U64, MAX_PRECISION, MAX_STR_BUFFER_SIZE, OVERFLOW_U96, WILL_OVERFLOW_U64},
-    error::{tail_error, Error},
-    ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_u32},
+    constants::{MAX_PRECISION, MAX_STR_BUFFER_SIZE},
+    error::Error,
+    ops::array::{div_by_u32, is_all_zero},
     Decimal,
 };
 
@@ -9,6 +9,7 @@ use arrayvec::{ArrayString, ArrayVec};
 
 use alloc::{string::String, vec::Vec};
 use core::fmt;
+use decimal_parser::{DecimalComponents, ParserError};
 
 // impl that doesn't allocate for serialization purposes.
 pub(crate) fn to_str_internal(
@@ -154,302 +155,46 @@ pub(crate) fn fmt_scientific_notation(
     f.pad_integral(value.is_sign_positive(), "", &rep)
 }
 
-// dedicated implementation for the most common case.
+impl From<DecimalComponents> for Decimal {
+    fn from(value: DecimalComponents) -> Self {
+        Decimal::from_parts(value.lo, value.mid, value.hi, value.negative, value.scale)
+    }
+}
+
+impl From<ParserError> for Error {
+    fn from(value: ParserError) -> Self {
+        match value {
+            ParserError::ExceedsMaximumPossibleValue => Error::ExceedsMaximumPossibleValue,
+            ParserError::Underflow => Error::Underflow,
+            ParserError::ScaleExceedsMaximumPrecision(scale) => Error::ScaleExceedsMaximumPrecision(scale),
+            // Temporary mapping until we can remove the old error type
+            _ => Error::ErrorString(format!("Invalid decimal: {}", value)),
+        }
+    }
+}
+
 #[inline]
 pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, Error> {
-    let bytes = str.as_bytes();
-    if bytes.len() < BYTES_TO_OVERFLOW_U64 {
-        parse_str_radix_10_dispatch::<false, true>(bytes)
-    } else {
-        parse_str_radix_10_dispatch::<true, true>(bytes)
-    }
+    decimal_parser::parse_radix_10(str)
+        .map(Decimal::from)
+        .map_err(Error::from)
 }
 
 #[inline]
 pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, Error> {
-    let bytes = str.as_bytes();
-    if bytes.len() < BYTES_TO_OVERFLOW_U64 {
-        parse_str_radix_10_dispatch::<false, false>(bytes)
-    } else {
-        parse_str_radix_10_dispatch::<true, false>(bytes)
-    }
+    decimal_parser::parse_radix_10_exact(str)
+        .map(Decimal::from)
+        .map_err(Error::from)
 }
 
 #[inline]
-fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(bytes: &[u8]) -> Result<Decimal, Error> {
-    match bytes {
-        [b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG, true, ROUND>(rest, 0, 0, *b),
-        [] => tail_error("Invalid decimal: empty"),
-    }
+pub(crate) fn parse_str_scientific(str: &str) -> Result<Decimal, Error> {
+    decimal_parser::parse_scientific(str)
+        .map(|d| Decimal::from(d).normalize())
+        .map_err(Error::from)
 }
 
-#[inline]
-fn overflow_64(val: u64) -> bool {
-    val >= WILL_OVERFLOW_U64
-}
-
-#[inline]
-pub fn overflow_128(val: u128) -> bool {
-    val >= OVERFLOW_U96
-}
-
-/// Dispatch the next byte:
-///
-/// * POINT - a decimal point has been seen
-/// * NEG - we've encountered a `-` and the number is negative
-/// * HAS - a digit has been encountered (when HAS is false it's invalid)
-/// * BIG - a number that uses 96 bits instead of only 64 bits
-/// * FIRST - true if it is the first byte in the string
-#[inline]
-fn dispatch_next<const POINT: bool, const NEG: bool, const HAS: bool, const BIG: bool, const ROUND: bool>(
-    bytes: &[u8],
-    data64: u64,
-    scale: u8,
-) -> Result<Decimal, Error> {
-    if let Some((next, bytes)) = bytes.split_first() {
-        byte_dispatch_u64::<POINT, NEG, HAS, BIG, false, ROUND>(bytes, data64, scale, *next)
-    } else {
-        handle_data::<NEG, HAS>(data64 as u128, scale)
-    }
-}
-
-/// Dispatch the next non-digit byte:
-///
-/// * POINT - a decimal point has been seen
-/// * NEG - we've encountered a `-` and the number is negative
-/// * HAS - a digit has been encountered (when HAS is false it's invalid)
-/// * BIG - a number that uses 96 bits instead of only 64 bits
-/// * FIRST - true if it is the first byte in the string
-/// * ROUND - attempt to round underflow
-#[inline(never)]
-fn non_digit_dispatch_u64<
-    const POINT: bool,
-    const NEG: bool,
-    const HAS: bool,
-    const BIG: bool,
-    const FIRST: bool,
-    const ROUND: bool,
->(
-    bytes: &[u8],
-    data64: u64,
-    scale: u8,
-    b: u8,
-) -> Result<Decimal, Error> {
-    match b {
-        b'-' if FIRST && !HAS => dispatch_next::<false, true, false, BIG, ROUND>(bytes, data64, scale),
-        b'+' if FIRST && !HAS => dispatch_next::<false, false, false, BIG, ROUND>(bytes, data64, scale),
-        b'_' if HAS => handle_separator::<POINT, NEG, BIG, ROUND>(bytes, data64, scale),
-        b => tail_invalid_digit(b),
-    }
-}
-
-#[inline]
-fn byte_dispatch_u64<
-    const POINT: bool,
-    const NEG: bool,
-    const HAS: bool,
-    const BIG: bool,
-    const FIRST: bool,
-    const ROUND: bool,
->(
-    bytes: &[u8],
-    data64: u64,
-    scale: u8,
-    b: u8,
-) -> Result<Decimal, Error> {
-    match b {
-        b'0'..=b'9' => handle_digit_64::<POINT, NEG, BIG, ROUND>(bytes, data64, scale, b - b'0'),
-        b'.' if !POINT => handle_point::<NEG, HAS, BIG, ROUND>(bytes, data64, scale),
-        b => non_digit_dispatch_u64::<POINT, NEG, HAS, BIG, FIRST, ROUND>(bytes, data64, scale, b),
-    }
-}
-
-#[inline(never)]
-fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const ROUND: bool>(
-    bytes: &[u8],
-    data64: u64,
-    scale: u8,
-    digit: u8,
-) -> Result<Decimal, Error> {
-    // we have already validated that we cannot overflow
-    let data64 = data64 * 10 + digit as u64;
-    let scale = if POINT { scale + 1 } else { 0 };
-
-    if let Some((next, bytes)) = bytes.split_first() {
-        let next = *next;
-        if POINT && BIG && scale >= 28 {
-            if ROUND {
-                maybe_round(data64 as u128, next, scale, POINT, NEG)
-            } else {
-                Err(Error::Underflow)
-            }
-        } else if BIG && overflow_64(data64) {
-            handle_full_128::<POINT, NEG, ROUND>(data64 as u128, bytes, scale, next)
-        } else {
-            byte_dispatch_u64::<POINT, NEG, true, BIG, false, ROUND>(bytes, data64, scale, next)
-        }
-    } else {
-        let data: u128 = data64 as u128;
-
-        handle_data::<NEG, true>(data, scale)
-    }
-}
-
-#[inline(never)]
-fn handle_point<const NEG: bool, const HAS: bool, const BIG: bool, const ROUND: bool>(
-    bytes: &[u8],
-    data64: u64,
-    scale: u8,
-) -> Result<Decimal, Error> {
-    dispatch_next::<true, NEG, HAS, BIG, ROUND>(bytes, data64, scale)
-}
-
-#[inline(never)]
-fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool, const ROUND: bool>(
-    bytes: &[u8],
-    data64: u64,
-    scale: u8,
-) -> Result<Decimal, Error> {
-    dispatch_next::<POINT, NEG, true, BIG, ROUND>(bytes, data64, scale)
-}
-
-#[inline(never)]
-#[cold]
-fn tail_invalid_digit(digit: u8) -> Result<Decimal, Error> {
-    match digit {
-        b'.' => tail_error("Invalid decimal: two decimal points"),
-        b'_' => tail_error("Invalid decimal: must start lead with a number"),
-        _ => tail_error("Invalid decimal: unknown character"),
-    }
-}
-
-#[inline(never)]
-#[cold]
-fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
-    mut data: u128,
-    bytes: &[u8],
-    scale: u8,
-    next_byte: u8,
-) -> Result<Decimal, Error> {
-    let b = next_byte;
-    match b {
-        b'0'..=b'9' => {
-            let digit = u32::from(b - b'0');
-
-            // If the data is going to overflow then we should go into recovery mode
-            let next = (data * 10) + digit as u128;
-            if overflow_128(next) {
-                if !POINT {
-                    return tail_error("Invalid decimal: overflow from too many digits");
-                }
-
-                if ROUND {
-                    maybe_round(data, next_byte, scale, POINT, NEG)
-                } else {
-                    Err(Error::Underflow)
-                }
-            } else {
-                data = next;
-                let scale = scale + POINT as u8;
-                if let Some((next, bytes)) = bytes.split_first() {
-                    let next = *next;
-                    if POINT && scale >= 28 {
-                        if ROUND {
-                            // If it is an underscore at the rounding position we require slightly different handling to look ahead another digit
-                            if next == b'_' {
-                                if let Some((next, bytes)) = bytes.split_first() {
-                                    handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, *next)
-                                } else {
-                                    handle_data::<NEG, true>(data, scale)
-                                }
-                            } else {
-                                // Otherwise, we round as usual
-                                maybe_round(data, next, scale, POINT, NEG)
-                            }
-                        } else {
-                            Err(Error::Underflow)
-                        }
-                    } else {
-                        handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
-                    }
-                } else {
-                    handle_data::<NEG, true>(data, scale)
-                }
-            }
-        }
-        b'.' if !POINT => {
-            // This call won't tail?
-            if let Some((next, bytes)) = bytes.split_first() {
-                handle_full_128::<true, NEG, ROUND>(data, bytes, scale, *next)
-            } else {
-                handle_data::<NEG, true>(data, scale)
-            }
-        }
-        b'_' => {
-            if let Some((next, bytes)) = bytes.split_first() {
-                handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, *next)
-            } else {
-                handle_data::<NEG, true>(data, scale)
-            }
-        }
-        b => tail_invalid_digit(b),
-    }
-}
-
-#[inline(never)]
-#[cold]
-fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
-    let digit = match next_byte {
-        b'0'..=b'9' => u32::from(next_byte - b'0'),
-        b'_' => 0, // This is perhaps an error case, but keep this here for compatibility
-        b'.' if !point => 0,
-        b => return tail_invalid_digit(b),
-    };
-
-    // Round at midpoint
-    if digit >= 5 {
-        data += 1;
-
-        // If the mantissa is now overflowing, round to the next
-        // next least significant digit and discard precision
-        if overflow_128(data) {
-            if scale == 0 {
-                return tail_error("Invalid decimal: overflow from mantissa after rounding");
-            }
-            data += 4;
-            data /= 10;
-            scale -= 1;
-        }
-    }
-
-    if negative {
-        handle_data::<true, true>(data, scale)
-    } else {
-        handle_data::<false, true>(data, scale)
-    }
-}
-
-#[inline(never)]
-fn tail_no_has() -> Result<Decimal, Error> {
-    tail_error("Invalid decimal: no digits found")
-}
-
-#[inline]
-fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Result<Decimal, Error> {
-    debug_assert_eq!(data >> 96, 0);
-    if !HAS {
-        tail_no_has()
-    } else {
-        Ok(Decimal::from_parts(
-            data as u32,
-            (data >> 32) as u32,
-            (data >> 64) as u32,
-            NEG,
-            scale as u32,
-        ))
-    }
-}
-
+// TODO: Move to parser lib
 pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error> {
     if str.is_empty() {
         return Err(Error::from("Invalid decimal: empty"));
@@ -673,7 +418,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
         tmp[0] = data[0];
         tmp[1] = data[1];
         tmp[2] = data[2];
-        let overflow = mul_by_u32(&mut tmp, radix);
+        let overflow = crate::ops::array::mul_by_u32(&mut tmp, radix);
         if overflow > 0 {
             // This means that we have more data to process, that we're not sure what to do with.
             // This may or may not be an issue - depending on whether we're past a decimal point
@@ -683,7 +428,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
             }
 
             if *digit >= 5 {
-                let carry = add_one_internal(&mut data);
+                let carry = crate::ops::array::add_one_internal(&mut data);
                 if carry > 0 {
                     // Highly unlikely scenario which is more indicative of a bug
                     return Err(Error::from("Invalid decimal: overflow when rounding"));
@@ -700,7 +445,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
             data[0] = tmp[0];
             data[1] = tmp[1];
             data[2] = tmp[2];
-            let carry = add_by_internal_flattened(&mut data, *digit);
+            let carry = crate::ops::array::add_by_internal_flattened(&mut data, *digit);
             if carry > 0 {
                 // Highly unlikely scenario which is more indicative of a bug
                 return Err(Error::from("Invalid decimal: overflow from carry"));
@@ -912,8 +657,6 @@ mod test {
 
     #[test]
     fn from_str_mantissa_overflow_1() {
-        // reminder:
-        assert_eq!(OVERFLOW_U96, 79_228_162_514_264_337_593_543_950_336);
         assert_eq!(
             parse_str_radix_10("79_228_162_514_264_337_593_543_950_33.56")
                 .unwrap()

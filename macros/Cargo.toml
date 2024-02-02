@@ -12,10 +12,11 @@ categories = ["science","data-structures"]
 license = "MIT"
 
 [dependencies]
-rust_decimal = { version = "1.33", default-features = false }
+decimal_parser = { path = "../parser" }
 quote = "1.0"
 
 [dev-dependencies]
+rust_decimal = { path = ".." }
 trybuild = "1.0.55"
 
 [features]
