@@ -73,8 +73,11 @@ pub fn dec(input: TokenStream) -> TokenStream {
             Err(e) => panic!("{}", e),
         }
     };
-    if decimal.mid == 0 && decimal.hi == 0 {
-        match (decimal.lo, decimal.scale, decimal.negative) {
+    let lo = decimal.lo();
+    let mid = decimal.mid();
+    let hi = decimal.hi();
+    if mid == 0 && hi == 0 {
+        match (lo, decimal.scale, decimal.negative) {
             (0, 0, _) => return constant(Constant::Zero),
             (1, 0, false) => return constant(Constant::One),
             (1, 0, true) => return constant(Constant::NegativeOne),
@@ -86,7 +89,7 @@ pub fn dec(input: TokenStream) -> TokenStream {
         }
     }
 
-    expand(decimal.lo, decimal.mid, decimal.hi, decimal.negative, decimal.scale)
+    expand(lo, mid, hi, decimal.negative, decimal.scale)
 }
 
 #[derive(Debug)]

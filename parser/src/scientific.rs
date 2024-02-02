@@ -17,7 +17,6 @@ pub fn parse_scientific(input: &str) -> Result<DecimalComponents, ParserError> {
     let exp = split.next().ok_or_else(|| ParserError::UnableToExtractExponent)?;
 
     let mut decimal = parse_radix_10_exact(base)?;
-    let mut mantissa = (decimal.lo as u128) | ((decimal.mid as u128) << 32) | ((decimal.hi as u128) << 64);
 
     if let Some(stripped) = exp.strip_prefix('-') {
         let exp: u32 = stripped.parse().map_err(|_| ParserError::UnableToParseExponent)?;
@@ -37,11 +36,11 @@ pub fn parse_scientific(input: &str) -> Result<DecimalComponents, ParserError> {
             assert_scale(exp)?;
 
             let pow = 10_u128.pow(exp);
-            mantissa = match mantissa.checked_mul(pow) {
+            decimal.mantissa = match decimal.mantissa.checked_mul(pow) {
                 Some(m) => m,
                 None => return Err(ParserError::ExceedsMaximumPossibleValue),
             };
-            if mantissa >= OVERFLOW_U96 {
+            if decimal.mantissa >= OVERFLOW_U96 {
                 return Err(ParserError::ExceedsMaximumPossibleValue);
             }
         }
@@ -49,16 +48,13 @@ pub fn parse_scientific(input: &str) -> Result<DecimalComponents, ParserError> {
 
     // Lastly, remove any trailing zeros. This is unique to scientific parsing.
     while decimal.scale > 0 {
-        let remainder = mantissa.rem(10);
+        let remainder = decimal.mantissa.rem(10);
         if remainder != 0 {
             break;
         }
-        mantissa /= 10;
+        decimal.mantissa /= 10;
         decimal.scale -= 1;
     }
 
-    decimal.lo = mantissa as u32;
-    decimal.mid = (mantissa >> 32) as u32;
-    decimal.hi = (mantissa >> 64) as u32;
     Ok(decimal)
 }

@@ -158,7 +158,7 @@ pub(crate) fn fmt_scientific_notation(
 impl From<DecimalComponents> for Decimal {
     #[inline]
     fn from(value: DecimalComponents) -> Self {
-        Decimal::from_parts(value.lo, value.mid, value.hi, value.negative, value.scale)
+        Decimal::from_parts(value.lo(), value.mid(), value.hi(), value.negative, value.scale)
     }
 }
 
@@ -193,7 +193,7 @@ pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, Error> {
 #[inline]
 pub(crate) fn parse_str_scientific(str: &str) -> Result<Decimal, Error> {
     decimal_parser::parse_scientific(str)
-        .map(|d| Decimal::from(d).normalize())
+        .map(Decimal::from)
         .map_err(Error::from)
 }
 

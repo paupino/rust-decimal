@@ -75,9 +75,24 @@ impl core::fmt::Display for ParserError {
 
 #[derive(Debug)]
 pub struct DecimalComponents {
-    pub lo: u32,
-    pub mid: u32,
-    pub hi: u32,
+    pub mantissa: u128,
     pub negative: bool,
     pub scale: u32,
+}
+
+impl DecimalComponents {
+    #[inline(always)]
+    pub fn lo(&self) -> u32 {
+        self.mantissa as u32
+    }
+
+    #[inline(always)]
+    pub fn mid(&self) -> u32 {
+        (self.mantissa >> 32) as u32
+    }
+
+    #[inline(always)]
+    pub fn hi(&self) -> u32 {
+        (self.mantissa >> 64) as u32
+    }
 }

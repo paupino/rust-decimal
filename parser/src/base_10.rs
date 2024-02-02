@@ -26,7 +26,7 @@ fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(
 ) -> Result<DecimalComponents, ParserError> {
     match bytes {
         [b, rest @ ..] => byte_dispatch_u64::<false, false, false, BIG, true, ROUND>(rest, 0, 0, *b),
-        [] => Err(ParserError::EmptyInput),
+        [] => tail_error(ParserError::EmptyInput),
     }
 }
 
@@ -162,16 +162,6 @@ fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool, const R
 
 #[inline(never)]
 #[cold]
-fn tail_invalid_digit(digit: u8) -> Result<DecimalComponents, ParserError> {
-    match digit {
-        b'.' => Err(ParserError::MultipleDecimalPoints),
-        b'_' => Err(ParserError::InvalidPlaceholderPosition),
-        _ => Err(ParserError::InvalidCharacter),
-    }
-}
-
-#[inline(never)]
-#[cold]
 fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
     mut data: u128,
     bytes: &[u8],
@@ -267,7 +257,7 @@ fn maybe_round(
         // next least significant digit and discard precision
         if overflow_128(data) {
             if scale == 0 {
-                return Err(ParserError::OverflowAfterRound);
+                return tail_error(ParserError::OverflowAfterRound);
             }
             data += 4;
             data /= 10;
@@ -283,6 +273,22 @@ fn maybe_round(
 }
 
 #[inline(never)]
+#[cold]
+fn tail_invalid_digit(digit: u8) -> Result<DecimalComponents, ParserError> {
+    match digit {
+        b'.' => tail_error(ParserError::MultipleDecimalPoints),
+        b'_' => tail_error(ParserError::InvalidPlaceholderPosition),
+        _ => tail_error(ParserError::InvalidCharacter),
+    }
+}
+
+#[cold]
+fn tail_error(e: ParserError) -> Result<DecimalComponents, ParserError> {
+    Err(e)
+}
+
+#[inline(never)]
+#[cold]
 fn tail_no_has() -> Result<DecimalComponents, ParserError> {
     return Err(ParserError::NoDigits);
 }
@@ -294,9 +300,7 @@ fn handle_data<const NEG: bool, const HAS: bool>(data: u128, scale: u8) -> Resul
         tail_no_has()
     } else {
         Ok(DecimalComponents {
-            lo: data as u32,
-            mid: (data >> 32) as u32,
-            hi: (data >> 64) as u32,
+            mantissa: data,
             negative: NEG,
             scale: scale as u32,
         })
