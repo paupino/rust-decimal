@@ -124,7 +124,7 @@ pub struct UnpackedDecimal {
     archive(compare(PartialEq)),
     archive_attr(derive(Clone, Copy, Debug))
 )]
-#[cfg_attr(feature = "rkyv-safe", archive(check_bytes))]
+#[cfg_attr(feature = "rkyv-safe", archive_attr(derive(bytecheck::CheckBytes)))]
 #[cfg_attr(
 feature = "scale-codec",
 derive(Decode, Encode, TypeInfo, MaxEncodedLen),
