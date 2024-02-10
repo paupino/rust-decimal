@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{major}.{minor}.{revision}");
 
     // Process all cargo files
-    for entry in glob("./**/Cargo.toml").expect("Failed to read glob pattern") {
+    for entry in glob("./Cargo.toml").expect("Failed to read glob pattern") {
         let path = entry?;
         let toml = fs::read_to_string(&path)?;
         let mut updated_toml = String::new();
