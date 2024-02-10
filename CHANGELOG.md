@@ -1,5 +1,12 @@
 # Version History
 
+## 1.34.3
+
+### Fixed
+
+* Fixes an issue where when hydrating an underflowing `NUMERIC` value from PostgreSQL it would sometimes generate an invalid
+  Decimal ([#647](https://github.com/paupino/rust-decimal/pull/647))
+
 ## 1.34.2
 
 ### Fixed
