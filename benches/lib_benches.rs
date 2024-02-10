@@ -217,6 +217,16 @@ fn decimal_from_str(b: &mut test::Bencher) {
 }
 
 #[bench]
+fn decimal_from_str_exact(b: &mut test::Bencher) {
+    b.iter(|| {
+        for s in SAMPLE_STRS {
+            let result = Decimal::from_str_exact(s).unwrap();
+            test::black_box(result);
+        }
+    })
+}
+
+#[bench]
 fn decimal_scientific_from_str(b: &mut test::Bencher) {
     b.iter(|| {
         for s in SAMPLE_SCIENTIFIC_STRS {

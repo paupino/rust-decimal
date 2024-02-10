@@ -23,7 +23,6 @@ arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1.1.1" }
 bytes = { default-features = false, optional = true, version = "1.0" }
-decimal_parser = { path = "parser" }
 diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.0" }
 diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.1" }
 ndarray = { default-features = false, optional = true, version = "0.15.6" }
@@ -94,7 +93,6 @@ path = "benches/comparison.rs"
 [workspace]
 members = [
     ".",
-    "macros",
-    "parser"
+    "macros"
 ]
 resolver = "2"

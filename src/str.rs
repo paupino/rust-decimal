@@ -2,14 +2,13 @@ use crate::{
     constants::{MAX_PRECISION, MAX_STR_BUFFER_SIZE},
     error::Error,
     ops::array::{div_by_u32, is_all_zero},
+    parser::{DecimalComponents, ParserError},
     Decimal,
 };
 
-use arrayvec::{ArrayString, ArrayVec};
-
 use alloc::{string::String, vec::Vec};
+use arrayvec::{ArrayString, ArrayVec};
 use core::fmt;
-use decimal_parser::{DecimalComponents, ParserError};
 
 // impl that doesn't allocate for serialization purposes.
 pub(crate) fn to_str_internal(
@@ -178,21 +177,21 @@ impl From<ParserError> for Error {
 
 #[inline]
 pub(crate) fn parse_str_radix_10(str: &str) -> Result<Decimal, Error> {
-    decimal_parser::parse_radix_10(str)
+    crate::parser::parse_radix_10(str)
         .map(Decimal::from)
         .map_err(Error::from)
 }
 
 #[inline]
 pub(crate) fn parse_str_radix_10_exact(str: &str) -> Result<Decimal, Error> {
-    decimal_parser::parse_radix_10_exact(str)
+    crate::parser::parse_radix_10_exact(str)
         .map(Decimal::from)
         .map_err(Error::from)
 }
 
 #[inline]
 pub(crate) fn parse_str_scientific(str: &str) -> Result<Decimal, Error> {
-    decimal_parser::parse_scientific(str)
+    crate::parser::parse_scientific(str)
         .map(Decimal::from)
         .map_err(Error::from)
 }

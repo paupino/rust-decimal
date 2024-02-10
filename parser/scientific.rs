@@ -1,4 +1,4 @@
-use crate::{parse_radix_10_exact, DecimalComponents, ParserError, OVERFLOW_U96};
+use super::{parse_radix_10_exact, DecimalComponents, ParserError, OVERFLOW_U96};
 use std::ops::Rem;
 
 #[inline]

@@ -5,11 +5,16 @@ pub use base_10::{parse_radix_10, parse_radix_10_exact};
 pub use scientific::parse_scientific;
 
 // Determines potential overflow for 128 bit operations
-pub(crate) const OVERFLOW_U96: u128 = 1u128 << 96;
-pub(crate) const BYTES_TO_OVERFLOW_U64: usize = 18; // We can probably get away with less
-pub(crate) const WILL_OVERFLOW_U64: u64 = u64::MAX / 10 - u8::MAX as u64;
+pub(self) const OVERFLOW_U96: u128 = 1u128 << 96;
+pub(self) const BYTES_TO_OVERFLOW_U64: usize = 18; // We can probably get away with less
+pub(self) const WILL_OVERFLOW_U64: u64 = u64::MAX / 10 - u8::MAX as u64;
 
-pub enum ParserError {
+#[cold]
+pub(self) const fn tail_error(e: ParserError) -> Result<DecimalComponents, ParserError> {
+    Err(e)
+}
+
+pub(crate) enum ParserError {
     /// Parser input was empty
     EmptyInput,
     /// Exceeds maximum value for a Decimal
@@ -74,25 +79,25 @@ impl core::fmt::Display for ParserError {
 }
 
 #[derive(Debug)]
-pub struct DecimalComponents {
+pub(crate) struct DecimalComponents {
     pub mantissa: u128,
     pub negative: bool,
     pub scale: u32,
 }
 
 impl DecimalComponents {
-    #[inline(always)]
-    pub fn lo(&self) -> u32 {
+    #[inline]
+    pub(crate) const fn lo(&self) -> u32 {
         self.mantissa as u32
     }
 
-    #[inline(always)]
-    pub fn mid(&self) -> u32 {
+    #[inline]
+    pub(crate) const fn mid(&self) -> u32 {
         (self.mantissa >> 32) as u32
     }
 
-    #[inline(always)]
-    pub fn hi(&self) -> u32 {
+    #[inline]
+    pub(crate) const fn hi(&self) -> u32 {
         (self.mantissa >> 64) as u32
     }
 }

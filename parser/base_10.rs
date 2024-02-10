@@ -1,4 +1,4 @@
-use crate::{DecimalComponents, ParserError, BYTES_TO_OVERFLOW_U64, OVERFLOW_U96, WILL_OVERFLOW_U64};
+use super::{tail_error, DecimalComponents, ParserError, BYTES_TO_OVERFLOW_U64, OVERFLOW_U96, WILL_OVERFLOW_U64};
 
 #[inline]
 pub fn parse_radix_10(str: &str) -> Result<DecimalComponents, ParserError> {
@@ -31,12 +31,12 @@ fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(
 }
 
 #[inline]
-fn overflow_64(val: u64) -> bool {
+const fn overflow_64(val: u64) -> bool {
     val >= WILL_OVERFLOW_U64
 }
 
 #[inline]
-fn overflow_128(val: u128) -> bool {
+const fn overflow_128(val: u128) -> bool {
     val >= OVERFLOW_U96
 }
 
@@ -274,7 +274,7 @@ fn maybe_round(
 
 #[inline(never)]
 #[cold]
-fn tail_invalid_digit(digit: u8) -> Result<DecimalComponents, ParserError> {
+const fn tail_invalid_digit(digit: u8) -> Result<DecimalComponents, ParserError> {
     match digit {
         b'.' => tail_error(ParserError::MultipleDecimalPoints),
         b'_' => tail_error(ParserError::InvalidPlaceholderPosition),
@@ -282,14 +282,9 @@ fn tail_invalid_digit(digit: u8) -> Result<DecimalComponents, ParserError> {
     }
 }
 
-#[cold]
-fn tail_error(e: ParserError) -> Result<DecimalComponents, ParserError> {
-    Err(e)
-}
-
 #[inline(never)]
 #[cold]
-fn tail_no_has() -> Result<DecimalComponents, ParserError> {
+const fn tail_no_has() -> Result<DecimalComponents, ParserError> {
     return Err(ParserError::NoDigits);
 }
 

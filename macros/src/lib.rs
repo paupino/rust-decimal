@@ -33,6 +33,8 @@
 //! ```
 //!
 
+mod parser;
+
 use proc_macro::TokenStream;
 use quote::quote;
 
@@ -63,12 +65,12 @@ pub fn dec(input: TokenStream) -> TokenStream {
     }
 
     let decimal = if source.contains('e') || source.contains('E') {
-        match decimal_parser::parse_scientific(&source[..]) {
+        match parser::parse_scientific(&source[..]) {
             Ok(d) => d,
             Err(e) => panic!("{}", e),
         }
     } else {
-        match decimal_parser::parse_radix_10_exact(&source[..]) {
+        match parser::parse_radix_10_exact(&source[..]) {
             Ok(d) => d,
             Err(e) => panic!("{}", e),
         }

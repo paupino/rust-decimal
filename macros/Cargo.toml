@@ -12,7 +12,6 @@ categories = ["science","data-structures"]
 license = "MIT"
 
 [dependencies]
-decimal_parser = { path = "../parser" }
 quote = "1.0"
 
 [dev-dependencies]
