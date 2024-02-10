@@ -78,7 +78,7 @@ impl Decimal {
 
         result.set_sign_negative(neg);
         // Rescale to the postgres value, automatically rounding as needed.
-        result.rescale(scale as u32);
+        result.rescale((scale as u32).min(MAX_PRECISION_U32));
         result
     }
 

@@ -256,6 +256,43 @@ mod test {
     }
 
     #[test]
+    fn read_small_unconstrained_numeric_type() {
+        let mut client = match Client::connect(&get_postgres_url(), NoTls) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+        let result: Decimal = match client.query("SELECT 0.100000000000000000000000000001::NUMERIC", &[]) {
+            Ok(x) => x.first().unwrap().get(0),
+            Err(err) => panic!("error - {:#?}", err),
+        };
+
+        // This gets rounded to 28 decimal places. In the future we may want to introduce a global feature which
+        // prevents rounding.
+        assert_eq!(result.to_string(), "0.1000000000000000000000000000");
+        assert_eq!(result.scale(), 28);
+    }
+
+    #[test]
+    fn read_small_unconstrained_numeric_type_addition() {
+        let mut client = match Client::connect(&get_postgres_url(), NoTls) {
+            Ok(x) => x,
+            Err(err) => panic!("{:#?}", err),
+        };
+        let (a, b): (Decimal, Decimal) = match client.query(
+            "SELECT 0.100000000000000000000000000001::NUMERIC, 0.00000000000014780214::NUMERIC",
+            &[],
+        ) {
+            Ok(x) => {
+                let row = x.first().unwrap();
+                (row.get(0), row.get(1))
+            }
+            Err(err) => panic!("error - {:#?}", err),
+        };
+
+        assert_eq!(a + b, Decimal::from_str("0.1000000000001478021400000000").unwrap());
+    }
+
+    #[test]
     fn read_numeric_type() {
         let mut client = match Client::connect(&get_postgres_url(), NoTls) {
             Ok(x) => x,
