@@ -27,6 +27,10 @@ use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 #[cfg(feature = "rkyv")]
 use rkyv::{Archive, Deserialize, Serialize};
+#[cfg(feature = "scale-codec")]
+use parity_scale_codec_derive::{Decode,Encode, MaxEncodedLen};
+#[cfg(feature = "scale-codec")]
+use scale_info::TypeInfo;
 
 /// The smallest value that can be represented by this decimal type.
 const MIN: Decimal = Decimal {
@@ -120,7 +124,11 @@ pub struct UnpackedDecimal {
     archive(compare(PartialEq)),
     archive_attr(derive(Clone, Copy, Debug))
 )]
-#[cfg_attr(feature = "rkyv-safe", archive(check_bytes))]
+#[cfg_attr(feature = "rkyv-safe", archive_attr(derive(bytecheck::CheckBytes)))]
+#[cfg_attr(
+feature = "scale-codec",
+derive(Decode, Encode, TypeInfo, MaxEncodedLen),
+)]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
@@ -548,7 +556,7 @@ impl Decimal {
     }
 
     #[must_use]
-    pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
+    pub const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
         if lo == 0 && mid == 0 && hi == 0 {
             Decimal {
                 lo,
