@@ -1,7 +1,7 @@
 use crate::postgres::common::*;
 use crate::Decimal;
 use bytes::{BufMut, BytesMut};
-use postgres::types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
+use postgres_types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
 use std::io::{Cursor, Read};
 
 fn read_two_bytes(cursor: &mut Cursor<&[u8]>) -> std::io::Result<[u8; 2]> {
