@@ -1,5 +1,4 @@
 use rust_decimal::prelude::*;
-use rust_decimal_macros::dec;
 
 type ExampleResult = Result<(), Box<dyn std::error::Error>>;
 

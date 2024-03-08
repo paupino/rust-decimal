@@ -20,6 +20,7 @@ mod fuzz;
 mod maths;
 #[cfg(any(feature = "db-diesel1-mysql", feature = "db-diesel2-mysql"))]
 mod mysql;
+mod parser;
 #[cfg(any(
     feature = "db-tokio-postgres",
     feature = "db-postgres",
@@ -58,8 +59,8 @@ pub use error::Error;
 #[cfg(feature = "maths")]
 pub use maths::MathematicalOps;
 
-// #[cfg(feature = "macros")]
-// pub use rust_decimal_macros::dec;
+#[cfg(feature = "macros")]
+pub use rust_decimal_macros::dec;
 
 /// A convenience module appropriate for glob imports (`use rust_decimal::prelude::*;`).
 pub mod prelude {
@@ -68,8 +69,8 @@ pub mod prelude {
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
     pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
-    // #[cfg(feature = "macros")]
-    // pub use rust_decimal_macros::dec;
+    #[cfg(feature = "macros")]
+    pub use rust_decimal_macros::dec;
 }
 
 #[cfg(all(feature = "diesel1", not(feature = "diesel2")))]

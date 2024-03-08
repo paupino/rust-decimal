@@ -17,18 +17,17 @@ The binary representation consists of a 96 bit integer number, a scaling factor 
 $ cargo add rust_decimal
 ```
 
-In addition, if you would like to use the optimized macro for convenient creation of decimals:
+If you would like to use the optimized macro for convenient creation of decimals you can add `rust_decimal` with the `macros` feature flag:
 
 ```sh
-$ cargo add rust_decimal_macros
+$ cargo add rust_decimal --features macros
 ```
 
 Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.34"
-rust_decimal_macros = "1.34"
+rust_decimal = { version = "1.34", features = ["macros"] }
 ```
 
 ## Usage
@@ -36,7 +35,9 @@ rust_decimal_macros = "1.34"
 Decimal numbers can be created in a few distinct ways. The easiest and most efficient method of creating a Decimal is to use the procedural macro that can be enabled using the `macros` feature:
 
 ```rust
-// Import the `rust_decimal_macros` crate and use the macro directly from there.
+// The macros feature exposes a `dec` macro which will parse the input into a raw decimal number at compile time.
+// It is also exposed when using `rust_decimal::prelude::*`. That said, you can also import the
+// `rust_decimal_macros` crate and use the macro directly from there.
 use rust_decimal_macros::dec;
 
 let number = dec!(-1.23) + dec!(3.45);

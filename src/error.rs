@@ -1,4 +1,4 @@
-use crate::{constants::MAX_PRECISION_U32, Decimal};
+use crate::constants::MAX_PRECISION_U32;
 use alloc::string::String;
 use core::fmt;
 
@@ -8,7 +8,7 @@ pub enum Error {
     /// A generic error from Rust Decimal with the `String` containing more information as to what
     /// went wrong.
     ///
-    /// This is a legacy/deprecated error type retained for backwards compatibility.  
+    /// This is a legacy/deprecated error type retained for backwards compatibility.
     ErrorString(String),
     /// The value provided exceeds `Decimal::MAX`.
     ExceedsMaximumPossibleValue,
@@ -23,19 +23,11 @@ pub enum Error {
     ConversionTo(String),
 }
 
-impl<S> From<S> for Error
-where
-    S: Into<String>,
-{
+impl From<&str> for Error {
     #[inline]
-    fn from(from: S) -> Self {
+    fn from(from: &str) -> Self {
         Self::ErrorString(from.into())
     }
-}
-
-#[cold]
-pub(crate) fn tail_error(from: &'static str) -> Result<Decimal, Error> {
-    Err(from.into())
 }
 
 #[cfg(feature = "std")]
