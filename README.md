@@ -95,6 +95,7 @@ assert_eq!(total, dec!(27.26));
 
 **Behavior / Functionality**
 
+* [abomonation](#abomonation)
 * [borsh](#borsh)
 * [c-repr](#c-repr)
 * [legacy-ops](#legacy-ops)
@@ -120,6 +121,10 @@ assert_eq!(total, dec!(27.26));
 * [serde-with-float](#serde-with-float)
 * [serde-with-str](#serde-with-str)
 * [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
+
+### `abomonation`
+
+Enables [Abomonation](https://github.com/TimelyDataflow/abomonation) serialization for `Decimal`.
 
 ### `borsh`
 
