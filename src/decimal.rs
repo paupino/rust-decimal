@@ -13,6 +13,9 @@ use core::{
     str::FromStr,
 };
 
+#[cfg(feature = "bytemuck")]
+use bytemuck::{Pod, Zeroable};
+
 // Diesel configuration
 #[cfg(feature = "diesel2")]
 use diesel::deserialize::FromSqlRow;
@@ -109,7 +112,7 @@ pub struct UnpackedDecimal {
     sql_type = "Numeric"
 )]
 #[cfg_attr(feature = "diesel2", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
-#[cfg_attr(feature = "c-repr", repr(C))]
+#[cfg_attr(any(feature = "c-repr", feature = "bytemuck"), repr(C))]
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
@@ -133,6 +136,14 @@ pub struct Decimal {
     lo: u32,
     mid: u32,
 }
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+unsafe impl Pod for Decimal {}
+
+#[cfg(feature = "bytemuck")]
+#[allow(unsafe_code)]
+unsafe impl Zeroable for Decimal {}
 
 #[cfg(feature = "ndarray")]
 impl ndarray::ScalarOperand for Decimal {}
