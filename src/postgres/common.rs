@@ -31,14 +31,14 @@ pub(in crate::postgres) struct PostgresDecimal<D> {
 }
 
 impl Decimal {
-    pub(in crate::postgres) fn from_postgres<D: ExactSizeIterator<Item = u16>>(
+    pub(in crate::postgres) fn checked_from_postgres<D: ExactSizeIterator<Item = u16>>(
         PostgresDecimal {
             neg,
             scale,
             digits,
             weight,
         }: PostgresDecimal<D>,
-    ) -> Self {
+    ) -> Option<Self> {
         let mut digits = digits.into_iter().collect::<Vec<_>>();
 
         let fractionals_part_count = digits.len() as i32 + (-weight as i32) - 1;
@@ -54,23 +54,26 @@ impl Decimal {
             };
             let integers: Vec<_> = digits.drain(..last as usize).collect();
             for digit in integers {
-                result *= Decimal::from_i128_with_scale(10i128.pow(4), 0);
-                result += Decimal::new(digit as i64, 0);
+                result = result.checked_mul(Decimal::from_i128_with_scale(10i128.pow(4), 0))?;
+                result = result.checked_add(Decimal::new(digit as i64, 0))?;
             }
-            result *= Decimal::from_i128_with_scale(10i128.pow(4 * start_integers as u32), 0);
+            result = result.checked_mul(Decimal::from_i128_with_scale(10i128.pow(4 * start_integers as u32), 0))?;
         }
         // adding fractional part
         if fractionals_part_count > 0 {
             let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
             for (i, digit) in digits.into_iter().enumerate() {
-                let fract_pow = 4 * (i as u32 + 1 + start_fractionals);
+                let fract_pow = 4_u32.checked_mul(i as u32 + 1 + start_fractionals)?;
                 if fract_pow <= MAX_PRECISION_U32 {
-                    result += Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0);
+                    result = result.checked_add(
+                        Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0),
+                    )?;
                 } else if fract_pow == MAX_PRECISION_U32 + 4 {
                     // rounding last digit
                     if digit >= 5000 {
-                        result +=
-                            Decimal::new(1_i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION_U32), 0);
+                        result = result.checked_add(
+                            Decimal::new(1_i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION_U32), 0),
+                        )?;
                     }
                 }
             }
@@ -79,7 +82,7 @@ impl Decimal {
         result.set_sign_negative(neg);
         // Rescale to the postgres value, automatically rounding as needed.
         result.rescale((scale as u32).min(MAX_PRECISION_U32));
-        result
+        Some(result)
     }
 
     pub(in crate::postgres) fn to_postgres(self) -> PostgresDecimal<Vec<i16>> {

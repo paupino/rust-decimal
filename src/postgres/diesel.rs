@@ -27,12 +27,15 @@ impl<'a> TryFrom<&'a PgNumeric> for Decimal {
             PgNumeric::NaN => return Err(Box::from("NaN is not supported in Decimal")),
         };
 
-        Ok(Self::from_postgres(PostgresDecimal {
+        let Some(result) = Self::checked_from_postgres(PostgresDecimal {
             neg,
             weight,
             scale,
             digits: digits.iter().copied().map(|v| v.try_into().unwrap()),
-        }))
+        }) else {
+            return Err(Box::new(crate::error::Error::ExceedsMaximumPossibleValue));
+        };
+        Ok(result)
     }
 }
 
