@@ -52,7 +52,7 @@ mod serde;
     )
 ))]
 pub mod serde;
-#[cfg(feature = "wasm")]
+#[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
 pub use decimal::{Decimal, RoundingStrategy};

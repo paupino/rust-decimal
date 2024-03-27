@@ -1,6 +1,6 @@
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
   push:
     branches:
       - master
@@ -83,6 +83,24 @@ jobs:
 
       - name: Run macro tests
         run: cargo make test-macros
+
+  wasm:
+    name: Build and test wasm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Check
+        run: cargo check --target wasm32-unknown-unknown
+
+      - name: Test
+        run: cargo test --target wasm32-unknown-unknown
 
   check_style:
     name: Check file formatting and style

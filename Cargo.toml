@@ -1,12 +1,12 @@
 [package]
 authors = ["Paul Mason <paul@form1.co.nz>"]
 build = "build.rs"
-categories = ["science","mathematics","data-structures"]
+categories = ["science", "mathematics", "data-structures"]
 description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
 documentation = "https://docs.rs/rust_decimal/"
 edition = "2021"
-exclude = [ "tests/generated/*" ]
-keywords = ["decimal","financial","fixed","precision","number"]
+exclude = ["tests/generated/*"]
+keywords = ["decimal", "financial", "fixed", "precision", "number"]
 license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
@@ -17,6 +17,7 @@ version = "1.34.3"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
@@ -36,21 +37,28 @@ rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
-wasm-bindgen = { default-features = false, optional = true, version = "0.2" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { default-features = false, version = "0.2" }
 
 [dev-dependencies]
-bincode = { default-features = false, version = "1.0" }
-bytes = { default-features = false, version = "1.0" }
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
-futures = { default-features = false, version = "0.3" }
-rand = { default-features = false, features = ["getrandom"], version = "0.8" }
 rust_decimal_macros = { default-features = false, version = "1.33" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"
-tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
 version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen = { default-features = false, version = "0.2" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+bincode = { default-features = false, version = "1.0" }
+bytes = { default-features = false, version = "1.0" }
+futures = { default-features = false, version = "0.3" }
+rand = { default-features = false, features = ["getrandom"], version = "0.8" }
 postgres = { default-features = false, version = "0.19" }
+tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
 tokio-postgres = { default-features = false, version = "0.7" }
 
 [features]
@@ -78,7 +86,7 @@ rkyv = ["dep:rkyv"]
 rkyv-safe = ["rkyv/validation"]
 rocket-traits = ["dep:rocket"]
 rust-fuzz = ["dep:arbitrary"]
-serde = ["dep:serde"]
+serde = ["dep:serde", "wasm-bindgen/serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]
@@ -86,9 +94,8 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
+std = ["arrayvec/std", "wasm-bindgen/std", "borsh?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
-wasm = ["dep:wasm-bindgen"]
 
 [[bench]]
 harness = false
