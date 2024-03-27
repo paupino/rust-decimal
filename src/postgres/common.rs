@@ -65,13 +65,13 @@ impl Decimal {
             for (i, digit) in digits.into_iter().enumerate() {
                 let fract_pow = 4_u32.checked_mul(i as u32 + 1 + start_fractionals)?;
                 if fract_pow <= MAX_PRECISION_U32 {
-                    result = result.checked_mul(
+                    result = result.checked_add(
                         Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0),
                     )?;
                 } else if fract_pow == MAX_PRECISION_U32 + 4 {
                     // rounding last digit
                     if digit >= 5000 {
-                        result = result.checked_mul(
+                        result = result.checked_add(
                             Decimal::new(1_i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION_U32), 0),
                         )?;
                     }
