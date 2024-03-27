@@ -1,6 +1,6 @@
 on:
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - master
@@ -111,6 +111,7 @@ jobs:
       - standard_tests
       - dependency_tests
       - database_tests
+      - wasm_tests
       - fuzz_tests
     steps:
       - run: exit 0
@@ -125,7 +126,6 @@ jobs:
           - stable
           - beta
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
@@ -148,35 +148,20 @@ jobs:
 
       - uses: davidB/rust-cargo-make@v1
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
-
       - name: Run no_std tests
         run: cargo make test-no-std
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run default tests
         run: cargo make test-default
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run legacy operation tests
         run: cargo make test-legacy-ops
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run mathematical function tests
         run: cargo make test-maths
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run macro tests
         run: cargo make test-macros
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   dependency_tests:
     name: "Dependency Tests"
@@ -188,7 +173,6 @@ jobs:
           - stable
           - beta
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
@@ -211,20 +195,11 @@ jobs:
 
       - uses: davidB/rust-cargo-make@v1
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
-
       - name: Run serde tests
         run: cargo make test-serde
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run miscellaneous dependency tests
         run: cargo make test-misc
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   database_tests:
     name: "Database Tests"
@@ -254,7 +229,7 @@ jobs:
       postgres:
         image: postgres:11.6
         env:
-          POSTGRES_PASSWORD: ''
+          POSTGRES_PASSWORD: ""
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
@@ -283,8 +258,6 @@ jobs:
 
       - name: Run database tests
         run: cargo make test-db-postgres-all
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   mysql_tests:
     name: "Database Tests - MySQL"
@@ -305,8 +278,8 @@ jobs:
       mysql:
         image: mysql:8
         env:
-          MYSQL_ROOT_PASSWORD: ''
-          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_ROOT_PASSWORD: ""
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
         ports:
           - 3306:3306
     steps:
@@ -329,8 +302,38 @@ jobs:
 
       - name: Run database tests
         run: cargo make test-db-mysql-all
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+  wasm_tests:
+    name: "WASM Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+          components: clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: tests-wasm-stable-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Check wasm build
+        run: cargo check --target wasm32-unknown-unknown --features wasm
+
+      - name: Run clippy for wasm
+        run: cargo clippy --target wasm32-unknown-unknown --features wasm
+
+      - name: Run wasm tests
+        run: wasm-pack test --node --features wasm
 
   fuzz_tests:
     name: Fuzz Tests
