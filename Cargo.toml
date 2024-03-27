@@ -36,6 +36,7 @@ rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
+wasm-bindgen = { default-features = false, optional = true, version = "0.2" }
 
 [dev-dependencies]
 bincode = { default-features = false, version = "1.0" }
@@ -87,6 +88,7 @@ serde-with-float = ["serde"]
 serde-with-str = ["serde"]
 std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
+wasm = ["dep:wasm-bindgen"]
 
 [[bench]]
 harness = false
