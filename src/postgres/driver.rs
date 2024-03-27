@@ -79,12 +79,15 @@ impl<'a> FromSql<'a> for Decimal {
             groups.push(u16::from_be_bytes(read_two_bytes(&mut raw)?));
         }
 
-        Ok(Self::from_postgres(PostgresDecimal {
+        let Some(result) = Self::checked_from_postgres(PostgresDecimal {
             neg: sign == 0x4000,
             weight,
             scale,
             digits: groups.into_iter(),
-        }))
+        }) else {
+            return Err(Box::new(crate::error::Error::ExceedsMaximumPossibleValue));
+        };
+        Ok(result)
     }
 
     fn accepts(ty: &Type) -> bool {
@@ -421,5 +424,24 @@ mod test {
                 Err(err) => assert_eq!("22003", err.code().unwrap().code(), "Unexpected error code"),
             }
         }
+    }
+
+    #[test]
+    fn numeric_overflow_from_sql() {
+        let close_to_overflow = Decimal::from_sql(
+            &Type::NUMERIC,
+            &[0x00, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01],
+        );
+        assert!(close_to_overflow.is_ok());
+        assert_eq!(close_to_overflow.unwrap().to_string(), "10000000000000000000000000000");
+        let overflow = Decimal::from_sql(
+            &Type::NUMERIC,
+            &[0x00, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a],
+        );
+        assert!(overflow.is_err());
+        assert_eq!(
+            overflow.unwrap_err().to_string(),
+            crate::error::Error::ExceedsMaximumPossibleValue.to_string()
+        );
     }
 }
