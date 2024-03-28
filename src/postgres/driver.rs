@@ -1,8 +1,15 @@
+use crate::error::Error;
 use crate::postgres::common::*;
 use crate::Decimal;
 use bytes::{BufMut, BytesMut};
 use postgres_types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
 use std::io::{Cursor, Read};
+
+// These are from numeric.c in the PostgreSQL source code
+const NUMERIC_NAN: u16 = 0xC000;
+const NUMERIC_PINF: u16 = 0xD000;
+const NUMERIC_NINF: u16 = 0xF000;
+const NUMERIC_SPECIAL: u16 = 0xC000;
 
 fn read_two_bytes(cursor: &mut Cursor<&[u8]>) -> std::io::Result<[u8; 2]> {
     let mut result = [0; 2];
@@ -70,6 +77,20 @@ impl<'a> FromSql<'a> for Decimal {
         let weight = i16::from_be_bytes(read_two_bytes(&mut raw)?); // 10000^weight
                                                                     // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
         let sign = u16::from_be_bytes(read_two_bytes(&mut raw)?);
+
+        if (sign & NUMERIC_SPECIAL) == NUMERIC_SPECIAL {
+            let special = match sign {
+                NUMERIC_NAN => "NaN",
+                NUMERIC_PINF => "Infinity",
+                NUMERIC_NINF => "-Infinity",
+                // This shouldn't be hit unless postgres adds a new special numeric type in the
+                // future
+                _ => "unknown special numeric",
+            };
+
+            return Err(Box::new(Error::ConversionTo(special.to_string())));
+        }
+
         // Number of digits (in base 10) to print after decimal separator
         let scale = u16::from_be_bytes(read_two_bytes(&mut raw)?);
 
