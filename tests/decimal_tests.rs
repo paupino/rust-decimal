@@ -3475,7 +3475,7 @@ fn declarative_ref_dec_sum() {
 
 #[cfg(feature = "db-postgres")]
 #[test]
-fn to_from_sql() {
+fn postgres_to_from_sql() {
     use bytes::BytesMut;
     use postgres::types::{FromSql, Kind, ToSql, Type};
 
