@@ -3516,7 +3516,7 @@ fn postgres_to_from_sql() {
 
 #[cfg(feature = "db-postgres")]
 #[test]
-fn from_sql_special_numeric() {
+fn postgres_from_sql_special_numeric() {
     use postgres::types::{FromSql, Kind, Type};
 
     // The numbers below are the big-endian equivalent of the NUMERIC_* masks for NAN, PINF, NINF
