@@ -2968,6 +2968,7 @@ fn it_converts_from_i128() {
         (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
         (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
         (i128::MIN, None),
+        (i128::MAX, None),
     ];
     for (value, expected) in tests {
         let from_i128 = num_traits::FromPrimitive::from_i128(*value);
@@ -2989,11 +2990,17 @@ fn it_converts_from_u128() {
         (0xFFFF_FFFF_FFFF_FFFF, Some("18446744073709551615")),
         (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
         (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
+        (u128::MAX, None),
     ];
     for (value, expected) in tests {
-        if let Some(expected_value) = expected {
-            let decimal = Decimal::from_str(expected_value).unwrap();
-            assert_eq!(num_traits::FromPrimitive::from_u128(*value), Some(decimal));
+        let from_u128 = num_traits::FromPrimitive::from_u128(*value);
+
+        match expected {
+            Some(expected_value) => {
+                let decimal = Decimal::from_str(expected_value).unwrap();
+                assert_eq!(from_u128, Some(decimal));
+            }
+            None => assert!(from_u128.is_none()),
         }
     }
 }
