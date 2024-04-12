@@ -2967,11 +2967,18 @@ fn it_converts_from_i128() {
         (92233720368547758089, Some("92233720368547758089")),
         (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
         (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
+        (i128::MIN, None),
+        (i128::MAX, None),
     ];
     for (value, expected) in tests {
-        if let Some(expected_value) = expected {
-            let decimal = Decimal::from_str(expected_value).unwrap();
-            assert_eq!(num_traits::FromPrimitive::from_i128(*value), Some(decimal));
+        let from_i128 = num_traits::FromPrimitive::from_i128(*value);
+
+        match expected {
+            Some(expected_value) => {
+                let decimal = Decimal::from_str(expected_value).unwrap();
+                assert_eq!(from_i128, Some(decimal));
+            }
+            None => assert!(from_i128.is_none()),
         }
     }
 }
@@ -2983,11 +2990,17 @@ fn it_converts_from_u128() {
         (0xFFFF_FFFF_FFFF_FFFF, Some("18446744073709551615")),
         (0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF, Some("79228162514264337593543950335")),
         (0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF, None),
+        (u128::MAX, None),
     ];
     for (value, expected) in tests {
-        if let Some(expected_value) = expected {
-            let decimal = Decimal::from_str(expected_value).unwrap();
-            assert_eq!(num_traits::FromPrimitive::from_u128(*value), Some(decimal));
+        let from_u128 = num_traits::FromPrimitive::from_u128(*value);
+
+        match expected {
+            Some(expected_value) => {
+                let decimal = Decimal::from_str(expected_value).unwrap();
+                assert_eq!(from_u128, Some(decimal));
+            }
+            None => assert!(from_u128.is_none()),
         }
     }
 }
@@ -3473,9 +3486,9 @@ fn declarative_ref_dec_sum() {
     assert_eq!(sum, Decimal::from(45))
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(feature = "db-postgres")]
 #[test]
-fn to_from_sql() {
+fn postgres_to_from_sql() {
     use bytes::BytesMut;
     use postgres::types::{FromSql, Kind, ToSql, Type};
 
@@ -3511,6 +3524,36 @@ fn to_from_sql() {
         let output = Decimal::from_sql(&t, &bytes).unwrap();
 
         assert_eq!(input, output);
+    }
+}
+
+#[cfg(feature = "db-postgres")]
+#[test]
+fn postgres_from_sql_special_numeric() {
+    use postgres::types::{FromSql, Kind, Type};
+
+    // The numbers below are the big-endian equivalent of the NUMERIC_* masks for NAN, PINF, NINF
+    let tests = &[
+        ("NaN", &[0, 0, 0, 0, 192, 0, 0, 0]),
+        ("Infinity", &[0, 0, 0, 0, 208, 0, 0, 0]),
+        ("-Infinity", &[0, 0, 0, 0, 240, 0, 0, 0]),
+    ];
+
+    let t = Type::new("".into(), 0, Kind::Simple, "".into());
+
+    for (name, bytes) in tests {
+        let res = Decimal::from_sql(&t, *bytes);
+        match &res {
+            Ok(_) => panic!("Expected error, got Ok"),
+            Err(e) => {
+                let error_message = e.to_string();
+                assert!(
+                    error_message.contains(name),
+                    "Error message does not contain the expected value: {}",
+                    name
+                );
+            }
+        }
     }
 }
 

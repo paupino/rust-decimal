@@ -1993,7 +1993,7 @@ impl FromPrimitive for Decimal {
             unsigned = n as u128;
             flags = 0;
         } else {
-            unsigned = -n as u128;
+            unsigned = n.unsigned_abs();
             flags = SIGN_MASK;
         };
         // Check if we overflow
