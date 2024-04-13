@@ -12,7 +12,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     # Keep this the same as this is what Github looks for to determine if the build passed
-    name: "✅ Pass"
+    name: "Pass"
     needs:
       - check_style
       - minimum_rust_version
@@ -217,6 +217,15 @@ jobs:
   database_tests:
     name: "Database Tests"
     runs-on: ubuntu-latest
+    needs:
+      - postgres_tests
+      - mysql_tests
+    steps:
+      - run: exit 0
+
+  postgres_tests:
+    name: "Database Tests - PostgreSQL"
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         name:
@@ -243,6 +252,48 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+
+      - uses: davidB/rust-cargo-make@v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
+
+      - name: Run database tests
+        run: cargo make test-db-postgres-all
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+  mysql_tests:
+    name: "Database Tests - MySQL"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        name:
+          - stable
+          - beta
+          # - stable / wasm32
+          # - beta / wasm32
+        include:
+          - name: stable
+            rust: stable
+          - name: beta
+            rust: beta
+          # - name: stable / wasm32
+          #  rust: stable
+          #  target: wasm32-unknown-unknown
+          #- name: beta / wasm32
+          #  rust: beta
+          #  target: wasm32-unknown-unknown
+    services:
       mysql:
         image: mysql:8
         env:
@@ -260,13 +311,8 @@ jobs:
 
       - uses: davidB/rust-cargo-make@v1
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
-
       - name: Run database tests
-        run: cargo make test-db
+        run: cargo make db-mysql-all
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
