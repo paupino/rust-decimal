@@ -1,6 +1,6 @@
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
   push:
     branches:
       - master
@@ -10,85 +10,22 @@ name: Continuous integration
 
 jobs:
   ci:
-    name: Build and test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
-          - beta
-
-    services:
-      postgres:
-        image: postgres:11.6
-        env:
-          POSTGRES_PASSWORD: ''
-        ports:
-          - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-      mysql:
-        image: mysql:8
-        env:
-          MYSQL_ROOT_PASSWORD: ''
-          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-        ports:
-          - 3306:3306
-
+    name: "CI pass"
+    needs:
+      - check_style
+      - minimum_rust_version
+      - docs
+      - test
+      - fuzz
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-${{ matrix.backend }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
-
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ matrix.rust }}
-
-      - uses: davidB/rust-cargo-make@v1
-
-      - name: Build rust-decimal
-        run: cargo build --workspace --all-features # Important to keep this to ensure docs.rs passes
-
-      - name: Run no_std tests
-        run: cargo make test-no-std
-
-      - name: Run default tests
-        run: cargo make test-default
-
-      - name: Run legacy operation tests
-        run: cargo make test-legacy-ops
-
-      - name: Run mathematical function tests
-        run: cargo make test-maths
-
-      - name: Run miscellaneous tests
-        run: cargo make test-misc
-
-      - name: Run database tests
-        run: cargo make test-db
-
-      - name: Run serde tests
-        run: cargo make test-serde
-
-      - name: Run macro tests
-        run: cargo make test-macros
+      - run: exit 0
 
   check_style:
     name: Check file formatting and style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -114,31 +51,11 @@ jobs:
       - name: Run clippy
         run: cargo clippy --workspace --all-features
 
-  fuzz:
-    name: Fuzz
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-
-      - name: Install Cargo Fuzz
-        run: cargo install cargo-fuzz
-
-      - uses: davidB/rust-cargo-make@v1
-
-      - name: Run fuzz tests
-        run: cargo make fuzz
-
   minimum_rust_version:
     name: Check minimum rust version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -163,3 +80,126 @@ jobs:
 
       - name: Check build
         run: cargo check --workspace
+
+  docs:
+    name: "Check documentation"
+    needs: [ test ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Check documentation
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
+        run: cargo doc --no-deps --all-features
+
+  test:
+    name: "Test"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        name:
+          - stable
+          - beta
+        #          - stable / wasm32
+        #          - beta / wasm32
+        include:
+          - name: stable
+            rust: stable
+          - name: beta
+            rust: beta
+          - name: stable / wasm32
+            rust: stable
+            target: wasm32-unknown-unknown
+          - name: beta / wasm32
+            rust: beta
+            target: wasm32-unknown-unknown
+    services:
+      postgres:
+        image: postgres:11.6
+        env:
+          POSTGRES_PASSWORD: ''
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: ''
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+        ports:
+          - 3306:3306
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
+
+      - name: Run no_std tests
+        run: cargo make test-no-std
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+      - name: Run default tests
+        run: cargo make test-default
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+      - name: Run legacy operation tests
+        run: cargo make test-legacy-ops
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+      - name: Run mathematical function tests
+        run: cargo make test-maths
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+      - name: Run miscellaneous tests
+        run: cargo make test-misc
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+      - name: Run database tests
+        run: cargo make test-db
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+      - name: Run serde tests
+        run: cargo make test-serde
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+      - name: Run macro tests
+        run: cargo make test-macros
+        env:
+          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+
+      - name: Install Cargo Fuzz
+        run: cargo install cargo-fuzz
+
+      - uses: davidB/rust-cargo-make@v1
+
+      - name: Run fuzz tests
+        run: cargo make fuzz
