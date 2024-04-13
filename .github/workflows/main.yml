@@ -8,6 +8,9 @@ on:
 
 name: CI
 
+env:
+  MATRIX_CONFIG: '[{"name": "stable", "rust": "stable"}, {"name": "beta", "rust": "beta"}]'
+
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -112,22 +115,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        name:
-          - stable
-          - beta
-          # - stable / wasm32
-          # - beta / wasm32
-        include:
-          - name: stable
-            rust: stable
-          - name: beta
-            rust: beta
-          # - name: stable / wasm32
-          #  rust: stable
-          #  target: wasm32-unknown-unknown
-          #- name: beta / wasm32
-          #  rust: beta
-          #  target: wasm32-unknown-unknown
+        include: ${{fromJson(env.MATRIX_CONFIG)}}
     steps:
       - uses: actions/checkout@v4
 
@@ -173,22 +161,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        name:
-          - stable
-          - beta
-          # - stable / wasm32
-          # - beta / wasm32
-        include:
-          - name: stable
-            rust: stable
-          - name: beta
-            rust: beta
-          # - name: stable / wasm32
-          #  rust: stable
-          #  target: wasm32-unknown-unknown
-          #- name: beta / wasm32
-          #  rust: beta
-          #  target: wasm32-unknown-unknown
+        include: ${{fromJson(env.MATRIX_CONFIG)}}
     steps:
       - uses: actions/checkout@v4
 
@@ -228,22 +201,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        name:
-          - stable
-          - beta
-          # - stable / wasm32
-          # - beta / wasm32
-        include:
-          - name: stable
-            rust: stable
-          - name: beta
-            rust: beta
-          # - name: stable / wasm32
-          #  rust: stable
-          #  target: wasm32-unknown-unknown
-          #- name: beta / wasm32
-          #  rust: beta
-          #  target: wasm32-unknown-unknown
+        include: ${{fromJson(env.MATRIX_CONFIG)}}
     services:
       postgres:
         image: postgres:11.6
@@ -277,22 +235,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        name:
-          - stable
-          - beta
-          # - stable / wasm32
-          # - beta / wasm32
-        include:
-          - name: stable
-            rust: stable
-          - name: beta
-            rust: beta
-          # - name: stable / wasm32
-          #  rust: stable
-          #  target: wasm32-unknown-unknown
-          #- name: beta / wasm32
-          #  rust: beta
-          #  target: wasm32-unknown-unknown
+        include: ${{fromJson(env.MATRIX_CONFIG)}}
     services:
       mysql:
         image: mysql:8
