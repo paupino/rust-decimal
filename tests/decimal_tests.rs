@@ -212,6 +212,9 @@ mod ndarray_tests {
 
 #[cfg(feature = "rkyv")]
 mod rkyv_tests {
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
     #[test]
     fn it_can_serialize_deserialize_rkyv() {
         use rkyv::Deserialize;
