@@ -104,6 +104,7 @@ assert_eq!(total, dec!(27.26));
 * [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
 * [std](#std)
+* [wasm](#wasm)
 
 **Database**
 
@@ -330,6 +331,12 @@ Please see the `examples` directory for more information regarding `serde_json` 
 
 Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to support `no_std`
 libraries, this crate can be compiled with `--no-default-features`.
+
+### `wasm`
+
+Enable [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) support which makes `Decimal` compatible with the
+`wasm_bindgen` attribute macro and exposes `fromNumber()` and `toNumber()` methods to convert between `Decimal` and
+the primitive `number` type across boundaries.
 
 ## Building
 

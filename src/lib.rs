@@ -18,13 +18,19 @@ mod arithmetic_impls;
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
-#[cfg(any(feature = "db-diesel1-mysql", feature = "db-diesel2-mysql"))]
+#[cfg(all(
+    any(feature = "db-diesel1-mysql", feature = "db-diesel2-mysql"),
+    not(target_arch = "wasm32")
+))]
 mod mysql;
-#[cfg(any(
-    feature = "db-tokio-postgres",
-    feature = "db-postgres",
-    feature = "db-diesel1-postgres",
-    feature = "db-diesel2-postgres",
+#[cfg(all(
+    any(
+        feature = "db-tokio-postgres",
+        feature = "db-postgres",
+        feature = "db-diesel1-postgres",
+        feature = "db-diesel2-postgres",
+    ),
+    not(target_arch = "wasm32")
 ))]
 mod postgres;
 #[cfg(feature = "proptest")]
@@ -52,6 +58,8 @@ mod serde;
     )
 ))]
 pub mod serde;
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
 
 pub use decimal::{Decimal, RoundingStrategy};
 pub use error::Error;
@@ -72,11 +80,11 @@ pub mod prelude {
     // pub use rust_decimal_macros::dec;
 }
 
-#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
+#[cfg(all(feature = "diesel1", not(feature = "diesel2"), not(target_arch = "wasm32")))]
 #[macro_use]
 extern crate diesel1 as diesel;
 
-#[cfg(feature = "diesel2")]
+#[cfg(all(feature = "diesel2", not(target_arch = "wasm32")))]
 extern crate diesel2 as diesel;
 
 /// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish

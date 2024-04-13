@@ -124,12 +124,19 @@ jobs:
         name:
           - stable
           - beta
+          - stable / wasm
+          - beta / wasm
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
             rust: beta
+          - name: stable / wasm
+            rust: stable
+            target: wasm32-unknown-unknown
+          - name: beta / wasm
+            rust: beta
+            target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v4
 
@@ -147,11 +154,6 @@ jobs:
           key: tests-std-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
       - uses: davidB/rust-cargo-make@v1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
 
       - name: Run no_std tests
         run: cargo make test-no-std
@@ -187,12 +189,19 @@ jobs:
         name:
           - stable
           - beta
+          - stable / wasm
+          - beta / wasm
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
             rust: beta
+          - name: stable / wasm
+            rust: stable
+            target: wasm32-unknown-unknown
+          - name: beta / wasm
+            rust: beta
+            target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v4
 
@@ -210,11 +219,6 @@ jobs:
           key: tests-dep-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
       - uses: davidB/rust-cargo-make@v1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
 
       - name: Run serde tests
         run: cargo make test-serde
