@@ -6,12 +6,13 @@ on:
       - master
       - "[1-9].x"
 
-name: Continuous integration
+name: CI
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    name: "CI pass"
+    # Keep this the same as this is what Github looks for to determine if the build passed
+    name: "✅ Pass"
     needs:
       - check_style
       - minimum_rust_version
