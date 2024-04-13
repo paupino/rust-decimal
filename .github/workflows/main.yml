@@ -255,7 +255,7 @@ jobs:
       - uses: davidB/rust-cargo-make@v1
 
       - name: Run database tests
-        run: cargo make db-mysql-all
+        run: cargo make test-db-mysql-all
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
