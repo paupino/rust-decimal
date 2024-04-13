@@ -103,19 +103,19 @@ jobs:
         name:
           - stable
           - beta
-        #          - stable / wasm32
-        #          - beta / wasm32
+          # - stable / wasm32
+          # - beta / wasm32
         include:
           - name: stable
             rust: stable
           - name: beta
             rust: beta
-          - name: stable / wasm32
-            rust: stable
-            target: wasm32-unknown-unknown
-          - name: beta / wasm32
-            rust: beta
-            target: wasm32-unknown-unknown
+          # - name: stable / wasm32
+          #  rust: stable
+          #  target: wasm32-unknown-unknown
+          #- name: beta / wasm32
+          #  rust: beta
+          #  target: wasm32-unknown-unknown
     services:
       postgres:
         image: postgres:11.6
@@ -138,6 +138,8 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
+
+      - uses: davidB/rust-cargo-make@v1
 
       - name: Install dependencies
         run: |
