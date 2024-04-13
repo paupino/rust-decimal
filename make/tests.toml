@@ -6,31 +6,66 @@ extend = [
     { path = "tests/serde.toml" }
 ]
 
+[tasks.test-runner]
+private = true
+dependencies = [
+    "test-runner-default",
+    "test-runner-ci-target",
+    "test-feature-runner-default",
+    "test-feature-runner-ci-target"
+]
+
+[tasks.test-runner-default]
+private = true
+condition = { env_not_set = ["TEST_FEATURES", "CI_DECIMAL_TEST_TARGET"] }
+command = "cargo"
+args = ["test", "--workspace", "--no-default-features", "${TEST_FILTER}"]
+
+[tasks.test-runner-ci-target]
+private = true
+condition = { env_not_set = ["TEST_FEATURES"], env_set = ["CI_DECIMAL_TEST_TARGET"] }
+command = "cargo"
+args = ["test", "--workspace", "--no-default-features", "--target=${CI_DECIMAL_TEST_TARGET}", "${TEST_FILTER}"]
+
+[tasks.test-feature-runner-default]
+private = true
+condition = { env_set = ["TEST_FEATURES"], env_not_set = ["CI_DECIMAL_TEST_TARGET"] }
+command = "cargo"
+args = ["test", "--workspace", "--no-default-features", "--features=${TEST_FEATURES}", "${TEST_FILTER}"]
+
+[tasks.test-feature-runner-ci-target]
+private = true
+condition = { env_set = ["TEST_FEATURES", "CI_DECIMAL_TEST_TARGET"] }
+command = "cargo"
+args = ["test", "--workspace", "--no-default-features", "--features=${TEST_FEATURES}", "--target=${CI_DECIMAL_TEST_TARGET}", "${TEST_FILTER}"]
+
 [tasks.test]
 clear = true
 dependencies = ["test-no-std", "test-default"]
 
-# Some tests need cleaning before hand to ensure we don't inadvertantly test
+# Some tests need cleaning beforehand to ensure we don't inadvertantly test
 # using prebuilt logic
 [tasks.clean-no-std]
 alias = "clean"
 
 [tasks.test-no-std]
-dependencies = ["clean-no-std"]
-command = "cargo"
-args = ["test", "--no-default-features"]
+dependencies = [
+    "clean-no-std"
+]
+env = { TEST_FILTER = "" }
+run_task = "test-runner"
 
 [tasks.clean-default]
 alias = "clean"
 
 [tasks.test-default]
 dependencies = ["clean-default"]
-command = "cargo"
-args = ["test", "--workspace", "--features=default"]
+env = { TEST_FEATURES = "default", TEST_FILTER = "" }
+run_task = "test-runner"
 
 [tasks.test-legacy-ops]
-command = "cargo"
-args = ["test", "--workspace", "--features=legacy-ops"]
+env = { TEST_FEATURES = "legacy-ops", TEST_FILTER = "" }
+run_task = "test-runner"
 
 # This should reflect the steps in github
 [tasks.test-all]
