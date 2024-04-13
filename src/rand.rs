@@ -125,7 +125,7 @@ fn sync_scales(mut a: Decimal, mut b: Decimal) -> (Decimal, Decimal) {
 }
 
 #[cfg(test)]
-mod tests {
+mod rand_tests {
     use std::collections::HashSet;
 
     use super::*;
