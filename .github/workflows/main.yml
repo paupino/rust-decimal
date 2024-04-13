@@ -101,6 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - standard_tests
+      - dependency_tests
       - database_tests
       - fuzz_tests
     steps:
@@ -162,18 +163,54 @@ jobs:
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
-      - name: Run miscellaneous tests
-        run: cargo make test-misc
+      - name: Run macro tests
+        run: cargo make test-macros
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+  dependency_tests:
+    name: "Dependency Tests"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        name:
+          - stable
+          - beta
+          # - stable / wasm32
+          # - beta / wasm32
+        include:
+          - name: stable
+            rust: stable
+          - name: beta
+            rust: beta
+          # - name: stable / wasm32
+          #  rust: stable
+          #  target: wasm32-unknown-unknown
+          #- name: beta / wasm32
+          #  rust: beta
+          #  target: wasm32-unknown-unknown
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+
+      - uses: davidB/rust-cargo-make@v1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
 
       - name: Run serde tests
         run: cargo make test-serde
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
-      - name: Run macro tests
-        run: cargo make test-macros
+      - name: Run miscellaneous dependency tests
+        run: cargo make test-misc
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
