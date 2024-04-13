@@ -8,6 +8,17 @@ extend = [
 
 [tasks.test-runner]
 private = true
+env_scripts = [
+    '''
+    #!@duckscript
+    target_value = get_env CI_DECIMAL_TEST_TARGET
+    target_set = is_set ${target_value}
+    empty = is_empty ${value}
+    if target_set and not empty
+        set_env TEST_TARGET ${target_value}
+    end
+    '''
+]
 dependencies = [
     "test-runner-default",
     "test-runner-ci-target",
@@ -17,27 +28,27 @@ dependencies = [
 
 [tasks.test-runner-default]
 private = true
-condition = { env_not_set = ["TEST_FEATURES", "CI_DECIMAL_TEST_TARGET"] }
+condition = { env_not_set = ["TEST_FEATURES", "TEST_TARGET"] }
 command = "cargo"
 args = ["test", "--workspace", "--no-default-features", "${TEST_FILTER}"]
 
 [tasks.test-runner-ci-target]
 private = true
-condition = { env_not_set = ["TEST_FEATURES"], env_set = ["CI_DECIMAL_TEST_TARGET"] }
+condition = { env_not_set = ["TEST_FEATURES"], env_set = ["TEST_TARGET"] }
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--target=${CI_DECIMAL_TEST_TARGET}", "${TEST_FILTER}"]
+args = ["test", "--workspace", "--no-default-features", "--target=${TEST_TARGET}", "${TEST_FILTER}"]
 
 [tasks.test-feature-runner-default]
 private = true
-condition = { env_set = ["TEST_FEATURES"], env_not_set = ["CI_DECIMAL_TEST_TARGET"] }
+condition = { env_set = ["TEST_FEATURES"], env_not_set = ["TEST_TARGET"] }
 command = "cargo"
 args = ["test", "--workspace", "--no-default-features", "--features=${TEST_FEATURES}", "${TEST_FILTER}"]
 
 [tasks.test-feature-runner-ci-target]
 private = true
-condition = { env_set = ["TEST_FEATURES", "CI_DECIMAL_TEST_TARGET"] }
+condition = { env_set = ["TEST_FEATURES", "TEST_TARGET"] }
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=${TEST_FEATURES}", "--target=${CI_DECIMAL_TEST_TARGET}", "${TEST_FILTER}"]
+args = ["test", "--workspace", "--no-default-features", "--features=${TEST_FEATURES}", "--target=${TEST_TARGET}", "${TEST_FILTER}"]
 
 [tasks.test]
 clear = true

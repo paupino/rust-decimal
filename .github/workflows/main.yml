@@ -155,11 +155,6 @@ jobs:
 
       - uses: davidB/rust-cargo-make@v1
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
-
       - name: Run no_std tests
         run: cargo make test-no-std
         env:
@@ -224,11 +219,6 @@ jobs:
           key: tests-dep-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
       - uses: davidB/rust-cargo-make@v1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
 
       - name: Run serde tests
         run: cargo make test-serde
