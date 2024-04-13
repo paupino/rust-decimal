@@ -142,12 +142,19 @@ jobs:
         name:
           - stable
           - beta
+          - stable / wasm
+          - beta / wasm
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
             rust: beta
+          - name: stable / wasm
+            rust: stable
+            target: wasm32-unknown-unknown
+          - name: beta / wasm
+            rust: beta
+            target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v4
 
@@ -205,12 +212,19 @@ jobs:
         name:
           - stable
           - beta
+          - stable / wasm
+          - beta / wasm
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
             rust: beta
+          - name: stable / wasm
+            rust: stable
+            target: wasm32-unknown-unknown
+          - name: beta / wasm
+            rust: beta
+            target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v4
 
