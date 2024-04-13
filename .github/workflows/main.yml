@@ -8,9 +8,6 @@ on:
 
 name: CI
 
-env:
-  MATRIX_CONFIG: '[{"name": "stable", "rust": "stable"}, {"name": "beta", "rust": "beta"}]'
-
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -114,8 +111,17 @@ jobs:
     name: "Standard Tests"
     runs-on: ubuntu-latest
     strategy:
+      # There doesn't seem to be a way to share the matrix between jobs
       matrix:
-        include: ${{fromJson(env.MATRIX_CONFIG)}}
+        name:
+          - stable
+          - beta
+        include:
+          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
+          - name: stable
+            rust: stable
+          - name: beta
+            rust: beta
     steps:
       - uses: actions/checkout@v4
 
@@ -160,8 +166,17 @@ jobs:
     name: "Dependency Tests"
     runs-on: ubuntu-latest
     strategy:
+      # There doesn't seem to be a way to share the matrix between jobs
       matrix:
-        include: ${{fromJson(env.MATRIX_CONFIG)}}
+        name:
+          - stable
+          - beta
+        include:
+          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
+          - name: stable
+            rust: stable
+          - name: beta
+            rust: beta
     steps:
       - uses: actions/checkout@v4
 
@@ -200,8 +215,17 @@ jobs:
     name: "Database Tests - PostgreSQL"
     runs-on: ubuntu-latest
     strategy:
+      # There doesn't seem to be a way to share the matrix between jobs
       matrix:
-        include: ${{fromJson(env.MATRIX_CONFIG)}}
+        name:
+          - stable
+          - beta
+        include:
+          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
+          - name: stable
+            rust: stable
+          - name: beta
+            rust: beta
     services:
       postgres:
         image: postgres:11.6
@@ -234,8 +258,17 @@ jobs:
     name: "Database Tests - MySQL"
     runs-on: ubuntu-latest
     strategy:
+      # There doesn't seem to be a way to share the matrix between jobs
       matrix:
-        include: ${{fromJson(env.MATRIX_CONFIG)}}
+        name:
+          - stable
+          - beta
+        include:
+          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
+          - name: stable
+            rust: stable
+          - name: beta
+            rust: beta
     services:
       mysql:
         image: mysql:8
