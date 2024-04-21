@@ -3,8 +3,7 @@ extend = [
     { path = "tests/macros.toml" },
     { path = "tests/maths.toml" },
     { path = "tests/misc.toml" },
-    { path = "tests/serde.toml" },
-    { path = "tests/wasm.toml" }
+    { path = "tests/serde.toml" }
 ]
 
 env_scripts = [
