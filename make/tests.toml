@@ -3,22 +3,23 @@ extend = [
     { path = "tests/macros.toml" },
     { path = "tests/maths.toml" },
     { path = "tests/misc.toml" },
-    { path = "tests/serde.toml" }
+    { path = "tests/serde.toml" },
+    { path = "tests/wasm.toml" }
 ]
 
-[tasks.test-runner]
-private = true
 env_scripts = [
     '''
     #!@duckscript
     target_value = get_env CI_DECIMAL_TEST_TARGET
-    target_set = is_set ${target_value}
-    empty = is_empty ${value}
-    if target_set and not empty
+    empty = is_empty ${target_value}
+    if not ${empty}
         set_env TEST_TARGET ${target_value}
     end
     '''
 ]
+
+[tasks.test-runner]
+private = true
 dependencies = [
     "test-runner-default",
     "test-runner-ci-target",
@@ -88,5 +89,6 @@ dependencies = [
     "test-misc",
     "test-db",
     "test-serde",
-    "test-macros"
+    "test-macros",
+    "test-wasm"
 ]

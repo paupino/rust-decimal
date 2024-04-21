@@ -111,6 +111,7 @@ jobs:
       - standard_tests
       - dependency_tests
       - database_tests
+      - wasm_tests
       - fuzz_tests
     steps:
       - run: exit 0
@@ -124,19 +125,11 @@ jobs:
         name:
           - stable
           - beta
-          - stable / wasm
-          - beta / wasm
         include:
           - name: stable
             rust: stable
           - name: beta
             rust: beta
-          - name: stable / wasm
-            rust: stable
-            target: wasm32-unknown-unknown
-          - name: beta / wasm
-            rust: beta
-            target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v4
 
@@ -157,28 +150,18 @@ jobs:
 
       - name: Run no_std tests
         run: cargo make test-no-std
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run default tests
         run: cargo make test-default
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run legacy operation tests
         run: cargo make test-legacy-ops
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run mathematical function tests
         run: cargo make test-maths
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run macro tests
         run: cargo make test-macros
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   dependency_tests:
     name: "Dependency Tests"
@@ -189,19 +172,11 @@ jobs:
         name:
           - stable
           - beta
-          - stable / wasm
-          - beta / wasm
         include:
           - name: stable
             rust: stable
           - name: beta
             rust: beta
-          - name: stable / wasm
-            rust: stable
-            target: wasm32-unknown-unknown
-          - name: beta / wasm
-            rust: beta
-            target: wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v4
 
@@ -222,13 +197,9 @@ jobs:
 
       - name: Run serde tests
         run: cargo make test-serde
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run miscellaneous dependency tests
         run: cargo make test-misc
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   database_tests:
     name: "Database Tests"
@@ -287,8 +258,6 @@ jobs:
 
       - name: Run database tests
         run: cargo make test-db-postgres-all
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   mysql_tests:
     name: "Database Tests - MySQL"
@@ -333,8 +302,30 @@ jobs:
 
       - name: Run database tests
         run: cargo make test-db-mysql-all
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
+
+  wasm_tests:
+    name: "WASM Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: tests-wasm-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - uses: davidB/rust-cargo-make@v1
+
+      - name: Run wasm tests
+        run: cargo make test-wasm
 
   fuzz_tests:
     name: Fuzz Tests

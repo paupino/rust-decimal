@@ -1,0 +1,5 @@
+[tasks.test-wasm]
+install_crate = { crate_name = "wasm-bindgen-cli", install_command = "cargo install wasm-bindgen-cli --vers '0.2.92'" }
+command = "cargo"
+args = ["test", "--target", "wasm32-unknown-unknown", "--features", "wasm"]
+
