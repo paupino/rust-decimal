@@ -13,6 +13,9 @@ use core::{
     str::FromStr,
 };
 
+#[cfg(feature = "abomonation")]
+use abomonation_derive::Abomonation;
+
 // Diesel configuration
 #[cfg(feature = "diesel2")]
 use diesel::deserialize::FromSqlRow;
@@ -103,6 +106,7 @@ pub struct UnpackedDecimal {
 /// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
+#[cfg_attr(feature = "abomonation", derive(Abomonation))]
 #[cfg_attr(
     all(feature = "diesel1", not(feature = "diesel2")),
     derive(FromSqlRow, AsExpression),
