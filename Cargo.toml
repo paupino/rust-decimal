@@ -1,12 +1,12 @@
 [package]
 authors = ["Paul Mason <paul@form1.co.nz>"]
 build = "build.rs"
-categories = ["science","mathematics","data-structures"]
+categories = ["science", "mathematics", "data-structures"]
 description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
 documentation = "https://docs.rs/rust_decimal/"
 edition = "2021"
-exclude = [ "tests/generated/*" ]
-keywords = ["decimal","financial","fixed","precision","number"]
+exclude = ["tests/generated/*"]
+keywords = ["decimal", "financial", "fixed", "precision", "number"]
 license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
@@ -23,8 +23,7 @@ arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1.1.1" }
 bytes = { default-features = false, optional = true, version = "1.0" }
-diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.0" }
-diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.1" }
+diesel = { default-features = false, optional = true, version = "2.2" }
 ndarray = { default-features = false, optional = true, version = "0.15.6" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres-types = { default-features = false, optional = true, version = "0.2" }
@@ -59,12 +58,10 @@ default = ["serde", "std"]
 
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
-db-diesel-mysql = ["db-diesel1-mysql"]
-db-diesel-postgres = ["db-diesel1-postgres"]
-db-diesel1-mysql = ["diesel1/mysql", "std"]
-db-diesel1-postgres = ["diesel1/postgres", "std"]
-db-diesel2-mysql = ["diesel2/mysql", "std"]
-db-diesel2-postgres = ["diesel2/postgres", "std"]
+db-diesel-mysql = ["diesel/mysql", "std"]
+db-diesel-postgres = ["diesel/postgres", "std"]
+db-diesel2-mysql = ["db-diesel-mysql"]
+db-diesel2-postgres = ["db-diesel-postgres"]
 db-postgres = ["dep:bytes", "dep:postgres-types", "std"]
 db-tokio-postgres = ["dep:bytes", "dep:postgres-types", "std"]
 legacy-ops = []
