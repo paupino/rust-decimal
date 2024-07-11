@@ -1,15 +1,23 @@
 # Decimal &emsp; [![Build Status]][actions] [![Latest Version]][crates.io] [![Docs Badge]][docs]
 
 [Build Status]: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fpaupino%2Frust-decimal%2Fbadge&label=build&logo=none
+
 [actions]: https://actions-badge.atrox.dev/paupino/rust-decimal/goto
+
 [Latest Version]: https://img.shields.io/crates/v/rust-decimal.svg
+
 [crates.io]: https://crates.io/crates/rust-decimal
+
 [Docs Badge]: https://docs.rs/rust_decimal/badge.svg
+
 [docs]: https://docs.rs/rust_decimal
 
-A Decimal number implementation written in pure Rust suitable for financial calculations that require significant integral and fractional digits with no round-off errors.
+A Decimal number implementation written in pure Rust suitable for financial calculations that require significant
+integral and fractional digits with no round-off errors.
 
-The binary representation consists of a 96 bit integer number, a scaling factor used to specify the decimal fraction and a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These can be truncated using the `normalize` or `round_dp` functions.
+The binary representation consists of a 96 bit integer number, a scaling factor used to specify the decimal fraction and
+a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These
+can be truncated using the `normalize` or `round_dp` functions.
 
 ## Installing
 
@@ -33,7 +41,8 @@ rust_decimal_macros = "1.35"
 
 ## Usage
 
-Decimal numbers can be created in a few distinct ways. The easiest and most efficient method of creating a Decimal is to use the procedural macro that can be enabled using the `macros` feature:
+Decimal numbers can be created in a few distinct ways. The easiest and most efficient method of creating a Decimal is to
+use the procedural macro that can be enabled using the `macros` feature:
 
 ```rust
 // Import the `rust_decimal_macros` crate and use the macro directly from there.
@@ -44,7 +53,8 @@ assert_eq!(number, dec!(2.22));
 assert_eq!(number.to_string(), "2.22");
 ```
 
-Alternatively you can also use one of the Decimal number convenience functions ([see the docs](https://docs.rs/rust_decimal/) for more details):
+Alternatively you can also use one of the Decimal number convenience
+functions ([see the docs](https://docs.rs/rust_decimal/) for more details):
 
 ```rust
 // Using the prelude can help importing trait based functions (e.g. core::str::FromStr).
@@ -140,31 +150,30 @@ Enables the tokio postgres module allowing for async communication with PostgreS
 
 ### `db-diesel-postgres`
 
-Enable `diesel` PostgreSQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `2.0` 
-version of `diesel` then you can do so by using the feature `db-diesel2-postgres`. Please note, if both features are 
-enabled then version 2 will supersede version 1.
+Enable [`diesel`](https://diesel.rs) PostgreSQL support.
 
 ### `db-diesel-mysql`
 
-Enable `diesel` MySQL support. By default, this enables version `1.4` of `diesel`. If you wish to use the `2.0` 
-version of `diesel` then you can do so by using the feature `db-diesel2-mysql`. Please note, if both features are
-enabled then version 2 will supersede version 1.
+Enable [`diesel`](https://diesel.rs) MySQL support.
 
 ### `legacy-ops`
 
 **Warning:** This is deprecated and will be removed from a future versions.
 
-As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed improvements.
+As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed
+improvements.
 To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
 
 ### `maths`
 
 The `maths` feature enables additional complex mathematical functions such as `pow`, `ln`, `enf`, `exp` etc.
 Documentation detailing the additional functions can be found on the
-[`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.  
+[`MathematicalOps`](https://docs.rs/rust_decimal/latest/rust_decimal/trait.MathematicalOps.html) trait.
 
-Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred functions
-to curb against this. When the `maths` feature was first developed the library would instead return `0` on invalid input. To re-enable this
+Please note that `ln` and `log10` will panic on invalid input with `checked_ln` and `checked_log10` the preferred
+functions
+to curb against this. When the `maths` feature was first developed the library would instead return `0` on invalid
+input. To re-enable this
 non-panicking behavior, please use the feature: `maths-nopanic`.
 
 ### `ndarray`
@@ -179,10 +188,13 @@ Enables a [`proptest`](https://github.com/proptest-rs/proptest) strategy to gene
 
 Implements `rand::distributions::Distribution<Decimal>` to allow the creation of random instances.
 
-Note: When using `rand::Rng` trait to generate a decimal between a range of two other decimals, the scale of the randomly-generated
-decimal will be the same as the scale of the input decimals (or, if the inputs have different scales, the higher of the two).
+Note: When using `rand::Rng` trait to generate a decimal between a range of two other decimals, the scale of the
+randomly-generated
+decimal will be the same as the scale of the input decimals (or, if the inputs have different scales, the higher of the
+two).
 
 ### `rkyv`
+
 Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`.
 Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
 
@@ -196,12 +208,14 @@ Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 
 ### `serde-float`
 
-> **Note:** This feature applies float serialization/deserialization rules as the default method for handling `Decimal` numbers. 
-See also the `serde-with-*` features for greater flexibility.
+> **Note:** This feature applies float serialization/deserialization rules as the default method for handling `Decimal`
+> numbers.
+> See also the `serde-with-*` features for greater flexibility.
 
 Enable this so that JSON serialization of `Decimal` types are sent as a float instead of a string (default).
 
 e.g. with this turned on, JSON serialization would output:
+
 ```json
 {
   "value": 1.234
@@ -210,8 +224,9 @@ e.g. with this turned on, JSON serialization would output:
 
 ### `serde-str`
 
-> **Note:** This feature applies string serialization/deserialization rules as the default method for handling `Decimal` numbers.
-See also the `serde-with-*` features for greater flexibility.
+> **Note:** This feature applies string serialization/deserialization rules as the default method for handling `Decimal`
+> numbers.
+> See also the `serde-with-*` features for greater flexibility.
 
 This is typically useful for `bincode` or `csv` like implementations.
 
@@ -225,20 +240,23 @@ converting to `f64` _loses_ precision, it's highly recommended that you do NOT e
 
 ### `serde-arbitrary-precision`
 
-> **Note:** This feature applies arbitrary serialization/deserialization rules as the default method for handling `Decimal` numbers.
-See also the `serde-with-*` features for greater flexibility.
+> **Note:** This feature applies arbitrary serialization/deserialization rules as the default method for
+> handling `Decimal` numbers.
+> See also the `serde-with-*` features for greater flexibility.
 
 This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the
 `arbitrary_precision` feature inside `serde_json` when parsing decimals.
 
 This is recommended when parsing "float" looking data as it will prevent data loss.
 
-Please note, this currently serializes numbers in a float like format by default, which can be an unexpected consequence. For greater
+Please note, this currently serializes numbers in a float like format by default, which can be an unexpected
+consequence. For greater
 control over the serialization format, please use the `serde-with-arbitrary-precision` feature.
 
 ### `serde-with-float`
 
-Enable this to access the module for serializing `Decimal` types to a float. This can be used in `struct` definitions like so:
+Enable this to access the module for serializing `Decimal` types to a float. This can be used in `struct` definitions
+like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -247,6 +265,7 @@ pub struct FloatExample {
     value: Decimal,
 }
 ```
+
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct OptionFloatExample {
@@ -256,6 +275,7 @@ pub struct OptionFloatExample {
 ```
 
 Alternatively, if only the serialization feature is desired (e.g. to keep flexibility while deserialization):
+
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct FloatExample {
@@ -266,7 +286,8 @@ pub struct FloatExample {
 
 ### `serde-with-str`
 
-Enable this to access the module for serializing `Decimal` types to a `String`. This can be used in `struct` definitions like so:
+Enable this to access the module for serializing `Decimal` types to a `String`. This can be used in `struct` definitions
+like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -275,6 +296,7 @@ pub struct StrExample {
     value: Decimal,
 }
 ```
+
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct OptionStrExample {
@@ -283,8 +305,10 @@ pub struct OptionStrExample {
 }
 ```
 
-This feature isn't typically required for serialization however can be useful for deserialization purposes since it does not require
+This feature isn't typically required for serialization however can be useful for deserialization purposes since it does
+not require
 a type hint. Consequently, you can force this for just deserialization by:
+
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct StrExample {
@@ -295,7 +319,8 @@ pub struct StrExample {
 
 ### `serde-with-arbitrary-precision`
 
-Enable this to access the module for deserializing `Decimal` types using the `serde_json/arbitrary_precision` feature. This can be used in `struct` definitions like so:
+Enable this to access the module for deserializing `Decimal` types using the `serde_json/arbitrary_precision` feature.
+This can be used in `struct` definitions like so:
 
 ```rust
 #[derive(Serialize, Deserialize)]
@@ -304,6 +329,7 @@ pub struct ArbitraryExample {
     value: Decimal,
 }
 ```
+
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct OptionArbitraryExample {
@@ -312,8 +338,9 @@ pub struct OptionArbitraryExample {
 }
 ```
 
-An unexpected consequence of this feature is that it will serialize as a float like number. To prevent this, you can 
+An unexpected consequence of this feature is that it will serialize as a float like number. To prevent this, you can
 target the struct to only deserialize with the `arbitrary_precision` feature:
+
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct ArbitraryExample {
@@ -328,7 +355,8 @@ Please see the `examples` directory for more information regarding `serde_json` 
 
 ### `std`
 
-Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to support `no_std`
+Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to
+support `no_std`
 libraries, this crate can be compiled with `--no-default-features`.
 
 ## Building
@@ -337,31 +365,41 @@ Please refer to the [Build document](BUILD.md) for more information on building 
 
 ## Minimum Rust Compiler Version
 
-The current _minimum_ compiler version is [`1.60.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1600-2022-04-07)
+The current _minimum_ compiler version
+is [`1.60.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1600-2022-04-07)
 which was released on `2022-04-07`.
 
-This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust compiler version.
-For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and including `1.46.0`.
+This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust
+compiler version.
+For example, if the current stable compiler version is `1.50.0` then we will guarantee support up to and
+including `1.46.0`.
 Of note, we will only update the minimum supported version if and when required.
 
 ## Comparison to other Decimal implementations
 
-During the development of this library, there were various design decisions made to ensure that decimal calculations would 
-be quick, accurate and efficient. Some decisions, however, put limitations on what this library can do and ultimately what 
-it is suitable for. One such decision was the structure of the internal decimal representation. 
+During the development of this library, there were various design decisions made to ensure that decimal calculations
+would
+be quick, accurate and efficient. Some decisions, however, put limitations on what this library can do and ultimately
+what
+it is suitable for. One such decision was the structure of the internal decimal representation.
 
-This library uses a mantissa of 96 bits made up of three 32-bit unsigned integers with a fourth 32-bit unsigned integer to represent the scale/sign
-(similar to the C and .NET Decimal implementations). 
-This structure allows us to make use of algorithmic optimizations to implement basic arithmetic; ultimately this gives us the ability 
-to squeeze out performance and make it one of the fastest implementations available. The downside of this approach however is that 
+This library uses a mantissa of 96 bits made up of three 32-bit unsigned integers with a fourth 32-bit unsigned integer
+to represent the scale/sign
+(similar to the C and .NET Decimal implementations).
+This structure allows us to make use of algorithmic optimizations to implement basic arithmetic; ultimately this gives
+us the ability
+to squeeze out performance and make it one of the fastest implementations available. The downside of this approach
+however is that
 the maximum number of significant digits that can be represented is roughly 28 base-10 digits (29 in some cases).
 
-While this constraint is not an issue for many applications (e.g. when dealing with money), some applications may require a higher number of significant digits to be represented. Fortunately,
+While this constraint is not an issue for many applications (e.g. when dealing with money), some applications may
+require a higher number of significant digits to be represented. Fortunately,
 there are alternative implementations that may be worth investigating, such as:
 
 * [bigdecimal](https://crates.io/crates/bigdecimal)
 * [decimal-rs](https://crates.io/crates/decimal-rs)
 
-If you have further questions about the suitability of this library for your project, then feel free to either start a 
-[discussion](https://github.com/paupino/rust-decimal/discussions) or open an [issue](https://github.com/paupino/rust-decimal/issues) and we'll
+If you have further questions about the suitability of this library for your project, then feel free to either start a
+[discussion](https://github.com/paupino/rust-decimal/discussions) or open
+an [issue](https://github.com/paupino/rust-decimal/issues) and we'll
 do our best to help.

@@ -18,13 +18,12 @@ mod arithmetic_impls;
 mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
-#[cfg(any(feature = "db-diesel1-mysql", feature = "db-diesel2-mysql"))]
+#[cfg(feature = "db-diesel-mysql")]
 mod mysql;
 #[cfg(any(
     feature = "db-tokio-postgres",
     feature = "db-postgres",
-    feature = "db-diesel1-postgres",
-    feature = "db-diesel2-postgres",
+    feature = "db-diesel-postgres",
 ))]
 mod postgres;
 #[cfg(feature = "proptest")]
@@ -72,12 +71,8 @@ pub mod prelude {
     // pub use rust_decimal_macros::dec;
 }
 
-#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
-#[macro_use]
-extern crate diesel1 as diesel;
-
-#[cfg(feature = "diesel2")]
-extern crate diesel2 as diesel;
+#[cfg(feature = "diesel")]
+extern crate diesel;
 
 /// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish
 /// between `rust_decimal` and `std` types.
