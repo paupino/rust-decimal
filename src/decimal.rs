@@ -1896,7 +1896,7 @@ impl Signed for Decimal {
         if self <= other {
             ZERO
         } else {
-            self.abs()
+            self - other
         }
     }
 
