@@ -269,7 +269,7 @@ pub mod str_option {
         match *value {
             Some(ref decimal) => {
                 let decimal = crate::str::to_str_internal(decimal, true, None);
-                serializer.serialize_some(decimal.0.as_ref())
+                serializer.serialize_some::<str>(decimal.0.as_ref())
             }
             None => serializer.serialize_none(),
         }
