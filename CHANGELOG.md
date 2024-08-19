@@ -1,5 +1,26 @@
 # Version History
 
+# 1.36.0
+
+### Fixed
+
+* Fixes a bug where `from_sql` was converting `Numeric::NaN` to `0` rather than returning an
+  error. ([#656](https://github.com/paupino/rust-decimal/pull/656)).
+* Fixes an issue where `i128::MIN` would cause overflow when calling
+  `from_i128` ([#657](https://github.com/paupino/rust-decimal/pull/657)).
+* Fixes issue with `abs_sub` whereby it was not returning the
+  difference ([#666](https://github.com/paupino/rust-decimal/pull/666)).
+* Fixes issue with `serde_str` after downstream dependency
+  update ([#670](https://github.com/paupino/rust-decimal/pull/670)).
+
+### Changed
+
+* Github workflow improvements ([#658](https://github.com/paupino/rust-decimal/pull/658)).
+* Diesel 1 feature has been deprecated and Diesel 2 was upgraded to
+  v2.2 ([#663](https://github.com/paupino/rust-decimal/pull/663)).
+* Replace `proptest` strategy to improve generation of random
+  values ([#659](https://github.com/paupino/rust-decimal/pull/659)).
+
 # 1.35.0
 
 ### Fixed
