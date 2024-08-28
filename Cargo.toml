@@ -22,6 +22,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1.1.1" }
+bytemuck = { default-features = false, optional = true, version = "1.17.1" }
+bytemuck_derive = { default-features = false, optional = true, version = "1.7.1" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel = { default-features = false, optional = true, version = "2.2" }
 ndarray = { default-features = false, optional = true, version = "0.15.6" }
@@ -57,6 +59,7 @@ default = ["serde", "std"]
 #macros = ["dep:rust_decimal_macros"]
 
 borsh = ["dep:borsh", "std"]
+bytemuck = ["dep:bytemuck", "dep:bytemuck_derive"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["diesel/mysql", "std"]
 db-diesel-postgres = ["diesel/postgres", "std"]
