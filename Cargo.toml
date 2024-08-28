@@ -59,7 +59,7 @@ default = ["serde", "std"]
 #macros = ["dep:rust_decimal_macros"]
 
 borsh = ["dep:borsh", "std"]
-bytemuck = ["dep:bytemuck", "dep:bytemuck_derive"]
+bytemuck = ["c-repr", "dep:bytemuck", "dep:bytemuck_derive"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["diesel/mysql", "std"]
 db-diesel-postgres = ["diesel/postgres", "std"]
