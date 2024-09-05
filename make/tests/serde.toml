@@ -8,6 +8,7 @@ dependencies = [
     "test-serde-with-arbitrary-precision",
     "test-serde-with-float",
     "test-serde-with-str",
+    "test-serde-lexical",
 ]
 
 [tasks.test-serde-float]
@@ -41,3 +42,7 @@ args = ["test", "--workspace", "--tests", "--features=serde-with-float", "serde"
 [tasks.test-serde-with-str]
 command = "cargo"
 args = ["test", "--workspace", "--tests", "--features=serde-with-str", "serde", "--", "--skip", "generated"]
+
+[tasks.test-serde-lexical]
+command = "cargo"
+args = ["test", "--workspace", "--tests", "--features=serde-lexical", "serde", "--", "--skip", "generated"]

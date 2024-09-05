@@ -82,6 +82,7 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
+serde-lexical = ["std", "serde"]
 std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
