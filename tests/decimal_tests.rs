@@ -3137,6 +3137,19 @@ fn it_converts_from_f64_limits() {
 }
 
 #[test]
+fn it_converts_from_f64_dec_limits() {
+    use num_traits::FromPrimitive;
+
+    let max_next_up_next_up = 79228162514264355185729994752f64;
+    let max_next_up = 79228162514264337593543950336f64;
+    let max = 79228162514264328797450928128f64;
+
+    assert!(Decimal::from_f64(max_next_up_next_up).is_none(), "from_f64(79228162514264355185729994752f64)");
+    assert!(Decimal::from_f64(max_next_up).is_none(), "from_f64(79228162514264337593543950336f64)");
+    assert_eq!("79228162514264328797450928128", Decimal::from_f64(max).unwrap().to_string(), "from_f64(79228162514264328797450928128f64)");
+}
+
+#[test]
 fn it_converts_from_f64_retaining_bits() {
     let tests = [
         (0.1_f64, "0.1000000000000000055511151231"),
