@@ -3140,22 +3140,29 @@ fn it_converts_from_f64_limits() {
 fn it_converts_from_f64_dec_limits() {
     use num_traits::FromPrimitive;
 
-    let max_next_up_next_up = 79228162514264355185729994752f64;
-    let max_next_up = 79228162514264337593543950336f64;
-    let max = 79228162514264328797450928128f64;
+    // Note Decimal MAX is: 79_228_162_514_264_337_593_543_950_335
+    let over_max = 79_228_162_514_264_355_185_729_994_752_f64;
+    let max_plus_one = 79_228_162_514_264_337_593_543_950_336_f64;
+    let under_max = 79_228_162_514_264_328_797_450_928_128_f64;
+    let max = 79_228_162_514_264_337_593_543_950_335_f64;
 
     assert!(
-        Decimal::from_f64(max_next_up_next_up).is_none(),
-        "from_f64(79228162514264355185729994752f64)"
+        Decimal::from_f64(over_max).is_none(),
+        "from_f64(79_228_162_514_264_355_185_729_994_752_f64) -> none (too large)"
     );
     assert!(
-        Decimal::from_f64(max_next_up).is_none(),
-        "from_f64(79228162514264337593543950336f64)"
+        Decimal::from_f64(max_plus_one).is_none(),
+        "from_f64(79_228_162_514_264_337_593_543_950_336_f64) -> none (too large)"
     );
     assert_eq!(
         "79228162514264328797450928128",
+        Decimal::from_f64(under_max).unwrap().to_string(),
+        "from_f64(79_228_162_514_264_328_797_450_928_128_f64) -> some (inside limits)"
+    );
+    assert_eq!(
+        "79228162514264337593543950335",
         Decimal::from_f64(max).unwrap().to_string(),
-        "from_f64(79228162514264328797450928128f64)"
+        "from_f64(79_228_162_514_264_337_593_543_950_335_f64) -> some (at max)"
     );
 }
 
