@@ -3144,9 +3144,19 @@ fn it_converts_from_f64_dec_limits() {
     let max_next_up = 79228162514264337593543950336f64;
     let max = 79228162514264328797450928128f64;
 
-    assert!(Decimal::from_f64(max_next_up_next_up).is_none(), "from_f64(79228162514264355185729994752f64)");
-    assert!(Decimal::from_f64(max_next_up).is_none(), "from_f64(79228162514264337593543950336f64)");
-    assert_eq!("79228162514264328797450928128", Decimal::from_f64(max).unwrap().to_string(), "from_f64(79228162514264328797450928128f64)");
+    assert!(
+        Decimal::from_f64(max_next_up_next_up).is_none(),
+        "from_f64(79228162514264355185729994752f64)"
+    );
+    assert!(
+        Decimal::from_f64(max_next_up).is_none(),
+        "from_f64(79228162514264337593543950336f64)"
+    );
+    assert_eq!(
+        "79228162514264328797450928128",
+        Decimal::from_f64(max).unwrap().to_string(),
+        "from_f64(79228162514264328797450928128f64)"
+    );
 }
 
 #[test]
