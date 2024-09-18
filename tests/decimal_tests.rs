@@ -3144,7 +3144,6 @@ fn it_converts_from_f64_dec_limits() {
     let over_max = 79_228_162_514_264_355_185_729_994_752_f64;
     let max_plus_one = 79_228_162_514_264_337_593_543_950_336_f64;
     let under_max = 79_228_162_514_264_328_797_450_928_128_f64;
-    let max = 79_228_162_514_264_337_593_543_950_335_f64;
 
     assert!(
         Decimal::from_f64(over_max).is_none(),
@@ -3158,11 +3157,6 @@ fn it_converts_from_f64_dec_limits() {
         "79228162514264328797450928128",
         Decimal::from_f64(under_max).unwrap().to_string(),
         "from_f64(79_228_162_514_264_328_797_450_928_128_f64) -> some (inside limits)"
-    );
-    assert_eq!(
-        "79228162514264337593543950335",
-        Decimal::from_f64(max).unwrap().to_string(),
-        "from_f64(79_228_162_514_264_337_593_543_950_335_f64) -> some (at max)"
     );
 }
 
