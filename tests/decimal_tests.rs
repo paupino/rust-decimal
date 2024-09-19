@@ -242,6 +242,30 @@ mod rkyv_tests {
     }
 }
 
+#[cfg(feature = "bitcode")]
+mod bitcode_tests {
+    use rust_decimal::Decimal;
+    use std::str::FromStr;
+
+    #[test]
+    fn it_can_serialize_deserialize_rkyv() {
+        let tests = [
+            "12.3456789",
+            "5233.9008808150288439427720175",
+            "-5233.9008808150288439427720175",
+        ];
+
+        for test in &tests {
+            let original = Decimal::from_str(test).unwrap();
+
+            let encoded: Vec<u8> = bitcode::encode(&original);
+            let decoded: Decimal = bitcode::decode(&encoded).unwrap();
+
+            assert_eq!(original, decoded);
+        }
+    }
+}
+
 #[test]
 fn it_can_deserialize_unbounded_values() {
     // Mantissa for these: 19393111376951473493673267553

@@ -21,6 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
+bitcode = { version = "0", default-features = false, features = ["derive"], optional = true }
 borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1.1.1" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel = { default-features = false, optional = true, version = "2.2.3" }
@@ -55,7 +56,7 @@ tokio-postgres = { default-features = false, version = "0.7" }
 default = ["serde", "std"]
 # Removed in 1.34.2 due to an issue during version resolution
 #macros = ["dep:rust_decimal_macros"]
-
+bitcode = ["dep:bitcode"]
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["diesel/mysql", "std"]
