@@ -2190,6 +2190,9 @@ fn base2_to_decimal(
             exponent10 -= 1;
             exponent5 += 1;
             ops::array::shl1_internal(bits, 0);
+        } else if exponent10 * 2 > -exponent5 {
+            // Multiplying by >=2 which, due to the previous condition, means an overflow.
+            return None;
         } else {
             // The mantissa would overflow if shifted. Therefore it should be
             // directly divided by 5. This will lose significant digits, unless
