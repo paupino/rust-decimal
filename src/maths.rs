@@ -49,7 +49,7 @@ const FACTORIAL: [Decimal; 28] = [
 
 /// Trait exposing various mathematical operations that can be applied using a Decimal. This is only
 /// present when the `maths` feature has been enabled, e.g. by adding the crate with 
-// `cargo add rust_decimal --features maths` and importing in your Rust file with `use rust_decimal::maths::MathematicalOps;`
+// `cargo add rust_decimal --features maths` and importing in your Rust file with `use rust_decimal::MathematicalOps;`
 pub trait MathematicalOps {
     /// The estimated exponential function, e<sup>x</sup>. Stops calculating when it is within
     /// tolerance of roughly `0.0000002`.
