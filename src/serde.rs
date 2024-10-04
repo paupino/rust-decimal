@@ -370,8 +370,10 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     }
 }
 
+#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
 struct OptionDecimalVisitor;
 
+#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
 impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
     type Value = Option<Decimal>;
 

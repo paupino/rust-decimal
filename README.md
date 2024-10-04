@@ -195,8 +195,11 @@ two).
 
 ### `rkyv`
 
-Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`.
+Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`. In order to avoid breaking changes, this is currently locked at version `0.7`.
+
 Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
+
+If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See `examples/rkyv-remote`.
 
 ### `rocket-traits`
 
