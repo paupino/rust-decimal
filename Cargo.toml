@@ -43,6 +43,7 @@ criterion = { default-features = false, version = "0.5" }
 csv = "1"
 futures = { default-features = false, version = "0.3" }
 rand = { default-features = false, features = ["getrandom"], version = "0.8" }
+rkyv-0_8 = { version = "0.8", package = "rkyv" }
 rust_decimal_macros = { default-features = false, version = "1.33" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"
@@ -90,9 +91,12 @@ harness = false
 name = "comparison"
 path = "benches/comparison.rs"
 
+[[example]]
+name = "rkyv-remote"
+
 [workspace]
 members = [
     ".",
-    "./macros"
+    "./macros",
 ]
 resolver = "2"
