@@ -573,7 +573,7 @@ impl Decimal {
     pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
         const ERROR_MESSAGE: &str = "Failed to parse";
 
-        let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
+        let mut split = value.splitn(2, ['e', 'E']);
 
         let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
         let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;

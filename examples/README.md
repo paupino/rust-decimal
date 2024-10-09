@@ -14,3 +14,6 @@ cargo run
 This example shows how to use the `serde` crate to serialize and deserialize the `Decimal` type using multiple different
 serialization formats.
 
+## rkyv-remote
+
+This example shows shows how to use the `rkyv` crate's remote derive for the `Decimal` type.
