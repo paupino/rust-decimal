@@ -4,8 +4,6 @@ version = "0.0.0"
 edition = "2021"
 publish = false
 
-[workspace]
-
 [dependencies]
 rust_decimal = { path = "../..", features = ["serde-with-arbitrary-precision"] }
 rust_decimal_macros = { path = "../../macros" }
