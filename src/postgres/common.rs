@@ -1,4 +1,3 @@
-use crate::constants::MAX_PRECISION_U32;
 use crate::{
     ops::array::{div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
@@ -44,7 +43,7 @@ impl Decimal {
         let fractionals_part_count = digits.len() as i32 + (-weight as i32) - 1;
         let integers_part_count = weight as i32 + 1;
 
-        let mut result = Decimal::ZERO;
+        let mut result = Self::ZERO;
         // adding integer part
         if integers_part_count > 0 {
             let (start_integers, last) = if integers_part_count > digits.len() as i32 {
@@ -54,25 +53,25 @@ impl Decimal {
             };
             let integers: Vec<_> = digits.drain(..last as usize).collect();
             for digit in integers {
-                result = result.checked_mul(Decimal::from_i128_with_scale(10i128.pow(4), 0))?;
-                result = result.checked_add(Decimal::new(digit as i64, 0))?;
+                result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4), 0))?;
+                result = result.checked_add(Self::new(digit as i64, 0))?;
             }
-            result = result.checked_mul(Decimal::from_i128_with_scale(10i128.pow(4 * start_integers as u32), 0))?;
+            result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4 * start_integers as u32), 0))?;
         }
         // adding fractional part
         if fractionals_part_count > 0 {
             let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
             for (i, digit) in digits.into_iter().enumerate() {
                 let fract_pow = 4_u32.checked_mul(i as u32 + 1 + start_fractionals)?;
-                if fract_pow <= MAX_PRECISION_U32 {
+                if fract_pow <= Self::MAX_SCALE {
                     result = result.checked_add(
-                        Decimal::new(digit as i64, 0) / Decimal::from_i128_with_scale(10i128.pow(fract_pow), 0),
+                        Self::new(digit as i64, 0) / Self::from_i128_with_scale(10i128.pow(fract_pow), 0),
                     )?;
-                } else if fract_pow == MAX_PRECISION_U32 + 4 {
+                } else if fract_pow == Self::MAX_SCALE + 4 {
                     // rounding last digit
                     if digit >= 5000 {
                         result = result.checked_add(
-                            Decimal::new(1_i64, 0) / Decimal::from_i128_with_scale(10i128.pow(MAX_PRECISION_U32), 0),
+                            Self::new(1_i64, 0) / Self::from_i128_with_scale(10i128.pow(Self::MAX_SCALE), 0),
                         )?;
                     }
                 }
@@ -81,7 +80,7 @@ impl Decimal {
 
         result.set_sign_negative(neg);
         // Rescale to the postgres value, automatically rounding as needed.
-        result.rescale((scale as u32).min(MAX_PRECISION_U32));
+        result.rescale((scale as u32).min(Self::MAX_SCALE));
         Some(result)
     }
 

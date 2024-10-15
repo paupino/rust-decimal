@@ -1,4 +1,4 @@
-use crate::constants::{MAX_PRECISION_I32, POWERS_10};
+use crate::constants::{MAX_SCALE_I32, POWERS_10};
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf12, Buf16, Dec64};
 
@@ -260,7 +260,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                 // We have a remainder so we effectively want to try to adjust the quotient and add
                 // the remainder into the quotient. We do this below, however first of all we want
                 // to try to avoid overflowing so we do that check first.
-                let will_overflow = if scale == MAX_PRECISION_I32 {
+                let will_overflow = if scale == MAX_SCALE_I32 {
                     true
                 } else {
                     // Figure out how much we can scale by
@@ -376,7 +376,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                     // We have a remainder so we effectively want to try to adjust the quotient and add
                     // the remainder into the quotient. We do this below, however first of all we want
                     // to try to avoid overflowing so we do that check first.
-                    let will_overflow = if scale == MAX_PRECISION_I32 {
+                    let will_overflow = if scale == MAX_SCALE_I32 {
                         true
                     } else {
                         // Figure out how much we can scale by
@@ -467,7 +467,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
                     // We have a remainder so we effectively want to try to adjust the quotient and add
                     // the remainder into the quotient. We do this below, however first of all we want
                     // to try to avoid overflowing so we do that check first.
-                    let will_overflow = if scale == MAX_PRECISION_I32 {
+                    let will_overflow = if scale == MAX_SCALE_I32 {
                         true
                     } else {
                         // Figure out how much we can scale by
