@@ -1,4 +1,4 @@
-use crate::constants::{MAX_PRECISION_U32, POWERS_10, U32_MASK};
+use crate::constants::{MAX_SCALE_U32, POWERS_10, U32_MASK};
 
 /// Rescales the given decimal to new scale.
 /// e.g. with 1.23 and new scale 3 rescale the value to 1.230
@@ -15,7 +15,7 @@ fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_s
     }
 
     if is_all_zero(value) {
-        *value_scale = new_scale.min(MAX_PRECISION_U32);
+        *value_scale = new_scale.min(MAX_SCALE_U32);
         return;
     }
 
