@@ -8,7 +8,7 @@ impl Arbitrary<'_> for crate::Decimal {
         let mid = u32::arbitrary(u)?;
         let hi = u32::arbitrary(u)?;
         let negative = bool::arbitrary(u)?;
-        let scale = u32::arbitrary(u)? % Self::MAX_SCALE + 1;
+        let scale = u32::arbitrary(u)? % (Self::MAX_SCALE + 1);
         Ok(Decimal::from_parts(lo, mid, hi, negative, scale))
     }
 }

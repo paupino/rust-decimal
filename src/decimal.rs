@@ -525,7 +525,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
-        assert!(scale <= Self::MAX_SCALE, "Scale would exceed maximum support scale");
+        assert!(scale <= Self::MAX_SCALE, "Scale exceeds maximum supported scale");
         Decimal {
             lo,
             mid,
@@ -543,7 +543,7 @@ impl Decimal {
 
     #[must_use]
     pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
-        let decimal = if lo == 0 && mid == 0 && hi == 0 {
+        if lo == 0 && mid == 0 && hi == 0 {
             Decimal {
                 lo,
                 mid,
@@ -552,14 +552,7 @@ impl Decimal {
             }
         } else {
             Decimal { flags, hi, lo, mid }
-        };
-
-        assert!(
-            decimal.scale() <= Self::MAX_SCALE,
-            "Scale would exceed maximum support scale"
-        );
-
-        decimal
+        }
     }
 
     /// Returns a `Result` which if successful contains the `Decimal` constitution of
