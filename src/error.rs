@@ -1,4 +1,4 @@
-use crate::{constants::MAX_PRECISION_U32, Decimal};
+use crate::Decimal;
 use alloc::string::String;
 use core::fmt;
 
@@ -57,7 +57,8 @@ impl fmt::Display for Error {
             Self::ScaleExceedsMaximumPrecision(ref scale) => {
                 write!(
                     f,
-                    "Scale exceeds the maximum precision allowed: {scale} > {MAX_PRECISION_U32}"
+                    "Scale exceeds the maximum precision allowed: {scale} > {}",
+                    Decimal::MAX_SCALE
                 )
             }
             Self::ConversionTo(ref type_name) => {

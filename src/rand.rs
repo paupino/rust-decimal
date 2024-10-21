@@ -17,7 +17,7 @@ impl Distribution<Decimal> for Standard {
             rng.next_u32(),
             rng.next_u32(),
             rng.gen(),
-            rng.next_u32(),
+            rng.gen_range(0..=Decimal::MAX_SCALE),
         )
     }
 }

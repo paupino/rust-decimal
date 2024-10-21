@@ -1,4 +1,4 @@
-use crate::constants::{MAX_I32_SCALE, MAX_PRECISION_I32, POWERS_10};
+use crate::constants::{MAX_I32_SCALE, MAX_SCALE_I32, POWERS_10};
 use crate::Decimal;
 
 #[derive(Debug)]
@@ -96,12 +96,12 @@ impl Buf12 {
             return Some(x);
         }
 
-        if scale > MAX_PRECISION_I32 - 9 {
+        if scale > MAX_SCALE_I32 - 9 {
             // We can't scale by 10^9 without exceeding the max scale factor.
             // Instead, we'll try to scale by the most that we can and see if that works.
             // This is safe to do due to the check above. e.g. scale > 19 in the above, so it will
             // evaluate to 9 or less below.
-            x = (MAX_PRECISION_I32 - scale) as usize;
+            x = (MAX_SCALE_I32 - scale) as usize;
             if hi < POWER_OVERFLOW_VALUES[x - 1].data[2] {
                 if x as i32 + scale < 0 {
                     // We still overflow
@@ -350,8 +350,8 @@ impl Buf24 {
         }
 
         // Make sure we scale enough to bring it into a valid range
-        if rescale_target < scale - MAX_PRECISION_I32 {
-            rescale_target = scale - MAX_PRECISION_I32;
+        if rescale_target < scale - MAX_SCALE_I32 {
+            rescale_target = scale - MAX_SCALE_I32;
         }
 
         if rescale_target > 0 {

@@ -4802,7 +4802,7 @@ mod issues {
         // 288230376151711744
         let a = Decimal::from_parts(0, 67108864, 0, false, 0);
         // 714606955844629274884780.85120
-        let b = Decimal::from_parts(0, 0, 3873892070, false, 3873892070);
+        let b = Decimal::from_parts(0, 0, 3873892070, false, 5);
         let c = a.checked_sub(b);
         assert!(c.is_some());
 
