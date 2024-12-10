@@ -9,7 +9,7 @@ mod constants;
 mod decimal;
 mod error;
 mod ops;
-mod str;
+pub mod str;
 
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
@@ -57,18 +57,15 @@ pub use error::Error;
 #[cfg(feature = "maths")]
 pub use maths::MathematicalOps;
 
-// #[cfg(feature = "macros")]
-// pub use rust_decimal_macros::dec;
-
 /// A convenience module appropriate for glob imports (`use rust_decimal::prelude::*;`).
 pub mod prelude {
     #[cfg(feature = "maths")]
     pub use crate::maths::MathematicalOps;
+    #[cfg(feature = "macro")]
+    pub use crate::dec;
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
     pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
-    // #[cfg(feature = "macros")]
-    // pub use rust_decimal_macros::dec;
 }
 
 #[cfg(feature = "diesel")]
