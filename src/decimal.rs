@@ -108,7 +108,7 @@ pub struct UnpackedDecimal {
 #[cfg_attr(
     feature = "rkyv",
     derive(Archive, Deserialize, Serialize),
-    archive(compare(PartialEq)),
+    archive(compare(PartialEq), check_bytes),
     archive_attr(derive(Clone, Copy, Debug))
 )]
 #[cfg_attr(feature = "rkyv-safe", archive(check_bytes))]
