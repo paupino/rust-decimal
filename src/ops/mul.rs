@@ -1,4 +1,4 @@
-use crate::constants::{BIG_POWERS_10, MAX_I64_SCALE, MAX_PRECISION_U32, U32_MAX};
+use crate::constants::{BIG_POWERS_10, MAX_I64_SCALE, U32_MAX};
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::Buf24;
 
@@ -18,15 +18,15 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         if d2.hi() | d2.mid() == 0 {
             // We're multiplying two 32 bit integers, so we can take some liberties to optimize this.
             let mut low64 = d1.lo() as u64 * d2.lo() as u64;
-            if scale > MAX_PRECISION_U32 {
+            if scale > Decimal::MAX_SCALE {
                 // We've exceeded maximum scale so we need to start reducing the precision (aka
                 // rounding) until we have something that fits.
                 // If we're too big then we effectively round to zero.
-                if scale > MAX_PRECISION_U32 + MAX_I64_SCALE {
+                if scale > Decimal::MAX_SCALE + MAX_I64_SCALE {
                     return CalculationResult::Ok(Decimal::ZERO);
                 }
 
-                scale -= MAX_PRECISION_U32 + 1;
+                scale -= Decimal::MAX_SCALE + 1;
                 let mut power = BIG_POWERS_10[scale as usize];
 
                 let tmp = low64 / power;
@@ -39,7 +39,7 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
                     low64 += 1;
                 }
 
-                scale = MAX_PRECISION_U32;
+                scale = Decimal::MAX_SCALE;
             }
 
             // Early exit
@@ -129,7 +129,7 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     // We may want to "rescale". This is the case if the mantissa is > 96 bits or if the scale
     // exceeds the maximum precision.
     let upper_word = product.upper_word();
-    if upper_word > 2 || scale > MAX_PRECISION_U32 {
+    if upper_word > 2 || scale > Decimal::MAX_SCALE {
         scale = if let Some(new_scale) = product.rescale(upper_word, scale) {
             new_scale
         } else {

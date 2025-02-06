@@ -1,4 +1,4 @@
-use crate::constants::{MAX_I32_SCALE, MAX_PRECISION_I32, POWERS_10};
+use crate::constants::{MAX_I32_SCALE, MAX_SCALE_I32, POWERS_10};
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf12, Buf16, Buf24, Dec64};
 
@@ -74,7 +74,7 @@ pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
             loop {
                 // Figure out how much we can scale by
                 let power_scale;
-                if let Some(u) = quotient.find_scale(MAX_PRECISION_I32 + scale) {
+                if let Some(u) = quotient.find_scale(MAX_SCALE_I32 + scale) {
                     if u >= POWERS_10.len() {
                         power_scale = 9;
                     } else {

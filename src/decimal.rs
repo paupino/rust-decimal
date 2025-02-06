@@ -1,5 +1,5 @@
 use crate::constants::{
-    MAX_I128_REPR, MAX_PRECISION_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
+    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
     UNSIGN_MASK,
 };
 use crate::ops;
@@ -14,12 +14,8 @@ use core::{
 };
 
 // Diesel configuration
-#[cfg(feature = "diesel2")]
-use diesel::deserialize::FromSqlRow;
-#[cfg(feature = "diesel2")]
-use diesel::expression::AsExpression;
-#[cfg(any(feature = "diesel1", feature = "diesel2"))]
-use diesel::sql_types::Numeric;
+#[cfg(feature = "diesel")]
+use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Numeric};
 
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
@@ -103,12 +99,7 @@ pub struct UnpackedDecimal {
 /// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
-#[cfg_attr(
-    all(feature = "diesel1", not(feature = "diesel2")),
-    derive(FromSqlRow, AsExpression),
-    sql_type = "Numeric"
-)]
-#[cfg_attr(feature = "diesel2", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(
     feature = "borsh",
@@ -281,6 +272,14 @@ impl Decimal {
     /// assert_eq!(Decimal::ONE_THOUSAND, dec!(1000));
     /// ```
     pub const ONE_THOUSAND: Decimal = ONE_THOUSAND;
+    /// The maximum supported scale value.
+    ///
+    /// Some operations, such as [`Self::rescale`] may accept larger scale values, but  these
+    /// operations will result in a final value with a scale no larger than this.
+    ///
+    /// Note that the maximum scale is _not_ the same as the maximum possible numeric precision in
+    /// base-10.
+    pub const MAX_SCALE: u32 = MAX_SCALE_U32;
 
     /// A constant representing π as 3.1415926535897932384626433833
     ///
@@ -394,7 +393,7 @@ impl Decimal {
     ///
     /// # Panics
     ///
-    /// This function panics if `scale` is > 28.
+    /// This function panics if `scale` is > [`Self::MAX_SCALE`].
     ///
     /// # Example
     ///
@@ -412,7 +411,7 @@ impl Decimal {
         }
     }
 
-    /// Checked version of `Decimal::new`. Will return `Err` instead of panicking at run-time.
+    /// Checked version of [`Self::new`]. Will return an error instead of panicking at run-time.
     ///
     /// # Example
     ///
@@ -423,7 +422,7 @@ impl Decimal {
     /// assert!(max.is_err());
     /// ```
     pub const fn try_new(num: i64, scale: u32) -> crate::Result<Decimal> {
-        if scale > MAX_PRECISION_U32 {
+        if scale > Self::MAX_SCALE {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let flags: u32 = scale << SCALE_SHIFT;
@@ -453,7 +452,8 @@ impl Decimal {
     ///
     /// # Panics
     ///
-    /// This function panics if `scale` is > 28 or if `num` exceeds the maximum supported 96 bits.
+    /// This function panics if `scale` is > [`Self::MAX_SCALE`] or if `num` exceeds the maximum
+    /// supported 96 bits.
     ///
     /// # Example
     ///
@@ -483,7 +483,7 @@ impl Decimal {
     /// assert!(max.is_err());
     /// ```
     pub const fn try_from_i128_with_scale(num: i128, scale: u32) -> crate::Result<Decimal> {
-        if scale > MAX_PRECISION_U32 {
+        if scale > Self::MAX_SCALE {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         let mut neg = false;
@@ -513,14 +513,7 @@ impl Decimal {
     /// * `mid` - The middle 32 bits of a 96-bit integer.
     /// * `hi` - The high 32 bits of a 96-bit integer.
     /// * `negative` - `true` to indicate a negative number.
-    /// * `scale` - A power of 10 ranging from 0 to 28.
-    ///
-    /// # Caution: Undefined behavior
-    ///
-    /// While a scale greater than 28 can be passed in, it will be automatically capped by this
-    /// function at the maximum precision. The library opts towards this functionality as opposed
-    /// to a panic to ensure that the function can be treated as constant. This may lead to
-    /// undefined behavior in downstream applications and should be treated with caution.
+    /// * `scale` - A power of 10 ranging from 0 to [`Self::MAX_SCALE`].
     ///
     /// # Example
     ///
@@ -532,6 +525,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
+        assert!(scale <= Self::MAX_SCALE, "Scale exceeds maximum supported scale");
         Decimal {
             lo,
             mid,
@@ -542,7 +536,7 @@ impl Decimal {
                 } else {
                     negative
                 },
-                scale % (MAX_PRECISION_U32 + 1),
+                scale,
             ),
         }
     }
@@ -582,7 +576,7 @@ impl Decimal {
     pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
         const ERROR_MESSAGE: &str = "Failed to parse";
 
-        let mut split = value.splitn(2, |c| c == 'e' || c == 'E');
+        let mut split = value.splitn(2, ['e', 'E']);
 
         let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
         let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
@@ -605,7 +599,7 @@ impl Decimal {
                 // we've parsed 1.2 as the base and 10 as the exponent. To represent this within a
                 // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
                 // zero.
-                if exp > MAX_PRECISION_U32 {
+                if exp > Self::MAX_SCALE {
                     return Err(Error::ScaleExceedsMaximumPrecision(exp));
                 }
                 let mut exp = exp as usize;
@@ -865,7 +859,7 @@ impl Decimal {
     /// # }
     /// ```
     pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
-        if scale > MAX_PRECISION_U32 {
+        if scale > Self::MAX_SCALE {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
         self.flags = (scale << SCALE_SHIFT) | (self.flags & SIGN_MASK);
@@ -879,7 +873,7 @@ impl Decimal {
     /// cause the newly created `Decimal` to perform rounding using the `MidpointAwayFromZero` strategy.
     ///
     /// Scales greater than the maximum precision that can be represented by `Decimal` will be
-    /// automatically rounded to either `Decimal::MAX_PRECISION` or the maximum precision that can
+    /// automatically rounded to either [`Self::MAX_SCALE`] or the maximum precision that can
     /// be represented with the given mantissa.
     ///
     /// # Arguments
@@ -976,7 +970,7 @@ impl Decimal {
             hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
         };
         // Scale must be bound to maximum precision. Only two values can be greater than this
-        if raw.scale() > MAX_PRECISION_U32 {
+        if raw.scale() > Self::MAX_SCALE {
             let mut bits = raw.mantissa_array3();
             let remainder = match raw.scale() {
                 29 => ops::array::div_by_power::<1>(&mut bits),
@@ -990,7 +984,7 @@ impl Decimal {
             raw.lo = bits[0];
             raw.mid = bits[1];
             raw.hi = bits[2];
-            raw.flags = flags(raw.is_sign_negative(), MAX_PRECISION_U32);
+            raw.flags = flags(raw.is_sign_negative(), Self::MAX_SCALE);
         }
         raw
     }
@@ -1905,7 +1899,7 @@ impl Signed for Decimal {
         if self <= other {
             ZERO
         } else {
-            self.abs()
+            self - other
         }
     }
 
@@ -1990,7 +1984,7 @@ impl FromPrimitive for Decimal {
             unsigned = n as u128;
             flags = 0;
         } else {
-            unsigned = -n as u128;
+            unsigned = n.unsigned_abs();
             flags = SIGN_MASK;
         };
         // Check if we overflow
@@ -2199,6 +2193,9 @@ fn base2_to_decimal(
             exponent10 -= 1;
             exponent5 += 1;
             ops::array::shl1_internal(bits, 0);
+        } else if exponent10 * 2 > -exponent5 {
+            // Multiplying by >=2 which, due to the previous condition, means an overflow.
+            return None;
         } else {
             // The mantissa would overflow if shifted. Therefore it should be
             // directly divided by 5. This will lose significant digits, unless
@@ -2210,7 +2207,7 @@ fn base2_to_decimal(
 
     // At this point, the mantissa has assimilated the exponent5, but
     // exponent10 might not be suitable for assignment. exponent10 must be
-    // in the range [-MAX_PRECISION..0], so the mantissa must be scaled up or
+    // in the range [-MAX_SCALE..0], so the mantissa must be scaled up or
     // down appropriately.
     while exponent10 > 0 {
         // In order to bring exponent10 down to 0, the mantissa should be
@@ -2224,10 +2221,10 @@ fn base2_to_decimal(
         }
     }
 
-    // In order to bring exponent up to -MAX_PRECISION, the mantissa should
+    // In order to bring exponent up to -MAX_SCALE, the mantissa should
     // be divided by 10 to compensate. If the exponent10 is too small, this
     // will cause the mantissa to underflow and become 0.
-    while exponent10 < -(MAX_PRECISION_U32 as i32) {
+    while exponent10 < -(Decimal::MAX_SCALE as i32) {
         let rem10 = ops::array::div_by_u32(bits, 10);
         exponent10 += 1;
         if ops::array::is_all_zero(bits) {

@@ -17,7 +17,7 @@ impl Distribution<Decimal> for Standard {
             rng.next_u32(),
             rng.next_u32(),
             rng.gen(),
-            rng.next_u32(),
+            rng.gen_range(0..=Decimal::MAX_SCALE),
         )
     }
 }
@@ -125,7 +125,7 @@ fn sync_scales(mut a: Decimal, mut b: Decimal) -> (Decimal, Decimal) {
 }
 
 #[cfg(test)]
-mod tests {
+mod rand_tests {
     use std::collections::HashSet;
 
     use super::*;

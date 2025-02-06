@@ -269,7 +269,7 @@ pub mod str_option {
         match *value {
             Some(ref decimal) => {
                 let decimal = crate::str::to_str_internal(decimal, true, None);
-                serializer.serialize_some(decimal.0.as_ref())
+                serializer.serialize_some::<str>(decimal.0.as_ref())
             }
             None => serializer.serialize_none(),
         }
@@ -370,8 +370,10 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     }
 }
 
+#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
 struct OptionDecimalVisitor;
 
+#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
 impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
     type Value = Option<Decimal>;
 

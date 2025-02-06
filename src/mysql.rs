@@ -8,33 +8,14 @@ use diesel::{
 use std::io::Write;
 use std::str::FromStr;
 
-#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
-impl ToSql<Numeric, Mysql> for Decimal {
-    fn to_sql<W: Write>(&self, out: &mut Output<W, Mysql>) -> serialize::Result {
-        write!(out, "{}", *self).map(|_| IsNull::No).map_err(|e| e.into())
-    }
-}
-
-#[cfg(feature = "diesel2")]
+#[cfg(feature = "diesel")]
 impl ToSql<Numeric, Mysql> for Decimal {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Mysql>) -> serialize::Result {
         write!(out, "{}", *self).map(|_| IsNull::No).map_err(|e| e.into())
     }
 }
 
-#[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
-impl FromSql<Numeric, Mysql> for Decimal {
-    fn from_sql(numeric: Option<&[u8]>) -> deserialize::Result<Self> {
-        // From what I can ascertain, MySQL simply reads from a string format for the Decimal type.
-        // Explicitly, it looks like it is length followed by the string. Regardless, we can leverage
-        // internal types.
-        let bytes = numeric.ok_or("Invalid decimal")?;
-        let s = std::str::from_utf8(bytes)?;
-        Decimal::from_str(s).map_err(|e| e.into())
-    }
-}
-
-#[cfg(feature = "diesel2")]
+#[cfg(feature = "diesel")]
 impl FromSql<Numeric, Mysql> for Decimal {
     fn from_sql(numeric: diesel::mysql::MysqlValue) -> deserialize::Result<Self> {
         // From what I can ascertain, MySQL simply reads from a string format for the Decimal type.
@@ -48,11 +29,6 @@ impl FromSql<Numeric, Mysql> for Decimal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use diesel::deserialize::QueryableByName;
-    use diesel::prelude::*;
-    use diesel::row::NamedRow;
-    use diesel::sql_query;
-    use diesel::sql_types::Text;
 
     struct Test {
         value: Decimal,
@@ -95,81 +71,14 @@ mod tests {
         "mysql://root@127.0.0.1/mysql".to_string()
     }
 
-    #[cfg(all(feature = "diesel1", not(feature = "diesel2")))]
-    mod diesel1 {
+    #[cfg(feature = "diesel")]
+    mod diesel_tests {
         use super::*;
-
-        impl QueryableByName<Mysql> for Test {
-            fn build<R: NamedRow<Mysql>>(row: &R) -> deserialize::Result<Self> {
-                let value = row.get("value")?;
-                Ok(Test { value })
-            }
-        }
-
-        impl QueryableByName<Mysql> for NullableTest {
-            fn build<R: NamedRow<Mysql>>(row: &R) -> deserialize::Result<Self> {
-                let value = row.get("value")?;
-                Ok(NullableTest { value })
-            }
-        }
-
-        #[test]
-        fn test_null() {
-            let connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
-
-            // Test NULL
-            let items: Vec<NullableTest> = sql_query("SELECT CAST(NULL AS DECIMAL) AS value")
-                .load(&connection)
-                .expect("Unable to query value");
-            let result = items.first().unwrap().value;
-            assert_eq!(None, result);
-        }
-
-        #[test]
-        fn read_numeric_type() {
-            let connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
-            for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-                let items: Vec<Test> = sql_query(format!(
-                    "SELECT CAST('{}' AS DECIMAL({}, {})) AS value",
-                    sent, precision, scale
-                ))
-                .load(&connection)
-                .expect("Unable to query value");
-                assert_eq!(
-                    expected,
-                    items.first().unwrap().value.to_string(),
-                    "DECIMAL({}, {}) sent: {}",
-                    precision,
-                    scale,
-                    sent
-                );
-            }
-        }
-
-        #[test]
-        fn write_numeric_type() {
-            let connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
-            for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
-                let items: Vec<Test> =
-                    sql_query(format!("SELECT CAST(? AS DECIMAL({}, {})) AS value", precision, scale))
-                        .bind::<Text, _>(sent)
-                        .load(&connection)
-                        .expect("Unable to query value");
-                assert_eq!(
-                    expected,
-                    items.first().unwrap().value.to_string(),
-                    "DECIMAL({}, {}) sent: {}",
-                    precision,
-                    scale,
-                    sent
-                );
-            }
-        }
-    }
-
-    #[cfg(feature = "diesel2")]
-    mod diesel2 {
-        use super::*;
+        use diesel::deserialize::QueryableByName;
+        use diesel::prelude::*;
+        use diesel::row::NamedRow;
+        use diesel::sql_query;
+        use diesel::sql_types::Text;
 
         impl QueryableByName<Mysql> for Test {
             fn build<'a>(row: &impl NamedRow<'a, Mysql>) -> deserialize::Result<Self> {

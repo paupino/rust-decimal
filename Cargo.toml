@@ -1,18 +1,18 @@
 [package]
 authors = ["Paul Mason <paul@form1.co.nz>"]
 build = "build.rs"
-categories = ["science","mathematics","data-structures"]
+categories = ["science", "mathematics", "data-structures"]
 description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
 documentation = "https://docs.rs/rust_decimal/"
 edition = "2021"
-exclude = [ "tests/generated/*" ]
-keywords = ["decimal","financial","fixed","precision","number"]
+exclude = ["tests/generated/*"]
+keywords = ["decimal", "financial", "fixed", "precision", "number"]
 license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
 rust-version = "1.60"
-version = "1.33.1"
+version = "1.36.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -23,16 +23,15 @@ arbitrary = { default-features = false, optional = true, version = "1.0" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1.1.1" }
 bytes = { default-features = false, optional = true, version = "1.0" }
-diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.0" }
-diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.1" }
+diesel = { default-features = false, optional = true, version = "2.2.3" }
 ndarray = { default-features = false, optional = true, version = "0.15.6" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
-postgres = { default-features = false, optional = true, version = "0.19" }
+postgres-types = { default-features = false, optional = true, version = "0.2" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
 rand = { default-features = false, optional = true, version = "0.8" }
 rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7.42" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
-rust_decimal_macros = { default-features = false, optional = true, version = "1.33" } # This needs to be the n-1 published version
+#rust_decimal_macros = { default-features = false, optional = true, version = "1.34" } # This needs to a published version
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
@@ -44,26 +43,28 @@ criterion = { default-features = false, version = "0.5" }
 csv = "1"
 futures = { default-features = false, version = "0.3" }
 rand = { default-features = false, features = ["getrandom"], version = "0.8" }
+rkyv-0_8 = { version = "0.8", package = "rkyv" }
 rust_decimal_macros = { default-features = false, version = "1.33" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"
 tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
 version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
+postgres = { default-features = false, version = "0.19" }
+tokio-postgres = { default-features = false, version = "0.7" }
 
 [features]
 default = ["serde", "std"]
-macros = ["dep:rust_decimal_macros"]
+# Removed in 1.34.2 due to an issue during version resolution
+#macros = ["dep:rust_decimal_macros"]
 
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
-db-diesel-mysql = ["db-diesel1-mysql"]
-db-diesel-postgres = ["db-diesel1-postgres"]
-db-diesel1-mysql = ["diesel1/mysql", "std"]
-db-diesel1-postgres = ["diesel1/postgres", "std"]
-db-diesel2-mysql = ["diesel2/mysql", "std"]
-db-diesel2-postgres = ["diesel2/postgres", "std"]
-db-postgres = ["dep:bytes", "dep:postgres", "std"]
-db-tokio-postgres = ["dep:bytes", "dep:postgres", "std", "dep:tokio-postgres"]
+db-diesel-mysql = ["diesel/mysql", "std"]
+db-diesel-postgres = ["diesel/postgres", "std"]
+db-diesel2-mysql = ["db-diesel-mysql"]
+db-diesel2-postgres = ["db-diesel-postgres"]
+db-postgres = ["dep:bytes", "dep:postgres-types", "std"]
+db-tokio-postgres = ["dep:bytes", "dep:postgres-types", "std"]
 legacy-ops = []
 maths = []
 maths-nopanic = ["maths"]
@@ -72,7 +73,7 @@ proptest = ["dep:proptest"]
 rand = ["dep:rand"]
 rkyv = ["dep:rkyv"]
 rkyv-safe = ["rkyv/validation"]
-rocket-traits = ["dep:rocket"]
+rocket-traits = ["dep:rocket", "std"]
 rust-fuzz = ["dep:arbitrary"]
 serde = ["dep:serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
@@ -90,9 +91,12 @@ harness = false
 name = "comparison"
 path = "benches/comparison.rs"
 
+[[example]]
+name = "rkyv-remote"
+
 [workspace]
 members = [
     ".",
-    "./macros"
+    "./macros",
 ]
 resolver = "2"
