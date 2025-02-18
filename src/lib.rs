@@ -28,7 +28,7 @@ mod mysql;
 mod postgres;
 #[cfg(feature = "proptest")]
 mod proptest;
-#[cfg(feature = "rand")]
+#[cfg(any(feature = "rand_08", feature = "rand_09"))]
 mod rand;
 #[cfg(feature = "rocket-traits")]
 mod rocket;

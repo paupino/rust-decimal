@@ -28,7 +28,8 @@ ndarray = { default-features = false, optional = true, version = "0.15.6" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres-types = { default-features = false, optional = true, version = "0.2" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
-rand = { default-features = false, optional = true, version = "0.9" }
+rand_08 = { package="rand", default-features = false, optional = true, version = "0.8" }
+rand_09 = { package="rand", default-features = false, optional = true, version = "0.9" }
 rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7.42" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
 #rust_decimal_macros = { default-features = false, optional = true, version = "1.34" } # This needs to a published version
@@ -42,7 +43,8 @@ bytes = { default-features = false, version = "1.0" }
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
 futures = { default-features = false, version = "0.3" }
-rand = { default-features = false, features = ["os_rng"], version = "0.9" }
+rand_08 = { package="rand", default-features = false, features = ["getrandom"], version = "0.8" }
+rand_09 = { package="rand", default-features = false, features = ["os_rng"], version = "0.9" }
 rkyv-0_8 = { version = "0.8", package = "rkyv" }
 rust_decimal_macros = { default-features = false, version = "1.33" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
@@ -70,7 +72,8 @@ maths = []
 maths-nopanic = ["maths"]
 ndarray = ["dep:ndarray"]
 proptest = ["dep:proptest"]
-rand = ["dep:rand"]
+rand_08 = ["dep:rand_08"]
+rand_09 = ["dep:rand_09"]
 rkyv = ["dep:rkyv"]
 rkyv-safe = ["rkyv/validation"]
 rocket-traits = ["dep:rocket", "std"]
@@ -83,7 +86,7 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
+std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand_08?/std", "rand_09?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [[bench]]
@@ -95,8 +98,5 @@ path = "benches/comparison.rs"
 name = "rkyv-remote"
 
 [workspace]
-members = [
-    ".",
-    "./macros",
-]
+members = [".", "./macros"]
 resolver = "2"
