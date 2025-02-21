@@ -3373,10 +3373,18 @@ fn it_can_parse_scientific_notation() {
         ("12345E-28", "0.0000000000000000000000012345"),
         ("1.2345E0", "1.2345"),
         ("1E28", "10000000000000000000000000000"),
+        (
+            "-20165.4676_e-+4294967292",
+            "ERR:Scale exceeds the maximum precision allowed: 4294967292 > 28",
+        ),
     ];
 
     for &(value, expected) in tests {
-        assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
+        if expected.starts_with("ERR:") {
+            assert_eq!(&expected[4..], Decimal::from_scientific(value).unwrap_err().to_string(),);
+        } else {
+            assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
+        }
     }
 }
 
