@@ -572,6 +572,9 @@ impl Decimal {
 
         if let Some(stripped) = exp.strip_prefix('-') {
             let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            if exp > Self::MAX_SCALE {
+                return Err(Error::ScaleExceedsMaximumPrecision(exp));
+            }
             ret.set_scale(current_scale + exp)?;
         } else {
             let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
