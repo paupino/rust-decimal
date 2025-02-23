@@ -25,28 +25,20 @@ can be truncated using the `normalize` or `round_dp` functions.
 $ cargo add rust_decimal
 ```
 
-In addition, if you would like to use the optimized macro for convenient creation of decimals:
-
-```sh
-$ cargo add rust_decimal_macros
-```
-
 Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
 rust_decimal = "1.36"
-rust_decimal_macros = "1.36"
 ```
 
 ## Usage
 
 Decimal numbers can be created in a few distinct ways. The easiest and most efficient method of creating a Decimal is to
-use the procedural macro that can be enabled using the `macros` feature:
+use the macro:
 
 ```rust
-// Import the `rust_decimal_macros` crate and use the macro directly from there.
-use rust_decimal_macros::dec;
+use rust_decimal::dec;
 
 let number = dec!(-1.23) + dec!(3.45);
 assert_eq!(number, dec!(2.22));
@@ -92,8 +84,8 @@ assert_eq!("3.1415926535897932384626433832", pi.to_string());
 Once you have instantiated your `Decimal` number you can perform calculations with it just like any other number:
 
 ```rust
-use rust_decimal::prelude::*;
-use rust_decimal_macros::dec;
+//use rust_decimal::prelude::*; // includes dec! when you activate feature "macro"
+use rust_decimal::{dec, prelude::*}; // withouth feature "macro", use it explicitly
 
 let amount = dec!(25.12);
 let tax_percentage = dec!(0.085);
@@ -195,11 +187,14 @@ two).
 
 ### `rkyv`
 
-Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`. In order to avoid breaking changes, this is currently locked at version `0.7`.
+Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`. In order to avoid breaking changes, this is
+currently locked at version `0.7`.
 
 Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
 
-If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See `examples/rkyv-remote`.
+If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'
+s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See
+`examples/rkyv-remote`.
 
 ### `rocket-traits`
 
@@ -368,9 +363,7 @@ Please refer to the [Build document](BUILD.md) for more information on building 
 
 ## Minimum Rust Compiler Version
 
-The current _minimum_ compiler version
-is [`1.60.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1600-2022-04-07)
-which was released on `2022-04-07`.
+The current _minimum_ compiler version is `1.67.1` which was released on `2023-02-09`.
 
 This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust
 compiler version.

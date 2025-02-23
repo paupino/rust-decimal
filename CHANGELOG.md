@@ -1,5 +1,13 @@
 # Version History
 
+# 1.37.0
+
+### Added
+
+* Built in `dec!` macro with extended features. You no longer need external `rust_decimal_macros`.
+  If you do want to keep it, `use rust_decimal_macros::dec;`, not `use rust_decimal_macros::*;`,
+  which can now be ambiguous.
+
 # 1.36.0
 
 ### Fixed
