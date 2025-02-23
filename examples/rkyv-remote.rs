@@ -1,8 +1,7 @@
 extern crate rkyv_0_8 as rkyv;
 
 use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
-use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
+use rust_decimal::{dec, Decimal};
 
 /// The type containing a [`Decimal`] that will be de/serialized.
 #[derive(Archive, Serialize, Deserialize, Debug, PartialEq, Eq)]

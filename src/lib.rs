@@ -9,7 +9,7 @@ mod constants;
 mod decimal;
 mod error;
 mod ops;
-mod str;
+pub mod str;
 
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
@@ -30,6 +30,8 @@ mod postgres;
 mod proptest;
 #[cfg(feature = "rand")]
 mod rand;
+#[cfg(feature = "rand-0_9")]
+mod rand_0_9;
 #[cfg(feature = "rocket-traits")]
 mod rocket;
 #[cfg(all(
@@ -57,18 +59,15 @@ pub use error::Error;
 #[cfg(feature = "maths")]
 pub use maths::MathematicalOps;
 
-// #[cfg(feature = "macros")]
-// pub use rust_decimal_macros::dec;
-
 /// A convenience module appropriate for glob imports (`use rust_decimal::prelude::*;`).
 pub mod prelude {
+    #[cfg(feature = "macro")]
+    pub use crate::dec;
     #[cfg(feature = "maths")]
     pub use crate::maths::MathematicalOps;
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
     pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
-    // #[cfg(feature = "macros")]
-    // pub use rust_decimal_macros::dec;
 }
 
 #[cfg(feature = "diesel")]
