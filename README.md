@@ -187,11 +187,14 @@ two).
 
 ### `rkyv`
 
-Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`. In order to avoid breaking changes, this is currently locked at version `0.7`.
+Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`. In order to avoid breaking changes, this is
+currently locked at version `0.7`.
 
 Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
 
-If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See `examples/rkyv-remote`.
+If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'
+s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See
+`examples/rkyv-remote`.
 
 ### `rocket-traits`
 
@@ -360,9 +363,7 @@ Please refer to the [Build document](BUILD.md) for more information on building 
 
 ## Minimum Rust Compiler Version
 
-The current _minimum_ compiler version
-is [`1.60.0`](https://github.com/rust-lang/rust/blob/master/RELEASES.md#version-1600-2022-04-07)
-which was released on `2022-04-07`.
+The current _minimum_ compiler version is `1.67.1` which was released on `2023-02-09`.
 
 This library maintains support for rust compiler versions that are 4 minor versions away from the current stable rust
 compiler version.

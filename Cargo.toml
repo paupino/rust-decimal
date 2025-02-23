@@ -11,7 +11,7 @@ license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
-rust-version = "1.67"
+rust-version = "1.67.1"
 version = "1.36.0"
 
 [package.metadata.docs.rs]
