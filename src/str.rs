@@ -7,7 +7,7 @@ use crate::{
 
 use arrayvec::{ArrayString, ArrayVec};
 
-use alloc::{string::String, vec::Vec};
+use alloc::{format, string::String, vec::Vec};
 use core::fmt;
 
 // impl that doesn't allocate for serialization purposes.
