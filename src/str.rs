@@ -832,14 +832,22 @@ impl From<ParseError<'_>> for Error {
             ExceedsMaximumPossibleValue => Self::ExceedsMaximumPossibleValue,
             FractionEmpty => Self::ConversionTo("consider adding a `0` after the period".into()),
             InvalidExp(exp) if exp < 0 => Self::ScaleExceedsMaximumPrecision(exp.unsigned_abs()),
-            InvalidExp(exp) =>
-                Self::ConversionTo(format!("invalid exp {exp} -- exp must be in the range -28 to 28 inclusive")),
-            InvalidRadix(radix) => Self::ConversionTo(format!("invalid radix {radix} -- radix must be in the range 2 to 36 inclusive")),
+            InvalidExp(exp) => Self::ConversionTo(format!(
+                "invalid exp {exp} -- exp must be in the range -28 to 28 inclusive"
+            )),
+            InvalidRadix(radix) => Self::ConversionTo(format!(
+                "invalid radix {radix} -- radix must be in the range 2 to 36 inclusive"
+            )),
             LessThanMinimumPossibleValue => Self::LessThanMinimumPossibleValue,
             Underflow => Self::Underflow,
             Unparseable(src) =>
-                // We know these bytes are valid, so just use `unwrap()`.
-                Self::ConversionTo(format!("cannot parse decimal, unexpected \"{}\"", core::str::from_utf8(src).unwrap())),
+            // We know these bytes are valid, so just use `unwrap()`.
+            {
+                Self::ConversionTo(format!(
+                    "cannot parse decimal, unexpected \"{}\"",
+                    core::str::from_utf8(src).unwrap()
+                ))
+            }
         }
     }
 }
@@ -920,11 +928,15 @@ const fn to_decimal<'src>(is_positive: bool, mut num: i128, mut exp: i32) -> Par
         return Err(InvalidExp(exp));
     }
     if num > crate::constants::MAX_I128_REPR {
-        return Err(if is_positive { ExceedsMaximumPossibleValue } else { LessThanMinimumPossibleValue });
+        return Err(if is_positive {
+            ExceedsMaximumPossibleValue
+        } else {
+            LessThanMinimumPossibleValue
+        });
     }
     Ok(Decimal::from_i128_with_scale_unchecked(
         if is_positive { num } else { -num },
-        exp.unsigned_abs()
+        exp.unsigned_abs(),
     ))
 }
 
@@ -983,19 +995,13 @@ const fn parse_10(is_positive: bool, src: &[u8], mut exp: i32) -> ParseResult {
 // Can’t use `from_str_radix`, as that neither groks '_', nor allows to continue after '.' or 'e'.
 // For multi-step (see test) return: number parsed, digits count, offending rest
 // num saturates at i128::MAX, which is currently not a valid Decimal
-const fn parse_bytes_inner(
-    radix: u32,
-    src: &[u8],
-    mut num: i128,
-) -> (i128, u8, Option<&[u8]>) {
+const fn parse_bytes_inner(radix: u32, src: &[u8], mut num: i128) -> (i128, u8, Option<&[u8]>) {
     let mut count = 0;
     let mut next = src;
     while let [byte, rest @ ..] = next {
         if let Some(digit) = (*byte as char).to_digit(radix) {
             count += 1;
-            num = num
-                .saturating_mul(radix as i128)
-                .saturating_add(digit as i128);
+            num = num.saturating_mul(radix as i128).saturating_add(digit as i128);
         } else if *byte != b'_' || count == 0 {
             return (num, count, Some(next));
         }
@@ -1383,8 +1389,9 @@ mod test {
 
     #[test]
     pub fn parse_bytes_inner_full() {
-        let test = |radix, src: &str, result|
-            assert_eq!(parse_bytes_inner(radix, src.as_bytes(), 0).0, result, "{radix}, {src}");
+        let test = |radix, src: &str, result| {
+            assert_eq!(parse_bytes_inner(radix, src.as_bytes(), 0).0, result, "{radix}, {src}")
+        };
 
         test(2, "111", 0b111);
         test(2, "111", 0b111);
@@ -1404,9 +1411,14 @@ mod test {
         // Can only pass matcher to a macro, as normal variable would be a (useless) binding.
         macro_rules! test {
             ($radix:expr, $src:expr, $num:expr; $result:tt) => {
-                assert!(matches!(parse_bytes_inner($radix, $src.as_bytes(), $num), $result),
-                    "{}, {}, {}", $radix, $src, $num);
-            }
+                assert!(
+                    matches!(parse_bytes_inner($radix, $src.as_bytes(), $num), $result),
+                    "{}, {}, {}",
+                    $radix,
+                    $src,
+                    $num
+                );
+            };
         }
         // Assemble floaty: number parsed, digits count, offending rest
         test!(10, "01_234.567_8", 0;
@@ -1429,12 +1441,13 @@ mod test {
     // cases that don’t have their own Error symbol
     pub fn parse_dec_string() {
         use Error::*;
-        let test = |src, exp, result: &str|
+        let test = |src, exp, result: &str| {
             if let Err(err) = parse_dec(src, exp) {
                 assert_eq!(err, ConversionTo(result.into()), "{src}, {exp}")
             } else {
                 panic!("no Err {src}, {exp}")
-            };
+            }
+        };
         test("", 0, "number is empty, must have an integer part");
         test(".1", 0, "number is empty, must have an integer part");
         test("1.e2", 0, "consider adding a `0` after the period");
@@ -1445,43 +1458,84 @@ mod test {
         test("1e- 1", 0, "cannot parse decimal, unexpected \" 1\"");
         test("1e +1", 0, "cannot parse decimal, unexpected \" +1\"");
         test("1e -1", 0, "cannot parse decimal, unexpected \" -1\"");
-        test("1e-1", 50, "invalid exp 49 -- exp must be in the range -28 to 28 inclusive");
-        test("1e60", -1, "invalid exp 59 -- exp must be in the range -28 to 28 inclusive");
-        test("1e+80", 9, "invalid exp 89 -- exp must be in the range -28 to 28 inclusive");
-        test("1", 99, "invalid exp 99 -- exp must be in the range -28 to 28 inclusive");
+        test(
+            "1e-1",
+            50,
+            "invalid exp 49 -- exp must be in the range -28 to 28 inclusive",
+        );
+        test(
+            "1e60",
+            -1,
+            "invalid exp 59 -- exp must be in the range -28 to 28 inclusive",
+        );
+        test(
+            "1e+80",
+            9,
+            "invalid exp 89 -- exp must be in the range -28 to 28 inclusive",
+        );
+        test(
+            "1",
+            99,
+            "invalid exp 99 -- exp must be in the range -28 to 28 inclusive",
+        );
     }
 
     #[test]
     pub fn parse_dec_other() {
         use Error::*;
-        let test = |src, exp, result|
+        let test = |src, exp, result| {
             if let Err(err) = parse_dec(src, exp) {
                 assert_eq!(err, result, "{src}, {exp}")
             } else {
                 panic!("no Err {src}, {exp}")
-            };
+            }
+        };
         test("1e1", -50, ScaleExceedsMaximumPrecision(49));
         test("1e-80", 1, ScaleExceedsMaximumPrecision(79));
         test("1", -99, ScaleExceedsMaximumPrecision(99));
         test("100", 28, ExceedsMaximumPossibleValue);
         test("-100", 28, LessThanMinimumPossibleValue);
-        test("100_000_000_000_000_000_000_000_000_000", -1, ExceedsMaximumPossibleValue);
-        test("-100_000_000_000_000_000_000_000_000_000", -1, LessThanMinimumPossibleValue);
+        test(
+            "100_000_000_000_000_000_000_000_000_000",
+            -1,
+            ExceedsMaximumPossibleValue,
+        );
+        test(
+            "-100_000_000_000_000_000_000_000_000_000",
+            -1,
+            LessThanMinimumPossibleValue,
+        );
         test("9.000_000_000_000_000_000_000_000_000_001", 0, Underflow);
     }
 
     #[test]
     pub fn parse_radix_dec_any() {
         use Error::*;
-        let test = |radix, src, exp, result|
+        let test = |radix, src, exp, result| {
             if let Err(err) = parse_radix_dec(radix, src, exp) {
                 assert_eq!(err, result, "{src}, {exp}")
             } else {
                 panic!("no Err {src}, {exp}")
-            };
-        test(1, "", 0, ConversionTo("invalid radix 1 -- radix must be in the range 2 to 36 inclusive".into()));
-        test(37, "", 0, ConversionTo("invalid radix 37 -- radix must be in the range 2 to 36 inclusive".into()));
-        test(4, "12_3456", 0, ConversionTo("cannot parse decimal, unexpected \"456\"".into()));
+            }
+        };
+        test(
+            1,
+            "",
+            0,
+            ConversionTo("invalid radix 1 -- radix must be in the range 2 to 36 inclusive".into()),
+        );
+        test(
+            37,
+            "",
+            0,
+            ConversionTo("invalid radix 37 -- radix must be in the range 2 to 36 inclusive".into()),
+        );
+        test(
+            4,
+            "12_3456",
+            0,
+            ConversionTo("cannot parse decimal, unexpected \"456\"".into()),
+        );
     }
 
     #[test]
@@ -1489,9 +1543,12 @@ mod test {
     pub fn dec_exact() {
         macro_rules! test {
             ($src:literal) => {
-                assert_eq!(dec!($src), parse_str_radix_10_exact(stringify!($src)).unwrap(),
-                    stringify!($src));
-            }
+                assert_eq!(
+                    dec!($src),
+                    parse_str_radix_10_exact(stringify!($src)).unwrap(),
+                    stringify!($src)
+                );
+            };
         }
         test!(1_000);
         test!(-1_000);
@@ -1510,9 +1567,12 @@ mod test {
     pub fn dec_scientific() {
         macro_rules! test {
             ($src:literal) => {
-                assert_eq!(dec!($src), Decimal::from_scientific(stringify!($src)).unwrap(),
-                    stringify!($src));
-            }
+                assert_eq!(
+                    dec!($src),
+                    Decimal::from_scientific(stringify!($src)).unwrap(),
+                    stringify!($src)
+                );
+            };
         }
         test!(1e1);
         test!(-1e1);

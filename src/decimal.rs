@@ -482,7 +482,7 @@ impl Decimal {
     #[inline]
     pub(crate) const fn from_i128_with_scale_unchecked(num: i128, scale: u32) -> Decimal {
         let flags = flags(num < 0, scale);
-	let num = num.unsigned_abs();
+        let num = num.unsigned_abs();
         Decimal {
             flags,
             lo: (num as u64 & U32_MASK) as u32,

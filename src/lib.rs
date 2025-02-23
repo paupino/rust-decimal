@@ -59,10 +59,10 @@ pub use maths::MathematicalOps;
 
 /// A convenience module appropriate for glob imports (`use rust_decimal::prelude::*;`).
 pub mod prelude {
-    #[cfg(feature = "maths")]
-    pub use crate::maths::MathematicalOps;
     #[cfg(feature = "macro")]
     pub use crate::dec;
+    #[cfg(feature = "maths")]
+    pub use crate::maths::MathematicalOps;
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
     pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
