@@ -3363,20 +3363,25 @@ fn it_can_parse_individual_parts() {
 #[test]
 fn it_can_parse_scientific_notation() {
     let tests = &[
-        ("9.7e-7", "0.00000097"),
-        ("9e-7", "0.0000009"),
-        ("1.2e10", "12000000000"),
-        ("1.2e+10", "12000000000"),
-        ("12e10", "120000000000"),
-        ("9.7E-7", "0.00000097"),
-        ("1.2345E-24", "0.0000000000000000000000012345"),
-        ("12345E-28", "0.0000000000000000000000012345"),
-        ("1.2345E0", "1.2345"),
-        ("1E28", "10000000000000000000000000000"),
+        ("9.7e-7", Ok("0.00000097".to_string())),
+        ("9e-7", Ok("0.0000009".to_string())),
+        ("1.2e10", Ok("12000000000".to_string())),
+        ("1.2e+10", Ok("12000000000".to_string())),
+        ("12e10", Ok("120000000000".to_string())),
+        ("9.7E-7", Ok("0.00000097".to_string())),
+        ("1.2345E-24", Ok("0.0000000000000000000000012345".to_string())),
+        ("12345E-28", Ok("0.0000000000000000000000012345".to_string())),
+        ("1.2345E0", Ok("1.2345".to_string())),
+        ("1E28", Ok("10000000000000000000000000000".to_string())),
+        (
+            "-20165.4676_e-+4294967292",
+            Err(Error::ScaleExceedsMaximumPrecision(4294967292)),
+        ),
     ];
 
-    for &(value, expected) in tests {
-        assert_eq!(expected, Decimal::from_scientific(value).unwrap().to_string());
+    for &(value, ref expected) in tests {
+        let actual = Decimal::from_scientific(value).map(|d| d.to_string());
+        assert_eq!(*expected, actual);
     }
 }
 
