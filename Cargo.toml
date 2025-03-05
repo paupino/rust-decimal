@@ -41,6 +41,7 @@ bincode = { default-features = false, version = "1.0" }
 bytes = { default-features = false, version = "1.0" }
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
+diesel = { default-features = false, features = ["mysql"], version = "2.2.3" }
 futures = { default-features = false, version = "0.3" }
 rand = { default-features = false, features = ["getrandom"], version = "0.8" }
 rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
@@ -57,7 +58,7 @@ default = ["serde", "std"]
 
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
-db-diesel-mysql = ["diesel/mysql", "std"]
+db-diesel-mysql = ["diesel/mysql_backend", "std"]
 db-diesel-postgres = ["diesel/postgres", "std"]
 db-diesel2-mysql = ["db-diesel-mysql"]
 db-diesel2-postgres = ["db-diesel-postgres"]
