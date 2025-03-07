@@ -17,7 +17,7 @@ fn read_two_bytes(cursor: &mut Cursor<&[u8]>) -> std::io::Result<[u8; 2]> {
     Ok(result)
 }
 
-impl<'a> FromSql<'a> for Decimal {
+impl FromSql<'_> for Decimal {
     // Decimals are represented as follows:
     // Header:
     //  u16 numGroups

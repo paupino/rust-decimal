@@ -213,10 +213,7 @@ impl MathematicalOps for Decimal {
 
         // Get the unsigned exponent
         let exp = exp.unsigned_abs();
-        let pow = match self.checked_powu(exp) {
-            Some(v) => v,
-            None => return None,
-        };
+        let pow = self.checked_powu(exp)?;
         Decimal::ONE.checked_div(pow)
     }
 
@@ -278,10 +275,7 @@ impl MathematicalOps for Decimal {
     }
 
     fn checked_powf(&self, exp: f64) -> Option<Decimal> {
-        let exp = match Decimal::from_f64(exp) {
-            Some(f) => f,
-            None => return None,
-        };
+        let exp = Decimal::from_f64(exp)?;
         self.checked_powd(exp)
     }
 
@@ -324,10 +318,7 @@ impl MathematicalOps for Decimal {
         // We do some approximations since we've got a decimal exponent.
         // For positive bases: a^b = exp(b*ln(a))
         let negative = self.is_sign_negative();
-        let e = match self.abs().ln().checked_mul(exp) {
-            Some(e) => e,
-            None => return None,
-        };
+        let e = self.abs().ln().checked_mul(exp)?;
         let mut result = e.checked_exp()?;
         result.set_sign_negative(negative);
         Some(result)

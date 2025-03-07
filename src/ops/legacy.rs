@@ -478,7 +478,7 @@ pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
 #[inline]
 fn add_part(left: u32, right: u32) -> (u32, u32) {
     let added = u64::from(left) + u64::from(right);
-    ((added & U32_MASK) as u32, (added >> 32 & U32_MASK) as u32)
+    ((added & U32_MASK) as u32, ((added >> 32) & U32_MASK) as u32)
 }
 
 #[inline(always)]
@@ -590,7 +590,7 @@ fn add_by_internal3(value: &mut [u32; 3], by: &[u32; 3]) -> u32 {
 
 #[inline]
 const fn u64_to_array(value: u64) -> [u32; 2] {
-    [(value & U32_MASK) as u32, (value >> 32 & U32_MASK) as u32]
+    [(value & U32_MASK) as u32, ((value >> 32) & U32_MASK) as u32]
 }
 
 fn add_with_scale_internal(

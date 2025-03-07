@@ -151,7 +151,7 @@ macro_rules! forward_val_val_binop {
 }
 
 forward_all_binop!(impl Add for Decimal, add);
-impl<'a, 'b> Add<&'b Decimal> for &'a Decimal {
+impl Add<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline(always)]
@@ -208,7 +208,7 @@ impl Inv for Decimal {
 }
 
 forward_all_binop!(impl Div for Decimal, div);
-impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
+impl Div<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline]
@@ -222,7 +222,7 @@ impl<'a, 'b> Div<&'b Decimal> for &'a Decimal {
 }
 
 forward_all_binop!(impl Mul for Decimal, mul);
-impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
+impl Mul<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline]
@@ -235,7 +235,7 @@ impl<'a, 'b> Mul<&'b Decimal> for &'a Decimal {
 }
 
 forward_all_binop!(impl Rem for Decimal, rem);
-impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
+impl Rem<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline]
@@ -249,7 +249,7 @@ impl<'a, 'b> Rem<&'b Decimal> for &'a Decimal {
 }
 
 forward_all_binop!(impl Sub for Decimal, sub);
-impl<'a, 'b> Sub<&'b Decimal> for &'a Decimal {
+impl Sub<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline(always)]

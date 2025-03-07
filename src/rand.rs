@@ -1,13 +1,13 @@
 use crate::Decimal;
 use rand::{
-    distributions::{
-        uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler},
-        Distribution, Standard,
-    },
     Rng,
+    distr::{
+        Distribution, StandardUniform,
+        uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler},
+    },
 };
 
-impl Distribution<Decimal> for Standard {
+impl Distribution<Decimal> for StandardUniform {
     fn sample<R>(&self, rng: &mut R) -> Decimal
     where
         R: Rng + ?Sized,
@@ -16,8 +16,8 @@ impl Distribution<Decimal> for Standard {
             rng.next_u32(),
             rng.next_u32(),
             rng.next_u32(),
-            rng.gen(),
-            rng.gen_range(0..=Decimal::MAX_SCALE),
+            rng.random(),
+            rng.random_range(0..=Decimal::MAX_SCALE),
         )
     }
 }
@@ -44,15 +44,15 @@ impl UniformSampler for DecimalSampler {
     ///
     /// ```
     /// # use rand::Rng;
-    /// # use rust_decimal::dec;
-    /// let mut rng = rand::rngs::OsRng;
-    /// let random = rng.gen_range(dec!(1.00)..dec!(2.00));
+    /// # use rust_decimal_macros::dec;
+    /// let mut rng = rand::rng();
+    /// let random = rng.random_range(dec!(1.00)..dec!(2.00));
     /// assert!(random >= dec!(1.00));
     /// assert!(random < dec!(2.00));
     /// assert_eq!(random.scale(), 2);
     /// ```
     #[inline]
-    fn new<B1, B2>(low: B1, high: B2) -> Self
+    fn new<B1, B2>(low: B1, high: B2) -> Result<Self, rand::distr::uniform::Error>
     where
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
@@ -71,15 +71,15 @@ impl UniformSampler for DecimalSampler {
     ///
     /// ```
     /// # use rand::Rng;
-    /// # use rust_decimal::dec;
-    /// let mut rng = rand::rngs::OsRng;
-    /// let random = rng.gen_range(dec!(1.00)..=dec!(2.00));
+    /// # use rust_decimal_macros::dec;
+    /// let mut rng = rand::rng();
+    /// let random = rng.random_range(dec!(1.00)..=dec!(2.00));
     /// assert!(random >= dec!(1.00));
     /// assert!(random <= dec!(2.00));
     /// assert_eq!(random.scale(), 2);
     /// ```
     #[inline]
-    fn new_inclusive<B1, B2>(low: B1, high: B2) -> Self
+    fn new_inclusive<B1, B2>(low: B1, high: B2) -> Result<Self, rand::distr::uniform::Error>
     where
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
@@ -88,10 +88,10 @@ impl UniformSampler for DecimalSampler {
 
         // Return our sampler, which contains an underlying i128 sampler so we
         // outsource the actual randomness implementation.
-        Self {
-            mantissa_sampler: UniformInt::new_inclusive(low.mantissa(), high.mantissa()),
+        Ok(Self {
+            mantissa_sampler: UniformInt::new_inclusive(low.mantissa(), high.mantissa())?,
             scale: low.scale(),
-        }
+        })
     }
 
     #[inline]
@@ -138,16 +138,16 @@ mod rand_tests {
 
     #[test]
     fn has_random_decimal_instances() {
-        let mut rng = rand::rngs::OsRng;
-        let random: [Decimal; 32] = rng.gen();
+        let mut rng = rand::rng();
+        let random: [Decimal; 32] = rng.random();
         assert!(random.windows(2).any(|slice| { slice[0] != slice[1] }));
     }
 
     #[test]
     fn generates_within_range() {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         for _ in 0..128 {
-            let random = rng.gen_range(dec!(1.00)..dec!(1.05));
+            let random = rng.random_range(dec!(1.00)..dec!(1.05));
             assert!(random < dec!(1.05));
             assert!(random >= dec!(1.00));
         }
@@ -155,10 +155,10 @@ mod rand_tests {
 
     #[test]
     fn generates_within_inclusive_range() {
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = rand::rng();
         let mut values: HashSet<Decimal> = HashSet::new();
         for _ in 0..256 {
-            let random = rng.gen_range(dec!(1.00)..=dec!(1.01));
+            let random = rng.random_range(dec!(1.00)..=dec!(1.01));
             // The scale is 2, so 1.00 and 1.01 are the only two valid choices.
             assert!(random == dec!(1.00) || random == dec!(1.01));
             values.insert(random);

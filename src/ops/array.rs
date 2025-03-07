@@ -278,8 +278,8 @@ pub(crate) fn shl1_internal(bits: &mut [u32], carry: u32) -> u32 {
 pub(crate) fn cmp_internal(left: &[u32; 3], right: &[u32; 3]) -> core::cmp::Ordering {
     let left_hi: u32 = left[2];
     let right_hi: u32 = right[2];
-    let left_lo: u64 = u64::from(left[1]) << 32 | u64::from(left[0]);
-    let right_lo: u64 = u64::from(right[1]) << 32 | u64::from(right[0]);
+    let left_lo: u64 = (u64::from(left[1]) << 32) | u64::from(left[0]);
+    let right_lo: u64 = (u64::from(right[1]) << 32) | u64::from(right[0]);
     if left_hi < right_hi || (left_hi <= right_hi && left_lo < right_lo) {
         core::cmp::Ordering::Less
     } else if left_hi == right_hi && left_lo == right_lo {

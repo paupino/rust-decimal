@@ -4,15 +4,15 @@ build = "build.rs"
 categories = ["science", "mathematics", "data-structures"]
 description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
 documentation = "https://docs.rs/rust_decimal/"
-edition = "2021"
+edition = "2024"
 exclude = ["tests/generated/*"]
 keywords = ["decimal", "financial", "fixed", "precision", "number"]
 license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
-rust-version = "1.67.1"
-version = "1.36.0"
+rust-version = "1.85.0"
+version = "1.37.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -24,28 +24,26 @@ arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1.1.1" }
 bytes = { default-features = false, optional = true, version = "1.0" }
 diesel = { default-features = false, optional = true, version = "2.2.3" }
-ndarray = { default-features = false, optional = true, version = "0.15.6" }
+ndarray = { default-features = false, optional = true, version = "0.16.1" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 postgres-types = { default-features = false, optional = true, version = "0.2" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
-rand = { default-features = false, optional = true, version = "0.8" }
-rand-0_9 = { default-features = false, optional = true, package = "rand", version = "0.9" }
-rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7.42" }
+rand = { default-features = false, optional = true, version = "0.9.0" }
+rkyv = { default-features = false, features = ["std",], optional = true, version = "0.8.10" }
 rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
 
 [dev-dependencies]
-bincode = { default-features = false, version = "1.0" }
+bincode = { default-features = false, version = "1.3.3" }
 bytes = { default-features = false, version = "1.0" }
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
 diesel = { default-features = false, features = ["mysql"], version = "2.2.3" }
 futures = { default-features = false, version = "0.3" }
-rand = { default-features = false, features = ["getrandom"], version = "0.8" }
-rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
-rkyv-0_8 = { version = "0.8", package = "rkyv" }
+rand = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9.0" }
+rkyv = { default-features = false, features = ["bytecheck"], version = "0.8.10" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"
 tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
@@ -72,7 +70,6 @@ ndarray = ["dep:ndarray"]
 proptest = ["dep:proptest"]
 rand = ["dep:rand"]
 rkyv = ["dep:rkyv"]
-rkyv-safe = ["rkyv/validation"]
 rocket-traits = ["dep:rocket", "std"]
 rust-fuzz = ["dep:arbitrary"]
 serde = ["dep:serde"]
