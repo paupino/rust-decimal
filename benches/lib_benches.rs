@@ -161,6 +161,8 @@ const SAMPLE_STRS: &[&str] = &[
 
 #[bench]
 fn serialize_bincode(b: &mut test::Bencher) {
+    use bincode::Options;
+    
     let decimals: Vec<Decimal> = SAMPLE_STRS.iter().map(|s| Decimal::from_str(s).unwrap()).collect();
 
     b.iter(|| {
@@ -174,6 +176,8 @@ fn serialize_bincode(b: &mut test::Bencher) {
 #[cfg(feature = "serde-str")]
 #[bench]
 fn deserialize_bincode(b: &mut test::Bencher) {
+    use bincode::Options;
+
     let payloads: Vec<Vec<u8>> = SAMPLE_STRS
         .iter()
         .map(|s| bincode::options().serialize(&Decimal::from_str(s).unwrap()).unwrap())

@@ -126,6 +126,7 @@ pub struct Decimal {
 }
 
 #[allow(unsafe_code)]
+#[cfg(feature = "rkyv")]
 unsafe impl Portable for Decimal {}
 
 #[cfg(feature = "ndarray")]
