@@ -2,7 +2,6 @@
 
 extern crate test;
 
-use bincode::Options as _;
 use core::str::FromStr;
 use rust_decimal::Decimal;
 

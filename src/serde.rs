@@ -354,9 +354,10 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
             .or_else(|_| Decimal::from_scientific(value))
             .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
     }
+    
 
     #[cfg(feature = "serde-with-arbitrary-precision")]
-    fn visit_map<A>(self, map: A) -> Result<Decimal, A::Error>
+    fn visit_map<A>(self, map: A) -> Result<Decimal, <A as serde::de::MapAccess<'de>>::Error>
     where
         A: serde::de::MapAccess<'de>,
     {
@@ -458,7 +459,7 @@ impl<'de> serde::de::Deserialize<'de> for DecimalKey {
     {
         struct FieldVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for FieldVisitor {
+        impl serde::de::Visitor<'_> for FieldVisitor {
             type Value = ();
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -495,7 +496,7 @@ impl<'de> serde::de::Deserialize<'de> for DecimalFromString {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = DecimalFromString;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

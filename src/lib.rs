@@ -1,6 +1,5 @@
 #![doc = include_str!(concat!(env!("OUT_DIR"), "/README-lib.md"))]
-#![forbid(unsafe_code)]
-#![deny(clippy::print_stdout, clippy::print_stderr)]
+#![deny(unsafe_code, clippy::print_stdout, clippy::print_stderr)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 extern crate alloc;
@@ -30,8 +29,6 @@ mod postgres;
 mod proptest;
 #[cfg(feature = "rand")]
 mod rand;
-#[cfg(feature = "rand-0_9")]
-mod rand_0_9;
 #[cfg(feature = "rocket-traits")]
 mod rocket;
 #[cfg(all(
