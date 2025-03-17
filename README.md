@@ -19,6 +19,18 @@ The binary representation consists of a 96 bit integer number, a scaling factor 
 a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These
 can be truncated using the `normalize` or `round_dp` functions.
 
+**PLEASE READ!**
+
+This is the **main** branch and is now considered _unstable_. 
+
+The stable 1.x version of Rust Decimal has been branched and exists in the `v1` branch. Patch requests and bug fixes are still accepted against `v1` however will need to continue being backwards compatible and aligning with the support model.
+
+This branch also accepts contributions - any contributions to this branch are permitted to be breaking as we work towards an improved Decimal API. Some things expected to break over the coming months are:
+* Removal of deprecated APIs
+* Removing use of panics within the code without explicit opt in
+* Clean up of error types for `const` and `no-std` support
+* Module system experimentation
+
 ## Installing
 
 ```sh
