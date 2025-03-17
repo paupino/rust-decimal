@@ -179,7 +179,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::MIN, dec!(-79_228_162_514_264_337_593_543_950_335));
     /// ```
     pub const MIN: Decimal = MIN;
@@ -189,7 +190,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::MAX, dec!(79_228_162_514_264_337_593_543_950_335));
     /// ```
     pub const MAX: Decimal = MAX;
@@ -199,7 +201,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::ZERO, dec!(0));
     /// ```
     pub const ZERO: Decimal = ZERO;
@@ -209,7 +212,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::ONE, dec!(1));
     /// ```
     pub const ONE: Decimal = ONE;
@@ -219,7 +223,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::NEGATIVE_ONE, dec!(-1));
     /// ```
     pub const NEGATIVE_ONE: Decimal = NEGATIVE_ONE;
@@ -229,7 +234,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::TWO, dec!(2));
     /// ```
     pub const TWO: Decimal = TWO;
@@ -239,7 +245,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::TEN, dec!(10));
     /// ```
     pub const TEN: Decimal = TEN;
@@ -249,7 +256,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::ONE_HUNDRED, dec!(100));
     /// ```
     pub const ONE_HUNDRED: Decimal = ONE_HUNDRED;
@@ -259,7 +267,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::ONE_THOUSAND, dec!(1000));
     /// ```
     pub const ONE_THOUSAND: Decimal = ONE_THOUSAND;
@@ -278,7 +287,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::PI, dec!(3.1415926535897932384626433833));
     /// ```
     #[cfg(feature = "maths")]
@@ -294,7 +304,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::HALF_PI, dec!(1.5707963267948966192313216916));
     /// ```
     #[cfg(feature = "maths")]
@@ -310,7 +321,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::QUARTER_PI, dec!(0.7853981633974483096156608458));
     /// ```
     #[cfg(feature = "maths")]
@@ -326,7 +338,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::TWO_PI, dec!(6.2831853071795864769252867666));
     /// ```
     #[cfg(feature = "maths")]
@@ -342,7 +355,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::E, dec!(2.7182818284590452353602874714));
     /// ```
     #[cfg(feature = "maths")]
@@ -358,7 +372,8 @@ impl Decimal {
     ///
     /// Basic usage:
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// assert_eq!(Decimal::E_INVERSE, dec!(0.3678794411714423215955237702));
     /// ```
     #[cfg(feature = "maths")]
@@ -694,7 +709,7 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::prelude::*;
-    /// use rust_decimal::dec;
+    /// # use rust_decimal_macros::dec;
     ///
     /// let num = dec!(-1.2345678);
     /// assert_eq!(num.mantissa(), -12345678i128);
@@ -730,7 +745,8 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// # use rust_decimal::{dec, prelude::*};
+    /// # use rust_decimal::prelude::*;
+    /// # use rust_decimal_macros::dec;
     /// #
     /// assert_eq!(dec!(5).is_integer(), true);
     /// // Trailing zeros are also ignored
@@ -871,7 +887,7 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::prelude::*;
-    /// use rust_decimal::dec;
+    /// # use rust_decimal_macros::dec;
     ///
     /// // Rescaling to a higher scale preserves the value
     /// let mut number = dec!(1.123);
@@ -1041,7 +1057,8 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// #
     /// let pi = dec!(3.141);
     /// assert_eq!(pi.trunc(), dec!(3));
@@ -1069,7 +1086,8 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// #
     /// let pi = dec!(3.141592);
     /// assert_eq!(pi.trunc_with_scale(2), dec!(3.14));
@@ -1307,7 +1325,8 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// # use rust_decimal::{dec, Decimal, RoundingStrategy};
+    /// # use rust_decimal::{Decimal, RoundingStrategy};
+    /// # use rust_decimal_macros::dec;
     /// #
     /// let tax = dec!(3.4395);
     /// assert_eq!(tax.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero).to_string(), "3.44");
@@ -1459,7 +1478,8 @@ impl Decimal {
     /// # Example
     ///
     /// ```
-    /// # use rust_decimal::{dec, Decimal};
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
     /// #
     /// let pi = dec!(3.1415926535897932384626433832);
     /// assert_eq!(pi.round_dp(2).to_string(), "3.14");
@@ -1489,7 +1509,7 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::Decimal;
-    /// use rust_decimal::dec;
+    /// # use rust_decimal_macros::dec;
     ///
     /// let value = dec!(305.459);
     /// assert_eq!(value.round_sf(0), Some(dec!(0)));
@@ -1531,7 +1551,7 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::{Decimal, RoundingStrategy};
-    /// use rust_decimal::dec;
+    /// # use rust_decimal_macros::dec;
     ///
     /// let value = dec!(305.459);
     /// assert_eq!(value.round_sf_with_strategy(0, RoundingStrategy::ToZero), Some(dec!(0)));
@@ -1643,7 +1663,7 @@ impl Decimal {
     ///
     /// ```
     /// # use rust_decimal::Decimal;
-    /// use rust_decimal::dec;
+    /// # use rust_decimal_macros::dec;
     ///
     /// let pi = dec!(3.1415926535897932384626433832);
     /// assert_eq!(format!("{:?}", pi), "3.1415926535897932384626433832");
