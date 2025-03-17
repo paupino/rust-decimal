@@ -967,11 +967,17 @@ impl Decimal {
         //   Bits 24-30: unused
         //   Bit 31: the sign of the Decimal value, 0 meaning positive and 1 meaning negative.
         let mut raw = Decimal {
-            flags: ((bytes[0] as u32) | (bytes[1] as u32) << 8 | (bytes[2] as u32) << 16 | (bytes[3] as u32) << 24)
+            flags: ((bytes[0] as u32)
+                | ((bytes[1] as u32) << 8)
+                | ((bytes[2] as u32) << 16)
+                | ((bytes[3] as u32) << 24))
                 & 0x801F_0000,
-            lo: (bytes[4] as u32) | (bytes[5] as u32) << 8 | (bytes[6] as u32) << 16 | (bytes[7] as u32) << 24,
-            mid: (bytes[8] as u32) | (bytes[9] as u32) << 8 | (bytes[10] as u32) << 16 | (bytes[11] as u32) << 24,
-            hi: (bytes[12] as u32) | (bytes[13] as u32) << 8 | (bytes[14] as u32) << 16 | (bytes[15] as u32) << 24,
+            lo: (bytes[4] as u32) | ((bytes[5] as u32) << 8) | ((bytes[6] as u32) << 16) | ((bytes[7] as u32) << 24),
+            mid: (bytes[8] as u32) | ((bytes[9] as u32) << 8) | ((bytes[10] as u32) << 16) | ((bytes[11] as u32) << 24),
+            hi: (bytes[12] as u32)
+                | ((bytes[13] as u32) << 8)
+                | ((bytes[14] as u32) << 16)
+                | ((bytes[15] as u32) << 24),
         };
         // Scale must be bound to maximum precision. Only two values can be greater than this
         if raw.scale() > Self::MAX_SCALE {
@@ -2316,7 +2322,7 @@ impl ToPrimitive for Decimal {
 
     fn to_i128(&self) -> Option<i128> {
         let d = self.trunc();
-        let raw: i128 = ((i128::from(d.hi) << 64) | i128::from(d.mid) << 32) | i128::from(d.lo);
+        let raw: i128 = ((i128::from(d.hi) << 64) | (i128::from(d.mid) << 32)) | i128::from(d.lo);
         if self.is_sign_negative() {
             Some(-raw)
         } else {
@@ -2427,7 +2433,7 @@ impl Neg for Decimal {
     }
 }
 
-impl<'a> Neg for &'a Decimal {
+impl Neg for &Decimal {
     type Output = Decimal;
 
     fn neg(self) -> Decimal {
@@ -2456,7 +2462,7 @@ impl<'a> AddAssign<&'a Decimal> for Decimal {
     }
 }
 
-impl<'a> AddAssign<Decimal> for &'a mut Decimal {
+impl AddAssign<Decimal> for &mut Decimal {
     fn add_assign(&mut self, other: Decimal) {
         Decimal::add_assign(*self, other)
     }
@@ -2484,7 +2490,7 @@ impl<'a> SubAssign<&'a Decimal> for Decimal {
     }
 }
 
-impl<'a> SubAssign<Decimal> for &'a mut Decimal {
+impl SubAssign<Decimal> for &mut Decimal {
     fn sub_assign(&mut self, other: Decimal) {
         Decimal::sub_assign(*self, other)
     }
@@ -2512,7 +2518,7 @@ impl<'a> MulAssign<&'a Decimal> for Decimal {
     }
 }
 
-impl<'a> MulAssign<Decimal> for &'a mut Decimal {
+impl MulAssign<Decimal> for &mut Decimal {
     fn mul_assign(&mut self, other: Decimal) {
         Decimal::mul_assign(*self, other)
     }
@@ -2540,7 +2546,7 @@ impl<'a> DivAssign<&'a Decimal> for Decimal {
     }
 }
 
-impl<'a> DivAssign<Decimal> for &'a mut Decimal {
+impl DivAssign<Decimal> for &mut Decimal {
     fn div_assign(&mut self, other: Decimal) {
         Decimal::div_assign(*self, other)
     }
@@ -2568,7 +2574,7 @@ impl<'a> RemAssign<&'a Decimal> for Decimal {
     }
 }
 
-impl<'a> RemAssign<Decimal> for &'a mut Decimal {
+impl RemAssign<Decimal> for &mut Decimal {
     fn rem_assign(&mut self, other: Decimal) {
         Decimal::rem_assign(*self, other)
     }

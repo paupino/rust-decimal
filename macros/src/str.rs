@@ -76,8 +76,7 @@ impl Display for ParseError<'_> {
     }
 }
 
-// dec!() entrypoint without radix
-pub const fn parse_dec(src: &str, exp: i32) -> ParseResult {
+pub const fn parse_decimal(src: &str, exp: i32) -> ParseResult {
     const fn skip_us(radix: u32, is_positive: bool, mut src: &[u8], exp: i32) -> ParseResult {
         while let [b'_', rest @ ..] = src {
             src = rest
@@ -95,7 +94,7 @@ pub const fn parse_dec(src: &str, exp: i32) -> ParseResult {
 }
 
 // dec!() entrypoint with radix
-pub const fn parse_radix_dec(radix: u32, src: &str, exp: i32) -> ParseResult {
+pub const fn parse_decimal_with_radix(src: &str, exp: i32, radix: u32) -> ParseResult {
     if 2 <= radix && radix <= 36 {
         let (is_positive, src) = parse_sign(src);
         parse_bytes(radix, is_positive, src, exp)
@@ -283,12 +282,12 @@ mod test {
 
     // Convert ParseResult to Decimal Result by impl From
     fn parse_dec(src: &str, exp: i32) -> Result<Decimal, ParseError> {
-        let unpacked = super::parse_dec(src, exp)?;
+        let unpacked = parse_decimal(src, exp)?;
         Ok(Decimal::from_i128_with_scale(unpacked.mantissa, unpacked.scale))
     }
 
-    fn parse_radix_dec(radix: u32, src: &str, exp: i32) -> Result<Decimal, ParseError> {
-        let unpacked = super::parse_radix_dec(radix, src, exp)?;
+    fn parse_radix_dec(src: &str, exp: i32, radix: u32) -> Result<Decimal, ParseError> {
+        let unpacked = parse_decimal_with_radix(src, exp, radix)?;
         Ok(Decimal::from_i128_with_scale(unpacked.mantissa, unpacked.scale))
     }
 
@@ -364,7 +363,7 @@ mod test {
     #[test]
     pub fn parse_radix_dec_any() {
         let test = |radix, src, exp, result| {
-            if let Err(err) = parse_radix_dec(radix, src, exp) {
+            if let Err(err) = parse_radix_dec(src, exp, radix) {
                 assert_eq!(err, result, "{src}, {exp}")
             } else {
                 panic!("no Err {src}, {exp}")

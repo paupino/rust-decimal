@@ -312,7 +312,7 @@ const DECIMAL_KEY_TOKEN: &str = "$serde_json::private::Number";
 
 struct DecimalVisitor;
 
-impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
+impl serde::de::Visitor<'_> for DecimalVisitor {
     type Value = Decimal;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

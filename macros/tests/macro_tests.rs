@@ -1,4 +1,3 @@
-// TODO: Make all of the new tests work with the new parameters etc
 use rust_decimal_macros::dec;
 
 // Require using for reexportable feature
@@ -72,13 +71,15 @@ fn it_can_parse_scientific_decimal() {
 #[test]
 fn it_can_parse_decimal_with_args() {
     let tests = &[
-        (dec!(radix: 2, 100), "4"),
-        (dec!(radix: 3, -1_222), "-53"),
-        (dec!(radix: 36, z1), "1261"),
-        (dec!(radix: 36, -1_xyz), "-90683"),
-        (dec!(radix: 2, exp: 5, 10), "200000"),
-        (dec!(exp: -3, radix: 8, -1_777), "-1.023"),
-        (dec!(exp: -3, -1023), "-1.023"),
+        (dec!(100, radix 2), "4"),
+        (dec!(radix 2, 100), "4"),
+        (dec!(radix 3, -1_222), "-53"),
+        (dec!(radix 36, z1), "1261"),
+        (dec!(radix 36, -1_xyz), "-90683"),
+        (dec!(radix 2, exp 5, 10), "200000"),
+        (dec!(radix 2, 10, exp 5), "200000"),
+        (dec!(exp -3, radix 8, -1_777), "-1.023"),
+        (dec!(exp - 3, -1023), "-1.023"),
     ];
     for &(a, b) in tests {
         assert_eq!(a.to_string(), b);
