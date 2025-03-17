@@ -29,7 +29,7 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.36"
+rust_decimal = "1.37"
 ```
 
 ## Usage
@@ -38,7 +38,10 @@ Decimal numbers can be created in a few distinct ways. The easiest and most effi
 use the macro:
 
 ```rust
-use rust_decimal::dec;
+// Import via use rust_decimal_macros or use the `macros` feature to import at the crate level
+// `use rust_decimal_macros::dec;`
+// or
+// `use rust_decimal::dec;`
 
 let number = dec!(-1.23) + dec!(3.45);
 assert_eq!(number, dec!(2.22));
@@ -79,13 +82,16 @@ assert_eq!("3", my_int.to_string());
 // Using the raw decimal representation
 let pi = Decimal::from_parts(1_102_470_952, 185_874_565, 1_703_060_790, false, 28);
 assert_eq!("3.1415926535897932384626433832", pi.to_string());
+
+// If the `macros` feature is enabled, it also allows for the `dec!` macro
+let amount = dec!(25.12);
+assert_eq!("25.12", amount.to_string());
 ```
 
 Once you have instantiated your `Decimal` number you can perform calculations with it just like any other number:
 
 ```rust
-//use rust_decimal::prelude::*; // includes dec! when you activate feature "macro"
-use rust_decimal::{dec, prelude::*}; // withouth feature "macro", use it explicitly
+use rust_decimal::prelude::*; // Includes the `dec` macro when feature specified
 
 let amount = dec!(25.12);
 let tax_percentage = dec!(0.085);

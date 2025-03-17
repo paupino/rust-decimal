@@ -37,13 +37,16 @@ fn prepare(readme: &str) -> Result<String, Box<dyn std::error::Error>> {
                     "(https://github.com/paupino/rust-decimal/blob/master/BUILD.md)",
                 )
             )?;
-        } else if feature_section && line.starts_with("```rust") {
-            // This is a bit naive, but it's to make the Serde examples cleaner. Should probably
-            // be a bit more "defensive" here.
+        } else if line.starts_with("```rust") {
             writeln!(cleaned, "```rust")?;
             writeln!(cleaned, "# use rust_decimal::Decimal;")?;
-            writeln!(cleaned, "# use serde::{{Serialize, Deserialize}};")?;
-            write!(cleaned, "# #[cfg(features = \"{feature}\")]")?;
+            writeln!(cleaned, "# use rust_decimal_macros::dec;")?;
+            if feature_section {
+                // This is a bit naive, but it's to make the Serde examples cleaner. Should probably
+                // be a bit more "defensive" here.
+                writeln!(cleaned, "# use serde::{{Serialize, Deserialize}};")?;
+                write!(cleaned, "# #[cfg(features = \"{feature}\")]")?;
+            }
         } else {
             if !feature_section && line.starts_with("## Features") {
                 feature_section = true;
