@@ -42,7 +42,9 @@ use syn::{
     parse_macro_input, Expr, Ident, LitInt, Result, Token,
 };
 
-/// Transform a literal number directly to a `Decimal` at compile time. Any Rust number format works.
+/// Transform a literal number directly to a `Decimal` at compile time.
+///
+/// Any Rust number format works, for example:
 ///
 /// - `dec!(1)`, `dec!(-1)`, `dec!(1_999)`, `dec!(- 1_999)`
 /// - `dec!(0b1)`, `dec!(-0b1_1111)`, `dec!(0o1)`, `dec!(-0o1_777)`, `dec!(0x1)`, `dec!(-0x1_Ffff)`
@@ -74,6 +76,8 @@ use syn::{
 /// let number = dec!(-5.4321);
 /// assert_eq!("-5.4321", number.to_string());
 /// let number = dec!(-0o1_777);
+/// assert_eq!("-1023", number.to_string());
+/// let number = dec!(-1_777, radix 8);
 /// assert_eq!("-1023", number.to_string());
 /// ```
 ///
