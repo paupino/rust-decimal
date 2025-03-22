@@ -4,15 +4,15 @@ build = "build.rs"
 categories = ["science", "mathematics", "data-structures"]
 description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
 documentation = "https://docs.rs/rust_decimal/"
-edition = "2021"
+edition = "2024"
 exclude = ["tests/generated/*"]
 keywords = ["decimal", "financial", "fixed", "precision", "number"]
 license = "MIT"
 name = "rust_decimal"
 readme = "./README.md"
 repository = "https://github.com/paupino/rust-decimal"
-rust-version = "1.67.1"
-version = "1.37.1"
+rust-version = "1.85.0"
+version = "2.0.0-alpha.0"
 
 [package.metadata.docs.rs]
 all-features = true

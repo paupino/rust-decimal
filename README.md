@@ -19,7 +19,7 @@ The binary representation consists of a 96 bit integer number, a scaling factor 
 a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These
 can be truncated using the `normalize` or `round_dp` functions.
 
-**PLEASE READ!**
+# Please read!
 
 This is the **main** branch and is now considered _unstable_.
 
@@ -45,7 +45,7 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.37"
+rust_decimal = "2.0.0-alpha.0"
 ```
 
 To enable macro support, you can enable the `macros` feature:
