@@ -68,45 +68,6 @@ pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, des
     rescale::<false>(value, value_scale, desired_scale);
 }
 
-#[cfg(feature = "legacy-ops")]
-pub(crate) fn add_by_internal(value: &mut [u32], by: &[u32]) -> u32 {
-    let mut carry: u64 = 0;
-    let vl = value.len();
-    let bl = by.len();
-    if vl >= bl {
-        let mut sum: u64;
-        for i in 0..bl {
-            sum = u64::from(value[i]) + u64::from(by[i]) + carry;
-            value[i] = (sum & U32_MASK) as u32;
-            carry = sum >> 32;
-        }
-        if vl > bl && carry > 0 {
-            for i in value.iter_mut().skip(bl) {
-                sum = u64::from(*i) + carry;
-                *i = (sum & U32_MASK) as u32;
-                carry = sum >> 32;
-                if carry == 0 {
-                    break;
-                }
-            }
-        }
-    } else if vl + 1 == bl {
-        // Overflow, by default, is anything in the high portion of by
-        let mut sum: u64;
-        for i in 0..vl {
-            sum = u64::from(value[i]) + u64::from(by[i]) + carry;
-            value[i] = (sum & U32_MASK) as u32;
-            carry = sum >> 32;
-        }
-        if by[vl] > 0 {
-            carry += u64::from(by[vl]);
-        }
-    } else {
-        panic!("Internal error: add using incompatible length arrays. {} <- {}", vl, bl);
-    }
-    carry as u32
-}
-
 pub(crate) fn add_by_internal_flattened(value: &mut [u32; 3], by: u32) -> u32 {
     manage_add_by_internal(by, value)
 }

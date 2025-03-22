@@ -163,11 +163,6 @@ jobs:
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
-      - name: Run legacy operation tests
-        run: cargo make test-legacy-ops
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
-
       - name: Run mathematical function tests
         run: cargo make test-maths
         env:

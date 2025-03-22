@@ -21,11 +21,15 @@ can be truncated using the `normalize` or `round_dp` functions.
 
 **PLEASE READ!**
 
-This is the **main** branch and is now considered _unstable_. 
+This is the **main** branch and is now considered _unstable_.
 
-The stable 1.x version of Rust Decimal has been branched and exists in the `v1` branch. Patch requests and bug fixes are still accepted against `v1` however will need to continue being backwards compatible and aligning with the support model.
+The stable 1.x version of Rust Decimal has been branched and exists in the `v1` branch. Patch requests and bug fixes are
+still accepted against `v1` however will need to continue being backwards compatible and aligning with the support
+model.
 
-This branch also accepts contributions - any contributions to this branch are permitted to be breaking as we work towards an improved Decimal API. Some things expected to break over the coming months are:
+This branch also accepts contributions - any contributions to this branch are permitted to be breaking as we work
+towards an improved Decimal API. Some things expected to break over the coming months are:
+
 * Removal of deprecated APIs
 * Removing use of panics within the code without explicit opt in
 * Clean up of error types for `const` and `no-std` support
@@ -123,7 +127,6 @@ assert_eq!(total, dec!(27.26));
 
 * [borsh](#borsh)
 * [c-repr](#c-repr)
-* [legacy-ops](#legacy-ops)
 * [macros](#macros)
 * [maths](#maths)
 * [ndarray](#ndarray)
@@ -172,14 +175,6 @@ Enable [`diesel`](https://diesel.rs) PostgreSQL support.
 ### `db-diesel-mysql`
 
 Enable [`diesel`](https://diesel.rs) MySQL support.
-
-### `legacy-ops`
-
-**Warning:** This is deprecated and will be removed from a future versions.
-
-As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed
-improvements.
-To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
 
 ### `macros`
 
