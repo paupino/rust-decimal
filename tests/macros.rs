@@ -36,14 +36,3 @@ macro_rules! assert_approx_eq {
         );
     }};
 }
-
-#[macro_export]
-macro_rules! either {
-    ($result:expr, $legacy_result:expr) => {
-        if cfg!(feature = "legacy-ops") {
-            $legacy_result
-        } else {
-            $result
-        }
-    };
-}

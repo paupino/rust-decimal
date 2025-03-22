@@ -151,24 +151,6 @@ pub enum RoundingStrategy {
     ToNegativeInfinity,
     /// The number is always rounded towards positive infinity. e.g. 6.8 -> 7, -6.8 -> -6
     ToPositiveInfinity,
-
-    /// When a number is halfway between two others, it is rounded toward the nearest even number.
-    /// e.g.
-    /// 6.5 -> 6, 7.5 -> 8
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointNearestEven instead")]
-    BankersRounding,
-    /// Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointAwayFromZero instead")]
-    RoundHalfUp,
-    /// Rounds down if the value =< 5, otherwise rounds up, e.g. 6.5 -> 6, 6.51 -> 7 1.4999999 -> 1
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointTowardZero instead")]
-    RoundHalfDown,
-    /// Always round down.
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::ToZero instead")]
-    RoundDown,
-    /// Always round up.
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::AwayFromZero instead")]
-    RoundUp,
 }
 
 #[allow(dead_code)]
@@ -792,26 +774,6 @@ impl Decimal {
     /// # use rust_decimal::Decimal;
     /// #
     /// let mut one = Decimal::ONE;
-    /// one.set_sign(false);
-    /// assert_eq!(one.to_string(), "-1");
-    /// ```
-    #[deprecated(since = "1.4.0", note = "please use `set_sign_positive` instead")]
-    pub fn set_sign(&mut self, positive: bool) {
-        self.set_sign_positive(positive);
-    }
-
-    /// An optimized method for changing the sign of a decimal number.
-    ///
-    /// # Arguments
-    ///
-    /// * `positive`: true if the resulting decimal should be positive.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use rust_decimal::Decimal;
-    /// #
-    /// let mut one = Decimal::ONE;
     /// one.set_sign_positive(false);
     /// assert_eq!(one.to_string(), "-1");
     /// ```
@@ -999,20 +961,6 @@ impl Decimal {
         raw
     }
 
-    /// Returns `true` if the decimal is negative.
-    #[deprecated(since = "0.6.3", note = "please use `is_sign_negative` instead")]
-    #[must_use]
-    pub fn is_negative(&self) -> bool {
-        self.is_sign_negative()
-    }
-
-    /// Returns `true` if the decimal is positive.
-    #[deprecated(since = "0.6.3", note = "please use `is_sign_positive` instead")]
-    #[must_use]
-    pub fn is_positive(&self) -> bool {
-        self.is_sign_positive()
-    }
-
     /// Returns `true` if the sign bit of the decimal is negative.
     ///
     /// # Example
@@ -1041,20 +989,6 @@ impl Decimal {
     #[must_use]
     pub const fn is_sign_positive(&self) -> bool {
         self.flags & SIGN_MASK == 0
-    }
-
-    /// Returns the minimum possible number that `Decimal` can represent.
-    #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MIN")]
-    #[must_use]
-    pub const fn min_value() -> Decimal {
-        MIN
-    }
-
-    /// Returns the maximum possible number that `Decimal` can represent.
-    #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MAX")]
-    #[must_use]
-    pub const fn max_value() -> Decimal {
-        MAX
     }
 
     /// Returns a new `Decimal` integral with no fractional portion.
@@ -1419,9 +1353,8 @@ impl Decimal {
         }
         let order = ops::array::cmp_internal(&decimal_portion, &cap);
 
-        #[allow(deprecated)]
         match strategy {
-            RoundingStrategy::BankersRounding | RoundingStrategy::MidpointNearestEven => {
+            RoundingStrategy::MidpointNearestEven => {
                 match order {
                     Ordering::Equal => {
                         if (value[0] & 1) == 1 {
@@ -1435,12 +1368,12 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundHalfDown | RoundingStrategy::MidpointTowardZero => {
+            RoundingStrategy::MidpointTowardZero => {
                 if let Ordering::Greater = order {
                     ops::array::add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundHalfUp | RoundingStrategy::MidpointAwayFromZero => {
+            RoundingStrategy::MidpointAwayFromZero => {
                 // when Ordering::Equal, decimal_portion is 0.5 exactly
                 // when Ordering::Greater, decimal_portion is > 0.5
                 match order {
@@ -1454,7 +1387,7 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundUp | RoundingStrategy::AwayFromZero => {
+            RoundingStrategy::AwayFromZero => {
                 if !ops::array::is_all_zero(&decimal_portion) {
                     ops::array::add_one_internal(&mut value);
                 }
@@ -1469,7 +1402,7 @@ impl Decimal {
                     ops::array::add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundDown | RoundingStrategy::ToZero => (),
+            RoundingStrategy::ToZero => (),
         }
 
         Decimal::from_parts(value[0], value[1], value[2], negative, dp)
