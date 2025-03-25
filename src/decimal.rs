@@ -737,7 +737,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub const fn is_zero(&self) -> bool {
-        self.lo == 0 && self.mid == 0 && self.hi == 0
+        self.lo | self.mid | self.hi == 0
     }
 
     /// Returns true if this Decimal number has zero fractional part (is equal to an integer)
