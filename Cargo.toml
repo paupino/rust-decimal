@@ -35,10 +35,10 @@ rocket = { default-features = false, optional = true, version = "0.5.0-rc.3" }
 serde = { default-features = false, optional = true, version = "1.0" }
 serde_json = { default-features = false, optional = true, version = "1.0" }
 tokio-postgres = { default-features = false, optional = true, version = "0.7" }
-bincode = { default-features = false, features = ["derive"], optional = true, version = "2.0.0-rc.3" }
+bincode = { default-features = false, features = ["derive"], optional = true, version = "2.0.1" }
 
 [dev-dependencies]
-bincode = { default-features = false, version = "1.0" }
+bincode = { default-features = false, version = "2.0.1", features = ["derive", "alloc", "serde"] }
 bytes = { default-features = false, version = "1.0" }
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
