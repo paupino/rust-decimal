@@ -1,5 +1,5 @@
-use crate::constants::{MAX_I32_SCALE, MAX_SCALE_I32, POWERS_10};
 use crate::Decimal;
+use crate::constants::{MAX_I32_SCALE, MAX_SCALE_I32, POWERS_10};
 
 #[derive(Debug)]
 pub struct Buf12 {
@@ -116,22 +116,14 @@ impl Buf12 {
         // Do a binary search to find a power to scale by that is less than 9
         x = if hi > OVERFLOW_MAX_5_HI {
             if hi > OVERFLOW_MAX_3_HI {
-                if hi > OVERFLOW_MAX_2_HI {
-                    1
-                } else {
-                    2
-                }
+                if hi > OVERFLOW_MAX_2_HI { 1 } else { 2 }
             } else if hi > OVERFLOW_MAX_4_HI {
                 3
             } else {
                 4
             }
         } else if hi > OVERFLOW_MAX_7_HI {
-            if hi > OVERFLOW_MAX_6_HI {
-                5
-            } else {
-                6
-            }
+            if hi > OVERFLOW_MAX_6_HI { 5 } else { 6 }
         } else if hi > OVERFLOW_MAX_8_HI {
             7
         } else {
@@ -144,11 +136,7 @@ impl Buf12 {
         }
 
         // Confirm we've actually resolved things
-        if x as i32 + scale < 0 {
-            None
-        } else {
-            Some(x)
-        }
+        if x as i32 + scale < 0 { None } else { Some(x) }
     }
 }
 

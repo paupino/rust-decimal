@@ -1,7 +1,7 @@
 // #[rustfmt::skip] is being used because `rustfmt` poorly formats `#[doc = concat!(..)]`. See
 // https://github.com/rust-lang/rustfmt/issues/5062 for more information.
 
-use crate::{decimal::CalculationResult, ops, Decimal};
+use crate::{Decimal, decimal::CalculationResult, ops};
 use core::ops::{Add, Div, Mul, Rem, Sub};
 use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Inv};
 

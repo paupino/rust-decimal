@@ -1,8 +1,8 @@
+use crate::Decimal;
 use crate::error::Error;
 use crate::postgres::common::*;
-use crate::Decimal;
 use bytes::{BufMut, BytesMut};
-use postgres_types::{to_sql_checked, FromSql, IsNull, ToSql, Type};
+use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
 use std::io::{Cursor, Read};
 
 // These are from numeric.c in the PostgreSQL source code
@@ -75,7 +75,7 @@ impl<'a> FromSql<'a> for Decimal {
         let mut raw = Cursor::new(raw);
         let num_groups = u16::from_be_bytes(read_two_bytes(&mut raw)?);
         let weight = i16::from_be_bytes(read_two_bytes(&mut raw)?); // 10000^weight
-                                                                    // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
+        // Sign: 0x0000 = positive, 0x4000 = negative, 0xC000 = NaN
         let sign = u16::from_be_bytes(read_two_bytes(&mut raw)?);
 
         if (sign & NUMERIC_SPECIAL) == NUMERIC_SPECIAL {

@@ -1,6 +1,6 @@
 use crate::{
-    ops::array::{div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
+    ops::array::{div_by_u32, is_all_zero, mul_by_u32},
 };
 use core::fmt;
 use std::error;

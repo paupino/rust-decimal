@@ -1,8 +1,8 @@
 use crate::{
-    constants::{BYTES_TO_OVERFLOW_U64, MAX_SCALE, MAX_STR_BUFFER_SIZE, OVERFLOW_U96, WILL_OVERFLOW_U64},
-    error::{tail_error, Error},
-    ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
+    constants::{BYTES_TO_OVERFLOW_U64, MAX_SCALE, MAX_STR_BUFFER_SIZE, OVERFLOW_U96, WILL_OVERFLOW_U64},
+    error::{Error, tail_error},
+    ops::array::{add_by_internal_flattened, add_one_internal, div_by_u32, is_all_zero, mul_by_u32},
 };
 
 use arrayvec::{ArrayString, ArrayVec};
