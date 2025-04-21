@@ -34,13 +34,8 @@ args = ["test", "--workspace", "--features=rkyv", "--features=rkyv-safe", "rkyv_
 
 [tasks.test-rand]
 dependencies = [
-    "test-rand-0_8",
     "test-rand-0_9"
 ]
-
-[tasks.test-rand-0_8]
-command = "cargo"
-args = ["test", "--workspace", "--features=rand", "rand_tests", "--", "--skip", "generated"]
 
 [tasks.test-rand-0_9]
 command = "cargo"

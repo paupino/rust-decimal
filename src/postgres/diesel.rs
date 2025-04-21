@@ -1,9 +1,9 @@
-use crate::postgres::common::*;
 use crate::Decimal;
+use crate::postgres::common::*;
 use diesel::{
     deserialize::{self, FromSql},
-    pg::data_types::PgNumeric,
     pg::Pg,
+    pg::data_types::PgNumeric,
     serialize::{self, Output, ToSql},
     sql_types::Numeric,
 };

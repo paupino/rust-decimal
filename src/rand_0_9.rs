@@ -1,10 +1,10 @@
 use crate::Decimal;
 use rand_0_9::{
-    distr::{
-        uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler},
-        Distribution, StandardUniform,
-    },
     Rng,
+    distr::{
+        Distribution, StandardUniform,
+        uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler},
+    },
 };
 
 impl Distribution<Decimal> for StandardUniform {

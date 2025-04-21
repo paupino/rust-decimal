@@ -1,9 +1,9 @@
+use crate::Error;
 use crate::constants::{
-    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
+    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U8_MASK, U32_MASK,
     UNSIGN_MASK,
 };
 use crate::ops;
-use crate::Error;
 use core::{
     cmp::{Ordering::Equal, *},
     fmt,
@@ -700,11 +700,7 @@ impl Decimal {
     #[must_use]
     pub const fn mantissa(&self) -> i128 {
         let raw = (self.lo as i128) | ((self.mid as i128) << 32) | ((self.hi as i128) << 64);
-        if self.is_sign_negative() {
-            -raw
-        } else {
-            raw
-        }
+        if self.is_sign_negative() { -raw } else { raw }
     }
 
     /// Returns true if this Decimal number is equivalent to zero.
@@ -1152,11 +1148,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn max(self, other: Decimal) -> Decimal {
-        if self < other {
-            other
-        } else {
-            self
-        }
+        if self < other { other } else { self }
     }
 
     /// Returns the minimum of the two numbers.
@@ -1170,11 +1162,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn min(self, other: Decimal) -> Decimal {
-        if self > other {
-            other
-        } else {
-            self
-        }
+        if self > other { other } else { self }
     }
 
     /// Strips any trailing zero's from a `Decimal` and converts -0 to 0.
@@ -1840,11 +1828,7 @@ impl Signed for Decimal {
     }
 
     fn abs_sub(&self, other: &Self) -> Self {
-        if self <= other {
-            ZERO
-        } else {
-            self - other
-        }
+        if self <= other { ZERO } else { self - other }
     }
 
     fn signum(&self) -> Self {
@@ -2247,21 +2231,13 @@ impl ToPrimitive for Decimal {
         }
 
         let raw: i64 = (i64::from(d.mid) << 32) | i64::from(d.lo);
-        if negative {
-            Some(raw.neg())
-        } else {
-            Some(raw)
-        }
+        if negative { Some(raw.neg()) } else { Some(raw) }
     }
 
     fn to_i128(&self) -> Option<i128> {
         let d = self.trunc();
         let raw: i128 = ((i128::from(d.hi) << 64) | (i128::from(d.mid) << 32)) | i128::from(d.lo);
-        if self.is_sign_negative() {
-            Some(-raw)
-        } else {
-            Some(raw)
-        }
+        if self.is_sign_negative() { Some(-raw) } else { Some(raw) }
     }
 
     fn to_u64(&self) -> Option<u64> {
@@ -2318,11 +2294,7 @@ impl ToPrimitive for Decimal {
             let value = integral + frac_f64;
             let round_to = 10f64.powi(self.scale() as i32);
             let rounded = (value * round_to).round() / round_to;
-            if neg {
-                Some(-rounded)
-            } else {
-                Some(rounded)
-            }
+            if neg { Some(-rounded) } else { Some(rounded) }
         }
     }
 }
