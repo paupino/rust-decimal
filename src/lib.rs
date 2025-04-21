@@ -30,8 +30,8 @@ mod postgres;
 mod proptest;
 #[cfg(feature = "rand-0_9")]
 mod rand_0_9;
-#[cfg(feature = "rocket-traits")]
-mod rocket;
+#[cfg(feature = "rocket-0_5-traits")]
+mod rocket_0_5;
 #[cfg(all(
     feature = "serde",
     not(any(
