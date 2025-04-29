@@ -94,6 +94,21 @@ pub struct UnpackedDecimal {
     pub lo: u32,
 }
 
+impl From<UnpackedDecimal> for Decimal {
+    #[inline(always)]
+    fn from(value: UnpackedDecimal) -> Self {
+        let UnpackedDecimal {
+            negative,
+            scale,
+            hi,
+            mid,
+            lo,
+        } = value;
+
+        Decimal::from_parts(lo, mid, hi, negative, scale)
+    }
+}
+
 /// `Decimal` represents a 128 bit representation of a fixed-precision decimal number.
 /// The finite set of values of type `Decimal` are of the form m / 10<sup>e</sup>,
 /// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
