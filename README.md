@@ -125,6 +125,7 @@ assert_eq!(total, dec!(27.26));
 
 **Behavior / Functionality**
 
+* bincode
 * [borsh](#borsh)
 * [c-repr](#c-repr)
 * [macros](#macros)
@@ -150,6 +151,10 @@ assert_eq!(total, dec!(27.26));
 * [serde-with-float](#serde-with-float)
 * [serde-with-str](#serde-with-str)
 * [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
+
+### `bincode`
+
+Derives `bincode::Encode` and `bincode::Decode` for `Decimal`.
 
 ### `borsh`
 

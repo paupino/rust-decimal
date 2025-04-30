@@ -661,7 +661,10 @@ mod test {
     #[test]
     #[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
     fn bincode_serialization_not_float() {
-        use bincode::{deserialize, serialize};
+        use bincode::{
+            config,
+            serde::{decode_from_slice, encode_to_vec},
+        };
 
         let data = [
             "0",
@@ -675,17 +678,20 @@ mod test {
         ];
         for &raw in data.iter() {
             let value = Decimal::from_str(raw).unwrap();
-            let encoded = serialize(&value).unwrap();
-            let decoded: Decimal = deserialize(&encoded[..]).unwrap();
+            let encoded = encode_to_vec(&value, config::standard()).unwrap();
+            let decoded: Decimal = decode_from_slice(&encoded[..], config::standard()).unwrap().0;
             assert_eq!(value, decoded);
-            assert_eq!(8usize + raw.len(), encoded.len());
+            assert_eq!(1usize + raw.len(), encoded.len());
         }
     }
 
     #[test]
     #[cfg(all(feature = "serde-str", feature = "serde-float"))]
     fn bincode_serialization_serde_float() {
-        use bincode::{deserialize, serialize};
+        use bincode::{
+            config,
+            serde::{decode_from_slice, encode_to_vec},
+        };
 
         let data = [
             ("0", "0"),
@@ -698,8 +704,8 @@ mod test {
         for &(value, expected) in data.iter() {
             let value = Decimal::from_str(value).unwrap();
             let expected = Decimal::from_str(expected).unwrap();
-            let encoded = serialize(&value).unwrap();
-            let decoded: Decimal = deserialize(&encoded[..]).unwrap();
+            let encoded = encode_to_vec(&value, config::standard()).unwrap();
+            let decoded: Decimal = decode_from_slice(&encoded[..], config::standard()).unwrap().0;
             assert_eq!(expected, decoded);
             assert_eq!(8usize, encoded.len());
         }
@@ -708,6 +714,10 @@ mod test {
     #[test]
     #[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
     fn bincode_nested_serialization() {
+        use bincode::{
+            config,
+            serde::{decode_from_slice, encode_to_vec},
+        };
         // Issue #361
         #[derive(Deserialize, Serialize, Debug)]
         pub struct Foo {
@@ -717,8 +727,8 @@ mod test {
         let s = Foo {
             value: Decimal::new(-1, 3).round_dp(0),
         };
-        let ser = bincode::serialize(&s).unwrap();
-        let des: Foo = bincode::deserialize(&ser).unwrap();
+        let ser = encode_to_vec(&s, config::standard()).unwrap();
+        let des: Foo = decode_from_slice(&ser, config::standard()).unwrap().0;
         assert_eq!(des.value, s.value);
     }
 
@@ -783,7 +793,10 @@ mod test {
     #[test]
     #[cfg(feature = "serde-with-str")]
     fn with_str_bincode() {
-        use bincode::{deserialize, serialize};
+        use bincode::{
+            config,
+            serde::{decode_from_slice, encode_to_vec},
+        };
 
         #[derive(Serialize, Deserialize)]
         struct BincodeExample {
@@ -805,8 +818,8 @@ mod test {
             let expected = Decimal::from_str(expected).unwrap();
             let input = BincodeExample { value };
 
-            let encoded = serialize(&input).unwrap();
-            let decoded: BincodeExample = deserialize(&encoded[..]).unwrap();
+            let encoded = encode_to_vec(&input, config::standard()).unwrap();
+            let decoded: BincodeExample = decode_from_slice(&encoded[..], config::standard()).unwrap().0;
             assert_eq!(expected, decoded.value);
         }
     }
@@ -814,7 +827,10 @@ mod test {
     #[test]
     #[cfg(feature = "serde-with-str")]
     fn with_str_bincode_optional() {
-        use bincode::{deserialize, serialize};
+        use bincode::{
+            config,
+            serde::{decode_from_slice, encode_to_vec},
+        };
 
         #[derive(Serialize, Deserialize)]
         struct BincodeExample {
@@ -825,14 +841,14 @@ mod test {
         // Some(value)
         let value = Some(Decimal::new(1234, 3));
         let input = BincodeExample { value };
-        let encoded = serialize(&input).unwrap();
-        let decoded: BincodeExample = deserialize(&encoded[..]).unwrap();
+        let encoded = encode_to_vec(&input, config::standard()).unwrap();
+        let decoded: BincodeExample = decode_from_slice(&encoded[..], config::standard()).unwrap().0;
         assert_eq!(value, decoded.value, "Some(value)");
 
         // None
         let input = BincodeExample { value: None };
-        let encoded = serialize(&input).unwrap();
-        let decoded: BincodeExample = deserialize(&encoded[..]).unwrap();
+        let encoded = encode_to_vec(&input, config::standard()).unwrap();
+        let decoded: BincodeExample = decode_from_slice(&encoded[..], config::standard()).unwrap().0;
         assert_eq!(None, decoded.value, "None");
     }
 
