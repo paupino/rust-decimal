@@ -373,7 +373,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                         handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
                     }
                 } else {
-                    handle_data::<NEG, true>(data, scale)
+                    if POINT && scale > 28 {
+                        handle_data::<NEG, true>(data / 10_u128.pow((scale - 28) as u32), 28)
+                    } else {
+                        handle_data::<NEG, true>(data, scale)
+                    }
                 }
             }
         }
@@ -1034,6 +1038,14 @@ mod test {
                     1_000_000_000_000_000_000_000_000_000_1,
                     28,
                 )),
+            ),
+            (
+                "1.234567890123456789012345678_9",
+                Ok(Decimal::from_i128_with_scale(12345678901234567890123456789, 28)),
+            ),
+            (
+                "0.1234567890123456789012345678_9",
+                Ok(Decimal::from_i128_with_scale(1234567890123456789012345678, 28)),
             ),
         ];
 
