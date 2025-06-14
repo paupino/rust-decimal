@@ -19,7 +19,7 @@ The binary representation consists of a 96 bit integer number, a scaling factor 
 a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These
 can be truncated using the `normalize` or `round_dp` functions.
 
-# Please read!
+# Please read before contributing
 
 This is the **main** branch and is now considered _unstable_.
 
