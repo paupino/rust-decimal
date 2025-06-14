@@ -357,8 +357,20 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                         if ROUND {
                             // If it is an underscore at the rounding position we require slightly different handling to look ahead another digit
                             if next == b'_' {
-                                if let Some((next, bytes)) = bytes.split_first() {
-                                    handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, *next)
+                                // Skip consecutive underscores to find the next actual character
+                                let mut remaining_bytes = bytes;
+                                let mut next_char = None;
+                                while let Some((n, rest)) = remaining_bytes.split_first() {
+                                    if *n != b'_' {
+                                        next_char = Some(*n);
+                                        break;
+                                    }
+                                    remaining_bytes = rest;
+                                }
+
+                                if let Some(ch) = next_char {
+                                    // Skip underscores and use the next character for rounding
+                                    maybe_round(data, ch, scale, POINT, NEG)
                                 } else {
                                     handle_data::<NEG, true>(data, scale)
                                 }
@@ -373,11 +385,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                         handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
                     }
                 } else {
-                    if POINT && scale > 28 {
-                        handle_data::<NEG, true>(data / 10_u128.pow((scale - 28) as u32), 28)
-                    } else {
-                        handle_data::<NEG, true>(data, scale)
-                    }
+                    handle_data::<NEG, true>(data, scale)
                 }
             }
         }
@@ -1044,7 +1052,15 @@ mod test {
                 Ok(Decimal::from_i128_with_scale(12345678901234567890123456789, 28)),
             ),
             (
+                "0.234567890123456789012345678_9",
+                Ok(Decimal::from_i128_with_scale(2345678901234567890123456789, 28)),
+            ),
+            (
                 "0.1234567890123456789012345678_9",
+                Ok(Decimal::from_i128_with_scale(1234567890123456789012345679, 28)),
+            ),
+            (
+                "0.1234567890123456789012345678_4",
                 Ok(Decimal::from_i128_with_scale(1234567890123456789012345678, 28)),
             ),
         ];
