@@ -58,6 +58,7 @@ tokio-postgres = { default-features = false, version = "0.7" }
 [features]
 default = ["serde", "std"]
 
+align16 = [] # Force Decimal to be repr(align16) - the same as u128
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["diesel/mysql_backend", "std"]
