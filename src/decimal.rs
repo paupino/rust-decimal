@@ -116,6 +116,7 @@ impl From<UnpackedDecimal> for Decimal {
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
+#[cfg_attr(feature = "align16", repr(align(16)))]
 #[cfg_attr(
     feature = "borsh",
     derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
