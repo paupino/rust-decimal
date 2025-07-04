@@ -11,6 +11,14 @@ fn layout_is_correct() {
 }
 
 #[test]
+#[cfg(feature = "align16")]
+fn align_is_correct() {
+    assert_eq!(align_of::<Decimal>(), 16);
+    assert_eq!(align_of::<Decimal>(), align_of::<u128>());
+    assert_eq!(align_of::<Decimal>(), align_of::<i128>());
+}
+
+#[test]
 fn it_can_extract_the_mantissa() {
     let tests = [
         ("1", 1i128, 0),

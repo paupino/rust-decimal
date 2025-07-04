@@ -151,13 +151,17 @@ assert_eq!(total, dec!(27.26));
 * [serde-with-str](#serde-with-str)
 * [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
 
+### `align16`
+
+Forces `Decimal`'s alignment to 16 bytes (128 bits). This is identical to `u128` and `i128`'s alignment on x86 platforms.
+
 ### `borsh`
 
 Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
 
 ### `c-repr`
 
-Forces `Decimal` to use `[repr(C)]`. The corresponding target layout is 128 bit aligned.
+Forces `Decimal` to use `[repr(C)]`.
 
 ### `db-postgres`
 
