@@ -28,7 +28,7 @@ use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 #[cfg(feature = "rkyv")]
 use rkyv::{Archive, Deserialize, Serialize};
 #[cfg(feature = "scale-codec")]
-use parity_scale_codec_derive::{Decode,Encode, MaxEncodedLen};
+use parity_scale_codec_derive::{Decode,Encode, MaxEncodedLen, DecodeWithMemTracking};
 #[cfg(feature = "scale-codec")]
 use scale_info::TypeInfo;
 
@@ -127,7 +127,7 @@ pub struct UnpackedDecimal {
 #[cfg_attr(feature = "rkyv-safe", archive_attr(derive(bytecheck::CheckBytes)))]
 #[cfg_attr(
 feature = "scale-codec",
-derive(Decode, Encode, TypeInfo, MaxEncodedLen),
+derive(Decode, Encode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking),
 )]
 pub struct Decimal {
     // Bits 0-15: unused

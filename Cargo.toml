@@ -28,7 +28,7 @@ diesel2 = { default-features = false, optional = true, package = "diesel", versi
 ndarray = { default-features = false, optional = true, version = "0.15.6" }
 num-traits = { default-features = false, features = ["i128"], version = "0.2" }
 parity-scale-codec = { optional = true, version = "3.1.5", features = ["max-encoded-len"], default-features = false}
-parity-scale-codec-derive = { optional = true, version = "3.1.3",default-features = false}
+parity-scale-codec-derive = { optional = true, version = "3.7.5",default-features = false}
 postgres = { default-features = false, optional = true, version = "0.19" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
 rand = { default-features = false, optional = true, version = "0.8" }
