@@ -289,6 +289,21 @@ mod maths {
     }
 
     #[bench]
+    fn exp_large(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from_str("17.6").unwrap(),
+            Decimal::from_str("34.5").unwrap(),
+            Decimal::from_str("54.3").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.exp();
+                ::test::black_box(result);
+            }
+        });
+    }
+
+    #[bench]
     fn norm_cdf(b: &mut ::test::Bencher) {
         let samples = &[
             Decimal::from_str("3.7").unwrap(),
