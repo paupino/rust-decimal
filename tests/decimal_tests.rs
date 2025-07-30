@@ -165,13 +165,13 @@ mod borsh_tests {
     }
 }
 
-#[cfg(feature = "ndarray")]
+#[cfg(feature = "ndarray-0_16")]
 mod ndarray_tests {
     use rust_decimal::Decimal;
 
     #[test]
     fn it_can_do_scalar_ops_in_ndarray() {
-        use ndarray::Array1;
+        use ndarray_0_16::Array1;
         use num_traits::FromPrimitive;
 
         let array_a = Array1::from(vec![
@@ -215,38 +215,6 @@ mod ndarray_tests {
             Decimal::from_f32(0.6).unwrap(),
         ]);
         assert_eq!(output, expectation);
-    }
-}
-
-#[cfg(feature = "rkyv")]
-mod rkyv_tests {
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
-    #[test]
-    fn it_can_serialize_deserialize_rkyv() {
-        use rkyv::Deserialize;
-        let tests = [
-            "12.3456789",
-            "5233.9008808150288439427720175",
-            "-5233.9008808150288439427720175",
-        ];
-        for test in &tests {
-            let a = Decimal::from_str(test).unwrap();
-            let bytes = rkyv::to_bytes::<_, 256>(&a).unwrap();
-
-            #[cfg(feature = "rkyv-safe")]
-            {
-                let archived = rkyv::check_archived_root::<Decimal>(&bytes[..]).unwrap();
-                assert_eq!(archived, &a);
-            }
-
-            let archived = unsafe { rkyv::archived_root::<Decimal>(&bytes[..]) };
-            assert_eq!(archived, &a);
-
-            let deserialized: Decimal = archived.deserialize(&mut rkyv::Infallible).unwrap();
-            assert_eq!(deserialized, a);
-        }
     }
 }
 
@@ -4671,7 +4639,7 @@ mod proptest_tests {
     }
 }
 
-#[cfg(feature = "rocket-traits")]
+#[cfg(feature = "rocket-0_5-traits")]
 #[allow(clippy::disallowed_names)]
 mod rocket_tests {
     use crate::Decimal;
