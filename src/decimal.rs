@@ -522,6 +522,7 @@ impl Decimal {
     /// let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
     /// assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
     /// ```
+    #[inline]
     #[must_use]
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
         assert!(scale <= Self::MAX_SCALE, "Scale exceeds maximum supported scale");
