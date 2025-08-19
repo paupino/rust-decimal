@@ -121,6 +121,7 @@ impl From<UnpackedDecimal> for Decimal {
     feature = "borsh",
     derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
 )]
+#[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable))]
 #[cfg_attr(
     feature = "rkyv",
     derive(Archive, Deserialize, Serialize),
