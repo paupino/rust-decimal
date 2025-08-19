@@ -592,9 +592,10 @@ mod test {
     #[test]
     #[cfg(feature = "serde-arbitrary-precision")]
     fn deserialize_basic_decimal() {
-        let d: Decimal = serde_json::from_str("1.1234127836128763").unwrap();
+        let s = "1.1234127836128763";
+        let d: Decimal = serde_json::from_str(s).unwrap();
         // Typically, this would not work without this feature enabled due to rounding
-        assert_eq!(d.to_string(), "1.1234127836128763");
+        assert_eq!(d.to_string(), s);
     }
 
     #[test]

@@ -210,7 +210,7 @@ fn decimal_to_string(b: &mut test::Bencher) {
     })
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(feature = "db-postgres")]
 #[bench]
 fn to_from_sql(b: &mut ::test::Bencher) {
     use bytes::BytesMut;

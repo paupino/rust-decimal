@@ -21,8 +21,6 @@ use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Numer
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
-#[cfg(feature = "rkyv")]
-use rkyv::{Archive, Deserialize, Serialize};
 
 /// The smallest value that can be represented by this decimal type.
 const MIN: Decimal = Decimal {
@@ -121,13 +119,6 @@ impl From<UnpackedDecimal> for Decimal {
     feature = "borsh",
     derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
 )]
-#[cfg_attr(
-    feature = "rkyv",
-    derive(Archive, Deserialize, Serialize),
-    archive(compare(PartialEq)),
-    archive_attr(derive(Clone, Copy, Debug))
-)]
-#[cfg_attr(feature = "rkyv-safe", archive(check_bytes))]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
@@ -141,8 +132,8 @@ pub struct Decimal {
     mid: u32,
 }
 
-#[cfg(feature = "ndarray")]
-impl ndarray::ScalarOperand for Decimal {}
+#[cfg(feature = "ndarray-0_16")]
+impl ndarray_0_16::ScalarOperand for Decimal {}
 
 /// `RoundingStrategy` represents the different rounding strategies that can be used by
 /// `round_dp_with_strategy`.
