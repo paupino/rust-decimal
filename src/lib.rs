@@ -14,6 +14,8 @@ pub mod str;
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
 
+#[cfg(feature = "borsh")]
+mod borsh;
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;
 #[cfg(feature = "maths")]

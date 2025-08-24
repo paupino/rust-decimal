@@ -117,10 +117,9 @@ impl From<UnpackedDecimal> for Decimal {
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(feature = "align16", repr(align(16)))]
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
-)]
+// [`borsh::BorshDeserialize`] is implemented manually so that the result can be checked to be a
+// valid instance of [`Self`].
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshSchema))]
 #[cfg_attr(
     feature = "rkyv",
     derive(Archive, Deserialize, Serialize),
