@@ -637,6 +637,102 @@ impl Decimal {
         Ok(ret)
     }
 
+    /// Returns a `Result` which if successful contains the `Decimal` constitution of
+    /// the scientific notation provided by `value`. If the exponent is negative and
+    /// the given base and exponent would exceed [Decimal::MAX_SCALE] then this
+    /// functions attempts to round the base to fit.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The scientific notation of the `Decimal`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal::Error;
+    /// #
+    /// # fn main() -> Result<(), rust_decimal::Error> {
+    /// let value = Decimal::from_scientific_lossy("2.710505431213761e-20")?;
+    /// assert_eq!(value.to_string(), "0.0000000000000000000271050543");
+    ///
+    /// let value = Decimal::from_scientific_lossy("2.5e-28")?;
+    /// assert_eq!(value.to_string(), "0.0000000000000000000000000003");
+    ///
+    /// let value = Decimal::from_scientific_lossy("-2.5e-28")?;
+    /// assert_eq!(value.to_string(), "-0.0000000000000000000000000003");
+    ///
+    /// let err = Decimal::from_scientific_lossy("2e-29").unwrap_err();
+    /// assert_eq!(err, Error::ScaleExceedsMaximumPrecision(29));
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn from_scientific_lossy(value: &str) -> Result<Decimal, Error> {
+        const ERROR_MESSAGE: &str = "Failed to parse";
+
+        let mut split = value.splitn(2, ['e', 'E']);
+
+        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+
+        let mut ret = Decimal::from_str(base)?;
+        let current_scale = ret.scale();
+
+        if let Some(stripped) = exp.strip_prefix('-') {
+            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            if exp > Self::MAX_SCALE {
+                return Err(Error::ScaleExceedsMaximumPrecision(exp));
+            }
+            if current_scale + exp > Self::MAX_SCALE {
+                ret.rescale(Self::MAX_SCALE - exp);
+                ret.set_scale(Self::MAX_SCALE)?;
+            } else {
+                ret.set_scale(current_scale + exp)?;
+            }
+        } else {
+            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            if exp <= current_scale {
+                ret.set_scale(current_scale - exp)?;
+            } else if exp > 0 {
+                use crate::constants::BIG_POWERS_10;
+
+                // This is a case whereby the mantissa needs to be larger to be correctly
+                // represented within the decimal type. A good example is 1.2E10. At this point,
+                // we've parsed 1.2 as the base and 10 as the exponent. To represent this within a
+                // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
+                // zero.
+                if exp > Self::MAX_SCALE {
+                    return Err(Error::ScaleExceedsMaximumPrecision(exp));
+                }
+                let mut exp = exp as usize;
+                // Max two iterations. If exp is 1 then it needs to index position 0 of the array.
+                while exp > 0 {
+                    let pow;
+                    if exp >= BIG_POWERS_10.len() {
+                        pow = BIG_POWERS_10[BIG_POWERS_10.len() - 1];
+                        exp -= BIG_POWERS_10.len();
+                    } else {
+                        pow = BIG_POWERS_10[exp - 1];
+                        exp = 0;
+                    }
+
+                    let pow = Decimal {
+                        flags: 0,
+                        lo: pow as u32,
+                        mid: (pow >> 32) as u32,
+                        hi: 0,
+                    };
+                    match ret.checked_mul(pow) {
+                        Some(r) => ret = r,
+                        None => return Err(Error::ExceedsMaximumPossibleValue),
+                    };
+                }
+                ret.normalize_assign();
+            }
+        }
+        Ok(ret)
+    }
+
     /// Converts a string slice in a given base to a decimal.
     ///
     /// The string is expected to be an optional + sign followed by digits.
