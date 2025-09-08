@@ -3320,7 +3320,7 @@ fn it_can_parse_individual_parts() {
 }
 
 #[test]
-fn it_can_parse_scientific_notation() {
+fn it_can_parse_scientific_notation_exact() {
     let tests = &[
         ("9.7e-7", Ok("0.00000097".to_string())),
         ("9e-7", Ok("0.0000009".to_string())),
@@ -3339,19 +3339,61 @@ fn it_can_parse_scientific_notation() {
     ];
 
     for &(value, ref expected) in tests {
+        let actual = Decimal::from_scientific_exact(value).map(|d| d.to_string());
+        assert_eq!(*expected, actual);
+    }
+}
+
+#[test]
+fn it_errors_parsing_large_scientific_notation_exact() {
+    let result = Decimal::from_scientific_exact("1.2345E-28");
+    assert!(result.is_err());
+    assert_eq!(
+        result.err(),
+        Some(Error::ScaleExceedsMaximumPrecision(32)) // 4 + 28
+    );
+
+    let result = Decimal::from_scientific_exact("12345E29");
+    assert!(result.is_err());
+    assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
+
+    let result = Decimal::from_scientific_exact("12345E28");
+    assert!(result.is_err());
+    assert_eq!(result.err(), Some(Error::ExceedsMaximumPossibleValue));
+}
+
+#[test]
+fn it_can_parse_scientific_notation_rounded() {
+    let tests = &[
+        ("9.7e-7", Ok("0.00000097".to_string())),
+        ("9e-7", Ok("0.0000009".to_string())),
+        ("1.2e10", Ok("12000000000".to_string())),
+        ("1.2e+10", Ok("12000000000".to_string())),
+        ("12e10", Ok("120000000000".to_string())),
+        ("9.7E-7", Ok("0.00000097".to_string())),
+        ("1.2345E-24", Ok("0.0000000000000000000000012345".to_string())),
+        ("12345E-28", Ok("0.0000000000000000000000012345".to_string())),
+        ("1.2345E0", Ok("1.2345".to_string())),
+        ("1E28", Ok("10000000000000000000000000000".to_string())),
+        ("1.2345E-28", Ok("0.0000000000000000000000000001".to_string())),
+        ("8.7654E-28", Ok("0.0000000000000000000000000009".to_string())),
+        (
+            "-20165.4676_e-+4294967292",
+            Err(Error::ScaleExceedsMaximumPrecision(4294967292)),
+        ),
+    ];
+
+    for &(value, ref expected) in tests {
         let actual = Decimal::from_scientific(value).map(|d| d.to_string());
         assert_eq!(*expected, actual);
     }
 }
 
 #[test]
-fn it_errors_parsing_large_scientific_notation() {
-    let result = Decimal::from_scientific("1.2345E-28");
+fn it_errors_parsing_large_scientific_notation_rounded() {
+    let result = Decimal::from_scientific("1.2345E-29");
     assert!(result.is_err());
-    assert_eq!(
-        result.err(),
-        Some(Error::ScaleExceedsMaximumPrecision(32)) // 4 + 28
-    );
+    assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
 
     let result = Decimal::from_scientific("12345E29");
     assert!(result.is_err());
