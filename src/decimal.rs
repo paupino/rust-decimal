@@ -2347,10 +2347,15 @@ impl ToPrimitive for Decimal {
         if negative { Some(raw.neg()) } else { Some(raw) }
     }
 
-    fn to_i128(&self) -> Option<i128> {
+    /// Returns the same value as `to_i128` but without the legacy options
+    fn as_i128(&self) -> i128 {
         let d = self.trunc();
         let raw: i128 = ((i128::from(d.hi) << 64) | (i128::from(d.mid) << 32)) | i128::from(d.lo);
-        if self.is_sign_negative() { Some(-raw) } else { Some(raw) }
+        if self.is_sign_negative() { -raw } else { raw }
+    }
+
+    fn to_i128(&self) -> Option<i128> {
+        Some(self.as_i128())
     }
 
     fn to_u64(&self) -> Option<u64> {
@@ -2376,13 +2381,14 @@ impl ToPrimitive for Decimal {
         Some((u128::from(d.hi) << 64) | (u128::from(d.mid) << 32) | u128::from(d.lo))
     }
 
-    fn to_f64(&self) -> Option<f64> {
+    /// Returns the same value as `to_f64` but without the legacy option (the function is now
+    /// infallible)
+    fn as_f64(&self) -> f64 {
         if self.scale() == 0 {
             // If scale is zero, we are storing a 96-bit integer value, that would
             // always fit into i128, which in turn is always representable as f64,
             // albeit with loss of precision for values outside of -2^53..2^53 range.
-            let integer = self.to_i128();
-            integer.map(|i| i as f64)
+            self.as_i128() as f64;
         } else {
             let neg = self.is_sign_negative();
             let mut mantissa: u128 = self.lo.into();
@@ -2407,8 +2413,12 @@ impl ToPrimitive for Decimal {
             let value = integral + frac_f64;
             let round_to = 10f64.powi(self.scale() as i32);
             let rounded = (value * round_to).round() / round_to;
-            if neg { Some(-rounded) } else { Some(rounded) }
+            if neg { -rounded } else { rounded }
         }
+    }
+
+    fn to_f64(&self) -> Option<f64> {
+        Some(self.as_f64())
     }
 }
 
