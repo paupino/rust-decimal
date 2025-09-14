@@ -573,25 +573,29 @@ impl Decimal {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn from_scientific_exact(value: &str) -> Result<Decimal, Error> {
+    pub fn from_scientific_exact(value: &str) -> crate::Result<Decimal> {
         const ERROR_MESSAGE: &str = "Failed to parse";
 
         let mut split = value.splitn(2, ['e', 'E']);
 
-        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
-        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let base = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
+        let exp = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = stripped
+                .parse()
+                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = exp
+                .parse()
+                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -1845,7 +1849,7 @@ macro_rules! impl_try_from_decimal {
 
             #[inline]
             fn try_from(t: Decimal) -> Result<Self, Error> {
-                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).into()))
+                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto)))
             }
         }
     };
@@ -1887,8 +1891,8 @@ macro_rules! impl_try_from_primitive {
     };
 }
 
-impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal".into()));
-impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal".into()));
+impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal"));
+impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal"));
 impl_try_from_primitive!(&str, core::str::FromStr::from_str);
 
 macro_rules! impl_from {
