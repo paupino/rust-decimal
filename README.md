@@ -29,7 +29,7 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.37"
+rust_decimal = "1.38"
 ```
 
 To enable macro support, you can enable the `macros` feature:
