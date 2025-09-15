@@ -3177,7 +3177,7 @@ fn it_converts_from_f64_retaining_bits() {
 #[test]
 fn it_converts_to_integers() {
     assert_eq!(i64::try_from(Decimal::ONE), Ok(1));
-    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64".to_string())));
+    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64")));
     assert_eq!(u128::try_from(Decimal::ONE_HUNDRED), Ok(100));
 }
 
