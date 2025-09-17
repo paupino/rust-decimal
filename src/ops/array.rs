@@ -209,7 +209,7 @@ pub(crate) fn div_by_u32<const N: usize>(bits: &mut [u32; N], divisor: u32) -> u
 
 // This function should be used with caution. It unwraps the standard divide loop - it is intended
 // for small inputs (<10) and is optimized to be left as unchecked.
-pub(crate) fn div_by_power<const POWER: usize>(bits: &mut [u32; 3]) -> u32 {
+pub(crate) const fn div_by_power<const POWER: usize>(bits: &mut [u32; 3]) -> u32 {
     let mut remainder = 0u32;
     let divisor = POWERS_10[POWER] as u64;
     let temp = ((remainder as u64) << 32) + (bits[2] as u64);
