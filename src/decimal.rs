@@ -394,7 +394,7 @@ impl Decimal {
     #[must_use]
     pub fn new(num: i64, scale: u32) -> Decimal {
         match Self::try_new(num, scale) {
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{e}"),
             Ok(d) => d,
         }
     }
@@ -455,7 +455,7 @@ impl Decimal {
     pub fn from_i128_with_scale(num: i128, scale: u32) -> Decimal {
         match Self::try_from_i128_with_scale(num, scale) {
             Ok(d) => d,
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{e}"),
         }
     }
 
@@ -565,8 +565,6 @@ impl Decimal {
     /// # }
     /// ```
     pub fn from_scientific_exact(value: &str) -> crate::Result<Decimal> {
-        const ERROR_MESSAGE: &str = "Failed to parse";
-
         let mut split = value.splitn(2, ['e', 'E']);
 
         let base = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
@@ -660,18 +658,22 @@ impl Decimal {
     /// # }
     /// ```
     pub fn from_scientific_lossy(value: &str) -> Result<Decimal, Error> {
-        const ERROR_MESSAGE: &str = "Failed to parse";
-
         let mut split = value.splitn(2, ['e', 'E']);
 
-        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
-        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let base = split
+            .next()
+            .ok_or_else(|| Error::from(crate::Error::FailedToParseScientificFromString))?;
+        let exp = split
+            .next()
+            .ok_or_else(|| Error::from(crate::Error::FailedToParseScientificFromString))?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = stripped
+                .parse()
+                .map_err(|_| Error::from(crate::Error::FailedToParseScientificFromString))?;
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
@@ -682,7 +684,9 @@ impl Decimal {
                 ret.set_scale(current_scale + exp)?;
             }
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = exp
+                .parse()
+                .map_err(|_| Error::from(crate::Error::FailedToParseScientificFromString))?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -902,7 +906,7 @@ impl Decimal {
     /// assert_eq!(one.to_string(), "-1");
     /// ```
     #[inline(always)]
-    pub fn set_sign_positive(&mut self, positive: bool) {
+    pub const fn set_sign_positive(&mut self, positive: bool) {
         if positive {
             self.flags &= UNSIGN_MASK;
         } else {
@@ -926,7 +930,7 @@ impl Decimal {
     /// assert_eq!(one.to_string(), "-1");
     /// ```
     #[inline(always)]
-    pub fn set_sign_negative(&mut self, negative: bool) {
+    pub const fn set_sign_negative(&mut self, negative: bool) {
         self.set_sign_positive(!negative);
     }
 
@@ -948,7 +952,7 @@ impl Decimal {
     /// #    Ok(())
     /// # }
     /// ```
-    pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
+    pub const fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
         if scale > Self::MAX_SCALE {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
@@ -1203,7 +1207,7 @@ impl Decimal {
     /// assert_eq!(num.abs().to_string(), "3.141");
     /// ```
     #[must_use]
-    pub fn abs(&self) -> Decimal {
+    pub const fn abs(&self) -> Decimal {
         let mut me = *self;
         me.set_sign_positive(true);
         me
@@ -2691,4 +2695,16 @@ impl<'a> Sum<&'a Decimal> for Decimal {
         }
         sum
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Decimal;
+
+    // Ensures that `Error` is allowed in constant environments
+    const _ERROR_ENUM_IS_CONST: Decimal = if let Ok(elem) = Decimal::try_new(0, 0) {
+        elem
+    } else {
+        panic!()
+    };
 }
