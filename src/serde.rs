@@ -351,7 +351,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         E: serde::de::Error,
     {
         Decimal::from_str(value)
-            .or_else(|_| Decimal::from_scientific(value))
+            .or_else(|_| Decimal::from_scientific_exact(value))
             .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
     }
 
