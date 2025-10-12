@@ -181,15 +181,31 @@ impl MathematicalOps for Decimal {
             return Decimal::ONE.checked_div(exp);
         }
 
-        let mut term = *self;
+        // exp(x) = sum_i x^i / i!, let q_i := x^i/i!
+        // Avoid computing x^i directly as it will quickly outgrow exp(x) for x > 1.
+        // Instead we compute q_i = x*(x/2)*(x/3)*...*(x/i)
+
+        // First two terms are done directly: y = 1 + x
         let mut result = self.checked_add(Decimal::ONE)?;
 
-        for factorial in FACTORIAL.iter().skip(2) {
-            term = self.checked_mul(term)?;
-            let next = result + (term / factorial);
-            let diff = (next - result).abs();
-            result = next;
-            if diff <= tolerance {
+        // q_1 = x
+        let mut term = *self;
+
+        // Note: For smaller x the loop will terminate early due to the tolerance check. Only
+        // for very large x it will run more iterations, for example: exp(66.5) runs up about 186
+        // iterations.
+        const ITERATION_COUNT: u32 = 200;
+
+        for i in 2..ITERATION_COUNT {
+            // SAFETY: `i` is always a valid Decimal (and it's trivial to construct it).
+            let i_dec = Decimal::from_u32(i).unwrap();
+
+            term = self.checked_mul(term.checked_div(i_dec)?)?;
+
+            result = result.checked_add(term)?;
+
+            // Note that term is positive
+            if term <= tolerance {
                 break;
             }
         }
