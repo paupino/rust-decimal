@@ -117,10 +117,9 @@ impl From<UnpackedDecimal> for Decimal {
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(feature = "align16", repr(align(16)))]
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
-)]
+// [`borsh::BorshDeserialize`] is implemented manually so that the result can be checked to be a
+// valid instance of [`Self`].
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshSchema))]
 #[cfg_attr(
     feature = "rkyv",
     derive(Archive, Deserialize, Serialize),
@@ -556,7 +555,8 @@ impl Decimal {
     }
 
     /// Returns a `Result` which if successful contains the `Decimal` constitution of
-    /// the scientific notation provided by `value`.
+    /// the scientific notation provided by `value`. If the value underflows and cannot
+    /// be represented with the given scale then this will return an error.
     ///
     /// # Arguments
     ///
@@ -568,30 +568,34 @@ impl Decimal {
     /// # use rust_decimal::Decimal;
     /// #
     /// # fn main() -> Result<(), rust_decimal::Error> {
-    /// let value = Decimal::from_scientific("9.7e-7")?;
+    /// let value = Decimal::from_scientific_exact("9.7e-7")?;
     /// assert_eq!(value.to_string(), "0.00000097");
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
+    pub fn from_scientific_exact(value: &str) -> crate::Result<Decimal> {
         const ERROR_MESSAGE: &str = "Failed to parse";
 
         let mut split = value.splitn(2, ['e', 'E']);
 
-        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
-        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let base = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
+        let exp = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = stripped
+                .parse()
+                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = exp
+                .parse()
+                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -1845,7 +1849,7 @@ macro_rules! impl_try_from_decimal {
 
             #[inline]
             fn try_from(t: Decimal) -> Result<Self, Error> {
-                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).into()))
+                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto)))
             }
         }
     };
@@ -1887,8 +1891,8 @@ macro_rules! impl_try_from_primitive {
     };
 }
 
-impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal".into()));
-impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal".into()));
+impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal"));
+impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal"));
 impl_try_from_primitive!(&str, core::str::FromStr::from_str);
 
 macro_rules! impl_from {

@@ -138,8 +138,9 @@ fn it_can_serialize_deserialize() {
 
 #[cfg(feature = "borsh")]
 mod borsh_tests {
-    use rust_decimal::Decimal;
     use std::str::FromStr;
+
+    use rust_decimal::Decimal;
 
     #[test]
     fn it_can_serialize_deserialize_borsh() {
@@ -162,6 +163,42 @@ mod borsh_tests {
             let b: Decimal = result.unwrap();
             assert_eq!(test.to_string(), b.to_string());
         }
+    }
+
+    #[test]
+    fn invalid_flags_errors() {
+        let mut bytes: Vec<u8> = Vec::new();
+        // Invalid flags
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // high
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // lo
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // mid
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+
+        let _err =
+            <Decimal as borsh::BorshDeserialize>::deserialize(&mut bytes.as_slice()).expect_err("Invalid flags passed");
+    }
+
+    #[test]
+    fn invalid_scale_errors() {
+        let mut bytes: Vec<u8> = Vec::new();
+        // Invalid scale
+        borsh::BorshSerialize::serialize(&0x00FF_0000_u32, &mut bytes).unwrap();
+        // high
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // lo
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // mid
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+
+        let err =
+            <Decimal as borsh::BorshDeserialize>::deserialize(&mut bytes.as_slice()).expect_err("Invalid scale passed");
+        assert_eq!(
+            err.downcast::<rust_decimal::Error>().expect("Expected str flags error"),
+            rust_decimal::Error::ScaleExceedsMaximumPrecision(0xFF)
+        );
     }
 }
 
@@ -3140,7 +3177,7 @@ fn it_converts_from_f64_retaining_bits() {
 #[test]
 fn it_converts_to_integers() {
     assert_eq!(i64::try_from(Decimal::ONE), Ok(1));
-    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64".to_string())));
+    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64")));
     assert_eq!(u128::try_from(Decimal::ONE_HUNDRED), Ok(100));
 }
 
@@ -3320,7 +3357,7 @@ fn it_can_parse_individual_parts() {
 }
 
 #[test]
-fn it_can_parse_scientific_notation() {
+fn it_can_parse_scientific_notation_exact() {
     let tests = &[
         ("9.7e-7", Ok("0.00000097".to_string())),
         ("9e-7", Ok("0.0000009".to_string())),
@@ -3339,25 +3376,25 @@ fn it_can_parse_scientific_notation() {
     ];
 
     for &(value, ref expected) in tests {
-        let actual = Decimal::from_scientific(value).map(|d| d.to_string());
+        let actual = Decimal::from_scientific_exact(value).map(|d| d.to_string());
         assert_eq!(*expected, actual);
     }
 }
 
 #[test]
-fn it_errors_parsing_large_scientific_notation() {
-    let result = Decimal::from_scientific("1.2345E-28");
+fn it_errors_parsing_large_scientific_notation_exact() {
+    let result = Decimal::from_scientific_exact("1.2345E-28");
     assert!(result.is_err());
     assert_eq!(
         result.err(),
         Some(Error::ScaleExceedsMaximumPrecision(32)) // 4 + 28
     );
 
-    let result = Decimal::from_scientific("12345E29");
+    let result = Decimal::from_scientific_exact("12345E29");
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
 
-    let result = Decimal::from_scientific("12345E28");
+    let result = Decimal::from_scientific_exact("12345E28");
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::ExceedsMaximumPossibleValue));
 }

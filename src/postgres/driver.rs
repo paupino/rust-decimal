@@ -88,7 +88,7 @@ impl<'a> FromSql<'a> for Decimal {
                 _ => "unknown special numeric",
             };
 
-            return Err(Box::new(Error::ConversionTo(special.to_string())));
+            return Err(Box::new(Error::ConversionTo(special)));
         }
 
         // Number of digits (in base 10) to print after decimal separator
