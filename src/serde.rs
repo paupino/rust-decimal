@@ -351,7 +351,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         E: serde::de::Error,
     {
         Decimal::from_str(value)
-            .or_else(|_| Decimal::from_scientific(value))
+            .or_else(|_| Decimal::from_scientific_exact(value))
             .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
     }
 
@@ -439,7 +439,7 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
             true => Ok(None),
             false => {
                 let d = Decimal::from_str(v)
-                    .or_else(|_| Decimal::from_scientific(v))
+                    .or_else(|_| Decimal::from_scientific_exact(v))
                     .map_err(serde::de::Error::custom)?;
                 Ok(Some(d))
             }
@@ -507,7 +507,7 @@ impl<'de> serde::de::Deserialize<'de> for DecimalFromString {
                 E: serde::de::Error,
             {
                 let d = Decimal::from_str(value)
-                    .or_else(|_| Decimal::from_scientific(value))
+                    .or_else(|_| Decimal::from_scientific_exact(value))
                     .map_err(serde::de::Error::custom)?;
                 Ok(DecimalFromString { value: d })
             }

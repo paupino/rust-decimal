@@ -94,7 +94,7 @@ let from_string_base16 = Decimal::from_str_radix("ffff", 16).unwrap();
 assert_eq!("65535", from_string_base16.to_string());
 
 // From scientific notation
-let sci = Decimal::from_scientific("9.7e-7").unwrap();
+let sci = Decimal::from_scientific_exact("9.7e-7").unwrap();
 assert_eq!("0.00000097", sci.to_string());
 
 // Using the `Into` trait
