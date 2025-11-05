@@ -339,11 +339,21 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         }
     }
 
+    #[cfg(not(feature = "serde-with-arbitrary-precision"))]
     fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
     where
         E: serde::de::Error,
     {
         Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
+    }
+
+    #[cfg(feature = "serde-with-arbitrary-precision")]
+    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        Decimal::from_str(ryu::Buffer::new().format_finite(value))
+            .map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Decimal, E>
@@ -644,6 +654,21 @@ mod test {
         assert_eq!("{\"amount\":4.81}", serialized);
         let deserialized: Record = serde_json::from_str(&serialized).unwrap();
         assert_eq!(record.amount, deserialized.amount);
+    }
+
+    #[test]
+    #[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+    fn serialize_whole_number_decimal() {
+        let record = Record {
+            // 1.0 is chosen to verify that we don't lose precision due to float's to_string behavior
+            amount: Decimal::new(10, 1),
+        };
+
+        let serialized = serde_json::to_string(&record).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+        let deserialized: Record = serde_json::from_value(value).unwrap();
+
+        assert_eq!("1.0", deserialized.amount.to_string());
     }
 
     #[test]
