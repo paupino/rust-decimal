@@ -659,16 +659,28 @@ mod test {
     #[test]
     #[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
     fn serialize_whole_number_decimal() {
-        let record = Record {
-            // 1.0 is chosen to verify that we don't lose precision due to float's to_string behavior
-            amount: Decimal::new(10, 1),
-        };
+        let data = [
+            ("0", "0"),
+            ("1.0", "1.0"),
+            ("0.00", "0.00"),
+            ("1.234", "1.234"),
+            ("3.14159", "3.14159"),
+            ("-3.14159", "-3.14159"),
+            ("1234567890123.4567890", "1234567890123.4567890"),
+            ("-1234567890123.4567890", "-1234567890123.4567890"),
+        ];
 
-        let serialized = serde_json::to_string(&record).unwrap();
-        let value: serde_json::Value = serde_json::from_str(&serialized).unwrap();
-        let deserialized: Record = serde_json::from_value(value).unwrap();
+        for &(value, expected) in data.iter() {
+            let record = Record {
+                amount: Decimal::from_str(value).unwrap(),
+            };
 
-        assert_eq!("1.0", deserialized.amount.to_string());
+            let serialized = serde_json::to_string(&record).unwrap();
+            let value: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+            let deserialized: Record = serde_json::from_value(value).unwrap();
+
+            assert_eq!(expected, deserialized.amount.to_string());
+        }
     }
 
     #[test]
