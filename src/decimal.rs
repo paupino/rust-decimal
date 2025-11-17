@@ -1,6 +1,6 @@
 use crate::constants::{
-    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
-    UNSIGN_MASK,
+    MAX_I128_REPR, MAX_SCALE_U32, MAX_STR_BUFFER_SIZE, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT,
+    U32_MASK, U8_MASK, UNSIGN_MASK,
 };
 use crate::ops;
 use crate::Error;
@@ -783,6 +783,25 @@ impl Decimal {
     /// ```
     pub fn from_str_exact(str: &str) -> Result<Self, crate::Error> {
         crate::str::parse_str_radix_10_exact(str)
+    }
+
+    /// Returns a string representation that is similar to [`alloc::string::ToString`] but
+    /// doesn't require a heap allocation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rust_decimal::prelude::*;
+    /// # use rust_decimal::Error;
+    /// #
+    /// # fn main() -> Result<(), rust_decimal::Error> {
+    /// assert_eq!(Decimal::from_str_exact("0.001")?.array_string().as_str(), "0.001");
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn array_string(&self) -> arrayvec::ArrayString<MAX_STR_BUFFER_SIZE> {
+        let (result, _) = crate::str::to_str_internal(self, false, None);
+        result
     }
 
     /// Returns the scale of the decimal number, otherwise known as `e`.
