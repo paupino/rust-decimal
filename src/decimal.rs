@@ -799,7 +799,7 @@ impl Decimal {
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn array_string(&self) -> arrayvec::ArrayString<MAX_STR_BUFFER_SIZE> {
+    pub fn array_string(&self) -> impl AsRef<str> {
         let (result, _) = crate::str::to_str_internal(self, false, None);
         result
     }
