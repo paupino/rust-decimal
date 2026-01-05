@@ -220,12 +220,12 @@ mod ndarray_tests {
 
 #[cfg(feature = "rkyv")]
 mod rkyv_tests {
+    use rkyv::rancor::Error;
     use rust_decimal::Decimal;
     use std::str::FromStr;
 
     #[test]
     fn it_can_serialize_deserialize_rkyv() {
-        use rkyv::Deserialize;
         let tests = [
             "12.3456789",
             "5233.9008808150288439427720175",
@@ -233,18 +233,18 @@ mod rkyv_tests {
         ];
         for test in &tests {
             let a = Decimal::from_str(test).unwrap();
-            let bytes = rkyv::to_bytes::<_, 256>(&a).unwrap();
+            let bytes = rkyv::to_bytes::<Error>(&a).unwrap();
 
             #[cfg(feature = "rkyv-safe")]
             {
-                let archived = rkyv::check_archived_root::<Decimal>(&bytes[..]).unwrap();
+                let archived = rkyv::access::<<Decimal as rkyv::Archive>::Archived, Error>(&bytes[..]).unwrap();
                 assert_eq!(archived, &a);
             }
 
-            let archived = unsafe { rkyv::archived_root::<Decimal>(&bytes[..]) };
+            let archived = unsafe { rkyv::access_unchecked::<<Decimal as rkyv::Archive>::Archived>(&bytes[..]) };
             assert_eq!(archived, &a);
 
-            let deserialized: Decimal = archived.deserialize(&mut rkyv::Infallible).unwrap();
+            let deserialized: Decimal = rkyv::deserialize::<Decimal, Error>(archived).unwrap();
             assert_eq!(deserialized, a);
         }
     }

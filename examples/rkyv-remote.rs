@@ -1,5 +1,3 @@
-extern crate rkyv_0_8 as rkyv;
-
 use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
 use rust_decimal::prelude::{dec, Decimal};
 
