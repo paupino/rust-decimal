@@ -352,7 +352,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     where
         E: serde::de::Error,
     {
-        Decimal::from_str(ryu::Buffer::new().format_finite(value))
+        Decimal::from_str(zmij::Buffer::new().format_finite(value))
             .map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
     }
 
