@@ -70,6 +70,7 @@ impl Buf12 {
     // still fits in 96 bits. Ultimately, we want to make scale positive - if we can't then
     // we're going to overflow. Because x is ultimately used to lookup inside the POWERS array, it
     // must be a valid value 0 <= x <= 9
+    #[inline]
     pub fn find_scale(&self, scale: i32) -> Option<usize> {
         const OVERFLOW_MAX_9_HI: u32 = 4;
         const OVERFLOW_MAX_8_HI: u32 = 42;

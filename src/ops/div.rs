@@ -3,7 +3,6 @@ use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf12, Buf16, Dec64};
 
 use core::cmp::Ordering;
-use core::ops::BitXor;
 
 impl Buf12 {
     // Returns true if successful, else false for an overflow
@@ -78,6 +77,7 @@ impl Buf16 {
     // To assist, the upper 64 bits must be greater than the divisor for this to succeed.
     // Consequently, it will return the quotient as a 32 bit number and overwrite self with the
     // 64 bit remainder.
+    #[inline]
     pub(super) fn partial_divide_64(&mut self, divisor: u64) -> u32 {
         // We make this assertion here, however below we pivot based on the data
         debug_assert!(divisor > self.mid64());
@@ -134,7 +134,7 @@ impl Buf16 {
         remainder = remainder.wrapping_sub(product);
 
         // Check if we've gone negative. If so, add it back
-        if remainder > product.bitxor(u64::MAX) {
+        if remainder > !product {
             loop {
                 quotient = quotient.wrapping_sub(1);
                 remainder = remainder.wrapping_add(divisor);
@@ -150,6 +150,7 @@ impl Buf16 {
 
     // Does a partial divide with a 96 bit divisor. The divisor in this case must require 96 bits
     // otherwise various assumptions fail (e.g. 32 bit quotient).
+    #[inline]
     pub(super) fn partial_divide_96(&mut self, divisor: &Buf12) -> u32 {
         let dividend = self.high64();
         let divisor_hi = divisor.data[2];
@@ -173,14 +174,14 @@ impl Buf16 {
         remainder = remainder.wrapping_sub(prod2 as u32);
 
         // If there are carries make sure they are propagated
-        if num > prod1.bitxor(u64::MAX) {
+        if num > !prod1 {
             remainder = remainder.wrapping_sub(1);
-            if remainder < (prod2 as u32).bitxor(u32::MAX) {
+            if remainder < !(prod2 as u32) {
                 self.set_low64(num);
                 self.data[2] = remainder;
                 return quo;
             }
-        } else if remainder <= (prod2 as u32).bitxor(u32::MAX) {
+        } else if remainder <= !(prod2 as u32) {
             self.set_low64(num);
             self.data[2] = remainder;
             return quo;
@@ -241,85 +242,18 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
         let divisor32 = divisor.data[0];
 
         // Remainder can only be 32 bits since the divisor is 32 bits.
-        let mut remainder = quotient.div32(divisor32);
-        let mut power_scale = 0;
+        let remainder = quotient.div32(divisor32);
 
-        // Figure out how to apply the remainder (i.e. we may have performed something like 10/3 or 8/5)
-        loop {
-            // Remainder is 0 so we have a simple situation
-            if remainder == 0 {
-                // If the scale is positive then we're actually done
-                if scale >= 0 {
-                    break;
+        // If there's no remainder and scale is non-negative, we're done (fast path).
+        // Otherwise, enter the remainder processing loop.
+        if remainder != 0 || scale < 0 {
+            match div_remainder_32(remainder, divisor32, quotient, scale) {
+                Err(DivError::Overflow) => return CalculationResult::Overflow,
+                Ok(result) => {
+                    quotient = result.quotient;
+                    scale = result.scale;
+                    require_unscale = result.require_unscale;
                 }
-                power_scale = 9usize.min((-scale) as usize);
-            } else {
-                // We may need to normalize later, so set the flag appropriately
-                require_unscale = true;
-
-                // We have a remainder so we effectively want to try to adjust the quotient and add
-                // the remainder into the quotient. We do this below, however first of all we want
-                // to try to avoid overflowing so we do that check first.
-                let will_overflow = if scale == MAX_SCALE_I32 {
-                    true
-                } else {
-                    // Figure out how much we can scale by
-                    if let Some(s) = quotient.find_scale(scale) {
-                        power_scale = s;
-                    } else {
-                        return CalculationResult::Overflow;
-                    }
-                    // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
-                    // we're doing nothing.
-                    power_scale == 0
-                };
-                if will_overflow {
-                    // No more scaling can be done, but remainder is non-zero so we round if necessary.
-                    let tmp = remainder << 1;
-                    let round = if tmp < remainder {
-                        // We round if we wrapped around
-                        true
-                    } else if tmp >= divisor32 {
-                        // If we're greater than the divisor (i.e. underflow)
-                        // or if there is a lo bit set, we round
-                        tmp > divisor32 || (quotient.data[0] & 0x1) > 0
-                    } else {
-                        false
-                    };
-
-                    // If we need to round, try to do so.
-                    if round {
-                        if let Ok(new_scale) = round_up(&mut quotient, scale) {
-                            scale = new_scale;
-                        } else {
-                            // Overflowed
-                            return CalculationResult::Overflow;
-                        }
-                    }
-                    break;
-                }
-            }
-
-            // Do some scaling
-            let power = POWERS_10[power_scale];
-            scale += power_scale as i32;
-            // Increase the quotient by the power that was looked up
-            let overflow = increase_scale(&mut quotient, power as u64);
-            if overflow > 0 {
-                return CalculationResult::Overflow;
-            }
-
-            let remainder_scaled = (remainder as u64) * (power as u64);
-            let remainder_quotient = (remainder_scaled / (divisor32 as u64)) as u32;
-            remainder = (remainder_scaled - remainder_quotient as u64 * divisor32 as u64) as u32;
-            if let Err(DivError::Overflow) = quotient.add32(remainder_quotient) {
-                if let Ok(adj) = unscale_from_overflow(&mut quotient, scale, remainder != 0) {
-                    scale = adj;
-                } else {
-                    // Still overflowing
-                    return CalculationResult::Overflow;
-                }
-                break;
             }
         }
     } else {
@@ -332,7 +266,7 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
         // left one has the same result (8/4) etc.
         // The advantage is that we may be able to write off lower portions of the number making things
         // easier.
-        let mut power_scale = if divisor.data[2] == 0 {
+        let power_scale = if divisor.data[2] == 0 {
             divisor.data[1].leading_zeros()
         } else {
             divisor.data[2].leading_zeros()
@@ -361,82 +295,16 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
             remainder.data[0] = rem_lo;
             quotient.data[0] = remainder.partial_divide_64(divisor64);
 
-            loop {
-                let rem_low64 = remainder.low64();
-                if rem_low64 == 0 {
-                    // If the scale is positive then we're actually done
-                    if scale >= 0 {
-                        break;
+            // If there's no remainder and scale is non-negative, we're done (fast path).
+            // Otherwise, enter the remainder processing loop.
+            if remainder.low64() != 0 || scale < 0 {
+                match div_remainder_64(remainder, divisor64, quotient, scale) {
+                    Err(DivError::Overflow) => return CalculationResult::Overflow,
+                    Ok(result) => {
+                        quotient = result.quotient;
+                        scale = result.scale;
+                        require_unscale = result.require_unscale;
                     }
-                    power_scale = 9usize.min((-scale) as usize);
-                } else {
-                    // We may need to normalize later, so set the flag appropriately
-                    require_unscale = true;
-
-                    // We have a remainder so we effectively want to try to adjust the quotient and add
-                    // the remainder into the quotient. We do this below, however first of all we want
-                    // to try to avoid overflowing so we do that check first.
-                    let will_overflow = if scale == MAX_SCALE_I32 {
-                        true
-                    } else {
-                        // Figure out how much we can scale by
-                        if let Some(s) = quotient.find_scale(scale) {
-                            power_scale = s;
-                        } else {
-                            return CalculationResult::Overflow;
-                        }
-                        // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
-                        // we're doing nothing.
-                        power_scale == 0
-                    };
-                    if will_overflow {
-                        // No more scaling can be done, but remainder is non-zero so we round if necessary.
-                        let mut tmp = remainder.low64();
-                        let round = if (tmp as i64) < 0 {
-                            // We round if we wrapped around
-                            true
-                        } else {
-                            tmp <<= 1;
-                            if tmp > divisor64 {
-                                true
-                            } else {
-                                tmp == divisor64 && quotient.data[0] & 0x1 != 0
-                            }
-                        };
-
-                        // If we need to round, try to do so.
-                        if round {
-                            if let Ok(new_scale) = round_up(&mut quotient, scale) {
-                                scale = new_scale;
-                            } else {
-                                // Overflowed
-                                return CalculationResult::Overflow;
-                            }
-                        }
-                        break;
-                    }
-                }
-
-                // Do some scaling
-                let power = POWERS_10[power_scale];
-                scale += power_scale as i32;
-
-                // Increase the quotient by the power that was looked up
-                let overflow = increase_scale(&mut quotient, power as u64);
-                if overflow > 0 {
-                    return CalculationResult::Overflow;
-                }
-                increase_scale64(&mut remainder, power as u64);
-
-                let tmp = remainder.partial_divide_64(divisor64);
-                if let Err(DivError::Overflow) = quotient.add32(tmp) {
-                    if let Ok(adj) = unscale_from_overflow(&mut quotient, scale, remainder.low64() != 0) {
-                        scale = adj;
-                    } else {
-                        // Still overflowing
-                        return CalculationResult::Overflow;
-                    }
-                    break;
                 }
             }
         } else {
@@ -452,101 +320,16 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
             quotient.set_low64(quo as u64);
             quotient.data[2] = 0;
 
-            loop {
-                let mut rem_low64 = remainder.low64();
-                if rem_low64 == 0 && remainder.data[2] == 0 {
-                    // If the scale is positive then we're actually done
-                    if scale >= 0 {
-                        break;
+            // If there's no remainder and scale is non-negative, we're done (fast path).
+            // Otherwise, enter the remainder processing loop.
+            if remainder.low64() != 0 || remainder.data[2] != 0 || scale < 0 {
+                match div_remainder_96(remainder, divisor, quotient, scale) {
+                    Err(DivError::Overflow) => return CalculationResult::Overflow,
+                    Ok(result) => {
+                        quotient = result.quotient;
+                        scale = result.scale;
+                        require_unscale = result.require_unscale;
                     }
-                    power_scale = 9usize.min((-scale) as usize);
-                } else {
-                    // We may need to normalize later, so set the flag appropriately
-                    require_unscale = true;
-
-                    // We have a remainder so we effectively want to try to adjust the quotient and add
-                    // the remainder into the quotient. We do this below, however first of all we want
-                    // to try to avoid overflowing so we do that check first.
-                    let will_overflow = if scale == MAX_SCALE_I32 {
-                        true
-                    } else {
-                        // Figure out how much we can scale by
-                        if let Some(s) = quotient.find_scale(scale) {
-                            power_scale = s;
-                        } else {
-                            return CalculationResult::Overflow;
-                        }
-                        // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
-                        // we're doing nothing.
-                        power_scale == 0
-                    };
-                    if will_overflow {
-                        // No more scaling can be done, but remainder is non-zero so we round if necessary.
-                        let round = if (remainder.data[2] as i32) < 0 {
-                            // We round if we wrapped around
-                            true
-                        } else {
-                            let tmp = remainder.data[1] >> 31;
-                            rem_low64 <<= 1;
-                            remainder.set_low64(rem_low64);
-                            remainder.data[2] = (&remainder.data[2] << 1) + tmp;
-
-                            match remainder.data[2].cmp(&divisor.data[2]) {
-                                Ordering::Less => false,
-                                Ordering::Equal => {
-                                    let divisor_low64 = divisor.low64();
-                                    if rem_low64 > divisor_low64 {
-                                        true
-                                    } else {
-                                        rem_low64 == divisor_low64 && (quotient.data[0] & 1) != 0
-                                    }
-                                }
-                                Ordering::Greater => true,
-                            }
-                        };
-
-                        // If we need to round, try to do so.
-                        if round {
-                            if let Ok(new_scale) = round_up(&mut quotient, scale) {
-                                scale = new_scale;
-                            } else {
-                                // Overflowed
-                                return CalculationResult::Overflow;
-                            }
-                        }
-                        break;
-                    }
-                }
-
-                // Do some scaling
-                let power = POWERS_10[power_scale];
-                scale += power_scale as i32;
-
-                // Increase the quotient by the power that was looked up
-                let overflow = increase_scale(&mut quotient, power as u64);
-                if overflow > 0 {
-                    return CalculationResult::Overflow;
-                }
-                let mut tmp_remainder = Buf12 {
-                    data: [remainder.data[0], remainder.data[1], remainder.data[2]],
-                };
-                let overflow = increase_scale(&mut tmp_remainder, power as u64);
-                remainder.data[0] = tmp_remainder.data[0];
-                remainder.data[1] = tmp_remainder.data[1];
-                remainder.data[2] = tmp_remainder.data[2];
-                remainder.data[3] = overflow;
-
-                let tmp = remainder.partial_divide_96(&divisor);
-                if let Err(DivError::Overflow) = quotient.add32(tmp) {
-                    if let Ok(adj) =
-                        unscale_from_overflow(&mut quotient, scale, (remainder.low64() | remainder.high64()) != 0)
-                    {
-                        scale = adj;
-                    } else {
-                        // Still overflowing
-                        return CalculationResult::Overflow;
-                    }
-                    break;
                 }
             }
         }
@@ -561,6 +344,288 @@ pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResu
         sign_negative,
         scale as u32,
     ))
+}
+
+struct DivResult {
+    quotient: Buf12,
+    scale: i32,
+    require_unscale: bool,
+}
+
+// Remainder processing loop for the 32-bit divisor path.
+// Kept out-of-line to reduce code size of div_impl's fast path.
+#[inline(never)]
+fn div_remainder_32(
+    mut remainder: u32,
+    divisor32: u32,
+    mut quotient: Buf12,
+    mut scale: i32,
+) -> Result<DivResult, DivError> {
+    let mut require_unscale = false;
+    let mut power_scale = 0;
+
+    loop {
+        // Remainder is 0 so we have a simple situation
+        if remainder == 0 {
+            // If the scale is positive then we're actually done
+            if scale >= 0 {
+                break;
+            }
+            power_scale = 9usize.min((-scale) as usize);
+        } else {
+            // We may need to normalize later, so set the flag appropriately
+            require_unscale = true;
+
+            // We have a remainder so we effectively want to try to adjust the quotient and add
+            // the remainder into the quotient. We do this below, however first of all we want
+            // to try to avoid overflowing so we do that check first.
+            let will_overflow = if scale == MAX_SCALE_I32 {
+                true
+            } else {
+                // Figure out how much we can scale by
+                if let Some(s) = quotient.find_scale(scale) {
+                    power_scale = s;
+                } else {
+                    return Err(DivError::Overflow);
+                }
+                // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
+                // we're doing nothing.
+                power_scale == 0
+            };
+            if will_overflow {
+                // No more scaling can be done, but remainder is non-zero so we round if necessary.
+                let tmp = remainder << 1;
+                let round = if tmp < remainder {
+                    // We round if we wrapped around
+                    true
+                } else if tmp >= divisor32 {
+                    // If we're greater than the divisor (i.e. underflow)
+                    // or if there is a lo bit set, we round
+                    tmp > divisor32 || (quotient.data[0] & 0x1) > 0
+                } else {
+                    false
+                };
+
+                // If we need to round, try to do so.
+                if round {
+                    scale = round_up(&mut quotient, scale)?;
+                }
+                break;
+            }
+        }
+
+        // Do some scaling
+        let power = POWERS_10[power_scale];
+        scale += power_scale as i32;
+        // Increase the quotient by the power that was looked up
+        let overflow = increase_scale(&mut quotient, power as u64);
+        if overflow > 0 {
+            return Err(DivError::Overflow);
+        }
+
+        let remainder_scaled = (remainder as u64) * (power as u64);
+        let remainder_quotient = (remainder_scaled / (divisor32 as u64)) as u32;
+        remainder = (remainder_scaled - remainder_quotient as u64 * divisor32 as u64) as u32;
+        if let Err(DivError::Overflow) = quotient.add32(remainder_quotient) {
+            scale = unscale_from_overflow(&mut quotient, scale, remainder != 0)?;
+            break;
+        }
+    }
+
+    Ok(DivResult {
+        quotient,
+        scale,
+        require_unscale,
+    })
+}
+
+// Remainder processing loop for the 64-bit divisor path.
+fn div_remainder_64(
+    mut remainder: Buf16,
+    divisor64: u64,
+    mut quotient: Buf12,
+    mut scale: i32,
+) -> Result<DivResult, DivError> {
+    let mut require_unscale = false;
+    let mut power_scale = 0;
+
+    loop {
+        let rem_low64 = remainder.low64();
+        if rem_low64 == 0 {
+            // If the scale is positive then we're actually done
+            if scale >= 0 {
+                break;
+            }
+            power_scale = 9usize.min((-scale) as usize);
+        } else {
+            // We may need to normalize later, so set the flag appropriately
+            require_unscale = true;
+
+            // We have a remainder so we effectively want to try to adjust the quotient and add
+            // the remainder into the quotient. We do this below, however first of all we want
+            // to try to avoid overflowing so we do that check first.
+            let will_overflow = if scale == MAX_SCALE_I32 {
+                true
+            } else {
+                // Figure out how much we can scale by
+                if let Some(s) = quotient.find_scale(scale) {
+                    power_scale = s;
+                } else {
+                    return Err(DivError::Overflow);
+                }
+                // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
+                // we're doing nothing.
+                power_scale == 0
+            };
+            if will_overflow {
+                // No more scaling can be done, but remainder is non-zero so we round if necessary.
+                let mut tmp = remainder.low64();
+                let round = if (tmp as i64) < 0 {
+                    // We round if we wrapped around
+                    true
+                } else {
+                    tmp <<= 1;
+                    if tmp > divisor64 {
+                        true
+                    } else {
+                        tmp == divisor64 && quotient.data[0] & 0x1 != 0
+                    }
+                };
+
+                // If we need to round, try to do so.
+                if round {
+                    scale = round_up(&mut quotient, scale)?;
+                }
+                break;
+            }
+        }
+
+        // Do some scaling
+        let power = POWERS_10[power_scale];
+        scale += power_scale as i32;
+
+        // Increase the quotient by the power that was looked up
+        let overflow = increase_scale(&mut quotient, power as u64);
+        if overflow > 0 {
+            return Err(DivError::Overflow);
+        }
+        increase_scale64(&mut remainder, power as u64);
+
+        let tmp = remainder.partial_divide_64(divisor64);
+        if let Err(DivError::Overflow) = quotient.add32(tmp) {
+            scale = unscale_from_overflow(&mut quotient, scale, remainder.low64() != 0)?;
+            break;
+        }
+    }
+
+    Ok(DivResult {
+        quotient,
+        scale,
+        require_unscale,
+    })
+}
+
+// Remainder processing loop for the 96-bit divisor path.
+fn div_remainder_96(
+    mut remainder: Buf16,
+    divisor: Buf12,
+    mut quotient: Buf12,
+    mut scale: i32,
+) -> Result<DivResult, DivError> {
+    let mut require_unscale = false;
+    let mut power_scale = 0;
+
+    loop {
+        let mut rem_low64 = remainder.low64();
+        if rem_low64 == 0 && remainder.data[2] == 0 {
+            // If the scale is positive then we're actually done
+            if scale >= 0 {
+                break;
+            }
+            power_scale = 9usize.min((-scale) as usize);
+        } else {
+            // We may need to normalize later, so set the flag appropriately
+            require_unscale = true;
+
+            // We have a remainder so we effectively want to try to adjust the quotient and add
+            // the remainder into the quotient. We do this below, however first of all we want
+            // to try to avoid overflowing so we do that check first.
+            let will_overflow = if scale == MAX_SCALE_I32 {
+                true
+            } else {
+                // Figure out how much we can scale by
+                if let Some(s) = quotient.find_scale(scale) {
+                    power_scale = s;
+                } else {
+                    return Err(DivError::Overflow);
+                }
+                // If it comes back as 0 (i.e. 10^0 = 1) then we're going to overflow since
+                // we're doing nothing.
+                power_scale == 0
+            };
+            if will_overflow {
+                // No more scaling can be done, but remainder is non-zero so we round if necessary.
+                let round = if (remainder.data[2] as i32) < 0 {
+                    // We round if we wrapped around
+                    true
+                } else {
+                    let tmp = remainder.data[1] >> 31;
+                    rem_low64 <<= 1;
+                    remainder.set_low64(rem_low64);
+                    remainder.data[2] = (&remainder.data[2] << 1) + tmp;
+
+                    match remainder.data[2].cmp(&divisor.data[2]) {
+                        Ordering::Less => false,
+                        Ordering::Equal => {
+                            let divisor_low64 = divisor.low64();
+                            if rem_low64 > divisor_low64 {
+                                true
+                            } else {
+                                rem_low64 == divisor_low64 && (quotient.data[0] & 1) != 0
+                            }
+                        }
+                        Ordering::Greater => true,
+                    }
+                };
+
+                // If we need to round, try to do so.
+                if round {
+                    scale = round_up(&mut quotient, scale)?;
+                }
+                break;
+            }
+        }
+
+        // Do some scaling
+        let power = POWERS_10[power_scale];
+        scale += power_scale as i32;
+
+        // Increase the quotient by the power that was looked up
+        let overflow = increase_scale(&mut quotient, power as u64);
+        if overflow > 0 {
+            return Err(DivError::Overflow);
+        }
+        let mut tmp_remainder = Buf12 {
+            data: [remainder.data[0], remainder.data[1], remainder.data[2]],
+        };
+        let overflow = increase_scale(&mut tmp_remainder, power as u64);
+        remainder.data[0] = tmp_remainder.data[0];
+        remainder.data[1] = tmp_remainder.data[1];
+        remainder.data[2] = tmp_remainder.data[2];
+        remainder.data[3] = overflow;
+
+        let tmp = remainder.partial_divide_96(&divisor);
+        if let Err(DivError::Overflow) = quotient.add32(tmp) {
+            scale = unscale_from_overflow(&mut quotient, scale, (remainder.low64() | remainder.high64()) != 0)?;
+            break;
+        }
+    }
+
+    Ok(DivResult {
+        quotient,
+        scale,
+        require_unscale,
+    })
 }
 
 // Multiply num by power (multiple of 10). Power must be 32 bits.
@@ -590,6 +655,7 @@ fn increase_scale64(num: &mut Buf16, power: u64) {
 // by 10, so this effectively tries to reverse that by dividing by 10 then feeding in the high bit
 // to undo the overflow and rounding instead.
 // Returns the updated scale.
+#[inline]
 fn unscale_from_overflow(num: &mut Buf12, scale: i32, sticky: bool) -> Result<i32, DivError> {
     let scale = scale - 1;
     if scale < 0 {
