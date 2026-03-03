@@ -244,46 +244,7 @@ impl MathematicalOps for Decimal {
     }
 
     fn checked_powu(&self, exp: u64) -> Option<Decimal> {
-        if exp == 0 {
-            return Some(Decimal::ONE);
-        }
-        if self.is_zero() {
-            return Some(Decimal::ZERO);
-        }
-        if self.is_one() {
-            return Some(Decimal::ONE);
-        }
-
-        match exp {
-            0 => unreachable!(),
-            1 => Some(*self),
-            2 => self.checked_mul(*self),
-            // Do the exponentiation by multiplying squares:
-            //   y = Sum (for each 1 bit in binary representation) of (2 ^ bit)
-            //   x ^ y = Sum (for each 1 bit in y) of (x ^ (2 ^ bit))
-            // See: https://en.wikipedia.org/wiki/Exponentiation_by_squaring
-            _ => {
-                let mut product = Decimal::ONE;
-                let mut mask = exp;
-                let mut power = *self;
-
-                // Run through just enough 1 bits
-                for n in 0..(64 - exp.leading_zeros()) {
-                    if n > 0 {
-                        power = power.checked_mul(power)?;
-                        mask >>= 1;
-                    }
-                    if mask & 0x01 > 0 {
-                        match product.checked_mul(power) {
-                            Some(r) => product = r,
-                            None => return None,
-                        };
-                    }
-                }
-                product.normalize_assign();
-                Some(product)
-            }
-        }
+        crate::ops::wide::powu_wide(self, exp)
     }
 
     fn powf(&self, exp: f64) -> Decimal {
