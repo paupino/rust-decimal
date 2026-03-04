@@ -32,3 +32,6 @@ pub(crate) use div::div_impl;
 pub(crate) use mul::mul_impl;
 #[cfg(not(feature = "legacy-ops"))]
 pub(crate) use rem::rem_impl;
+
+#[cfg(feature = "maths")]
+pub(crate) mod wide;
