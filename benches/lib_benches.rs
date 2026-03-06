@@ -374,11 +374,10 @@ mod maths {
             Decimal::from_str("0.00000007").unwrap(),
             Decimal::from(2),
             Decimal::from_str("8819287.19").unwrap(),
-            Decimal::from_str("-8819287.19").unwrap(),
         ];
         b.iter(|| {
             for sample in samples.iter() {
-                let result = sample.ln();
+                let result = sample.checked_ln();
                 ::test::black_box(result);
             }
         });

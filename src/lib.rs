@@ -81,4 +81,4 @@ extern crate diesel;
 pub type Result<T> = core::result::Result<T, Error>;
 
 // #[cfg(feature = "legacy-ops")]
-// compiler_error!("legacy-ops has been removed as 1.x");
+// compile_error!("legacy-ops has been removed as of 1.x");
