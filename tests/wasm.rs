@@ -1,5 +1,9 @@
 #![cfg(target_arch = "wasm32")]
 
+// Tests use both `Decimal::from_str` (the standard `FromStr` trait) and `Decimal::from_string`
+// (the wasm-bindgen binding). This is intentional: `from_string` tests exercise the wasm API
+// surface, while `from_str` tests verify that core Decimal functionality works under wasm.
+
 use core::str::FromStr;
 use rust_decimal::Decimal;
 use wasm_bindgen_test::*;
@@ -154,6 +158,35 @@ fn it_round_trips_through_string_and_number() {
         let n = a.to_number();
         let b = Decimal::from_number(n).unwrap();
         assert_eq!(test.to_string(), b.to_string(), "Round-trip failed for {test}");
+    }
+}
+
+// Round-trip: from_string -> to_string_js
+
+#[wasm_bindgen_test]
+fn it_round_trips_from_string_to_string_js() {
+    let tests = [
+        "12.3456789",
+        "79228162514264337593543950330",
+        "-5233.9008808150288439427720175",
+        "0",
+        "0.001",
+    ];
+    for test in &tests {
+        let a = Decimal::from_string(test).unwrap();
+        assert_eq!(test.to_string(), a.to_string_js(), "Round-trip failed for {test}");
+    }
+}
+
+// Round-trip: from_string -> to_number
+
+#[wasm_bindgen_test]
+fn it_round_trips_from_string_to_number() {
+    let tests = [("1.5", 1.5), ("100", 100.0), ("-42.42", -42.42), ("0.001", 0.001)];
+    for (input, expected) in &tests {
+        let a = Decimal::from_string(input).unwrap();
+        let n = a.to_number();
+        assert!((n - expected).abs() < 1e-10, "Round-trip failed for {input}: got {n}");
     }
 }
 

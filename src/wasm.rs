@@ -39,6 +39,9 @@ impl Decimal {
     }
 
     /// Returns the string representation of this `Decimal`.
+    ///
+    /// This intentionally overrides the default JS `toString()` so that string coercion
+    /// (e.g. template literals, `console.log`) produces the decimal representation.
     #[wasm_bindgen(js_name = toString)]
     #[must_use]
     pub fn to_string_js(&self) -> String {
