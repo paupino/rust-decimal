@@ -116,7 +116,7 @@ fn it_round_trips_through_string_and_number() {
 fn it_can_add_wasm_decimals() {
     let a = Decimal::from_number(1.5).unwrap();
     let b = Decimal::from_number(2.5).unwrap();
-    assert_eq!("4", (a + b).to_string());
+    assert_eq!("4.0", (a + b).to_string());
 }
 
 #[wasm_bindgen_test]
@@ -137,7 +137,7 @@ fn it_can_multiply_wasm_decimals() {
 fn it_can_divide_wasm_decimals() {
     let a = Decimal::from_number(10.0).unwrap();
     let b = Decimal::from_number(4.0).unwrap();
-    assert_eq!("2.5", (a / b).to_string());
+    assert_eq!("2.50", (a / b).to_string());
 }
 
 // Core functionality works under wasm
