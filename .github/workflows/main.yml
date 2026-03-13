@@ -322,6 +322,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: tests-wasm-stable-cargo-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            tests-wasm-stable-cargo-
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

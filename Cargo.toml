@@ -99,7 +99,7 @@ serde-with-float = ["serde"]
 serde-with-str = ["serde"]
 std = ["arrayvec/std", "wasm-bindgen?/std", "borsh?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
-wasm = ["dep:wasm-bindgen", "std"]
+wasm = ["dep:wasm-bindgen"]
 
 [[bench]]
 harness = false

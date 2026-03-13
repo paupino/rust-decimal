@@ -59,6 +59,53 @@ fn it_returns_none_for_negative_infinity() {
     assert!(Decimal::from_number(f64::NEG_INFINITY).is_none());
 }
 
+// from_string
+
+#[wasm_bindgen_test]
+fn it_converts_positive_float_from_string() {
+    let a = Decimal::from_string("233.323223").unwrap();
+    assert!(!a.is_sign_negative());
+    assert_eq!(a.scale(), 6);
+    assert_eq!("233.323223", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_negative_float_from_string() {
+    let a = Decimal::from_string("-233.43343").unwrap();
+    assert!(a.is_sign_negative());
+    assert_eq!("-233.43343", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_big_integer_from_string() {
+    let a = Decimal::from_string("79228162514264337593543950330").unwrap();
+    assert_eq!("79228162514264337593543950330", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_returns_none_for_empty_string() {
+    assert!(Decimal::from_string("").is_none());
+}
+
+#[wasm_bindgen_test]
+fn it_returns_none_for_invalid_string() {
+    assert!(Decimal::from_string("not_a_number").is_none());
+}
+
+// to_string_js
+
+#[wasm_bindgen_test]
+fn it_converts_decimal_to_string() {
+    let a = Decimal::from_string("12.3456789").unwrap();
+    assert_eq!("12.3456789", a.to_string_js());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_negative_decimal_to_string() {
+    let a = Decimal::from_number(-42.0).unwrap();
+    assert_eq!("-42", a.to_string_js());
+}
+
 // to_number
 
 #[wasm_bindgen_test]
@@ -111,6 +158,10 @@ fn it_round_trips_through_string_and_number() {
 }
 
 // Arithmetic via wasm-constructed decimals
+//
+// Note: `from_number` converts via `f64`, which may introduce trailing scale
+// (e.g. `1.5` has scale 1). Arithmetic preserves scale from the operands, so
+// results may include trailing zeros (e.g. `1.5 + 2.5 = "4.0"` not `"4"`).
 
 #[wasm_bindgen_test]
 fn it_can_add_wasm_decimals() {
@@ -128,6 +179,7 @@ fn it_can_subtract_wasm_decimals() {
 
 #[wasm_bindgen_test]
 fn it_can_multiply_wasm_decimals() {
+    // Multiplication of two integer-valued f64s (scale 0) produces scale 0
     let a = Decimal::from_number(6.0).unwrap();
     let b = Decimal::from_number(7.0).unwrap();
     assert_eq!("42", (a * b).to_string());
@@ -135,6 +187,7 @@ fn it_can_multiply_wasm_decimals() {
 
 #[wasm_bindgen_test]
 fn it_can_divide_wasm_decimals() {
+    // Division preserves scale from operands, so 10.0 / 4.0 yields "2.50"
     let a = Decimal::from_number(10.0).unwrap();
     let b = Decimal::from_number(4.0).unwrap();
     assert_eq!("2.50", (a / b).to_string());
