@@ -1,10 +1,218 @@
 #![cfg(target_arch = "wasm32")]
 
+use core::str::FromStr;
 use rust_decimal::Decimal;
 use wasm_bindgen_test::*;
 
+// from_number
+
 #[wasm_bindgen_test]
-fn convert() {
-    let d = Decimal::from_number(42.0);
-    assert_eq!(d.unwrap().to_number(), 42.0);
+fn it_converts_positive_integer_from_number() {
+    let a = Decimal::from_number(42.0).unwrap();
+    assert!(!a.is_sign_negative());
+    assert_eq!("42", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_negative_integer_from_number() {
+    let a = Decimal::from_number(-123.0).unwrap();
+    assert!(a.is_sign_negative());
+    assert_eq!("-123", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_zero_from_number() {
+    let a = Decimal::from_number(0.0).unwrap();
+    assert_eq!("0", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_positive_float_from_number() {
+    let a = Decimal::from_number(3.14).unwrap();
+    assert_eq!("3.14", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_small_fractional_from_number() {
+    let a = Decimal::from_number(0.001).unwrap();
+    assert_eq!("0.001", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_converts_large_number_from_number() {
+    let a = Decimal::from_number(1_000_000_000.0).unwrap();
+    assert_eq!("1000000000", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_returns_none_for_nan() {
+    assert!(Decimal::from_number(f64::NAN).is_none());
+}
+
+#[wasm_bindgen_test]
+fn it_returns_none_for_positive_infinity() {
+    assert!(Decimal::from_number(f64::INFINITY).is_none());
+}
+
+#[wasm_bindgen_test]
+fn it_returns_none_for_negative_infinity() {
+    assert!(Decimal::from_number(f64::NEG_INFINITY).is_none());
+}
+
+// to_number
+
+#[wasm_bindgen_test]
+fn it_converts_positive_decimal_to_number() {
+    let a = Decimal::from_str("233.323223").unwrap();
+    let n = a.to_number();
+    assert!((n - 233.323223).abs() < 1e-10);
+}
+
+#[wasm_bindgen_test]
+fn it_converts_negative_decimal_to_number() {
+    let a = Decimal::from_str("-233.43343").unwrap();
+    let n = a.to_number();
+    assert!((n - -233.43343).abs() < 1e-10);
+}
+
+#[wasm_bindgen_test]
+fn it_converts_zero_to_number() {
+    let a = Decimal::from_str("0").unwrap();
+    assert_eq!(a.to_number(), 0.0);
+}
+
+// Round-trip: from_number -> to_number
+
+#[wasm_bindgen_test]
+fn it_round_trips_positive_float() {
+    let n = 12345.6789;
+    let a = Decimal::from_number(n).unwrap();
+    assert!((a.to_number() - n).abs() < 1e-10);
+}
+
+#[wasm_bindgen_test]
+fn it_round_trips_negative_float() {
+    let n = -9876.54321;
+    let a = Decimal::from_number(n).unwrap();
+    assert!((a.to_number() - n).abs() < 1e-10);
+}
+
+// Round-trip: from_str -> to_number -> from_number -> to_string
+
+#[wasm_bindgen_test]
+fn it_round_trips_through_string_and_number() {
+    let tests = ["1.5", "100", "0.001", "-42.42"];
+    for test in &tests {
+        let a = Decimal::from_str(test).unwrap();
+        let n = a.to_number();
+        let b = Decimal::from_number(n).unwrap();
+        assert_eq!(test.to_string(), b.to_string(), "Round-trip failed for {test}");
+    }
+}
+
+// Arithmetic via wasm-constructed decimals
+
+#[wasm_bindgen_test]
+fn it_can_add_wasm_decimals() {
+    let a = Decimal::from_number(1.5).unwrap();
+    let b = Decimal::from_number(2.5).unwrap();
+    assert_eq!("4", (a + b).to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_can_subtract_wasm_decimals() {
+    let a = Decimal::from_number(10.0).unwrap();
+    let b = Decimal::from_number(3.5).unwrap();
+    assert_eq!("6.5", (a - b).to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_can_multiply_wasm_decimals() {
+    let a = Decimal::from_number(6.0).unwrap();
+    let b = Decimal::from_number(7.0).unwrap();
+    assert_eq!("42", (a * b).to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_can_divide_wasm_decimals() {
+    let a = Decimal::from_number(10.0).unwrap();
+    let b = Decimal::from_number(4.0).unwrap();
+    assert_eq!("2.5", (a / b).to_string());
+}
+
+// Core functionality works under wasm
+
+#[wasm_bindgen_test]
+fn it_can_parse_string_in_wasm() {
+    let a = Decimal::from_str("79228162514264337593543950330").unwrap();
+    assert_eq!("79228162514264337593543950330", a.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_can_serialize_deserialize_in_wasm() {
+    let tests = [
+        "12.3456789",
+        "5233.9008808150288439427720175",
+        "-5233.9008808150288439427720175",
+    ];
+    for test in &tests {
+        let a = Decimal::from_str(test).unwrap();
+        let bytes = a.serialize();
+        let b = Decimal::deserialize(bytes);
+        assert_eq!(test.to_string(), b.to_string());
+    }
+}
+
+#[wasm_bindgen_test]
+fn it_can_compare_wasm_decimals() {
+    let a = Decimal::from_number(1.0).unwrap();
+    let b = Decimal::from_number(2.0).unwrap();
+    let c = Decimal::from_number(1.0).unwrap();
+    assert!(a < b);
+    assert!(b > a);
+    assert_eq!(a, c);
+}
+
+#[wasm_bindgen_test]
+fn it_can_check_sign_of_wasm_decimal() {
+    let pos = Decimal::from_number(5.0).unwrap();
+    let neg = Decimal::from_number(-5.0).unwrap();
+    assert!(!pos.is_sign_negative());
+    assert!(neg.is_sign_negative());
+}
+
+#[wasm_bindgen_test]
+fn it_can_check_zero_of_wasm_decimal() {
+    let zero = Decimal::from_number(0.0).unwrap();
+    let non_zero = Decimal::from_number(1.0).unwrap();
+    assert!(zero.is_zero());
+    assert!(!non_zero.is_zero());
+}
+
+#[wasm_bindgen_test]
+fn it_can_round_wasm_decimal() {
+    let a = Decimal::from_str("2.567").unwrap();
+    let rounded = a.round_dp(2);
+    assert_eq!("2.57", rounded.to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_can_floor_and_ceil_wasm_decimal() {
+    let a = Decimal::from_str("2.3").unwrap();
+    assert_eq!("2", a.floor().to_string());
+    assert_eq!("3", a.ceil().to_string());
+}
+
+#[wasm_bindgen_test]
+fn it_can_extract_mantissa_and_scale_in_wasm() {
+    let a = Decimal::from_str("1.123456").unwrap();
+    assert_eq!(a.mantissa(), 1123456i128);
+    assert_eq!(a.scale(), 6);
+}
+
+#[wasm_bindgen_test]
+fn it_can_access_constants_in_wasm() {
+    assert_eq!("0", Decimal::ZERO.to_string());
+    assert_eq!("1", Decimal::ONE.to_string());
+    assert_eq!("10", Decimal::TEN.to_string());
 }
