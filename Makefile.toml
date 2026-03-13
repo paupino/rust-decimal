@@ -8,3 +8,36 @@ extend = [
 
 [config]
 default_to_workspace = false
+
+# Runs the same checks as GitHub Actions CI (excluding database and fuzz tests
+# which require external services or nightly toolchain + cargo-fuzz).
+# Usage: cargo make ci
+[tasks.ci]
+dependencies = [
+    "ci-format",
+    "ci-clippy",
+    "ci-test",
+]
+
+[tasks.ci-format]
+description = "Check file formatting (mirrors CI check_style)"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.ci-clippy]
+description = "Run clippy with all features (mirrors CI check_style)"
+command = "cargo"
+args = ["clippy", "--workspace", "--all-features"]
+
+# Mirrors the standard_tests + dependency_tests jobs in CI
+[tasks.ci-test]
+description = "Run all local tests (mirrors CI standard_tests + dependency_tests)"
+dependencies = [
+    "test-no-std",
+    "test-default",
+    "test-legacy-ops",
+    "test-maths",
+    "test-macros",
+    "test-serde",
+    "test-misc",
+]

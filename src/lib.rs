@@ -79,3 +79,4 @@ extern crate diesel;
 /// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish
 /// between `rust_decimal` and `std` types.
 pub type Result<T> = core::result::Result<T, Error>;
+
