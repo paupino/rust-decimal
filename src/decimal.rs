@@ -786,6 +786,25 @@ impl Decimal {
         crate::str::parse_str_radix_10_exact(str)
     }
 
+    /// Returns a string representation that is similar to [`alloc::string::ToString`] but
+    /// doesn't require a heap allocation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rust_decimal::prelude::*;
+    /// # use rust_decimal::Error;
+    /// #
+    /// # fn main() -> Result<(), rust_decimal::Error> {
+    /// assert_eq!(Decimal::from_str_exact("0.001")?.array_string().as_ref(), "0.001");
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn array_string(&self) -> impl AsRef<str> {
+        let (result, _) = crate::str::to_str_internal(self, false, None);
+        result
+    }
+
     /// Returns the scale of the decimal number, otherwise known as `e`.
     ///
     /// # Example
