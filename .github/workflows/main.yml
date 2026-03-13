@@ -1,6 +1,6 @@
 on:
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - master
@@ -125,7 +125,6 @@ jobs:
           - stable
           - beta
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
@@ -148,35 +147,20 @@ jobs:
 
       - uses: davidB/rust-cargo-make@v1
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
-
       - name: Run no_std tests
         run: cargo make test-no-std
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run default tests
         run: cargo make test-default
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run legacy operation tests
         run: cargo make test-legacy-ops
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run mathematical function tests
         run: cargo make test-maths
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run macro tests
         run: cargo make test-macros
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   dependency_tests:
     name: "Dependency Tests"
@@ -188,7 +172,6 @@ jobs:
           - stable
           - beta
         include:
-          # This allows us to define targets in the future (e.g. wasm32-unknown-unknown)
           - name: stable
             rust: stable
           - name: beta
@@ -211,20 +194,11 @@ jobs:
 
       - uses: davidB/rust-cargo-make@v1
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install libpq-dev
-
       - name: Run serde tests
         run: cargo make test-serde
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
       - name: Run miscellaneous dependency tests
         run: cargo make test-misc
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   database_tests:
     name: "Database Tests"
@@ -254,7 +228,7 @@ jobs:
       postgres:
         image: postgres:11.6
         env:
-          POSTGRES_PASSWORD: ''
+          POSTGRES_PASSWORD: ""
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
@@ -283,8 +257,6 @@ jobs:
 
       - name: Run database tests
         run: cargo make test-db-postgres-all
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   mysql_tests:
     name: "Database Tests - MySQL"
@@ -305,8 +277,8 @@ jobs:
       mysql:
         image: mysql:8
         env:
-          MYSQL_ROOT_PASSWORD: ''
-          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_ROOT_PASSWORD: ""
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
         ports:
           - 3306:3306
     steps:
@@ -329,8 +301,6 @@ jobs:
 
       - name: Run database tests
         run: cargo make test-db-mysql-all
-        env:
-          CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
   fuzz_tests:
     name: Fuzz Tests
