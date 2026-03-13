@@ -111,6 +111,7 @@ jobs:
       - standard_tests
       - dependency_tests
       - database_tests
+      - wasm_tests
       - fuzz_tests
     steps:
       - run: exit 0
@@ -301,6 +302,40 @@ jobs:
 
       - name: Run database tests
         run: cargo make test-db-mysql-all
+
+  wasm_tests:
+    name: "WASM Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+          components: clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: tests-wasm-stable-cargo-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            tests-wasm-stable-cargo-
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Check wasm build
+        run: cargo check --target wasm32-unknown-unknown --features wasm
+
+      - name: Run clippy for wasm
+        run: cargo clippy --target wasm32-unknown-unknown --features wasm
+
+      - name: Run wasm tests
+        run: wasm-pack test --node --features wasm
 
   fuzz_tests:
     name: Fuzz Tests
