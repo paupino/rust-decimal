@@ -352,7 +352,10 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     where
         E: serde::de::Error,
     {
-        Decimal::from_str(zmij::Buffer::new().format_finite(value))
+        let mut buf = zmij::Buffer::new();
+        let formatted = buf.format_finite(value);
+        Decimal::from_str(formatted)
+            .or_else(|_| Decimal::from_scientific(formatted))
             .map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
     }
 
@@ -605,6 +608,18 @@ mod test {
         let d: Decimal = serde_json::from_str("1.1234127836128763").unwrap();
         // Typically, this would not work without this feature enabled due to rounding
         assert_eq!(d.to_string(), "1.1234127836128763");
+    }
+
+    #[test]
+    #[cfg(feature = "serde-arbitrary-precision")]
+    fn deserialize_f64_scientific_notation_from_value() {
+        // When serde_json's arbitrary_precision is enabled, small floats that roundtrip
+        // through f64 are deserialized via visit_f64. zmij/ryu formats them in scientific
+        // notation (e.g. "5.06e-6") which Decimal::from_str doesn't support.
+        // This test ensures visit_f64 falls back to from_scientific.
+        let json: serde_json::Value = serde_json::from_str(r#"{"amount": 5.06e-6}"#).unwrap();
+        let record: Record = serde_json::from_value(json).unwrap();
+        assert_eq!(record.amount.to_string(), "0.00000506");
     }
 
     #[test]
