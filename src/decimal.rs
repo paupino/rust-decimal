@@ -115,10 +115,9 @@ impl From<UnpackedDecimal> for Decimal {
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(feature = "align16", repr(align(16)))]
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
-)]
+// [`borsh::BorshDeserialize`] is implemented manually so that the result can be checked to be a
+// valid instance of [`Self`].
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshSchema))]
 pub struct Decimal {
     // Bits 0-15: unused
     // Bits 16-23: Contains "e", a value between 0-28 that indicates the scale
@@ -513,6 +512,7 @@ impl Decimal {
     /// let pi = Decimal::from_parts(1102470952, 185874565, 1703060790, false, 28);
     /// assert_eq!(pi.to_string(), "3.1415926535897932384626433832");
     /// ```
+    #[inline]
     #[must_use]
     pub const fn from_parts(lo: u32, mid: u32, hi: u32, negative: bool, scale: u32) -> Decimal {
         assert!(scale <= Self::MAX_SCALE, "Scale exceeds maximum supported scale");
@@ -546,7 +546,8 @@ impl Decimal {
     }
 
     /// Returns a `Result` which if successful contains the `Decimal` constitution of
-    /// the scientific notation provided by `value`.
+    /// the scientific notation provided by `value`. If the value underflows and cannot
+    /// be represented with the given scale then this will return an error.
     ///
     /// # Arguments
     ///
@@ -558,12 +559,107 @@ impl Decimal {
     /// # use rust_decimal::Decimal;
     /// #
     /// # fn main() -> Result<(), rust_decimal::Error> {
-    /// let value = Decimal::from_scientific("9.7e-7")?;
+    /// let value = Decimal::from_scientific_exact("9.7e-7")?;
     /// assert_eq!(value.to_string(), "0.00000097");
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
+    pub fn from_scientific_exact(value: &str) -> crate::Result<Decimal> {
+        const ERROR_MESSAGE: &str = "Failed to parse";
+
+        let mut split = value.splitn(2, ['e', 'E']);
+
+        let base = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
+        let exp = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
+
+        let mut ret = Decimal::from_str(base)?;
+        let current_scale = ret.scale();
+
+        if let Some(stripped) = exp.strip_prefix('-') {
+            let exp: u32 = stripped
+                .parse()
+                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
+            if exp > Self::MAX_SCALE {
+                return Err(Error::ScaleExceedsMaximumPrecision(exp));
+            }
+            ret.set_scale(current_scale + exp)?;
+        } else {
+            let exp: u32 = exp
+                .parse()
+                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
+            if exp <= current_scale {
+                ret.set_scale(current_scale - exp)?;
+            } else if exp > 0 {
+                use crate::constants::BIG_POWERS_10;
+
+                // This is a case whereby the mantissa needs to be larger to be correctly
+                // represented within the decimal type. A good example is 1.2E10. At this point,
+                // we've parsed 1.2 as the base and 10 as the exponent. To represent this within a
+                // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
+                // zero.
+                if exp > Self::MAX_SCALE {
+                    return Err(Error::ScaleExceedsMaximumPrecision(exp));
+                }
+                let mut exp = exp as usize;
+                // Max two iterations. If exp is 1 then it needs to index position 0 of the array.
+                while exp > 0 {
+                    let pow;
+                    if exp >= BIG_POWERS_10.len() {
+                        pow = BIG_POWERS_10[BIG_POWERS_10.len() - 1];
+                        exp -= BIG_POWERS_10.len();
+                    } else {
+                        pow = BIG_POWERS_10[exp - 1];
+                        exp = 0;
+                    }
+
+                    let pow = Decimal {
+                        flags: 0,
+                        lo: pow as u32,
+                        mid: (pow >> 32) as u32,
+                        hi: 0,
+                    };
+                    match ret.checked_mul(pow) {
+                        Some(r) => ret = r,
+                        None => return Err(Error::ExceedsMaximumPossibleValue),
+                    };
+                }
+                ret.normalize_assign();
+            }
+        }
+        Ok(ret)
+    }
+
+    /// Returns a `Result` which if successful contains the `Decimal` constitution of
+    /// the scientific notation provided by `value`. If the exponent is negative and
+    /// the given base and exponent would exceed [Decimal::MAX_SCALE] then this
+    /// functions attempts to round the base to fit.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The scientific notation of the `Decimal`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal::Error;
+    /// #
+    /// # fn main() -> Result<(), rust_decimal::Error> {
+    /// let value = Decimal::from_scientific_lossy("2.710505431213761e-20")?;
+    /// assert_eq!(value.to_string(), "0.0000000000000000000271050543");
+    ///
+    /// let value = Decimal::from_scientific_lossy("2.5e-28")?;
+    /// assert_eq!(value.to_string(), "0.0000000000000000000000000003");
+    ///
+    /// let value = Decimal::from_scientific_lossy("-2.5e-28")?;
+    /// assert_eq!(value.to_string(), "-0.0000000000000000000000000003");
+    ///
+    /// let err = Decimal::from_scientific_lossy("2e-29").unwrap_err();
+    /// assert_eq!(err, Error::ScaleExceedsMaximumPrecision(29));
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn from_scientific_lossy(value: &str) -> Result<Decimal, Error> {
         const ERROR_MESSAGE: &str = "Failed to parse";
 
         let mut split = value.splitn(2, ['e', 'E']);
@@ -579,7 +675,12 @@ impl Decimal {
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
-            ret.set_scale(current_scale + exp)?;
+            if current_scale + exp > Self::MAX_SCALE {
+                ret.rescale(Self::MAX_SCALE - exp);
+                ret.set_scale(Self::MAX_SCALE)?;
+            } else {
+                ret.set_scale(current_scale + exp)?;
+            }
         } else {
             let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
             if exp <= current_scale {
@@ -674,6 +775,25 @@ impl Decimal {
     /// ```
     pub fn from_str_exact(str: &str) -> Result<Self, crate::Error> {
         crate::str::parse_str_radix_10_exact(str)
+    }
+
+    /// Returns a string representation that is similar to [`alloc::string::ToString`] but
+    /// doesn't require a heap allocation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rust_decimal::prelude::*;
+    /// # use rust_decimal::Error;
+    /// #
+    /// # fn main() -> Result<(), rust_decimal::Error> {
+    /// assert_eq!(Decimal::from_str_exact("0.001")?.array_string().as_ref(), "0.001");
+    /// #     Ok(())
+    /// # }
+    /// ```
+    pub fn array_string(&self) -> impl AsRef<str> {
+        let (result, _) = crate::str::to_str_internal(self, false, None);
+        result
     }
 
     /// Returns the scale of the decimal number, otherwise known as `e`.
@@ -1739,7 +1859,7 @@ macro_rules! impl_try_from_decimal {
 
             #[inline]
             fn try_from(t: Decimal) -> Result<Self, Error> {
-                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).into()))
+                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto)))
             }
         }
     };
@@ -1781,8 +1901,8 @@ macro_rules! impl_try_from_primitive {
     };
 }
 
-impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal".into()));
-impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal".into()));
+impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal"));
+impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal"));
 impl_try_from_primitive!(&str, core::str::FromStr::from_str);
 
 macro_rules! impl_from {

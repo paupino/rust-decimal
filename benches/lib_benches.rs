@@ -52,6 +52,15 @@ bench_decimal_op!(add_negative_point_five, +, "2.01", "-0.5");
 bench_decimal_op!(add_pi, +, "2.01", "3.1415926535897932384626433832");
 bench_decimal_op!(add_negative_pi, +, "2.01", "-3.1415926535897932384626433832");
 
+// 64-bit + 64-bit aligned (both sides > 32 bits, same scale)
+bench_decimal_op!(add_64bit_aligned, +, "12345678901.23", "98765432109.87");
+// Large scale difference forcing unaligned_add with significant rescaling
+bench_decimal_op!(add_large_scale_diff, +, "12345678", "0.0000000000000000000000000001");
+// 96-bit + 32-bit, same scale
+bench_decimal_op!(add_96bit_aligned, +, "79228162514264337593543950330", "5");
+// Subtraction that causes borrow propagation across all words
+bench_decimal_op!(add_96bit_sub, +, "79228162514264337593543950335", "-79228162514264337593543950334");
+
 bench_fold_op!(add_10k, +, 0, 10_000);
 
 /* Sub */
@@ -65,6 +74,11 @@ bench_decimal_op!(sub_negative_point_five, -, "2.01", "-0.5");
 bench_decimal_op!(sub_pi, -, "2.01", "3.1415926535897932384626433832");
 bench_decimal_op!(sub_negative_pi, -, "2.01", "-3.1415926535897932384626433832");
 
+// 64-bit - 64-bit aligned (both sides > 32 bits, same scale)
+bench_decimal_op!(sub_64bit_aligned, -, "98765432109.87", "12345678901.23");
+// Large scale difference forcing unaligned_add with significant rescaling
+bench_decimal_op!(sub_large_scale_diff, -, "12345678", "0.0000000000000000000000000001");
+
 bench_fold_op!(sub_10k, -, 5_000_000, 10_000);
 
 /* Mul */
@@ -75,6 +89,17 @@ bench_decimal_op!(mul_point_zero_one, *, "2.01", "0.01");
 bench_decimal_op!(mul_negative_point_five, *, "2.01", "-0.5");
 bench_decimal_op!(mul_pi, *, "2.01", "3.1415926535897932384626433832");
 bench_decimal_op!(mul_negative_pi, *, "2.01", "-3.1415926535897932384626433832");
+
+// 64-bit * 32-bit (exercises mul_by_32bit_lhs with 64-bit other)
+bench_decimal_op!(mul_64bit_by_32bit, *, "12345678901.23", "7");
+// 64-bit * 64-bit (exercises full long multiplication, mid path)
+bench_decimal_op!(mul_64bit_by_64bit, *, "12345678901.23", "98765432109.87");
+// 96-bit * 32-bit (exercises mul_by_32bit_lhs with 96-bit other)
+bench_decimal_op!(mul_96bit_by_32bit, *, "7922816251426433759354.3950335", "2");
+// Product exceeds 96 bits, forcing rescale
+bench_decimal_op!(mul_overflow_rescale, *, "99999999999999.9999999999", "99999999999999.9999999999");
+// High scale product (scale overflow path)
+bench_decimal_op!(mul_high_scale, *, "0.0000000000000001", "0.0000000000000001");
 
 bench_fold_op!(mul_25, *, Decimal::from_str("1.1").unwrap(), 25);
 
@@ -87,6 +112,11 @@ bench_decimal_op!(div_negative_point_five, /, "2.01", "-0.5");
 bench_decimal_op!(div_pi, /, "2.01", "3.1415926535897932384626433832");
 bench_decimal_op!(div_negative_pi, /, "2.01", "-3.1415926535897932384626433832");
 bench_decimal_op!(div_no_underflow, /, "1.02343545345", "0.35454343453");
+bench_decimal_op!(div_32bit_divisor, /, "999999999999.999999", "7");
+bench_decimal_op!(div_64bit_divisor, /, "123456789.123456789", "123456.789");
+bench_decimal_op!(div_96bit_divisor, /, "79228162514264337593543950335", "79228162514264337593.543950335");
+bench_decimal_op!(div_repeating, /, "10", "3");
+bench_decimal_op!(div_self, /, "3.1415926535897932384626433832", "3.1415926535897932384626433832");
 bench_fold_op!(div_10k, /, Decimal::MAX, 10_000);
 bench_fold_op!(rem_10k, %, Decimal::MAX, 10_000);
 
@@ -289,6 +319,21 @@ mod maths {
     }
 
     #[bench]
+    fn exp_large(b: &mut ::test::Bencher) {
+        let samples = &[
+            Decimal::from_str("17.6").unwrap(),
+            Decimal::from_str("34.5").unwrap(),
+            Decimal::from_str("54.3").unwrap(),
+        ];
+        b.iter(|| {
+            for sample in samples.iter() {
+                let result = sample.exp();
+                ::test::black_box(result);
+            }
+        });
+    }
+
+    #[bench]
     fn norm_cdf(b: &mut ::test::Bencher) {
         let samples = &[
             Decimal::from_str("3.7").unwrap(),
@@ -329,11 +374,10 @@ mod maths {
             Decimal::from_str("0.00000007").unwrap(),
             Decimal::from(2),
             Decimal::from_str("8819287.19").unwrap(),
-            Decimal::from_str("-8819287.19").unwrap(),
         ];
         b.iter(|| {
             for sample in samples.iter() {
-                let result = sample.ln();
+                let result = sample.checked_ln();
                 ::test::black_box(result);
             }
         });

@@ -16,3 +16,6 @@ pub(crate) use cmp::cmp_impl;
 pub(crate) use div::div_impl;
 pub(crate) use mul::mul_impl;
 pub(crate) use rem::rem_impl;
+
+#[cfg(feature = "maths")]
+pub(crate) mod wide;

@@ -12,6 +12,8 @@ pub enum Error {
     ErrorString(String),
     /// The value provided exceeds `Decimal::MAX`.
     ExceedsMaximumPossibleValue,
+    /// A string could not represent a scientific number.
+    FailedToParseScientificFromString,
     /// The value provided is less than `Decimal::MIN`.
     LessThanMinimumPossibleValue,
     /// An underflow is when there are more fractional digits than can be represented within `Decimal`.
@@ -20,7 +22,7 @@ pub enum Error {
     ScaleExceedsMaximumPrecision(u32),
     /// Represents a failure to convert to/from `Decimal` to the specified type. This is typically
     /// due to type constraints (e.g. `Decimal::MAX` cannot be converted into `i32`).
-    ConversionTo(String),
+    ConversionTo(&'static str),
 }
 
 impl<S> From<S> for Error
@@ -38,8 +40,7 @@ pub(crate) fn tail_error(from: &'static str) -> Result<Decimal, Error> {
     Err(from.into())
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -47,6 +48,9 @@ impl fmt::Display for Error {
             Self::ErrorString(ref err) => f.pad(err),
             Self::ExceedsMaximumPossibleValue => {
                 write!(f, "Number exceeds maximum value that can be represented.")
+            }
+            Self::FailedToParseScientificFromString => {
+                write!(f, "A string could not represent a scientific number.")
             }
             Self::LessThanMinimumPossibleValue => {
                 write!(f, "Number less than minimum value that can be represented.")

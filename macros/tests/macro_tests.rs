@@ -123,7 +123,7 @@ pub fn dec_scientific() {
         ($src:literal) => {
             assert_eq!(
                 dec!($src),
-                rust_decimal::Decimal::from_scientific(stringify!($src)).unwrap(),
+                rust_decimal::Decimal::from_scientific_exact(stringify!($src)).unwrap(),
                 stringify!($src)
             );
         };

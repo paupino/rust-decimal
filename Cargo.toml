@@ -33,6 +33,7 @@ rocket = { default-features = false, optional = true, version = "0.5" }
 rust_decimal_macros = { path = "macros", default-features = false, optional = true, version = "1" }
 serde = { default-features = false, optional = true, version = "1" }
 serde_json = { default-features = false, optional = true, version = "1" }
+zmij = { default-features = false, optional = true, version = "1" }
 
 [dev-dependencies]
 bincode = { default-features = false, version = "1" }
@@ -78,7 +79,7 @@ serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]
 serde-str = ["serde-with-str"]
-serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
+serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
 std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "serde?/std", "serde_json?/std"]

@@ -138,8 +138,9 @@ fn it_can_serialize_deserialize() {
 
 #[cfg(feature = "borsh")]
 mod borsh_tests {
-    use rust_decimal::Decimal;
     use std::str::FromStr;
+
+    use rust_decimal::Decimal;
 
     #[test]
     fn it_can_serialize_deserialize_borsh() {
@@ -162,6 +163,42 @@ mod borsh_tests {
             let b: Decimal = result.unwrap();
             assert_eq!(test.to_string(), b.to_string());
         }
+    }
+
+    #[test]
+    fn invalid_flags_errors() {
+        let mut bytes: Vec<u8> = Vec::new();
+        // Invalid flags
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // high
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // lo
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // mid
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+
+        let _err =
+            <Decimal as borsh::BorshDeserialize>::deserialize(&mut bytes.as_slice()).expect_err("Invalid flags passed");
+    }
+
+    #[test]
+    fn invalid_scale_errors() {
+        let mut bytes: Vec<u8> = Vec::new();
+        // Invalid scale
+        borsh::BorshSerialize::serialize(&0x00FF_0000_u32, &mut bytes).unwrap();
+        // high
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // lo
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // mid
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+
+        let err =
+            <Decimal as borsh::BorshDeserialize>::deserialize(&mut bytes.as_slice()).expect_err("Invalid scale passed");
+        assert_eq!(
+            err.downcast::<rust_decimal::Error>().expect("Expected str flags error"),
+            rust_decimal::Error::ScaleExceedsMaximumPrecision(0xFF)
+        );
     }
 }
 
@@ -3108,7 +3145,7 @@ fn it_converts_from_f64_retaining_bits() {
 #[test]
 fn it_converts_to_integers() {
     assert_eq!(i64::try_from(Decimal::ONE), Ok(1));
-    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64".to_string())));
+    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64")));
     assert_eq!(u128::try_from(Decimal::ONE_HUNDRED), Ok(100));
 }
 
@@ -3288,7 +3325,7 @@ fn it_can_parse_individual_parts() {
 }
 
 #[test]
-fn it_can_parse_scientific_notation() {
+fn it_can_parse_scientific_notation_exact() {
     let tests = &[
         ("9.7e-7", Ok("0.00000097".to_string())),
         ("9e-7", Ok("0.0000009".to_string())),
@@ -3307,25 +3344,67 @@ fn it_can_parse_scientific_notation() {
     ];
 
     for &(value, ref expected) in tests {
-        let actual = Decimal::from_scientific(value).map(|d| d.to_string());
+        let actual = Decimal::from_scientific_exact(value).map(|d| d.to_string());
         assert_eq!(*expected, actual);
     }
 }
 
 #[test]
-fn it_errors_parsing_large_scientific_notation() {
-    let result = Decimal::from_scientific("1.2345E-28");
+fn it_errors_parsing_large_scientific_notation_exact() {
+    let result = Decimal::from_scientific_exact("1.2345E-28");
     assert!(result.is_err());
     assert_eq!(
         result.err(),
         Some(Error::ScaleExceedsMaximumPrecision(32)) // 4 + 28
     );
 
-    let result = Decimal::from_scientific("12345E29");
+    let result = Decimal::from_scientific_exact("12345E29");
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
 
-    let result = Decimal::from_scientific("12345E28");
+    let result = Decimal::from_scientific_exact("12345E28");
+    assert!(result.is_err());
+    assert_eq!(result.err(), Some(Error::ExceedsMaximumPossibleValue));
+}
+
+#[test]
+fn it_can_parse_scientific_notation_rounded() {
+    let tests = &[
+        ("9.7e-7", Ok("0.00000097".to_string())),
+        ("9e-7", Ok("0.0000009".to_string())),
+        ("1.2e10", Ok("12000000000".to_string())),
+        ("1.2e+10", Ok("12000000000".to_string())),
+        ("12e10", Ok("120000000000".to_string())),
+        ("9.7E-7", Ok("0.00000097".to_string())),
+        ("1.2345E-24", Ok("0.0000000000000000000000012345".to_string())),
+        ("12345E-28", Ok("0.0000000000000000000000012345".to_string())),
+        ("1.2345E0", Ok("1.2345".to_string())),
+        ("1E28", Ok("10000000000000000000000000000".to_string())),
+        ("1.2345E-28", Ok("0.0000000000000000000000000001".to_string())),
+        ("8.7654E-28", Ok("0.0000000000000000000000000009".to_string())),
+        (
+            "-20165.4676_e-+4294967292",
+            Err(Error::ScaleExceedsMaximumPrecision(4294967292)),
+        ),
+    ];
+
+    for &(value, ref expected) in tests {
+        let actual = Decimal::from_scientific_lossy(value).map(|d| d.to_string());
+        assert_eq!(*expected, actual);
+    }
+}
+
+#[test]
+fn it_errors_parsing_large_scientific_notation_rounded() {
+    let result = Decimal::from_scientific_lossy("1.2345E-29");
+    assert!(result.is_err());
+    assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
+
+    let result = Decimal::from_scientific_lossy("12345E29");
+    assert!(result.is_err());
+    assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
+
+    let result = Decimal::from_scientific_lossy("12345E28");
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::ExceedsMaximumPossibleValue));
 }
@@ -3681,7 +3760,8 @@ fn test_is_integer() {
 }
 
 // Mathematical features
-#[cfg(feature = "maths")]
+// legacy-ops produces incorrect values for maths functions; not recommended.
+#[cfg(all(feature = "maths", not(feature = "legacy-ops")))]
 mod maths {
     use super::*;
     use rust_decimal::MathematicalOps;
@@ -3706,7 +3786,7 @@ mod maths {
             ("0.1", 0_u64, "1"),
             ("342.4", 1_u64, "342.4"),
             ("2.0", 16_u64, "65536"),
-            ("0.99999999999999", 1477289400_u64, "0.9999852272151186611602884841"),
+            ("0.99999999999999", 1477289400_u64, "0.9999852272151186611602878472"),
             ("0.99999999999999", 0x8000_8000_0000_0000, "0"),
         ];
         for &(x, y, expected) in test_cases {
@@ -3801,26 +3881,24 @@ mod maths {
             ("6", "13", "13060694016"),
             // Exact result: 1 / 6^7
             ("6", "-7", "0.0000035722450845907636031093"),
+            ("0.16", "12.5", "0.0000000001125899906842624"),
             // ~= 0.8408964152537145
-            ("0.5", "0.25", "0.8408964159265360661551317741"),
+            ("0.5", "0.25", "0.8408964152537145430311254761"),
             // ~= 0.999999999999999999999999999790814
             (
                 "0.1234567890123456789012345678",
                 "0.0000000000000000000000000001",
                 "0.9999999999999999999999999998",
             ),
-            // ~= 611.0451043224257
-            ("1234.5678", "0.9012", "611.04510415448740041442807964"),
-            ("-2", "0.5", "-1.4142135570048917090885260834"),
-            // ~= -1.1193003023312942
-            ("-2.5", "0.123", "-1.1193002994383985239135362086"),
-            // ~= 0.0003493091
+            ("1234.5678", "0.9012", "611.04510432242565327379383212"),
+            ("-2", "0.5", "-1.4142135623730950488016887244"),
+            ("-2.5", "0.123", "-1.1193003023312942509616251298"),
             (
                 "0.0000000000000000000000000001",
                 "0.1234567890123456789012345678",
-                "0.0003533642875741443321850682",
+                "0.0003533642785231574687918934",
             ),
-            ("0.99999999999999", "1477289400", "0.9999852272151186611602884841"),
+            ("0.99999999999999", "1477289400", "0.9999852272151186611602878472"),
         ];
         for &(x, y, expected) in test_cases {
             let x = Decimal::from_str(x).unwrap();
@@ -3851,28 +3929,18 @@ mod maths {
 
     #[test]
     fn test_exp() {
-        // These are approximations
         let test_cases = &[
-            // e^10 ~= 22026.465794806703
-            ("10", "22026.416157416030662013737698"),
-            // e^11 ~= 59874.14171519778
-            ("11", "59873.388231055804982198781924"),
-            // e^3 ~= 20.085536923187664
-            ("3", "20.085536911963143539758560764"),
-            // e^8 ~= 2980.957987041727
-            ("8", "2980.9578998304103856663509017"),
-            // e^0.1 ~= 1.1051709180756477
-            ("0.1", "1.1051709166666666666666666667"),
-            // e^2.0 ~= 7.3890560989306495
-            ("2.0", "7.3890560703259115957528655940"),
-            // e^-2 ~= 0.1353352832366127
-            ("-2", "0.1353352837605267572029589224"),
-            // e^-1 ~= 0.36787944117144233
-            ("-1", "0.3678794414773748171422559335"),
-            // e^0.123456789 ~= 1.131401115
-            ("0.123456789", "1.1314011144241455834073838005"),
-            // e^0.123456789123456789123456789 ~= 1.131401114651912752617990081
-            ("0.123456789123456789123456789", "1.1314011145638247316063947842"),
+            ("20", "485165195.40979027796910683072"),
+            ("10", "22026.46579480671651695790065"),
+            ("11", "59874.141715197818455326485804"),
+            ("3", "20.085536923187667740928529656"),
+            ("8", "2980.9579870417282747435920999"),
+            ("0.1", "1.1051709180756476248120496627"),
+            ("2.0", "7.3890560989306502272304274609"),
+            ("-2", "0.135335283236612691893999495"),
+            ("-1", "0.3678794411714423215955237702"),
+            ("0.123456789", "1.1314011145122336038009871011"),
+            ("0.123456789123456789123456789", "1.1314011146519127526179900813"),
         ];
         for &(x, expected) in test_cases {
             let x = Decimal::from_str(x).unwrap();
@@ -3889,33 +3957,37 @@ mod maths {
             ("0", "0.0002", "1"),
             // e^1 ~= 2.7182539682539682539682539683
             ("1", "0.0002", "2.7182539682539682539682539683"),
-            // e^10 ~= 22026.465794806703
-            ("10", "0.02", "22026.416157416030662013737698"),
-            // e^11 ~= 59874.14171519778
-            ("11", "0.0002", "59873.388231055804982198781924"),
-            // e^11.7578 ~= 127741.03548949540892948423052
-            ("11.7578", "0.0002", "127741.03548949540892948423052"),
+            // e^10 ~= 22026.4657948067165169579006453
+            ("10", "0.0002", "22026.465747586389870727226329"),
+            // e^11 ~= 59874.1417151978184553264857923
+            ("11", "0.0002", "59874.141680567932663075014271"),
+            // e^11.7578 ~= 127746.03548949540892948423052
+            ("11.7578", "0.0002", "127746.10261578321551805466515"),
             // e^3 ~= 20.085536923187664
-            ("3", "0.00002", "20.085534430970814899386327955"),
+            ("3", "0.00002", "20.085534430970814899386327956"),
             // e^8 ~= 2980.957987041727
-            ("8", "0.0002", "2980.9578998304103856663509017"),
+            ("8", "0.0002", "2980.9579632726949323840240320"),
             // e^0.1 ~= 1.1051709180756477
             ("0.1", "0.0002", "1.1051666666666666666666666667"),
             // e^2.0 ~= 7.3890560989306495
-            ("2.0", "0.0002", "7.3890460157126823793490460156"),
-            // e^11.7578+ starts to overflow
-            ("11.7579", "0.0002", ""),
-            // e^11.7578+ starts to overflow
+            ("2.0", "0.0002", "7.3890460157126823793490460164"),
+            // e^66.542 ~= 7.92179e28
+            ("66.542", "0.0002", "79217916301129338946322758261"),
+            // e^66.543 overflows
+            ("66.543", "0.0002", ""),
+            // e^123 overflows
             ("123", "0.0002", ""),
-            // e^-8+ starts to underflow
-            ("-8", "0.0002", "0.0003354626377168530220952633"),
-            // e^-9 continues to converge towards zero
-            ("-9", "0.0002", "0.0001234098417553083895710102"),
-            // e^-11 continues to converge towards zero
-            ("-11", "0.0002", "0.0000167019109748879838728391"),
-            // e^11.7579 has underflowed (by overflowing)
-            ("-11.7579", "0.0002", ""),
-            // e^-1024 has fully underflowed (by overflowing)
+            // e^-8 ~= 0.000335462627902511838821389125781
+            ("-8", "0.0002", "0.0003354626305773641802399811"),
+            // e^-9 ~= 0.000123409804086679549497636690730
+            ("-9", "0.0002", "0.0001234098050655108657269324"),
+            // e^-11 ~= 0.0000167017007902456593126355173606
+            ("-11", "0.0002", "0.0000167017007999055554659406"),
+            // e^66.542 ~= 1.26234*10^-29
+            ("-66.542", "0.0002", "0"),
+            // e^66.543 underflows
+            ("-66.543", "0.0002", ""),
+            // e^-1024 underflows
             ("-1024", "0.0002", ""),
         ];
         for &(x, tolerance, expected) in test_cases {
@@ -3984,27 +4056,27 @@ mod maths {
         let test_cases = &[
             (
                 Decimal::from_str("-2.0").unwrap(),
-                Decimal::from_str("0.0539909667221995238993056051").unwrap(),
+                Decimal::from_str("0.0539909665131880519505642004").unwrap(),
             ),
             (
                 Decimal::from_str("-0.4").unwrap(),
-                Decimal::from_str("0.3682701404285264134348468378").unwrap(),
+                Decimal::from_str("0.3682701403033223827692940719").unwrap(),
             ),
             (
                 Decimal::from_str("-0.1").unwrap(),
-                Decimal::from_str("0.3969525474873078082322691394").unwrap(),
+                Decimal::from_str("0.3969525474770117655039386277").unwrap(),
             ),
             (
                 Decimal::from_str("0.1").unwrap(),
-                Decimal::from_str("0.3969525474873078082322691394").unwrap(),
+                Decimal::from_str("0.3969525474770117655039386277").unwrap(),
             ),
             (
                 Decimal::from_str("0.4").unwrap(),
-                Decimal::from_str("0.3682701404285264134348468378").unwrap(),
+                Decimal::from_str("0.3682701403033223827692940719").unwrap(),
             ),
             (
                 Decimal::from_str("2.0").unwrap(),
-                Decimal::from_str("0.0539909667221995238993056051").unwrap(),
+                Decimal::from_str("0.0539909665131880519505642004").unwrap(),
             ),
         ];
         for case in test_cases {
@@ -4016,14 +4088,10 @@ mod maths {
     fn test_ln() {
         let test_cases = [
             ("1", "0"),
-            // Wolfram Alpha gives -1.46968
-            ("0.23", "-1.4696759700589416772292300779"),
-            // Wolfram Alpha gives 0.693147180559945309417232121458176568075500134360255254120
-            ("2", "0.6931471805599453094172321218"),
-            // Wolfram Alpha gives 3.218875824868200749201518666452375279051202708537035443825
-            ("25", "3.2188758248682007492015186670"),
-            // Wolfram Alpha gives 0.210721022
-            ("1.234567890", "0.2107210222156525610500017104"),
+            ("0.23", "-1.4696759700589416772292300776"),
+            ("2", "0.6931471805599453094172321216"),
+            ("25", "3.2188758248682007492015186667"),
+            ("1.234567890", "0.2107210222156525610500017105"),
         ];
 
         for (input, expected) in test_cases {
@@ -4062,10 +4130,8 @@ mod maths {
     fn test_log10() {
         let test_cases = [
             ("1", "0"),
-            // Wolfram Alpha: 0.3010299956639811952137388947
-            ("2", "0.3010299956639811952137388949"),
-            // Wolfram Alpha: 0.0915149772
-            ("1.234567890", "0.0915149771692704475183336230"),
+            ("2", "0.3010299956639811952137388948"),
+            ("1.234567890", "0.0915149771692704475183336231"),
             ("10", "1"),
             ("100", "2"),
             ("1000", "3"),
@@ -4124,11 +4190,11 @@ mod maths {
             ),
             (
                 Decimal::from_str("-0.4").unwrap(),
-                Decimal::from_str("-0.4283924127205154977961931420").unwrap(),
+                Decimal::from_str("-0.428392412720515497796193142").unwrap(),
             ),
             (
                 Decimal::from_str("0.4").unwrap(),
-                Decimal::from_str("0.4283924127205154977961931420").unwrap(),
+                Decimal::from_str("0.428392412720515497796193142").unwrap(),
             ),
             (
                 Decimal::one(),
@@ -4207,8 +4273,8 @@ mod maths {
             ("6", Some("0.9601702866503660205456522979")),
             // WA estimate: 0.448758150096352. Legacy ops is closer to f64 accuracy.
             ("-79228162514264.337593543950335", Some("0.448758150096352")),
-            ("0.7853981633974483096156608458", Some("0.7071067810719247405681474639")),
-            ("8.639379797371931405772269304", Some("-0.7071067811796194351866715184")),
+            ("0.7853981633974483096156608458", Some("0.7071067811865475244008443622")),
+            ("8.639379797371931405772269304", Some("-0.7071067811865475244008443621")),
         ];
         for (input, result) in test_cases {
             let radians = Decimal::from_str(input).unwrap();

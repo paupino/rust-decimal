@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![cfg_attr(not(feature = "std"), no_std)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 extern crate alloc;
 
 mod constants;
@@ -14,6 +14,8 @@ pub mod str;
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
 
+#[cfg(feature = "borsh")]
+mod borsh;
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;
 #[cfg(feature = "maths")]

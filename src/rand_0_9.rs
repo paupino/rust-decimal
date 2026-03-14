@@ -129,7 +129,6 @@ fn sync_scales(mut a: Decimal, mut b: Decimal) -> (Decimal, Decimal) {
 #[cfg(test)]
 mod rand_tests {
     use rand_0_9::rng;
-    use std::collections::HashSet;
 
     use super::*;
 
@@ -159,16 +158,21 @@ mod rand_tests {
     #[test]
     fn generates_within_inclusive_range() {
         let mut rng = rng();
-        let mut values: HashSet<Decimal> = HashSet::new();
+        let mut saw_low = false;
+        let mut saw_high = false;
         for _ in 0..256 {
             let random = rng.random_range(dec!(1.00)..=dec!(1.01));
             // The scale is 2, so 1.00 and 1.01 are the only two valid choices.
             assert!(random == dec!(1.00) || random == dec!(1.01));
-            values.insert(random);
+            if random == dec!(1.00) {
+                saw_low = true;
+            } else {
+                saw_high = true;
+            }
         }
         // Somewhat flaky, will fail 1 out of every 2^255 times this is run.
         // Probably acceptable in the real world.
-        assert_eq!(values.len(), 2);
+        assert!(saw_low && saw_high);
     }
 
     #[test]
