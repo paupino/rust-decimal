@@ -128,6 +128,8 @@ fn sync_scales(mut a: Decimal, mut b: Decimal) -> (Decimal, Decimal) {
 
 #[cfg(test)]
 mod rand_tests {
+    use rand_0_9::rng;
+
     use super::*;
 
     macro_rules! dec {
@@ -138,14 +140,14 @@ mod rand_tests {
 
     #[test]
     fn has_random_decimal_instances() {
-        let mut rng = rand_0_9::rng();
+        let mut rng = rng();
         let random: [Decimal; 32] = rng.random();
         assert!(random.windows(2).any(|slice| { slice[0] != slice[1] }));
     }
 
     #[test]
     fn generates_within_range() {
-        let mut rng = rand_0_9::rng();
+        let mut rng = rng();
         for _ in 0..128 {
             let random = rng.random_range(dec!(1.00)..dec!(1.05));
             assert!(random < dec!(1.05));
@@ -155,7 +157,7 @@ mod rand_tests {
 
     #[test]
     fn generates_within_inclusive_range() {
-        let mut rng = rand_0_9::rng();
+        let mut rng = rng();
         let mut saw_low = false;
         let mut saw_high = false;
         for _ in 0..256 {

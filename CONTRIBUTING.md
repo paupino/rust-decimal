@@ -15,6 +15,20 @@ Should you wish to work on an issue, please claim it first by commenting on
 the GitHub issue that you want to work on it. This is to prevent duplicated
 efforts from contributors on the same issue.
 
+## Adding new dependencies
+
+### Pre-1.0 releases
+
+When adding a new 0.X release, in order to avoid ambiguity as the dependency adds new versions, ensure the version is included in the feature name. e.g. 
+
+```toml
+[dependencies]
+rand-0_9 = { default-features = false, optional = true, package = "rand", version = "0.9" }
+
+[features]
+rand-0_9 = ["dep:rand-0_9"]
+```
+
 ## Pull Request Checklist
 
 - Branch from the master branch and, if needed, rebase to the current master
