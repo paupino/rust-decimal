@@ -1,4 +1,5 @@
 use crate::Decimal;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::string::ToString;
 use core::{fmt, str::FromStr};
 use num_traits::FromPrimitive;
