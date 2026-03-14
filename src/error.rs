@@ -13,8 +13,6 @@ pub enum Error {
     EmptyData,
     /// The value provided exceeds `Decimal::MAX`.
     ExceedsMaximumPossibleValue,
-    /// A string could not represent a scientific number.
-    FailedToParseScientificFromString,
     /// A character could not represent a Decimal instance
     InvalidCharacter,
     /// The string must start with a digit, `+` or `-`.
@@ -29,6 +27,10 @@ pub enum Error {
     Underflow,
     /// The radix is not supported. Must be between 2 and 36.
     UnsupportedRadix,
+    /// Base wasn't present while parsing scientific notation.
+    ScientificBaseNotFound,
+    /// Exponent wasn't present while parsing scientific notation.
+    ScientificExpNotFound,
 }
 
 #[cold]
@@ -52,9 +54,6 @@ impl fmt::Display for Error {
             }
             Self::ExceedsMaximumPossibleValue => {
                 write!(f, "Number exceeds maximum value that can be represented.")
-            }
-            Self::FailedToParseScientificFromString => {
-                write!(f, "A string could not represent a scientific number.")
             }
             Self::InvalidCharacter => {
                 write!(f, "A character could not represent a Decimal instance.")
@@ -80,6 +79,12 @@ impl fmt::Display for Error {
             }
             Self::UnsupportedRadix => {
                 write!(f, "The radix is not supported. Must be between 2 and 36.")
+            }
+            Self::ScientificBaseNotFound => {
+                f.write_str("Base value was not found while attempting to parse from scientific notation.")
+            }
+            Self::ScientificExpNotFound => {
+                f.write_str("Exponent was not found while attempting to parse from scientific notation.")
             }
         }
     }
