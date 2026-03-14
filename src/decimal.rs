@@ -1994,8 +1994,13 @@ impl Num for Decimal {
 impl FromStr for Decimal {
     type Err = Error;
 
+    #[inline]
     fn from_str(value: &str) -> Result<Decimal, Self::Err> {
-        crate::str::parse_str_radix_10(value)
+        match crate::str::parse_str_radix_10(value) {
+            Ok(d) => Ok(d),
+            Err(_) if value.as_bytes().iter().any(|&b| b == b'e' || b == b'E') => Decimal::from_scientific_lossy(value),
+            Err(e) => Err(e),
+        }
     }
 }
 
