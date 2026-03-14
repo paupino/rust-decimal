@@ -122,6 +122,24 @@ fn it_parses_big_float_string() {
 }
 
 #[test]
+fn it_parses_scientific_notation_from_str() {
+    let a = Decimal::from_str("1.23e4").unwrap();
+    assert_eq!("12300", a.to_string());
+
+    let b = Decimal::from_str("6.7e-1").unwrap();
+    assert_eq!("0.67", b.to_string());
+
+    let c = Decimal::from_str("1E2").unwrap();
+    assert_eq!("100", c.to_string());
+
+    let d = Decimal::from_str("-2.5E-3").unwrap();
+    assert_eq!("-0.0025", d.to_string());
+
+    let e = Decimal::from_str("5e0").unwrap();
+    assert_eq!("5", e.to_string());
+}
+
+#[test]
 fn it_can_serialize_deserialize() {
     let tests = [
         "12.3456789",
