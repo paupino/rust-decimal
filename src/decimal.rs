@@ -2412,6 +2412,62 @@ fn base2_to_decimal(
     })
 }
 
+impl Decimal {
+    /// Converts this `Decimal` to an `i128`, truncating any fractional part.
+    ///
+    /// This is the infallible equivalent of [`ToPrimitive::to_i128`].
+    pub fn as_i128(&self) -> i128 {
+        let d = self.trunc();
+        let raw: i128 = ((i128::from(d.hi) << 64) | (i128::from(d.mid) << 32)) | i128::from(d.lo);
+        if self.is_sign_negative() {
+            -raw
+        } else {
+            raw
+        }
+    }
+
+    /// Converts this `Decimal` to an `f64`.
+    ///
+    /// This is the infallible equivalent of [`ToPrimitive::to_f64`].
+    pub fn as_f64(&self) -> f64 {
+        if self.scale() == 0 {
+            // If scale is zero, we are storing a 96-bit integer value, that would
+            // always fit into i128, which in turn is always representable as f64,
+            // albeit with loss of precision for values outside of -2^53..2^53 range.
+            self.as_i128() as f64
+        } else {
+            let neg = self.is_sign_negative();
+            let mut mantissa: u128 = self.lo.into();
+            mantissa |= (self.mid as u128) << 32;
+            mantissa |= (self.hi as u128) << 64;
+            // scale is at most 28, so this fits comfortably into a u128.
+            let scale = self.scale();
+            let precision: u128 = 10_u128.pow(scale);
+            let integral_part = mantissa / precision;
+            let frac_part = mantissa % precision;
+            let frac_f64 = (frac_part as f64) / (precision as f64);
+            let integral = integral_part as f64;
+            // If there is a fractional component then we will need to add that and remove any
+            // inaccuracies that creep in during addition. Otherwise, if the fractional component
+            // is zero we can exit early.
+            if frac_f64.is_zero() {
+                if neg {
+                    return -integral;
+                }
+                return integral;
+            }
+            let value = integral + frac_f64;
+            let round_to = 10f64.powi(self.scale() as i32);
+            let rounded = (value * round_to).round() / round_to;
+            if neg {
+                -rounded
+            } else {
+                rounded
+            }
+        }
+    }
+}
+
 impl ToPrimitive for Decimal {
     fn to_i64(&self) -> Option<i64> {
         let d = self.trunc();
@@ -2441,13 +2497,7 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_i128(&self) -> Option<i128> {
-        let d = self.trunc();
-        let raw: i128 = ((i128::from(d.hi) << 64) | (i128::from(d.mid) << 32)) | i128::from(d.lo);
-        if self.is_sign_negative() {
-            Some(-raw)
-        } else {
-            Some(raw)
-        }
+        Some(self.as_i128())
     }
 
     fn to_u64(&self) -> Option<u64> {
@@ -2474,42 +2524,7 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_f64(&self) -> Option<f64> {
-        if self.scale() == 0 {
-            // If scale is zero, we are storing a 96-bit integer value, that would
-            // always fit into i128, which in turn is always representable as f64,
-            // albeit with loss of precision for values outside of -2^53..2^53 range.
-            let integer = self.to_i128();
-            integer.map(|i| i as f64)
-        } else {
-            let neg = self.is_sign_negative();
-            let mut mantissa: u128 = self.lo.into();
-            mantissa |= (self.mid as u128) << 32;
-            mantissa |= (self.hi as u128) << 64;
-            // scale is at most 28, so this fits comfortably into a u128.
-            let scale = self.scale();
-            let precision: u128 = 10_u128.pow(scale);
-            let integral_part = mantissa / precision;
-            let frac_part = mantissa % precision;
-            let frac_f64 = (frac_part as f64) / (precision as f64);
-            let integral = integral_part as f64;
-            // If there is a fractional component then we will need to add that and remove any
-            // inaccuracies that creep in during addition. Otherwise, if the fractional component
-            // is zero we can exit early.
-            if frac_f64.is_zero() {
-                if neg {
-                    return Some(-integral);
-                }
-                return Some(integral);
-            }
-            let value = integral + frac_f64;
-            let round_to = 10f64.powi(self.scale() as i32);
-            let rounded = (value * round_to).round() / round_to;
-            if neg {
-                Some(-rounded)
-            } else {
-                Some(rounded)
-            }
-        }
+        Some(self.as_f64())
     }
 }
 
