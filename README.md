@@ -110,6 +110,7 @@ assert_eq!(total, dec!(27.26));
 **Behavior / Functionality**
 
 * [borsh](#borsh)
+* [bytemuck](#bytemuck)
 * [c-repr](#c-repr)
 * [legacy-ops](#legacy-ops)
 * [macros](#macros)
@@ -144,6 +145,10 @@ Forces `Decimal`'s alignment to 16 bytes (128 bits). This is identical to `u128`
 ### `borsh`
 
 Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
+
+### `bytemuck`
+
+Enables [bytemuck](https://github.com/Lokathor/bytemuck) support by deriving `Pod` and `Zeroable` for `Decimal`. This also activates the `c-repr` feature since `Pod` requires `repr(C)`.
 
 ### `c-repr`
 
