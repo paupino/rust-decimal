@@ -2795,3 +2795,14 @@ impl<'a> Sum<&'a Decimal> for Decimal {
         sum
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_scientific_0e0() {
+        let dec = Decimal::from_scientific("0e0").unwrap();
+        assert_eq!(dec, Decimal::ZERO);
+    }
+}
