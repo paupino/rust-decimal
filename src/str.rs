@@ -84,6 +84,10 @@ pub(crate) fn fmt_scientific_notation(
     #[cfg(not(feature = "std"))]
     use alloc::string::ToString;
 
+    if value.is_zero() {
+        return f.write_str("0e0");
+    }
+
     // Get the scale - this is the e value. With multiples of 10 this may get bigger.
     let mut exponent = -(value.scale() as isize);
 
@@ -1114,5 +1118,21 @@ mod test {
             parse_str_radix_10("79_228_162_514_264_337_593_543_950_335.99999"),
             Err(Error::from("Invalid decimal: overflow from mantissa after rounding"))
         );
+    }
+
+    #[test]
+    fn to_scientific_0() {
+        #[cfg(not(feature = "std"))]
+        use alloc::format;
+
+        let dec_zero = format!("{:e}", Decimal::ZERO);
+        let int_zero = format!("{:e}", 0_u32);
+        assert_eq!(dec_zero, int_zero);
+        assert_eq!(
+            Decimal::from_scientific(&dec_zero)
+                .unwrap_or_else(|e| panic!("Can't parse {dec_zero} into Decimal: {e:?}")),
+            Decimal::ZERO
+        );
+        assert_eq!(dec_zero, "0e0");
     }
 }
