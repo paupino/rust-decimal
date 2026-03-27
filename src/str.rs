@@ -7,8 +7,8 @@ use crate::{
 
 use arrayvec::{ArrayString, ArrayVec};
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 use alloc::{string::String, vec::Vec};
-use core::fmt;
 
 // impl that doesn't allocate for serialization purposes.
 pub(crate) fn to_str_internal(
@@ -76,12 +76,13 @@ pub(crate) fn to_str_internal(
     (rep, additional)
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 pub(crate) fn fmt_scientific_notation(
     value: &Decimal,
     exponent_symbol: &str,
-    f: &mut fmt::Formatter<'_>,
-) -> fmt::Result {
-    #[cfg(not(feature = "std"))]
+    f: &mut core::fmt::Formatter<'_>,
+) -> core::fmt::Result {
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::string::ToString;
 
     if value.is_zero() {

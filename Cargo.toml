@@ -1,7 +1,7 @@
 [package]
 authors = ["Paul Mason <paul@form1.co.nz>"]
 build = "build.rs"
-categories = ["science", "mathematics", "data-structures"]
+categories = ["science", "mathematics", "data-structures", "no-std", "no-std::no-alloc"]
 description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
 documentation = "https://docs.rs/rust_decimal/"
 edition = "2024"
@@ -55,9 +55,10 @@ version-sync = { default-features = false, features = ["html_root_url_updated", 
 rust_decimal = { path = ".", features = ["rand-0_9", "macros", "rocket-0_5-traits"] }
 
 [features]
-default = ["serde", "std"]
+default = ["alloc", "serde", "std"]
 
 align16 = [] # Force Decimal to be repr(align16) - the same as u128
+alloc = []
 borsh = ["dep:borsh", "std"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["diesel/mysql_backend", "std"]
@@ -67,14 +68,14 @@ db-diesel2-postgres = ["db-diesel-postgres"]
 db-postgres = ["dep:bytes", "dep:postgres-types", "std"]
 db-tokio-postgres = ["dep:bytes", "dep:postgres-types", "std"]
 macros = ["dep:rust_decimal_macros"]
-maths = []
+maths = ["alloc"]
 maths-nopanic = ["maths"]
 ndarray-0_16 = ["dep:ndarray-0_16"]
 proptest = ["dep:proptest"]
 rand-0_9 = ["dep:rand-0_9"]
 rocket-0_5-traits = ["dep:rocket", "std"]
 rust-fuzz = ["dep:arbitrary"]
-serde = ["dep:serde"]
+serde = ["dep:serde", "alloc"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]
@@ -82,7 +83,7 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "serde?/std", "serde_json?/std"]
+std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [[bench]]

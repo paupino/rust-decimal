@@ -567,24 +567,20 @@ impl Decimal {
     pub fn from_scientific_exact(value: &str) -> crate::Result<Decimal> {
         let mut split = value.splitn(2, ['e', 'E']);
 
-        let base = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
-        let exp = split.next().ok_or(crate::Error::FailedToParseScientificFromString)?;
+        let base = split.next().ok_or(crate::Error::ScientificBaseNotFound)?;
+        let exp = split.next().ok_or(crate::Error::ScientificExpNotFound)?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped
-                .parse()
-                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
+            let exp: u32 = stripped.parse().map_err(|_err| crate::Error::ScientificExpNotFound)?;
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp
-                .parse()
-                .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
+            let exp: u32 = exp.parse().map_err(|_err| crate::Error::ScientificExpNotFound)?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -660,20 +656,14 @@ impl Decimal {
     pub fn from_scientific_lossy(value: &str) -> Result<Decimal, Error> {
         let mut split = value.splitn(2, ['e', 'E']);
 
-        let base = split
-            .next()
-            .ok_or_else(|| Error::from(crate::Error::FailedToParseScientificFromString))?;
-        let exp = split
-            .next()
-            .ok_or_else(|| Error::from(crate::Error::FailedToParseScientificFromString))?;
+        let base = split.next().ok_or(Error::ScientificBaseNotFound)?;
+        let exp = split.next().ok_or(Error::ScientificExpNotFound)?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped
-                .parse()
-                .map_err(|_| Error::from(crate::Error::FailedToParseScientificFromString))?;
+            let exp: u32 = stripped.parse().map_err(|_| Error::ScientificExpNotFound)?;
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
@@ -684,9 +674,7 @@ impl Decimal {
                 ret.set_scale(current_scale + exp)?;
             }
         } else {
-            let exp: u32 = exp
-                .parse()
-                .map_err(|_| Error::from(crate::Error::FailedToParseScientificFromString))?;
+            let exp: u32 = exp.parse().map_err(|_| Error::ScientificExpNotFound)?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -2439,7 +2427,16 @@ impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let (rep, additional) = crate::str::to_str_internal(self, false, f.precision());
         if let Some(additional) = additional {
-            let value = [rep.as_str(), "0".repeat(additional).as_str()].concat();
+            // Use a stack buffer to avoid heap allocation.
+            // Decimal has a max scale of 28 and max 96-bit integer (29 digits), so the
+            // representation is at most ~32 chars + 28 zeros = 60 bytes. 64 is sufficient.
+            let mut value = arrayvec::ArrayString::<64>::new();
+            let _ = value.try_push_str(rep.as_str());
+            for _ in 0..additional {
+                if value.try_push('0').is_err() {
+                    break;
+                }
+            }
             f.pad_integral(self.is_sign_positive(), "", value.as_str())
         } else {
             f.pad_integral(self.is_sign_positive(), "", rep.as_str())
@@ -2453,12 +2450,14 @@ impl fmt::Debug for Decimal {
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl fmt::LowerExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "e", f)
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 impl fmt::UpperExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "E", f)

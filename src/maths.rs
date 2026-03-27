@@ -615,7 +615,7 @@ impl Pow<f64> for Decimal {
 mod test {
     use super::*;
 
-    #[cfg(not(feature = "std"))]
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::string::ToString;
 
     #[test]

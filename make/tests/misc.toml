@@ -1,11 +1,16 @@
 [tasks.test-misc]
 dependencies = [
+    "test-no-alloc",
     "test-proptest",
     "test-rust-fuzz",
     "test-rocket-traits",
     "test-borsh",
     "test-rand"
 ]
+
+[tasks.test-no-alloc]
+command = "cargo"
+args = ["build", "--no-default-features"]
 
 [tasks.test-proptest]
 command = "cargo"
