@@ -2711,4 +2711,10 @@ mod tests {
     } else {
         panic!()
     };
+
+    #[test]
+    fn from_scientific_0e0() {
+        let dec = Decimal::from_scientific_exact("0e0").unwrap();
+        assert_eq!(dec, Decimal::ZERO);
+    }
 }
