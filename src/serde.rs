@@ -561,20 +561,23 @@ impl serde::Serialize for Decimal {
     }
 }
 
-
-#[cfg(all(feature = "serde_json", not(feature = "serde-float")))]
+#[cfg(feature = "serde-json")]
 impl From<Decimal> for serde_json::Value {
     fn from(decimal: Decimal) -> serde_json::Value {
-        let value = crate::str::to_str_internal(&decimal, true, None);
-        value.0.to_string().into()
-    }
-}
+        #[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+        {
+            return Value::String(d.to_string());
+        }
 
-#[cfg(all(feature = "serde_json", feature = "serde-float", not(feature = "serde-arbitrary-precision")))]
-impl From<Decimal> for serde_json::Value {
-    fn from(decimal: Decimal) -> serde_json::Value {
-        use num_traits::ToPrimitive;
-        decimal.to_f64().unwrap().into()
+        #[cfg(all(feature = "serde-float", not(feature = "serde-arbitrary-precision")))]
+        {
+            return Value::from(d.as_f64());
+        }
+
+        #[cfg(not(feature = "serde-float"))]
+        {
+            return Value::String(d.to_string());
+        }
     }
 }
 
