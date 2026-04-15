@@ -561,6 +561,26 @@ impl serde::Serialize for Decimal {
     }
 }
 
+#[cfg(feature = "serde-json")]
+impl From<Decimal> for serde_json::Value {
+    fn from(decimal: Decimal) -> serde_json::Value {
+        #[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+        {
+            return Value::String(d.to_string());
+        }
+
+        #[cfg(all(feature = "serde-float", not(feature = "serde-arbitrary-precision")))]
+        {
+            return Value::from(d.as_f64());
+        }
+
+        #[cfg(not(feature = "serde-float"))]
+        {
+            return Value::String(d.to_string());
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
