@@ -30,6 +30,8 @@ mod mysql;
 mod postgres;
 #[cfg(feature = "proptest")]
 mod proptest;
+#[cfg(feature = "rand-0_10")]
+mod rand_0_10;
 #[cfg(feature = "rand-0_9")]
 mod rand_0_9;
 #[cfg(feature = "rocket-0_5-traits")]

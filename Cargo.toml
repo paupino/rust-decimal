@@ -29,6 +29,7 @@ num-traits = { default-features = false, features = ["i128"], package = "num-tra
 postgres-types = { default-features = false, optional = true, package = "postgres-types", version = "0.2" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
 rand-0_9 = { default-features = false, optional = true, package = "rand", version = "0.9" }
+rand-0_10 = { default-features = false, optional = true, package = "rand", version = "0.10" }
 rocket = { default-features = false, optional = true, version = "0.5" }
 rust_decimal_macros = { path = "macros", default-features = false, optional = true, version = "1" }
 serde = { default-features = false, optional = true, version = "1" }
@@ -44,6 +45,7 @@ diesel = { default-features = false, features = ["mysql", "postgres"], version =
 futures = { default-features = false, version = "0.3" }
 postgres = { default-features = false, version = "0.19" }
 rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
+rand-0_10 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.10" }
 rkyv-0_8 = { version = "0.8", package = "rkyv" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"
@@ -72,6 +74,7 @@ maths-nopanic = ["maths"]
 ndarray-0_16 = ["dep:ndarray-0_16"]
 proptest = ["dep:proptest"]
 rand-0_9 = ["dep:rand-0_9"]
+rand-0_10 = ["dep:rand-0_10"]
 rocket-0_5-traits = ["dep:rocket", "std"]
 rust-fuzz = ["dep:arbitrary"]
 serde = ["dep:serde"]
@@ -82,7 +85,7 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "serde?/std", "serde_json?/std"]
+std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
 [[bench]]
