@@ -226,12 +226,14 @@ impl Dec64 {
 
     #[inline(always)]
     pub(super) const fn to_decimal(&self) -> Decimal {
-        Decimal::from_parts(
-            self.low64 as u32,
-            (self.low64 >> 32) as u32,
+        let lo = self.low64 as u32;
+        let mid = (self.low64 >> 32) as u32;
+        let is_zero = lo == 0 && mid == 0 && self.hi == 0;
+        Decimal::from_parts_raw_unchecked(
+            lo,
+            mid,
             self.hi,
-            self.negative,
-            self.scale,
+            crate::decimal::flags_raw(self.negative && !is_zero, self.scale),
         )
     }
 }

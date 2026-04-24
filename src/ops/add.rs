@@ -104,9 +104,10 @@ fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult
         return CalculationResult::Ok(Decimal::from_parts_raw(lo1 - lo2, 0, 0, flags));
     }
     // Add can overflow however, so we check for that explicitly
+    // Both inputs are non-zero (checked earlier), so result is guaranteed non-zero
     let lo = lo1.wrapping_add(lo2);
     let mid = if lo < lo1 { 1 } else { 0 };
-    CalculationResult::Ok(Decimal::from_parts_raw(lo, mid, 0, flags))
+    CalculationResult::Ok(Decimal::from_parts_raw_unchecked(lo, mid, 0, flags))
 }
 
 #[inline(always)]
