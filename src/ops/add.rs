@@ -2,15 +2,17 @@ use crate::constants::{MAX_I32_SCALE, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_M
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf24, Dec64};
 
+#[inline(always)]
 pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     add_sub_internal(d1, d2, false)
 }
 
+#[inline(always)]
 pub(crate) fn sub_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     add_sub_internal(d1, d2, true)
 }
 
-#[inline]
+#[inline(always)]
 fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationResult {
     if d1.is_zero() {
         // 0 - x or 0 + x
@@ -92,6 +94,7 @@ fn rescale32(num: u32, rescale_factor: i32) -> Option<u32> {
     num.checked_mul(POWERS_10[rescale_factor as usize])
 }
 
+#[inline(always)]
 fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult {
     if subtract {
         // Sub can't overflow because we're ensuring the bigger number always subtracts the smaller number
@@ -106,6 +109,7 @@ fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult
     CalculationResult::Ok(Decimal::from_parts_raw(lo, mid, 0, flags))
 }
 
+#[inline(always)]
 fn aligned_add(lhs: Dec64, rhs: Dec64, negative: bool, scale: u32, subtract: bool) -> CalculationResult {
     if subtract {
         // Signs differ, so subtract

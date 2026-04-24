@@ -217,6 +217,7 @@ enum DivError {
     Overflow,
 }
 
+#[inline]
 pub(crate) fn div_impl(dividend: &Decimal, divisor: &Decimal) -> CalculationResult {
     if divisor.is_zero() {
         return CalculationResult::DivByZero;

@@ -190,6 +190,7 @@ pub(super) struct Dec64 {
 }
 
 impl Dec64 {
+    #[inline(always)]
     pub(super) const fn new(d: &Decimal) -> Dec64 {
         let m = d.mantissa_array3();
         if m[1] == 0 {
@@ -223,6 +224,7 @@ impl Dec64 {
         (self.low64 >> 32) | ((self.hi as u64) << 32)
     }
 
+    #[inline(always)]
     pub(super) const fn to_decimal(&self) -> Decimal {
         Decimal::from_parts(
             self.low64 as u32,

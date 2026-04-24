@@ -2,6 +2,7 @@ use crate::constants::{BIG_POWERS_10, MAX_I64_SCALE, U32_MAX};
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::Buf24;
 
+#[inline(always)]
 pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     if d1.is_zero() || d2.is_zero() {
         // We should think about this - does zero need to maintain precision? This treats it like
