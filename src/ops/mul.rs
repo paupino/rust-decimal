@@ -12,7 +12,6 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
     let mut scale = d1.scale() + d2.scale();
     let negative = d1.is_sign_negative() ^ d2.is_sign_negative();
-    let mut product = Buf24::zero();
 
     // See if we can optimize this calculation depending on whether the hi bits are set
     if d1.hi() | d1.mid() == 0 {
@@ -55,11 +54,16 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
 
         // We know that the left hand side is just 32 bits but the right hand side is either
         // 64 or 96 bits.
+        let mut product = Buf24::zero();
         mul_by_32bit_lhs(d1.lo() as u64, d2, &mut product);
+        return finish_mul(product, negative, scale);
     } else if d2.mid() | d2.hi() == 0 {
         // We know that the right hand side is just 32 bits.
+        let mut product = Buf24::zero();
         mul_by_32bit_lhs(d2.lo() as u64, d1, &mut product);
+        return finish_mul(product, negative, scale);
     } else {
+        let mut product = Buf24::zero();
         // We know we're not dealing with simple 32 bit operands on either side.
         // We compute and accumulate the 9 partial products using long multiplication
 
@@ -125,8 +129,14 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         } else {
             product.set_mid64(tmp);
         }
+        return finish_mul(product, negative, scale);
     }
+    // All branches above return, so this is unreachable
+    unreachable!()
+}
 
+#[inline(always)]
+fn finish_mul(mut product: Buf24, negative: bool, mut scale: u32) -> CalculationResult {
     // We may want to "rescale". This is the case if the mantissa is > 96 bits or if the scale
     // exceeds the maximum precision.
     let upper_word = product.upper_word();
@@ -138,12 +148,12 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         }
     }
 
-    CalculationResult::Ok(Decimal::from_parts(
+    // Result is non-zero (both inputs are non-zero, checked at entry of mul_impl)
+    CalculationResult::Ok(Decimal::from_parts_raw_unchecked(
         product.data[0],
         product.data[1],
         product.data[2],
-        negative,
-        scale,
+        crate::decimal::flags(negative, scale),
     ))
 }
 
