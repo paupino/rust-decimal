@@ -1906,14 +1906,8 @@ pub(crate) enum CalculationResult {
 }
 
 #[inline(always)]
-const fn flags(neg: bool, scale: u32) -> u32 {
+pub(crate) const fn flags(neg: bool, scale: u32) -> u32 {
     (scale << SCALE_SHIFT) | ((neg as u32) << SIGN_SHIFT)
-}
-
-/// Public (crate-internal) version of flags for use in ops modules
-#[inline(always)]
-pub(crate) const fn flags_raw(neg: bool, scale: u32) -> u32 {
-    flags(neg, scale)
 }
 
 macro_rules! integer_docs {

@@ -224,7 +224,7 @@ impl Dec64 {
             lo,
             mid,
             self.hi,
-            crate::decimal::flags_raw(self.negative && !is_zero, self.scale),
+            crate::decimal::flags(self.negative && !is_zero, self.scale),
         )
     }
 }
