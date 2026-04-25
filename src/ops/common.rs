@@ -193,20 +193,11 @@ impl Dec64 {
     #[inline(always)]
     pub(super) const fn new(d: &Decimal) -> Dec64 {
         let m = d.mantissa_array3();
-        if m[1] == 0 {
-            Dec64 {
-                negative: d.is_sign_negative(),
-                scale: d.scale(),
-                hi: m[2],
-                low64: m[0] as u64,
-            }
-        } else {
-            Dec64 {
-                negative: d.is_sign_negative(),
-                scale: d.scale(),
-                hi: m[2],
-                low64: ((m[1] as u64) << 32) | (m[0] as u64),
-            }
+        Dec64 {
+            negative: d.is_sign_negative(),
+            scale: d.scale(),
+            hi: m[2],
+            low64: ((m[1] as u64) << 32) | (m[0] as u64),
         }
     }
 
