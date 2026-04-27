@@ -549,6 +549,13 @@ impl Decimal {
     }
 
     #[must_use]
+    /// Constructs a Decimal without any zero-sign normalization.
+    /// Caller must guarantee that if lo|mid|hi == 0, the sign bit in flags is cleared.
+    #[inline(always)]
+    pub(crate) const fn from_parts_raw_unchecked(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
+        Decimal { flags, hi, lo, mid }
+    }
+
     pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
         if lo == 0 && mid == 0 && hi == 0 {
             Decimal {
@@ -1544,10 +1551,8 @@ impl Decimal {
         match strategy {
             RoundingStrategy::BankersRounding | RoundingStrategy::MidpointNearestEven => {
                 match order {
-                    Ordering::Equal => {
-                        if (value[0] & 1) == 1 {
-                            ops::array::add_one_internal(&mut value);
-                        }
+                    Ordering::Equal if (value[0] & 1) == 1 => {
+                        ops::array::add_one_internal(&mut value);
                     }
                     Ordering::Greater => {
                         // Doesn't matter about the decimal portion
@@ -1898,8 +1903,8 @@ pub(crate) enum CalculationResult {
     DivByZero,
 }
 
-#[inline]
-const fn flags(neg: bool, scale: u32) -> u32 {
+#[inline(always)]
+pub(crate) const fn flags(neg: bool, scale: u32) -> u32 {
     (scale << SCALE_SHIFT) | ((neg as u32) << SIGN_SHIFT)
 }
 

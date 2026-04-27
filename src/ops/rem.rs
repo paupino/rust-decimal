@@ -2,6 +2,7 @@ use crate::constants::{MAX_I32_SCALE, MAX_SCALE_I32, POWERS_10};
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf12, Buf16, Buf24, Dec64};
 
+#[inline]
 pub(crate) fn rem_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     if d2.is_zero() {
         return CalculationResult::DivByZero;
