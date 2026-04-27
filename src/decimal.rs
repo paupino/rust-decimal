@@ -1551,11 +1551,10 @@ impl Decimal {
         match strategy {
             RoundingStrategy::BankersRounding | RoundingStrategy::MidpointNearestEven => {
                 match order {
-                    Ordering::Equal => {
-                        if (value[0] & 1) == 1 {
+                    Ordering::Equal
+                        if (value[0] & 1) == 1 => {
                             ops::array::add_one_internal(&mut value);
                         }
-                    }
                     Ordering::Greater => {
                         // Doesn't matter about the decimal portion
                         ops::array::add_one_internal(&mut value);
