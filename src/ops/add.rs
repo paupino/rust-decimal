@@ -62,6 +62,7 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
 
     // Slower path: handle zero cases for > 32-bit operands
     if d1.is_zero() {
+        // 0 - x or 0 + x
         let mut result = *d2;
         if subtract && !d2.is_zero() {
             result.set_sign_negative(d2.is_sign_positive());
@@ -69,6 +70,7 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         return CalculationResult::Ok(result);
     }
     if d2.is_zero() {
+        // x - 0 or x + 0
         return CalculationResult::Ok(*d1);
     }
 

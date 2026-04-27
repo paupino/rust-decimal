@@ -131,8 +131,6 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
         }
         return finish_mul(product, negative, scale);
     }
-    // All branches above return, so this is unreachable
-    unreachable!()
 }
 
 #[inline(always)]
