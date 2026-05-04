@@ -158,6 +158,9 @@ jobs:
         env:
           CI_DECIMAL_TEST_TARGET: ${{ matrix.target }}
 
+      - name: Check no_alloc build
+        run: cargo make test-no-alloc
+
       - name: Run default tests
         run: cargo make test-default
         env:

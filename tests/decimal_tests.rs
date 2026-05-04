@@ -383,6 +383,7 @@ fn it_formats_int() {
     assert_eq!(format!("{a:0<10.2}"), "5.00000000");
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
 fn it_formats_lower_exp() {
     let tests = [
@@ -398,6 +399,7 @@ fn it_formats_lower_exp() {
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
 fn it_formats_lower_exp_padding() {
     let tests = [
@@ -413,6 +415,7 @@ fn it_formats_lower_exp_padding() {
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
 fn it_formats_scientific_precision() {
     for (num, scale, expected_no_precision, expected_precision) in [

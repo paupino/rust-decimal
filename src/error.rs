@@ -4,20 +4,18 @@ use core::fmt;
 /// Error type for the library.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    /// Represents a failure to convert to/from `Decimal` to the specified type. This is typically
+    /// Failed to convert to or from `Decimal` for the specified type. This is typically
     /// due to type constraints (e.g. `Decimal::MAX` cannot be converted into `i32`).
     ConversionTo(&'static str),
     /// The decimal string contained more than one decimal point.
     DuplicatedDecimalPoint,
-    /// Could not represent a Decimal instance because there no data left.
+    /// The input was empty.
     EmptyData,
     /// The value provided exceeds `Decimal::MAX`.
     ExceedsMaximumPossibleValue,
-    /// A string could not represent a scientific number.
-    FailedToParseScientificFromString,
-    /// A character could not represent a Decimal instance
+    /// The input contained an invalid character.
     InvalidCharacter,
-    /// The string must start with a digit, `+` or `-`.
+    /// The string must start with a digit, `+`, or `-`.
     InvalidLeadingChar,
     /// The value provided is less than `Decimal::MIN`.
     LessThanMinimumPossibleValue,
@@ -25,10 +23,14 @@ pub enum Error {
     NoDigits,
     /// The scale provided exceeds the maximum scale that `Decimal` can represent.
     ScaleExceedsMaximumPrecision(u32),
-    /// An underflow is when there are more fractional digits than can be represented within `Decimal`.
+    /// More fractional digits were provided than `Decimal` can represent.
     Underflow,
     /// The radix is not supported. Must be between 2 and 36.
     UnsupportedRadix,
+    /// The base was not present while parsing scientific notation.
+    ScientificBaseNotFound,
+    /// The exponent was not present while parsing scientific notation.
+    ScientificExpNotFound,
 }
 
 #[cold]
@@ -48,13 +50,13 @@ impl fmt::Display for Error {
                 write!(f, "The decimal string contained more than one decimal point.")
             }
             Self::EmptyData => {
-                write!(f, "Could not represent a Decimal instance because there no data left.")
+                write!(
+                    f,
+                    "Could not represent a Decimal instance because there is no data left."
+                )
             }
             Self::ExceedsMaximumPossibleValue => {
                 write!(f, "Number exceeds maximum value that can be represented.")
-            }
-            Self::FailedToParseScientificFromString => {
-                write!(f, "A string could not represent a scientific number.")
             }
             Self::InvalidCharacter => {
                 write!(f, "A character could not represent a Decimal instance.")
@@ -80,6 +82,12 @@ impl fmt::Display for Error {
             }
             Self::UnsupportedRadix => {
                 write!(f, "The radix is not supported. Must be between 2 and 36.")
+            }
+            Self::ScientificBaseNotFound => {
+                f.write_str("Base value was not found while attempting to parse from scientific notation.")
+            }
+            Self::ScientificExpNotFound => {
+                f.write_str("Exponent was not found while attempting to parse from scientific notation.")
             }
         }
     }
