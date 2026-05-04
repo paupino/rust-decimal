@@ -2450,14 +2450,14 @@ impl fmt::Debug for Decimal {
     }
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl fmt::LowerExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "e", f)
     }
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 impl fmt::UpperExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "E", f)

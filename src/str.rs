@@ -7,7 +7,7 @@ use crate::{
 
 use arrayvec::{ArrayString, ArrayVec};
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
 // impl that doesn't allocate for serialization purposes.
@@ -76,7 +76,7 @@ pub(crate) fn to_str_internal(
     (rep, additional)
 }
 
-#[cfg(any(feature = "alloc", feature = "std"))]
+#[cfg(feature = "alloc")]
 pub(crate) fn fmt_scientific_notation(
     value: &Decimal,
     exponent_symbol: &str,

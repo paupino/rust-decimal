@@ -9,8 +9,13 @@ dependencies = [
 ]
 
 [tasks.test-no-alloc]
+dependencies = ["install-no-alloc-target"]
 command = "cargo"
-args = ["build", "--no-default-features"]
+args = ["build", "--no-default-features", "--target", "x86_64-unknown-none"]
+
+[tasks.install-no-alloc-target]
+command = "rustup"
+args = ["target", "add", "x86_64-unknown-none"]
 
 [tasks.test-proptest]
 command = "cargo"
