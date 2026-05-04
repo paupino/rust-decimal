@@ -125,6 +125,7 @@ assert_eq!(total, dec!(27.26));
 
 **Behavior / Functionality**
 
+* [alloc](#alloc)
 * [borsh](#borsh)
 * [c-repr](#c-repr)
 * [macros](#macros)
@@ -154,6 +155,14 @@ assert_eq!(total, dec!(27.26));
 ### `align16`
 
 Forces `Decimal`'s alignment to 16 bytes (128 bits). This is identical to `u128` and `i128`'s alignment on x86 platforms.
+
+### `alloc`
+
+Enables features that require heap allocation via the [`alloc`](https://doc.rust-lang.org/alloc/) crate, without
+requiring `std`. Suitable for `no_std` environments that have an allocator available.
+
+Currently this gates the `LowerExp` / `UpperExp` (scientific notation) `Display` implementations. Enabled by default.
+Implied by `std`.
 
 ### `borsh`
 
@@ -392,9 +401,17 @@ Please see the `examples` directory for more information regarding `serde_json` 
 
 ### `std`
 
-Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to
-support `no_std`
-libraries, this crate can be compiled with `--no-default-features`.
+Enables `std` library support. This is enabled by default and implies `alloc`.
+
+This crate supports three build configurations:
+
+| Configuration            | Cargo flags                                  |
+|--------------------------|----------------------------------------------|
+| `std` (default)          | (default)                                    |
+| `no_std` + `alloc`       | `--no-default-features --features=alloc`     |
+| `no_std` + no allocator  | `--no-default-features`                      |
+
+The no-allocator configuration is suitable for bare-metal targets such as `x86_64-unknown-none`.
 
 ## Building
 
