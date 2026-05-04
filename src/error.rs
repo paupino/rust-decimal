@@ -50,7 +50,10 @@ impl fmt::Display for Error {
                 write!(f, "The decimal string contained more than one decimal point.")
             }
             Self::EmptyData => {
-                write!(f, "Could not represent a Decimal instance because there is no data left.")
+                write!(
+                    f,
+                    "Could not represent a Decimal instance because there is no data left."
+                )
             }
             Self::ExceedsMaximumPossibleValue => {
                 write!(f, "Number exceeds maximum value that can be represented.")
