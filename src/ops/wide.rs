@@ -12,7 +12,6 @@
 
 use crate::Decimal;
 use crate::constants::POWERS_10;
-use crate::Decimal;
 
 /// Maximum power of 10 that fits in a u32 (10^9 = 1,000,000,000).
 /// Duplicated here so `wide.rs` compiles regardless of `legacy-ops`.

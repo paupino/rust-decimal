@@ -356,7 +356,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         let mut buf = zmij::Buffer::new();
         let formatted = buf.format_finite(value);
         Decimal::from_str(formatted)
-            .or_else(|_| Decimal::from_scientific(formatted))
+            .or_else(|_| Decimal::from_scientific_exact(formatted))
             .map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
     }
 

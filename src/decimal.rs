@@ -21,8 +21,6 @@ use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Numer
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
-#[cfg(feature = "rkyv")]
-use rkyv::{Archive, Deserialize, Serialize};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -119,15 +117,7 @@ impl From<UnpackedDecimal> for Decimal {
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(feature = "align16", repr(align(16)))]
-)]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable))]
-#[cfg_attr(
-    feature = "rkyv",
-    derive(Archive, Deserialize, Serialize),
-    archive(compare(PartialEq)),
-    archive_attr(derive(Clone, Copy, Debug))
-)]
-#[cfg_attr(feature = "rkyv-safe", archive(check_bytes))]
 // [`borsh::BorshDeserialize`] is implemented manually so that the result can be checked to be a
 // valid instance of [`Self`].
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshSchema))]
@@ -2360,11 +2350,7 @@ impl Decimal {
     pub fn as_i128(&self) -> i128 {
         let d = self.trunc();
         let raw: i128 = ((i128::from(d.hi) << 64) | (i128::from(d.mid) << 32)) | i128::from(d.lo);
-        if self.is_sign_negative() {
-            -raw
-        } else {
-            raw
-        }
+        if self.is_sign_negative() { -raw } else { raw }
     }
 
     /// Converts this `Decimal` to an `f64`.
@@ -2400,11 +2386,7 @@ impl Decimal {
             let value = integral + frac_f64;
             let round_to = 10f64.powi(self.scale() as i32);
             let rounded = (value * round_to).round() / round_to;
-            if neg {
-                -rounded
-            } else {
-                rounded
-            }
+            if neg { -rounded } else { rounded }
         }
     }
 }
