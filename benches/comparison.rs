@@ -1,7 +1,7 @@
 //! See how `rust-decimal` performs compared to native floating numbers.
 
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::Measurement, BenchmarkGroup, BenchmarkId, Criterion,
+    BenchmarkGroup, BenchmarkId, Criterion, black_box, criterion_group, criterion_main, measurement::Measurement,
 };
 use rust_decimal::Decimal;
 

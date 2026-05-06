@@ -16,7 +16,7 @@ struct Data<'a> {
 libfuzzer_sys::fuzz_target!(|data: Data<'_>| {
     let _ = serde_json::from_str::<Decimal>(data.generic_str);
 
-    let _ = Decimal::from_scientific(data.generic_str);
+    let _ = Decimal::from_scientific_exact(data.generic_str);
 
     let _ = Decimal::try_from_i128_with_scale(data.try_from_i128_with_scale_num, data.try_from_i128_with_scale_scale);
 

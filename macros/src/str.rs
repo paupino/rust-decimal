@@ -281,12 +281,12 @@ mod test {
     }
 
     // Convert ParseResult to Decimal Result by impl From
-    fn parse_dec(src: &str, exp: i32) -> Result<Decimal, ParseError> {
+    fn parse_dec(src: &str, exp: i32) -> Result<Decimal, ParseError<'_>> {
         let unpacked = parse_decimal(src, exp)?;
         Ok(Decimal::from_i128_with_scale(unpacked.mantissa, unpacked.scale))
     }
 
-    fn parse_radix_dec(src: &str, exp: i32, radix: u32) -> Result<Decimal, ParseError> {
+    fn parse_radix_dec(src: &str, exp: i32, radix: u32) -> Result<Decimal, ParseError<'_>> {
         let unpacked = parse_decimal_with_radix(src, exp, radix)?;
         Ok(Decimal::from_i128_with_scale(unpacked.mantissa, unpacked.scale))
     }

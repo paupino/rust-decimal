@@ -1,4 +1,5 @@
 use crate::Decimal;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::string::ToString;
 use core::{fmt, str::FromStr};
 use num_traits::FromPrimitive;
@@ -364,7 +365,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         E: serde::de::Error,
     {
         Decimal::from_str(value)
-            .or_else(|_| Decimal::from_scientific(value))
+            .or_else(|_| Decimal::from_scientific_exact(value))
             .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
     }
 
@@ -452,7 +453,7 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
             true => Ok(None),
             false => {
                 let d = Decimal::from_str(v)
-                    .or_else(|_| Decimal::from_scientific(v))
+                    .or_else(|_| Decimal::from_scientific_exact(v))
                     .map_err(serde::de::Error::custom)?;
                 Ok(Some(d))
             }
@@ -520,7 +521,7 @@ impl<'de> serde::de::Deserialize<'de> for DecimalFromString {
                 E: serde::de::Error,
             {
                 let d = Decimal::from_str(value)
-                    .or_else(|_| Decimal::from_scientific(value))
+                    .or_else(|_| Decimal::from_scientific_exact(value))
                     .map_err(serde::de::Error::custom)?;
                 Ok(DecimalFromString { value: d })
             }
@@ -605,9 +606,10 @@ mod test {
     #[test]
     #[cfg(feature = "serde-arbitrary-precision")]
     fn deserialize_basic_decimal() {
-        let d: Decimal = serde_json::from_str("1.1234127836128763").unwrap();
+        let s = "1.1234127836128763";
+        let d: Decimal = serde_json::from_str(s).unwrap();
         // Typically, this would not work without this feature enabled due to rounding
-        assert_eq!(d.to_string(), "1.1234127836128763");
+        assert_eq!(d.to_string(), s);
     }
 
     #[test]

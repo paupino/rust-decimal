@@ -156,8 +156,9 @@ fn it_can_serialize_deserialize() {
 
 #[cfg(feature = "borsh")]
 mod borsh_tests {
-    use rust_decimal::Decimal;
     use std::str::FromStr;
+
+    use rust_decimal::Decimal;
 
     #[test]
     fn it_can_serialize_deserialize_borsh() {
@@ -181,15 +182,51 @@ mod borsh_tests {
             assert_eq!(test.to_string(), b.to_string());
         }
     }
+
+    #[test]
+    fn invalid_flags_errors() {
+        let mut bytes: Vec<u8> = Vec::new();
+        // Invalid flags
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // high
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // lo
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // mid
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+
+        let _err =
+            <Decimal as borsh::BorshDeserialize>::deserialize(&mut bytes.as_slice()).expect_err("Invalid flags passed");
+    }
+
+    #[test]
+    fn invalid_scale_errors() {
+        let mut bytes: Vec<u8> = Vec::new();
+        // Invalid scale
+        borsh::BorshSerialize::serialize(&0x00FF_0000_u32, &mut bytes).unwrap();
+        // high
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // lo
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+        // mid
+        borsh::BorshSerialize::serialize(&u32::MAX, &mut bytes).unwrap();
+
+        let err =
+            <Decimal as borsh::BorshDeserialize>::deserialize(&mut bytes.as_slice()).expect_err("Invalid scale passed");
+        assert_eq!(
+            err.downcast::<rust_decimal::Error>().expect("Expected str flags error"),
+            rust_decimal::Error::ScaleExceedsMaximumPrecision(0xFF)
+        );
+    }
 }
 
-#[cfg(feature = "ndarray")]
+#[cfg(feature = "ndarray-0_16")]
 mod ndarray_tests {
     use rust_decimal::Decimal;
 
     #[test]
     fn it_can_do_scalar_ops_in_ndarray() {
-        use ndarray::Array1;
+        use ndarray_0_16::Array1;
         use num_traits::FromPrimitive;
 
         let array_a = Array1::from(vec![
@@ -233,38 +270,6 @@ mod ndarray_tests {
             Decimal::from_f32(0.6).unwrap(),
         ]);
         assert_eq!(output, expectation);
-    }
-}
-
-#[cfg(feature = "rkyv")]
-mod rkyv_tests {
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
-    #[test]
-    fn it_can_serialize_deserialize_rkyv() {
-        use rkyv::Deserialize;
-        let tests = [
-            "12.3456789",
-            "5233.9008808150288439427720175",
-            "-5233.9008808150288439427720175",
-        ];
-        for test in &tests {
-            let a = Decimal::from_str(test).unwrap();
-            let bytes = rkyv::to_bytes::<_, 256>(&a).unwrap();
-
-            #[cfg(feature = "rkyv-safe")]
-            {
-                let archived = rkyv::check_archived_root::<Decimal>(&bytes[..]).unwrap();
-                assert_eq!(archived, &a);
-            }
-
-            let archived = unsafe { rkyv::archived_root::<Decimal>(&bytes[..]) };
-            assert_eq!(archived, &a);
-
-            let deserialized: Decimal = archived.deserialize(&mut rkyv::Infallible).unwrap();
-            assert_eq!(deserialized, a);
-        }
     }
 }
 
@@ -378,6 +383,7 @@ fn it_formats_int() {
     assert_eq!(format!("{a:0<10.2}"), "5.00000000");
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
 fn it_formats_lower_exp() {
     let tests = [
@@ -393,6 +399,7 @@ fn it_formats_lower_exp() {
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
 fn it_formats_lower_exp_padding() {
     let tests = [
@@ -408,6 +415,7 @@ fn it_formats_lower_exp_padding() {
     }
 }
 
+#[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
 fn it_formats_scientific_precision() {
     for (num, scale, expected_no_precision, expected_precision) in [
@@ -627,7 +635,7 @@ fn it_adds_decimals() {
             "108053.27500000000000000000000",
             // This value has too high precision and will be rounded
             "0.000000000000000000000005",
-            either!("108053.27500000000000000000000", "108053.27500000000000000000001"),
+            "108053.27500000000000000000000",
         ),
         (
             "8097370036018690744.2590371109596744091",
@@ -773,7 +781,7 @@ fn it_multiplies_decimals() {
         (
             "0.48000000",
             "0.1818181818181818181818181818",
-            either!("0.0872727272727272727272727273", "0.0872727272727272727272727272"),
+            "0.0872727272727272727272727273",
         ),
     ];
     for &(a, b, c) in tests {
@@ -826,34 +834,26 @@ fn it_divides_decimals() {
         ("2.2", "1.1", "2"),
         ("-2.2", "-1.1", "2"),
         ("12.88", "5.6", "2.3"),
-        (
-            "1023427554493",
-            "43432632",
-            either!("23563.562864276795382789603909", "23563.562864276795382789603908"),
-        ),
+        ("1023427554493", "43432632", "23563.562864276795382789603909"),
         ("10000", "3", "3333.3333333333333333333333333"),
         ("2", "3", "0.6666666666666666666666666667"),
         ("1", "3", "0.3333333333333333333333333333"),
         ("-2", "3", "-0.6666666666666666666666666667"),
         ("2", "-3", "-0.6666666666666666666666666667"),
         ("-2", "-3", "0.6666666666666666666666666667"),
-        (
-            "1234.5678",
-            "0.1234567890123456",
-            either!("9999.99926999999982999953127", "9999.999269999999829999531269"),
-        ),
+        ("1234.5678", "0.1234567890123456", "9999.99926999999982999953127"),
         ("1234.567890123456789012345678", "1.234567890123456789012345678", "1000"),
         (
             "32.91625929004387114334488",
             "3.27629537",
-            either!("10.046792359274942644546996384", "10.046792359274942644546996383"),
+            "10.046792359274942644546996384",
         ),
         ("5000", "1000.26957490549", "4.9986524887277738570721416846"),
         ("6142.6941216127122745222131114", "2", "3071.3470608063561372611065557"),
         (
             "3071.3470608063561372611065557",
             "1228.87000756",
-            either!("2.4993262443638869285360708423", "2.4993262443638869285360708422"),
+            "2.4993262443638869285360708423",
         ),
         (
             "590.3274854004009467754255123",
@@ -2332,11 +2332,6 @@ fn it_can_round_using_bankers_rounding() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
-        #[allow(deprecated)]
-        let b = a.round_dp_with_strategy(dp, RoundingStrategy::BankersRounding);
-        assert_eq!(expected, b.to_string(), "BankersRounding");
-
-        // Recommended replacement
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointNearestEven);
         assert_eq!(expected, b.to_string(), "MidpointNearestEven");
     }
@@ -2348,12 +2343,6 @@ fn it_can_round_complex_numbers_using_bankers_rounding() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
-
-    #[allow(deprecated)]
-    let part = part.round_dp_with_strategy(2, RoundingStrategy::BankersRounding); // 0.16
-    assert_eq!("0.16", part.to_string(), "BankersRounding");
-
-    // Recommended replacement
     let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointNearestEven); // 0.16
     assert_eq!("0.16", part.to_string(), "MidpointNearestEven");
 }
@@ -2374,11 +2363,6 @@ fn it_can_round_using_round_half_up() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
-        #[allow(deprecated)]
-        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundHalfUp);
-        assert_eq!(expected, b.to_string(), "RoundHalfUp");
-
-        // Recommended replacement
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointAwayFromZero);
         assert_eq!(expected, b.to_string(), "MidpointAwayFromZero");
     }
@@ -2390,11 +2374,6 @@ fn it_can_round_complex_numbers_using_round_half_up() {
     let rate = Decimal::new(19, 2); // 0.19
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
-    #[allow(deprecated)]
-    let part = part.round_dp_with_strategy(2, RoundingStrategy::RoundHalfUp); // 0.16
-    assert_eq!("0.16", part.to_string(), "RoundHalfUp");
-
-    // Recommended replacement
     let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero); // 0.16
     assert_eq!("0.16", part.to_string(), "MidpointAwayFromZero");
 }
@@ -2415,11 +2394,6 @@ fn it_can_round_using_round_half_down() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
-        #[allow(deprecated)]
-        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundHalfDown);
-        assert_eq!(expected, b.to_string(), "RoundHalfDown");
-
-        // Recommended replacement
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::MidpointTowardZero);
         assert_eq!(expected, b.to_string(), "MidpointTowardZero");
     }
@@ -2432,11 +2406,6 @@ fn it_can_round_complex_numbers_using_round_half_down() {
     let one = Decimal::new(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
 
-    #[allow(deprecated)]
-    let part = part.round_dp_with_strategy(2, RoundingStrategy::RoundHalfDown); // 0.16
-    assert_eq!("0.16", part.to_string(), "RoundHalfDown");
-
-    // Recommended replacement
     let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointTowardZero); // 0.16
     assert_eq!("0.16", part.to_string(), "RoundHalfDown");
 }
@@ -2568,11 +2537,6 @@ fn it_can_round_down() {
     ];
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
-        #[allow(deprecated)]
-        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundDown);
-        assert_eq!(expected, b.to_string(), "RoundDown");
-
-        // Recommended replacement
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::ToZero);
         assert_eq!(expected, b.to_string(), "ToZero");
     }
@@ -2595,11 +2559,6 @@ fn it_can_round_up() {
 
     for &(input, dp, expected) in tests {
         let a = Decimal::from_str(input).unwrap();
-        #[allow(deprecated)]
-        let b = a.round_dp_with_strategy(dp, RoundingStrategy::RoundUp);
-        assert_eq!(expected, b.to_string(), "RoundUp");
-
-        // Recommended replacement
         let b = a.round_dp_with_strategy(dp, RoundingStrategy::AwayFromZero);
         assert_eq!(expected, b.to_string(), "AwayFromZero");
     }
@@ -3207,7 +3166,7 @@ fn it_converts_from_f64_retaining_bits() {
 #[test]
 fn it_converts_to_integers() {
     assert_eq!(i64::try_from(Decimal::ONE), Ok(1));
-    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64".to_string())));
+    assert_eq!(i64::try_from(Decimal::MAX), Err(Error::ConversionTo("i64")));
     assert_eq!(u128::try_from(Decimal::ONE_HUNDRED), Ok(100));
 }
 
@@ -3387,7 +3346,7 @@ fn it_can_parse_individual_parts() {
 }
 
 #[test]
-fn it_can_parse_scientific_notation() {
+fn it_can_parse_scientific_notation_exact() {
     let tests = &[
         ("9.7e-7", Ok("0.00000097".to_string())),
         ("9e-7", Ok("0.0000009".to_string())),
@@ -3406,25 +3365,25 @@ fn it_can_parse_scientific_notation() {
     ];
 
     for &(value, ref expected) in tests {
-        let actual = Decimal::from_scientific(value).map(|d| d.to_string());
+        let actual = Decimal::from_scientific_exact(value).map(|d| d.to_string());
         assert_eq!(*expected, actual);
     }
 }
 
 #[test]
-fn it_errors_parsing_large_scientific_notation() {
-    let result = Decimal::from_scientific("1.2345E-28");
+fn it_errors_parsing_large_scientific_notation_exact() {
+    let result = Decimal::from_scientific_exact("1.2345E-28");
     assert!(result.is_err());
     assert_eq!(
         result.err(),
         Some(Error::ScaleExceedsMaximumPrecision(32)) // 4 + 28
     );
 
-    let result = Decimal::from_scientific("12345E29");
+    let result = Decimal::from_scientific_exact("12345E29");
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::ScaleExceedsMaximumPrecision(29)));
 
-    let result = Decimal::from_scientific("12345E28");
+    let result = Decimal::from_scientific_exact("12345E28");
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::ExceedsMaximumPossibleValue));
 }
@@ -3989,7 +3948,6 @@ mod maths {
         assert_eq!(Decimal::new(-2, 0).sqrt(), None);
     }
 
-    #[cfg(not(feature = "legacy-ops"))]
     #[test]
     fn test_exp() {
         let test_cases = &[
@@ -4013,7 +3971,6 @@ mod maths {
         }
     }
 
-    #[cfg(not(feature = "legacy-ops"))]
     #[test]
     fn test_exp_with_tolerance() {
         let test_cases = &[
@@ -4087,7 +4044,6 @@ mod maths {
     }
 
     #[test]
-    #[cfg(not(feature = "legacy-ops"))]
     fn test_norm_cdf() {
         let test_cases = &[
             (
@@ -4394,7 +4350,6 @@ mod maths {
 }
 
 // Generated tests
-#[cfg(not(feature = "legacy-ops"))]
 mod generated {
     use rust_decimal::prelude::*;
 
@@ -4764,7 +4719,7 @@ mod proptest_tests {
     }
 }
 
-#[cfg(feature = "rocket-traits")]
+#[cfg(feature = "rocket-0_5-traits")]
 #[allow(clippy::disallowed_names)]
 mod rocket_tests {
     use crate::Decimal;
@@ -4849,7 +4804,6 @@ mod issues {
     }
 
     #[test]
-    #[cfg(not(feature = "legacy-ops"))] // I will deprecate this feature/behavior in an upcoming release
     fn issue_618_rescaling_overflow() {
         fn assert_result(scale: u32, v1: Decimal, v2: Decimal) {
             assert_eq!(scale, v1.scale(), "initial scale: {scale}");

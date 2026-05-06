@@ -10,6 +10,7 @@
 // DecWide keeps a 192-bit mantissa (~57.8 decimal digits) throughout the
 // computation, only truncating to 96 bits at the very end.
 
+use crate::Decimal;
 use crate::constants::POWERS_10;
 use crate::Decimal;
 

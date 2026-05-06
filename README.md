@@ -19,6 +19,22 @@ The binary representation consists of a 96 bit integer number, a scaling factor 
 a 1 bit sign. Because of this representation, trailing zeros are preserved and may be exposed when in string form. These
 can be truncated using the `normalize` or `round_dp` functions.
 
+# Please read before contributing
+
+This is the **main** branch and is now considered _unstable_.
+
+The stable 1.x version of Rust Decimal has been branched and exists in the `v1` branch. Patch requests and bug fixes are
+still accepted against `v1` however will need to continue being backwards compatible and aligning with the support
+model.
+
+This branch also accepts contributions - any contributions to this branch are permitted to be breaking as we work
+towards an improved Decimal API. Some things expected to break over the coming months are:
+
+* Removal of deprecated APIs
+* Removing use of panics within the code without explicit opt in
+* Clean up of error types for `const` and `no-std` support
+* Module system experimentation
+
 ## Installing
 
 ```sh
@@ -29,7 +45,7 @@ Alternatively, you can edit your `Cargo.toml` directly and run `cargo update`:
 
 ```toml
 [dependencies]
-rust_decimal = "1.41"
+rust_decimal = "2.0.0-alpha.0"
 ```
 
 To enable macro support, you can enable the `macros` feature:
@@ -78,7 +94,7 @@ let from_string_base16 = Decimal::from_str_radix("ffff", 16).unwrap();
 assert_eq!("65535", from_string_base16.to_string());
 
 // From scientific notation
-let sci = Decimal::from_scientific("9.7e-7").unwrap();
+let sci = Decimal::from_scientific_exact("9.7e-7").unwrap();
 assert_eq!("0.00000097", sci.to_string());
 
 // Using the `Into` trait
@@ -109,10 +125,10 @@ assert_eq!(total, dec!(27.26));
 
 **Behavior / Functionality**
 
+* [alloc](#alloc)
 * [borsh](#borsh)
 * [bytemuck](#bytemuck)
 * [c-repr](#c-repr)
-* [legacy-ops](#legacy-ops)
 * [macros](#macros)
 * [maths](#maths)
 * [ndarray](#ndarray)
@@ -142,6 +158,14 @@ assert_eq!(total, dec!(27.26));
 
 Forces `Decimal`'s alignment to 16 bytes (128 bits). This is identical to `u128` and `i128`'s alignment on x86 platforms.
 
+### `alloc`
+
+Enables features that require heap allocation via the [`alloc`](https://doc.rust-lang.org/alloc/) crate, without
+requiring `std`. Suitable for `no_std` environments that have an allocator available.
+
+Currently this gates the `LowerExp` / `UpperExp` (scientific notation) `Display` implementations. Enabled by default.
+Implied by `std`.
+
 ### `borsh`
 
 Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
@@ -170,14 +194,6 @@ Enable [`diesel`](https://diesel.rs) PostgreSQL support.
 ### `db-diesel-mysql`
 
 Enable [`diesel`](https://diesel.rs) MySQL support.
-
-### `legacy-ops`
-
-**Warning:** This is deprecated and will be removed from a future versions.
-
-As of `1.10` the algorithms used to perform basic operations have changed which has benefits of significant speed
-improvements.
-To maintain backwards compatibility this can be opted out of by enabling the `legacy-ops` feature.
 
 ### `macros`
 
@@ -391,9 +407,17 @@ Please see the `examples` directory for more information regarding `serde_json` 
 
 ### `std`
 
-Enable `std` library support. This is enabled by default, however in the future will be opt in. For now, to
-support `no_std`
-libraries, this crate can be compiled with `--no-default-features`.
+Enables `std` library support. This is enabled by default and implies `alloc`.
+
+This crate supports three build configurations:
+
+| Configuration            | Cargo flags                                  |
+|--------------------------|----------------------------------------------|
+| `std` (default)          | (default)                                    |
+| `no_std` + `alloc`       | `--no-default-features --features=alloc`     |
+| `no_std` + no allocator  | `--no-default-features`                      |
+
+The no-allocator configuration is suitable for bare-metal targets such as `x86_64-unknown-none`.
 
 ### `wasm`
 

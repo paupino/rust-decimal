@@ -59,7 +59,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
-          toolchain: 1.67.1
+          toolchain: 1.85.0
 
       - name: Cache cargo registry
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -150,12 +150,12 @@ jobs:
 
       - name: Run no_std tests
         run: cargo make test-no-std
+       
+      - name: Check no_alloc build
+        run: cargo make test-no-alloc
 
       - name: Run default tests
         run: cargo make test-default
-
-      - name: Run legacy operation tests
-        run: cargo make test-legacy-ops
 
       - name: Run mathematical function tests
         run: cargo make test-maths

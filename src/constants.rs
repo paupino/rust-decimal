@@ -22,7 +22,6 @@ pub const MAX_STR_BUFFER_SIZE: usize = 32;
 
 // The maximum supported [`Decimal::scale`] value
 pub const MAX_SCALE: u8 = 28;
-#[cfg(not(feature = "legacy-ops"))]
 // u8 to i32 is infallible, therefore, this cast will never overflow
 pub const MAX_SCALE_I32: i32 = MAX_SCALE as _;
 // u8 to u32 is infallible, therefore, this cast will never overflow
@@ -57,13 +56,10 @@ pub const BIG_POWERS_10: [u64; 19] = [
     10000000000000000000,
 ];
 
-#[cfg(not(feature = "legacy-ops"))]
 // The maximum power of 10 that a 32 bit integer can store
 pub const MAX_I32_SCALE: i32 = 9;
-#[cfg(not(feature = "legacy-ops"))]
 // The maximum power of 10 that a 64 bit integer can store
 pub const MAX_I64_SCALE: u32 = 19;
-#[cfg(not(feature = "legacy-ops"))]
 pub const U32_MAX: u64 = u32::MAX as u64;
 
 // Determines potential overflow for 128 bit operations

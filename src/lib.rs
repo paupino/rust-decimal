@@ -3,6 +3,7 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#[cfg(feature = "alloc")]
 extern crate alloc;
 
 mod constants;
@@ -14,6 +15,8 @@ pub mod str;
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
 
+#[cfg(feature = "borsh")]
+mod borsh;
 #[cfg(feature = "rust-fuzz")]
 mod fuzz;
 #[cfg(feature = "maths")]
@@ -31,12 +34,12 @@ mod mysql;
 mod postgres;
 #[cfg(feature = "proptest")]
 mod proptest;
-#[cfg(feature = "rand")]
-mod rand;
+#[cfg(feature = "rand-0_10")]
+mod rand_0_10;
 #[cfg(feature = "rand-0_9")]
 mod rand_0_9;
-#[cfg(feature = "rocket-traits")]
-mod rocket;
+#[cfg(feature = "rocket-0_5-traits")]
+mod rocket_0_5;
 #[cfg(all(
     feature = "serde",
     not(any(
@@ -84,6 +87,3 @@ extern crate diesel;
 /// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish
 /// between `rust_decimal` and `std` types.
 pub type Result<T> = core::result::Result<T, Error>;
-
-// #[cfg(feature = "legacy-ops")]
-// compile_error!("legacy-ops has been removed as of 1.x");

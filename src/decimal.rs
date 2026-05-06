@@ -1,9 +1,9 @@
+use crate::Error;
 use crate::constants::{
-    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U32_MASK, U8_MASK,
+    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U8_MASK, U32_MASK,
     UNSIGN_MASK,
 };
 use crate::ops;
-use crate::Error;
 use core::{
     cmp::{Ordering::Equal, *},
     fmt,
@@ -119,9 +119,6 @@ impl From<UnpackedDecimal> for Decimal {
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(feature = "align16", repr(align(16)))]
-#[cfg_attr(
-    feature = "borsh",
-    derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
 )]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable))]
 #[cfg_attr(
@@ -131,6 +128,9 @@ impl From<UnpackedDecimal> for Decimal {
     archive_attr(derive(Clone, Copy, Debug))
 )]
 #[cfg_attr(feature = "rkyv-safe", archive(check_bytes))]
+// [`borsh::BorshDeserialize`] is implemented manually so that the result can be checked to be a
+// valid instance of [`Self`].
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshSchema))]
 #[cfg_attr(all(target_arch = "wasm32", feature = "wasm"), wasm_bindgen)]
 pub struct Decimal {
     // Bits 0-15: unused
@@ -145,8 +145,8 @@ pub struct Decimal {
     mid: u32,
 }
 
-#[cfg(feature = "ndarray")]
-impl ndarray::ScalarOperand for Decimal {}
+#[cfg(feature = "ndarray-0_16")]
+impl ndarray_0_16::ScalarOperand for Decimal {}
 
 /// `RoundingStrategy` represents the different rounding strategies that can be used by
 /// `round_dp_with_strategy`.
@@ -171,24 +171,6 @@ pub enum RoundingStrategy {
     ToNegativeInfinity,
     /// The number is always rounded towards positive infinity. e.g. 6.8 -> 7, -6.8 -> -6
     ToPositiveInfinity,
-
-    /// When a number is halfway between two others, it is rounded toward the nearest even number.
-    /// e.g.
-    /// 6.5 -> 6, 7.5 -> 8
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointNearestEven instead")]
-    BankersRounding,
-    /// Rounds up if the value >= 5, otherwise rounds down, e.g. 6.5 -> 7
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointAwayFromZero instead")]
-    RoundHalfUp,
-    /// Rounds down if the value =< 5, otherwise rounds up, e.g. 6.5 -> 6, 6.51 -> 7 1.4999999 -> 1
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::MidpointTowardZero instead")]
-    RoundHalfDown,
-    /// Always round down.
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::ToZero instead")]
-    RoundDown,
-    /// Always round up.
-    #[deprecated(since = "1.11.0", note = "Please use RoundingStrategy::AwayFromZero instead")]
-    RoundUp,
 }
 
 #[allow(dead_code)]
@@ -426,7 +408,7 @@ impl Decimal {
     #[must_use]
     pub fn new(num: i64, scale: u32) -> Decimal {
         match Self::try_new(num, scale) {
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{e}"),
             Ok(d) => d,
         }
     }
@@ -487,7 +469,7 @@ impl Decimal {
     pub fn from_i128_with_scale(num: i128, scale: u32) -> Decimal {
         match Self::try_from_i128_with_scale(num, scale) {
             Ok(d) => d,
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{e}"),
         }
     }
 
@@ -585,7 +567,8 @@ impl Decimal {
     }
 
     /// Returns a `Result` which if successful contains the `Decimal` constitution of
-    /// the scientific notation provided by `value`.
+    /// the scientific notation provided by `value`. If the value underflows and cannot
+    /// be represented with the given scale then this will return an error.
     ///
     /// # Arguments
     ///
@@ -597,30 +580,28 @@ impl Decimal {
     /// # use rust_decimal::Decimal;
     /// #
     /// # fn main() -> Result<(), rust_decimal::Error> {
-    /// let value = Decimal::from_scientific("9.7e-7")?;
+    /// let value = Decimal::from_scientific_exact("9.7e-7")?;
     /// assert_eq!(value.to_string(), "0.00000097");
     /// #     Ok(())
     /// # }
     /// ```
-    pub fn from_scientific(value: &str) -> Result<Decimal, Error> {
-        const ERROR_MESSAGE: &str = "Failed to parse";
-
+    pub fn from_scientific_exact(value: &str) -> crate::Result<Decimal> {
         let mut split = value.splitn(2, ['e', 'E']);
 
-        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
-        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let base = split.next().ok_or(crate::Error::ScientificBaseNotFound)?;
+        let exp = split.next().ok_or(crate::Error::ScientificExpNotFound)?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = stripped.parse().map_err(|_err| crate::Error::ScientificExpNotFound)?;
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
             ret.set_scale(current_scale + exp)?;
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = exp.parse().map_err(|_err| crate::Error::ScientificExpNotFound)?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -694,18 +675,16 @@ impl Decimal {
     /// # }
     /// ```
     pub fn from_scientific_lossy(value: &str) -> Result<Decimal, Error> {
-        const ERROR_MESSAGE: &str = "Failed to parse";
-
         let mut split = value.splitn(2, ['e', 'E']);
 
-        let base = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
-        let exp = split.next().ok_or_else(|| Error::from(ERROR_MESSAGE))?;
+        let base = split.next().ok_or(Error::ScientificBaseNotFound)?;
+        let exp = split.next().ok_or(Error::ScientificExpNotFound)?;
 
         let mut ret = Decimal::from_str(base)?;
         let current_scale = ret.scale();
 
         if let Some(stripped) = exp.strip_prefix('-') {
-            let exp: u32 = stripped.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = stripped.parse().map_err(|_| Error::ScientificExpNotFound)?;
             if exp > Self::MAX_SCALE {
                 return Err(Error::ScaleExceedsMaximumPrecision(exp));
             }
@@ -716,7 +695,7 @@ impl Decimal {
                 ret.set_scale(current_scale + exp)?;
             }
         } else {
-            let exp: u32 = exp.parse().map_err(|_| Error::from(ERROR_MESSAGE))?;
+            let exp: u32 = exp.parse().map_err(|_| Error::ScientificExpNotFound)?;
             if exp <= current_scale {
                 ret.set_scale(current_scale - exp)?;
             } else if exp > 0 {
@@ -861,11 +840,7 @@ impl Decimal {
     #[must_use]
     pub const fn mantissa(&self) -> i128 {
         let raw = (self.lo as i128) | ((self.mid as i128) << 32) | ((self.hi as i128) << 64);
-        if self.is_sign_negative() {
-            -raw
-        } else {
-            raw
-        }
+        if self.is_sign_negative() { -raw } else { raw }
     }
 
     /// Returns true if this Decimal number is equivalent to zero.
@@ -879,6 +854,7 @@ impl Decimal {
     /// assert!(num.is_zero());
     /// ```
     #[must_use]
+    #[inline]
     pub const fn is_zero(&self) -> bool {
         self.lo | self.mid | self.hi == 0
     }
@@ -935,31 +911,11 @@ impl Decimal {
     /// # use rust_decimal::Decimal;
     /// #
     /// let mut one = Decimal::ONE;
-    /// one.set_sign(false);
-    /// assert_eq!(one.to_string(), "-1");
-    /// ```
-    #[deprecated(since = "1.4.0", note = "please use `set_sign_positive` instead")]
-    pub fn set_sign(&mut self, positive: bool) {
-        self.set_sign_positive(positive);
-    }
-
-    /// An optimized method for changing the sign of a decimal number.
-    ///
-    /// # Arguments
-    ///
-    /// * `positive`: true if the resulting decimal should be positive.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use rust_decimal::Decimal;
-    /// #
-    /// let mut one = Decimal::ONE;
     /// one.set_sign_positive(false);
     /// assert_eq!(one.to_string(), "-1");
     /// ```
     #[inline(always)]
-    pub fn set_sign_positive(&mut self, positive: bool) {
+    pub const fn set_sign_positive(&mut self, positive: bool) {
         if positive {
             self.flags &= UNSIGN_MASK;
         } else {
@@ -983,7 +939,7 @@ impl Decimal {
     /// assert_eq!(one.to_string(), "-1");
     /// ```
     #[inline(always)]
-    pub fn set_sign_negative(&mut self, negative: bool) {
+    pub const fn set_sign_negative(&mut self, negative: bool) {
         self.set_sign_positive(!negative);
     }
 
@@ -1005,7 +961,7 @@ impl Decimal {
     /// #    Ok(())
     /// # }
     /// ```
-    pub fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
+    pub const fn set_scale(&mut self, scale: u32) -> Result<(), Error> {
         if scale > Self::MAX_SCALE {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
@@ -1142,20 +1098,6 @@ impl Decimal {
         raw
     }
 
-    /// Returns `true` if the decimal is negative.
-    #[deprecated(since = "0.6.3", note = "please use `is_sign_negative` instead")]
-    #[must_use]
-    pub fn is_negative(&self) -> bool {
-        self.is_sign_negative()
-    }
-
-    /// Returns `true` if the decimal is positive.
-    #[deprecated(since = "0.6.3", note = "please use `is_sign_positive` instead")]
-    #[must_use]
-    pub fn is_positive(&self) -> bool {
-        self.is_sign_positive()
-    }
-
     /// Returns `true` if the sign bit of the decimal is negative.
     ///
     /// # Example
@@ -1184,20 +1126,6 @@ impl Decimal {
     #[must_use]
     pub const fn is_sign_positive(&self) -> bool {
         self.flags & SIGN_MASK == 0
-    }
-
-    /// Returns the minimum possible number that `Decimal` can represent.
-    #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MIN")]
-    #[must_use]
-    pub const fn min_value() -> Decimal {
-        MIN
-    }
-
-    /// Returns the maximum possible number that `Decimal` can represent.
-    #[deprecated(since = "1.12.0", note = "Use the associated constant Decimal::MAX")]
-    #[must_use]
-    pub const fn max_value() -> Decimal {
-        MAX
     }
 
     /// Returns a new `Decimal` integral with no fractional portion.
@@ -1288,7 +1216,7 @@ impl Decimal {
     /// assert_eq!(num.abs().to_string(), "3.141");
     /// ```
     #[must_use]
-    pub fn abs(&self) -> Decimal {
+    pub const fn abs(&self) -> Decimal {
         let mut me = *self;
         me.set_sign_positive(true);
         me
@@ -1360,11 +1288,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn max(self, other: Decimal) -> Decimal {
-        if self < other {
-            other
-        } else {
-            self
-        }
+        if self < other { other } else { self }
     }
 
     /// Returns the minimum of the two numbers.
@@ -1378,11 +1302,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn min(self, other: Decimal) -> Decimal {
-        if self > other {
-            other
-        } else {
-            self
-        }
+        if self > other { other } else { self }
     }
 
     /// Strips any trailing zero's from a `Decimal` and converts -0 to 0.
@@ -1562,9 +1482,8 @@ impl Decimal {
         }
         let order = ops::array::cmp_internal(&decimal_portion, &cap);
 
-        #[allow(deprecated)]
         match strategy {
-            RoundingStrategy::BankersRounding | RoundingStrategy::MidpointNearestEven => {
+            RoundingStrategy::MidpointNearestEven => {
                 match order {
                     Ordering::Equal if (value[0] & 1) == 1 => {
                         ops::array::add_one_internal(&mut value);
@@ -1576,12 +1495,12 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundHalfDown | RoundingStrategy::MidpointTowardZero => {
+            RoundingStrategy::MidpointTowardZero => {
                 if let Ordering::Greater = order {
                     ops::array::add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundHalfUp | RoundingStrategy::MidpointAwayFromZero => {
+            RoundingStrategy::MidpointAwayFromZero => {
                 // when Ordering::Equal, decimal_portion is 0.5 exactly
                 // when Ordering::Greater, decimal_portion is > 0.5
                 match order {
@@ -1595,7 +1514,7 @@ impl Decimal {
                     _ => {}
                 }
             }
-            RoundingStrategy::RoundUp | RoundingStrategy::AwayFromZero => {
+            RoundingStrategy::AwayFromZero => {
                 if !ops::array::is_all_zero(&decimal_portion) {
                     ops::array::add_one_internal(&mut value);
                 }
@@ -1610,7 +1529,7 @@ impl Decimal {
                     ops::array::add_one_internal(&mut value);
                 }
             }
-            RoundingStrategy::RoundDown | RoundingStrategy::ToZero => (),
+            RoundingStrategy::ToZero => (),
         }
 
         Decimal::from_parts(value[0], value[1], value[2], negative, dp)
@@ -1951,7 +1870,7 @@ macro_rules! impl_try_from_decimal {
 
             #[inline]
             fn try_from(t: Decimal) -> Result<Self, Error> {
-                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto).into()))
+                $conversion_fn(&t).ok_or_else(|| Error::ConversionTo(stringify!($TInto)))
             }
         }
     };
@@ -1993,8 +1912,8 @@ macro_rules! impl_try_from_primitive {
     };
 }
 
-impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal".into()));
-impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal".into()));
+impl_try_from_primitive!(f32, Self::from_f32, Error::ConversionTo("Decimal"));
+impl_try_from_primitive!(f64, Self::from_f64, Error::ConversionTo("Decimal"));
 impl_try_from_primitive!(&str, core::str::FromStr::from_str);
 
 macro_rules! impl_from {
@@ -2047,11 +1966,7 @@ impl Signed for Decimal {
     }
 
     fn abs_sub(&self, other: &Self) -> Self {
-        if self <= other {
-            ZERO
-        } else {
-            self - other
-        }
+        if self <= other { ZERO } else { self - other }
     }
 
     fn signum(&self) -> Self {
@@ -2515,11 +2430,7 @@ impl ToPrimitive for Decimal {
         }
 
         let raw: i64 = (i64::from(d.mid) << 32) | i64::from(d.lo);
-        if negative {
-            Some(raw.neg())
-        } else {
-            Some(raw)
-        }
+        if negative { Some(raw.neg()) } else { Some(raw) }
     }
 
     fn to_i128(&self) -> Option<i128> {
@@ -2558,7 +2469,16 @@ impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let (rep, additional) = crate::str::to_str_internal(self, false, f.precision());
         if let Some(additional) = additional {
-            let value = [rep.as_str(), "0".repeat(additional).as_str()].concat();
+            // Use a stack buffer to avoid heap allocation.
+            // Decimal has a max scale of 28 and max 96-bit integer (29 digits), so the
+            // representation is at most ~32 chars + 28 zeros = 60 bytes. 64 is sufficient.
+            let mut value = arrayvec::ArrayString::<64>::new();
+            let _ = value.try_push_str(rep.as_str());
+            for _ in 0..additional {
+                if value.try_push('0').is_err() {
+                    break;
+                }
+            }
             f.pad_integral(self.is_sign_positive(), "", value.as_str())
         } else {
             f.pad_integral(self.is_sign_positive(), "", rep.as_str())
@@ -2572,12 +2492,14 @@ impl fmt::Debug for Decimal {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::LowerExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "e", f)
     }
 }
 
+#[cfg(feature = "alloc")]
 impl fmt::UpperExp for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         crate::str::fmt_scientific_notation(self, "E", f)
@@ -2825,9 +2747,16 @@ impl<'a> Sum<&'a Decimal> for Decimal {
 mod tests {
     use super::*;
 
+    // Ensures that `Error` is allowed in constant environments
+    const _ERROR_ENUM_IS_CONST: Decimal = if let Ok(elem) = Decimal::try_new(0, 0) {
+        elem
+    } else {
+        panic!()
+    };
+
     #[test]
     fn from_scientific_0e0() {
-        let dec = Decimal::from_scientific("0e0").unwrap();
+        let dec = Decimal::from_scientific_exact("0e0").unwrap();
         assert_eq!(dec, Decimal::ZERO);
     }
 }
