@@ -52,6 +52,7 @@ futures = { default-features = false, version = "0.3" }
 postgres = { default-features = false, version = "0.19" }
 rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
 rand-0_10 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.10" }
+rkyv-0_8 = { version = "0.8", package = "rkyv" }
 rust_decimal_macros = { path = "macros" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"
