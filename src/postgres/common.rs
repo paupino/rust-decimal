@@ -90,7 +90,7 @@ impl Decimal {
                 neg: false,
                 weight: 0,
                 scale: 0,
-                digits: vec![0],
+                digits: vec![],
             };
         }
         let scale = self.scale() as u16;

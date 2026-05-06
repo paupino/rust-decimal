@@ -17,11 +17,14 @@ version = "2.0.0-alpha.0"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [dependencies]
 arbitrary = { default-features = false, optional = true, version = "1" }
 arrayvec = { default-features = false, version = "0.7" }
 borsh = { default-features = false, features = ["derive", "unstable__schema"], optional = true, version = "1" }
+bytemuck = { default-features = false, optional = true, version = "1.17.1" }
+bytemuck_derive = { default-features = false, optional = true, version = "1.7.1" }
 bytes = { default-features = false, optional = true, version = "1" }
 diesel = { default-features = false, optional = true, version = "2" }
 ndarray-0_16 = { default-features = false, optional = true, package = "ndarray", version = "0.16" }
@@ -36,25 +39,33 @@ serde = { default-features = false, optional = true, version = "1" }
 serde_json = { default-features = false, optional = true, version = "1" }
 zmij = { default-features = false, optional = true, version = "1" }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { default-features = false, version = "0.2", optional = true }
+
 [dev-dependencies]
-bincode = { default-features = false, version = "1" }
-bytes = { default-features = false, version = "1" }
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
-diesel = { default-features = false, features = ["mysql", "postgres"], version = "2" }
+rust_decimal_macros = { path = "macros" }
+serde = { default-features = false, features = ["derive"], version = "1.0" }
+serde_json = "1.0"
+version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen = { default-features = false, version = "0.2" }
+wasm-bindgen-test = { version = "0.3" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+bincode = { default-features = false, version = "1.0" }
+bytes = { default-features = false, version = "1.0" }
+diesel = { default-features = false, features = ["mysql", "postgres"], version = "2.2.3" }
 futures = { default-features = false, version = "0.3" }
 postgres = { default-features = false, version = "0.19" }
+rust_decimal = { path = ".", features = ["rand-0_9", "macros", "rocket-0_5-traits"] }
 rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
 rand-0_10 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.10" }
 rkyv-0_8 = { version = "0.8", package = "rkyv" }
-serde = { default-features = false, features = ["derive"], version = "1.0" }
-serde_json = "1.0"
-tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1" }
+tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
 tokio-postgres = { default-features = false, version = "0.7" }
-version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
-
-# Enable features for testing
-rust_decimal = { path = ".", features = ["rand-0_9", "macros", "rocket-0_5-traits"] }
 
 [features]
 default = ["alloc", "serde", "std"]
@@ -62,6 +73,7 @@ default = ["alloc", "serde", "std"]
 align16 = [] # Force Decimal to be repr(align16) - the same as u128
 alloc = []
 borsh = ["dep:borsh", "std"]
+bytemuck = ["c-repr", "dep:bytemuck", "dep:bytemuck_derive"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["diesel/mysql_backend", "std"]
 db-diesel-postgres = ["diesel/postgres_backend", "std"]
@@ -78,7 +90,7 @@ rand-0_9 = ["dep:rand-0_9"]
 rand-0_10 = ["dep:rand-0_10"]
 rocket-0_5-traits = ["dep:rocket", "std"]
 rust-fuzz = ["dep:arbitrary"]
-serde = ["dep:serde", "alloc"]
+serde = ["alloc", "dep:serde", "wasm-bindgen?/serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
 serde-bincode = ["serde-str"] # Backwards compatability
 serde-float = ["serde-with-float"]
@@ -86,8 +98,9 @@ serde-str = ["serde-with-str"]
 serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
 serde-with-float = ["serde"]
 serde-with-str = ["serde"]
-std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std"]
+std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std", "wasm-bindgen?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
+wasm = ["dep:wasm-bindgen"]
 
 [[bench]]
 harness = false

@@ -2,16 +2,65 @@ use crate::constants::{MAX_I32_SCALE, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_M
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf24, Dec64};
 
+#[inline(always)]
 pub(crate) fn add_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     add_sub_internal(d1, d2, false)
 }
 
+#[inline(always)]
 pub(crate) fn sub_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     add_sub_internal(d1, d2, true)
 }
 
-#[inline]
+#[inline(always)]
 fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationResult {
+    // Compute flags and effective subtract early
+    let flags = d1.flags() ^ d2.flags();
+    let effective_subtract = subtract ^ ((flags & SIGN_MASK) != 0);
+    let rescale = (flags & SCALE_MASK) > 0;
+
+    // Fast path: both operands fit in 32 bits (very common in fold operations)
+    if d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
+        let lo1 = d1.lo();
+        let lo2 = d2.lo();
+
+        // Handle zeros inline (cheaper: only check lo since mid|hi are already 0)
+        if lo1 == 0 {
+            let mut result = *d2;
+            // Use original subtract parameter for zero handling (not effective_subtract)
+            if subtract && lo2 != 0 {
+                result.set_sign_negative(d2.is_sign_positive());
+            }
+            return CalculationResult::Ok(result);
+        }
+        if lo2 == 0 {
+            return CalculationResult::Ok(*d1);
+        }
+
+        if rescale {
+            let rescale_factor = ((d2.flags() & SCALE_MASK) as i32 - (d1.flags() & SCALE_MASK) as i32) >> SCALE_SHIFT;
+            if rescale_factor < 0 {
+                // We try to rescale the rhs
+                if let Some(rescaled) = rescale32(lo2, -rescale_factor) {
+                    return fast_add(lo1, rescaled, d1.flags(), effective_subtract);
+                }
+            } else {
+                // We try to rescale the lhs
+                if let Some(rescaled) = rescale32(lo1, rescale_factor) {
+                    return fast_add(
+                        rescaled,
+                        lo2,
+                        (d2.flags() & SCALE_MASK) | (d1.flags() & SIGN_MASK),
+                        effective_subtract,
+                    );
+                }
+            }
+        } else {
+            return fast_add(lo1, lo2, d1.flags(), effective_subtract);
+        }
+    }
+
+    // Slower path: handle zero cases for > 32-bit operands
     if d1.is_zero() {
         // 0 - x or 0 + x
         let mut result = *d2;
@@ -25,42 +74,6 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
         return CalculationResult::Ok(*d1);
     }
 
-    // Work out whether we need to rescale and/or if it's a subtract still given the signs of the
-    // numbers.
-    let flags = d1.flags() ^ d2.flags();
-    let subtract = subtract ^ ((flags & SIGN_MASK) != 0);
-    let rescale = (flags & SCALE_MASK) > 0;
-
-    // We optimize towards using 32 bit logic as much as possible. It's noticeably faster at
-    // scale, even on 64 bit machines
-    if d1.mid() | d1.hi() == 0 && d2.mid() | d2.hi() == 0 {
-        // We'll try to rescale, however we may end up with 64 bit (or more) numbers
-        // If we do, we'll choose a different flow than fast_add
-        if rescale {
-            // This is less optimized if we scale to a 64 bit integer. We can add some further logic
-            // here later on.
-            let rescale_factor = ((d2.flags() & SCALE_MASK) as i32 - (d1.flags() & SCALE_MASK) as i32) >> SCALE_SHIFT;
-            if rescale_factor < 0 {
-                // We try to rescale the rhs
-                if let Some(rescaled) = rescale32(d2.lo(), -rescale_factor) {
-                    return fast_add(d1.lo(), rescaled, d1.flags(), subtract);
-                }
-            } else {
-                // We try to rescale the lhs
-                if let Some(rescaled) = rescale32(d1.lo(), rescale_factor) {
-                    return fast_add(
-                        rescaled,
-                        d2.lo(),
-                        (d2.flags() & SCALE_MASK) | (d1.flags() & SIGN_MASK),
-                        subtract,
-                    );
-                }
-            }
-        } else {
-            return fast_add(d1.lo(), d2.lo(), d1.flags(), subtract);
-        }
-    }
-
     // Continue on with the slower 64 bit method
     let d1 = Dec64::new(d1);
     let d2 = Dec64::new(d2);
@@ -69,18 +82,18 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
     if rescale {
         let rescale_factor = d2.scale as i32 - d1.scale as i32;
         if rescale_factor < 0 {
-            let negative = subtract ^ d1.negative;
+            let negative = effective_subtract ^ d1.negative;
             let scale = d1.scale;
-            unaligned_add(d2, d1, negative, scale, -rescale_factor, subtract)
+            unaligned_add(d2, d1, negative, scale, -rescale_factor, effective_subtract)
         } else {
             let negative = d1.negative;
             let scale = d2.scale;
-            unaligned_add(d1, d2, negative, scale, rescale_factor, subtract)
+            unaligned_add(d1, d2, negative, scale, rescale_factor, effective_subtract)
         }
     } else {
         let neg = d1.negative;
         let scale = d1.scale;
-        aligned_add(d1, d2, neg, scale, subtract)
+        aligned_add(d1, d2, neg, scale, effective_subtract)
     }
 }
 
@@ -92,6 +105,7 @@ fn rescale32(num: u32, rescale_factor: i32) -> Option<u32> {
     num.checked_mul(POWERS_10[rescale_factor as usize])
 }
 
+#[inline(always)]
 fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult {
     if subtract {
         // Sub can't overflow because we're ensuring the bigger number always subtracts the smaller number
@@ -101,11 +115,13 @@ fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult
         return CalculationResult::Ok(Decimal::from_parts_raw(lo1 - lo2, 0, 0, flags));
     }
     // Add can overflow however, so we check for that explicitly
+    // Both inputs are non-zero (checked earlier), so result is guaranteed non-zero
     let lo = lo1.wrapping_add(lo2);
     let mid = if lo < lo1 { 1 } else { 0 };
-    CalculationResult::Ok(Decimal::from_parts_raw(lo, mid, 0, flags))
+    CalculationResult::Ok(Decimal::from_parts_raw_unchecked(lo, mid, 0, flags))
 }
 
+#[inline(always)]
 fn aligned_add(lhs: Dec64, rhs: Dec64, negative: bool, scale: u32, subtract: bool) -> CalculationResult {
     if subtract {
         // Signs differ, so subtract

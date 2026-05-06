@@ -127,6 +127,7 @@ assert_eq!(total, dec!(27.26));
 
 * [alloc](#alloc)
 * [borsh](#borsh)
+* [bytemuck](#bytemuck)
 * [c-repr](#c-repr)
 * [macros](#macros)
 * [maths](#maths)
@@ -135,6 +136,7 @@ assert_eq!(total, dec!(27.26));
 * [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
 * [std](#std)
+* [wasm](#wasm)
 
 **Database**
 
@@ -167,6 +169,10 @@ Implied by `std`.
 ### `borsh`
 
 Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
+
+### `bytemuck`
+
+Enables [bytemuck](https://github.com/Lokathor/bytemuck) support by deriving `Pod` and `Zeroable` for `Decimal`. This also activates the `c-repr` feature since `Pod` requires `repr(C)`.
 
 ### `c-repr`
 
@@ -412,6 +418,13 @@ This crate supports three build configurations:
 | `no_std` + no allocator  | `--no-default-features`                      |
 
 The no-allocator configuration is suitable for bare-metal targets such as `x86_64-unknown-none`.
+
+### `wasm`
+
+Enable [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) support which makes `Decimal` compatible with the
+`wasm_bindgen` attribute macro and exposes the following methods across boundaries:
+* `fromNumber()` / `toNumber()` — convert between `Decimal` and the primitive `number` type.
+* `fromString()` / `toString()` — convert between `Decimal` and a string representation.
 
 ## Building
 
