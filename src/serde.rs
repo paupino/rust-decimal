@@ -565,6 +565,43 @@ impl serde::Serialize for Decimal {
     }
 }
 
+#[cfg(all(feature = "serde-json", not(feature = "serde-float")))]
+impl From<Decimal> for serde_json::Value {
+    fn from(decimal: Decimal) -> serde_json::Value {
+        let value = crate::str::to_str_internal(&decimal, true, None);
+        serde_json::Value::String(value.0.to_string())
+    }
+}
+
+#[cfg(all(
+    feature = "serde-json",
+    feature = "serde-float",
+    not(feature = "serde-arbitrary-precision")
+))]
+impl From<Decimal> for serde_json::Value {
+    fn from(decimal: Decimal) -> serde_json::Value {
+        use num_traits::ToPrimitive;
+        decimal
+            .to_f64()
+            .and_then(serde_json::Number::from_f64)
+            .map(serde_json::Value::Number)
+            .unwrap_or(serde_json::Value::Null)
+    }
+}
+
+#[cfg(all(
+    feature = "serde-json",
+    feature = "serde-float",
+    feature = "serde-arbitrary-precision"
+))]
+impl From<Decimal> for serde_json::Value {
+    fn from(decimal: Decimal) -> serde_json::Value {
+        serde_json::Number::from_str(&decimal.to_string())
+            .map(serde_json::Value::Number)
+            .unwrap_or_else(|_| serde_json::Value::String(decimal.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -971,5 +1008,40 @@ mod test {
         let deserialized: StringExample = serde_json::from_str(r#"{"value":null}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
         assert!(deserialized.value.is_none());
+    }
+
+    #[test]
+    #[cfg(all(feature = "serde-json", not(feature = "serde-float")))]
+    fn into_value_matches_to_value_string() {
+        let d = Decimal::from_str("1.234").unwrap();
+        assert_eq!(serde_json::Value::from(d), serde_json::to_value(&d).unwrap());
+        assert_eq!(
+            serde_json::Value::from(d),
+            serde_json::Value::String("1.234".to_owned())
+        );
+    }
+
+    #[test]
+    #[cfg(all(
+        feature = "serde-json",
+        feature = "serde-float",
+        not(feature = "serde-arbitrary-precision")
+    ))]
+    fn into_value_matches_to_value_float() {
+        let d = Decimal::from_str("1.5").unwrap();
+        assert_eq!(serde_json::Value::from(d), serde_json::to_value(&d).unwrap());
+    }
+
+    #[test]
+    #[cfg(all(
+        feature = "serde-json",
+        feature = "serde-float",
+        feature = "serde-arbitrary-precision"
+    ))]
+    fn into_value_matches_to_value_arbitrary_precision() {
+        // 4.81 is unrepresentable as f64; arbitrary-precision must preserve it exactly.
+        let d = Decimal::new(481, 2);
+        assert_eq!(serde_json::Value::from(d), serde_json::to_value(&d).unwrap());
+        assert_eq!(serde_json::Value::from(d).to_string(), "4.81");
     }
 }
