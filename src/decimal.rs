@@ -20,7 +20,7 @@ use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Numer
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
-use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
+use num_traits::{Bounded, ConstOne, ConstZero, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 #[cfg(feature = "rkyv")]
 use rkyv::{Archive, Deserialize, Serialize};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
@@ -2041,6 +2041,14 @@ impl One for Decimal {
     }
 }
 
+impl ConstZero for Decimal {
+    const ZERO: Self = Decimal::ZERO;
+}
+
+impl ConstOne for Decimal {
+    const ONE: Self = Decimal::ONE;
+}
+
 impl Signed for Decimal {
     fn abs(&self) -> Self {
         self.abs()
@@ -2080,6 +2088,22 @@ impl Num for Decimal {
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         Decimal::from_str_radix(str, radix)
+    }
+}
+
+impl Bounded for Decimal {
+    fn min_value() -> Self {
+        Decimal::MIN
+    }
+
+    fn max_value() -> Self {
+        Decimal::MAX
+    }
+}
+
+impl num_traits::NumCast for Decimal {
+    fn from<T: ToPrimitive>(n: T) -> Option<Self> {
+        n.to_f64().and_then(<Decimal as FromPrimitive>::from_f64)
     }
 }
 

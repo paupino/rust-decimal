@@ -4882,3 +4882,101 @@ mod issues {
         assert_result(29, a, b);
     }
 }
+
+mod num_traits_impls {
+    use core::str::FromStr;
+    use num_traits::{Bounded, ConstOne, ConstZero, NumCast, SaturatingAdd, SaturatingMul, SaturatingSub};
+    use rust_decimal::Decimal;
+
+    #[test]
+    fn bounded_min_max() {
+        assert_eq!(<Decimal as Bounded>::min_value(), Decimal::MIN);
+        assert_eq!(<Decimal as Bounded>::max_value(), Decimal::MAX);
+    }
+
+    #[test]
+    fn const_zero_and_one_usable_in_const_context() {
+        const Z: Decimal = <Decimal as ConstZero>::ZERO;
+        const O: Decimal = <Decimal as ConstOne>::ONE;
+        assert_eq!(Z, Decimal::ZERO);
+        assert_eq!(O, Decimal::ONE);
+    }
+
+    #[test]
+    fn bounded_in_prelude() {
+        use rust_decimal::prelude::*;
+        let _: Decimal = Bounded::min_value();
+        let _: Decimal = Bounded::max_value();
+    }
+
+    #[test]
+    fn num_cast_from_integers() {
+        assert_eq!(<Decimal as NumCast>::from(0i8), Some(Decimal::ZERO));
+        assert_eq!(<Decimal as NumCast>::from(-1i8), Some(Decimal::NEGATIVE_ONE));
+        assert_eq!(<Decimal as NumCast>::from(1i32), Some(Decimal::ONE));
+        assert_eq!(<Decimal as NumCast>::from(42u64), Decimal::from_str("42").ok());
+        assert_eq!(<Decimal as NumCast>::from(100i128), Decimal::from_str("100").ok());
+    }
+
+    #[test]
+    fn num_cast_from_floats() {
+        assert_eq!(<Decimal as NumCast>::from(0.0f32), Some(Decimal::ZERO));
+        assert_eq!(<Decimal as NumCast>::from(1.5f64), Decimal::from_str("1.5").ok());
+        assert_eq!(<Decimal as NumCast>::from(-2.25f64), Decimal::from_str("-2.25").ok());
+    }
+
+    #[test]
+    fn num_cast_rejects_non_finite_and_out_of_range() {
+        assert_eq!(<Decimal as NumCast>::from(f64::NAN), None);
+        assert_eq!(<Decimal as NumCast>::from(f64::INFINITY), None);
+        assert_eq!(<Decimal as NumCast>::from(f64::NEG_INFINITY), None);
+        // Decimal::MAX is ~7.9e28; 1e30 sits above it.
+        assert_eq!(<Decimal as NumCast>::from(1.0e30f64), None);
+        assert_eq!(<Decimal as NumCast>::from(-1.0e30f64), None);
+    }
+
+    #[test]
+    fn saturating_add_normal_and_overflow() {
+        let a = Decimal::from_str("1.5").unwrap();
+        let b = Decimal::from_str("2.5").unwrap();
+        assert_eq!(SaturatingAdd::saturating_add(&a, &b), Decimal::from_str("4.0").unwrap());
+        assert_eq!(
+            SaturatingAdd::saturating_add(&Decimal::MAX, &Decimal::ONE),
+            Decimal::MAX
+        );
+        assert_eq!(
+            SaturatingAdd::saturating_add(&Decimal::MIN, &Decimal::NEGATIVE_ONE),
+            Decimal::MIN
+        );
+    }
+
+    #[test]
+    fn saturating_sub_normal_and_overflow() {
+        let a = Decimal::from_str("5").unwrap();
+        let b = Decimal::from_str("2").unwrap();
+        assert_eq!(SaturatingSub::saturating_sub(&a, &b), Decimal::from_str("3").unwrap());
+        assert_eq!(
+            SaturatingSub::saturating_sub(&Decimal::MIN, &Decimal::ONE),
+            Decimal::MIN
+        );
+        assert_eq!(
+            SaturatingSub::saturating_sub(&Decimal::MAX, &Decimal::NEGATIVE_ONE),
+            Decimal::MAX
+        );
+    }
+
+    #[test]
+    fn saturating_mul_normal_and_overflow() {
+        let a = Decimal::from_str("3").unwrap();
+        let b = Decimal::from_str("4").unwrap();
+        assert_eq!(SaturatingMul::saturating_mul(&a, &b), Decimal::from_str("12").unwrap());
+        assert_eq!(
+            SaturatingMul::saturating_mul(&Decimal::MAX, &Decimal::TWO),
+            Decimal::MAX
+        );
+        assert_eq!(
+            SaturatingMul::saturating_mul(&Decimal::MIN, &Decimal::TWO),
+            Decimal::MIN
+        );
+    }
+}

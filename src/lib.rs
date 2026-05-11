@@ -72,7 +72,7 @@ pub mod prelude {
     pub use crate::maths::MathematicalOps;
     pub use crate::{Decimal, RoundingStrategy};
     pub use core::str::FromStr;
-    pub use num_traits::{FromPrimitive, One, Signed, ToPrimitive, Zero};
+    pub use num_traits::{Bounded, FromPrimitive, One, Signed, ToPrimitive, Zero};
 }
 
 #[cfg(feature = "macros")]
