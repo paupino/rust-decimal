@@ -2103,7 +2103,20 @@ impl Bounded for Decimal {
 
 impl num_traits::NumCast for Decimal {
     fn from<T: ToPrimitive>(n: T) -> Option<Self> {
-        n.to_f64().and_then(<Decimal as FromPrimitive>::from_f64)
+        // f64 can only exactly represent integers up to 2^53, and Decimal::MAX
+        // exceeds f64's integer range, so funneling everything through to_f64
+        // loses precision for large integer inputs. When the source is
+        // integer-valued, prefer the wide-integer path so values like
+        // 9_007_199_254_740_993u64 or i128 values near Decimal::MAX round-trip.
+        let f = n.to_f64()?;
+        if f.is_finite() && f.fract() == 0.0 {
+            if let Some(i) = n.to_i128() {
+                return Decimal::from_i128(i);
+            }
+            // we don't need to check n.to_u128() because no value in the interval
+            // (i128::MAX, u128::MAX] is representable by Decimal.
+        }
+        Decimal::from_f64(f)
     }
 }
 

@@ -47,6 +47,7 @@ wasm-bindgen = { default-features = false, version = "0.2", optional = true }
 [dev-dependencies]
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
+proptest = { default-features = false, features = ["std"], version = "1.0" }
 rust_decimal_macros = { path = "macros" }
 serde = { default-features = false, features = ["derive"], version = "1.0" }
 serde_json = "1.0"
