@@ -107,6 +107,46 @@ harness = false
 name = "comparison"
 path = "benches/comparison.rs"
 
+[[test]]
+name = "borsh_tests"
+path = "tests/borsh_tests.rs"
+required-features = ["borsh"]
+
+[[test]]
+name = "generated"
+path = "tests/generated.rs"
+test = false
+
+[[test]]
+name = "ndarray_tests"
+path = "tests/ndarray_tests.rs"
+required-features = ["ndarray-0_16"]
+
+[[test]]
+name = "postgres_tests"
+path = "tests/postgres_tests.rs"
+required-features = ["db-postgres"]
+
+[[test]]
+name = "proptest_tests"
+path = "tests/proptest_tests.rs"
+required-features = ["proptest"]
+
+[[test]]
+name = "rocket_tests"
+path = "tests/rocket_tests.rs"
+required-features = ["rocket-0_5-traits"]
+
+[[test]]
+name = "rust_fuzz_tests"
+path = "tests/rust_fuzz_tests.rs"
+required-features = ["rust-fuzz"]
+
+[[test]]
+name = "serde_tests"
+path = "tests/serde_tests.rs"
+required-features = ["serde"]
+
 [[example]]
 name = "rkyv-remote"
 required-features = ["macros"]
