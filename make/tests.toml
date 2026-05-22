@@ -37,5 +37,11 @@ dependencies = [
     "test-misc",
     "test-db",
     "test-serde",
-    "test-macros"
+    "test-macros",
+    "test-generated",
 ]
+
+[tasks.test-generated]
+description = "Run the CSV-driven generated tests (opted out of test-default)"
+command = "cargo"
+args = ["test", "--workspace", "--test", "generated"]

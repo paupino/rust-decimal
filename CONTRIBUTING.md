@@ -40,7 +40,12 @@ rand-0_9 = ["dep:rand-0_9"]
   comment.
 
 - Add tests relevant to the fixed bug or new feature. If your addition is feature gated,
-  please make sure the tests are run by the makefile and if necessary, GitHub actions.
+  please make sure the tests are run by the makefile and if necessary, GitHub actions. New
+  tests for the main `Decimal` type go in the appropriate topical file under
+  `tests/decimal_tests/` (`parsing.rs`, `formatting.rs`, `arithmetic.rs`, `comparison.rs`,
+  `rounding.rs`, `scale.rs`, `conversions.rs`, `maths.rs`, `misc.rs`, or `issues.rs`).
+  Tests for feature-gated integrations go in the matching standalone binary
+  (`tests/<feature>_tests.rs`).
 
 - If necessary, add documentation for the new feature to the readme and/or to the public 
   functions. 

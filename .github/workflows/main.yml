@@ -160,6 +160,9 @@ jobs:
       - name: Run mathematical function tests
         run: cargo make test-maths
 
+      - name: Run generated tests
+        run: cargo make test-generated
+
       - name: Run macro tests
         run: cargo make test-macros
 

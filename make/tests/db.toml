@@ -18,7 +18,7 @@ alias = "clean"
 [tasks.test-db-postgres]
 dependencies = ["clean-db-postgres"]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-postgres", "postgres", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=db-postgres", "--lib", "--test", "postgres_tests"]
 
 [tasks.clean-db-tokio-postgres]
 alias = "clean"
@@ -26,7 +26,7 @@ alias = "clean"
 [tasks.test-db-tokio-postgres]
 dependencies = ["clean-db-tokio-postgres"]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-tokio-postgres", "postgres", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=db-tokio-postgres,db-postgres", "--lib", "--test", "postgres_tests"]
 
 [tasks.test-db-mysql-all]
 dependencies = [
@@ -45,7 +45,7 @@ alias = "clean"
 [tasks.test-db-diesel-mysql]
 dependencies = ["clean-db-diesel-mysql"]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-diesel-mysql", "mysql", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=db-diesel-mysql", "mysql"]
 
 [tasks.clean-db-diesel-postgres]
 alias = "clean"
@@ -53,4 +53,4 @@ alias = "clean"
 [tasks.test-db-diesel-postgres]
 dependencies = ["clean-db-diesel-postgres"]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres", "postgres", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--tests", "--features=db-diesel-postgres", "postgres"]

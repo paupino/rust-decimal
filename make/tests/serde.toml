@@ -12,32 +12,32 @@ dependencies = [
 
 [tasks.test-serde-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-float", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-float", "--lib", "--test", "serde_tests"]
 
 [tasks.test-serde-str]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-str", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-str", "--lib", "--test", "serde_tests"]
 
 [tasks.test-serde-str-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-str,serde-float", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-str,serde-float", "--lib", "--test", "serde_tests"]
 
 [tasks.test-serde-arbitrary-precision]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-arbitrary-precision", "--lib", "--test", "serde_tests"]
 
 [tasks.test-serde-arbitrary-precision-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-arbitrary-precision,serde-float", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-arbitrary-precision,serde-float", "--lib", "--test", "serde_tests"]
 
 [tasks.test-serde-with-arbitrary-precision]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-with-arbitrary-precision", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-with-arbitrary-precision", "--lib", "--test", "serde_tests"]
 
 [tasks.test-serde-with-float]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-with-float", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-with-float", "--lib", "--test", "serde_tests"]
 
 [tasks.test-serde-with-str]
 command = "cargo"
-args = ["test", "--workspace", "--tests", "--features=serde-with-str", "serde", "--", "--skip", "generated"]
+args = ["test", "--workspace", "--features=serde-with-str", "--lib", "--test", "serde_tests"]

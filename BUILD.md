@@ -68,7 +68,7 @@ a PR.
 ## Testing
 
 **Useful Make Commands:** `makers test-all`, `makers test-no-std`, `makers test-maths`, `makers test-serde`,
-`makers test-db`
+`makers test-db`, `makers test-generated`
 
 Testing is a critical part of the Rust Decimal development lifecycle. It helps ensure that the library is behaving
 correctly under
@@ -94,7 +94,16 @@ coverage of your feature going forward.
 Rust Decimal includes a number of generated tests that have been generated outside the scope of this project. These are
 effectively CSV files that use randomized data for the `lo`, `mid` and `hi` portions of the Decimal number.
 
-Modification of these files is restricted and should not be committed. If you would like to add further generated tests
+These tests live in their own integration binary (`tests/generated.rs`) and are **not** part of the default test run — they
+are opted out via `test = false` in `Cargo.toml`. Run them explicitly with:
+
+```shell
+makers test-generated
+```
+
+The `makers test-all` and `makers ci` targets include the generated tests automatically.
+
+Modification of the CSV files in `tests/generated/` is restricted and should not be committed. If you would like to add further generated tests
 then
 please create new files as you see fit.
 

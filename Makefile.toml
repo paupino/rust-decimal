@@ -35,9 +35,9 @@ description = "Run all local tests (mirrors CI standard_tests + dependency_tests
 dependencies = [
     "test-no-std",
     "test-default",
-    "test-legacy-ops",
     "test-maths",
     "test-macros",
     "test-serde",
     "test-misc",
+    "test-generated",
 ]
