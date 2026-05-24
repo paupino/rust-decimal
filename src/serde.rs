@@ -921,6 +921,28 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "serde-with-str")]
+    fn with_str_tagged_enum_optional() {
+        #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+        #[serde(tag = "kind", rename_all = "snake_case")]
+        pub enum TaggedEnumExample {
+            Example {
+                #[serde(with = "rust_decimal::serde::str_option")]
+                value: Option<Decimal>,
+            },
+        }
+
+        let original = TaggedEnumExample::Example { value: None };
+        let expected = r#"{"kind":"example","value":null}"#;
+
+        let serialized = serde_json::to_string(&original).unwrap();
+        assert_eq!(serialized, expected);
+
+        let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, original);
+    }
+
+    #[test]
     #[cfg(feature = "serde-with-float")]
     fn with_float_optional() {
         #[derive(Serialize, Deserialize)]
@@ -943,6 +965,28 @@ mod test {
         let deserialized: StringExample = serde_json::from_str(r#"{"value":null}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
         assert!(deserialized.value.is_none());
+    }
+
+    #[test]
+    #[cfg(feature = "serde-with-float")]
+    fn with_float_tagged_enum_optional() {
+        #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+        #[serde(tag = "kind", rename_all = "snake_case")]
+        pub enum TaggedEnumExample {
+            Example {
+                #[serde(with = "rust_decimal::serde::float_option")]
+                value: Option<Decimal>,
+            },
+        }
+
+        let original = TaggedEnumExample::Example { value: None };
+        let expected = r#"{"kind":"example","value":null}"#;
+
+        let serialized = serde_json::to_string(&original).unwrap();
+        assert_eq!(serialized, expected);
+
+        let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, original);
     }
 
     #[test]
@@ -969,5 +1013,27 @@ mod test {
         let deserialized: StringExample = serde_json::from_str(r#"{"value":null}"#).unwrap();
         assert_eq!(deserialized.value, original.value);
         assert!(deserialized.value.is_none());
+    }
+
+    #[test]
+    #[cfg(feature = "serde-with-arbitrary-precision")]
+    fn with_arbitrary_precision_tagged_enum_optional() {
+        #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+        #[serde(tag = "kind", rename_all = "snake_case")]
+        pub enum TaggedEnumExample {
+            Example {
+                #[serde(with = "rust_decimal::serde::arbitrary_precision_option")]
+                value: Option<Decimal>,
+            },
+        }
+
+        let original = TaggedEnumExample::Example { value: None };
+        let expected = r#"{"kind":"example","value":null}"#;
+
+        let serialized = serde_json::to_string(&original).unwrap();
+        assert_eq!(serialized, expected);
+
+        let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(deserialized, original);
     }
 }
