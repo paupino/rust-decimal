@@ -401,6 +401,13 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
         Ok(None)
     }
 
+    fn visit_unit<E>(self) -> Result<Option<Decimal>, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(None)
+    }
+
     #[cfg(all(feature = "serde-str", feature = "serde-float"))]
     fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
     where
@@ -431,6 +438,13 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
     }
 
     fn visit_none<E>(self) -> Result<Option<Decimal>, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(None)
+    }
+
+    fn visit_unit<E>(self) -> Result<Option<Decimal>, E>
     where
         E: serde::de::Error,
     {
