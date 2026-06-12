@@ -151,7 +151,7 @@ const fn to_decimal<'src>(is_positive: bool, mut num: i128, mut exp: i32) -> Par
                     ExceedsMaximumPossibleValue
                 } else {
                     LessThanMinimumPossibleValue
-                })
+                });
             }
         }
         exp = 0;

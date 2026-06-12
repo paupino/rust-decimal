@@ -169,6 +169,9 @@ mod test {
             scale: 0,
             digits: std::iter::once(1u16),
         });
-        assert!(result.is_none(), "expected None for value exceeding Decimal::MAX, got {result:?}");
+        assert!(
+            result.is_none(),
+            "expected None for value exceeding Decimal::MAX, got {result:?}"
+        );
     }
 }

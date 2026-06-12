@@ -829,8 +829,14 @@ pub(crate) fn ln_wide(value: &Decimal) -> Option<Decimal> {
 
     // ln(value) = k*ln(10) + count + ln(x)
     let ln_fractional = ln_x.to_decimal()?;
-    let k_ln10 = if k != 0 { Decimal::new(k as i64, 0).checked_mul(LN10)? } else { Decimal::ZERO };
-    let mut out = k_ln10.checked_add(Decimal::new(count as i64, 0))?.checked_add(ln_fractional)?;
+    let k_ln10 = if k != 0 {
+        Decimal::new(k as i64, 0).checked_mul(LN10)?
+    } else {
+        Decimal::ZERO
+    };
+    let mut out = k_ln10
+        .checked_add(Decimal::new(count as i64, 0))?
+        .checked_add(ln_fractional)?;
     out.normalize_assign();
     Some(out)
 }
