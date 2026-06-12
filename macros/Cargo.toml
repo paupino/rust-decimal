@@ -1,8 +1,9 @@
 [package]
 name = "rust_decimal_macros"
-version = "1.40.0"
+version = "2.0.0-alpha.0"
 authors = ["Paul Mason <paul@form1.co.nz>"]
-edition = "2021"
+edition = "2024"
+rust-version = "1.85.0"
 description = "Shorthand macros to assist creating Decimal types."
 documentation = "https://docs.rs/rust_decimal/"
 repository = "https://github.com/paupino/rust-decimal"
