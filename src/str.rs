@@ -284,7 +284,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
         let next = *next;
         if POINT && BIG && scale >= 28 {
             if ROUND {
-                maybe_round(data64 as u128, next, scale, POINT, NEG)
+                maybe_round(data64 as u128, next, bytes, scale, POINT, NEG)
             } else {
                 Err(Error::Underflow)
             }
@@ -349,7 +349,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                 }
 
                 if ROUND {
-                    maybe_round(data, next_byte, scale, POINT, NEG)
+                    maybe_round(data, next_byte, bytes, scale, POINT, NEG)
                 } else {
                     Err(Error::Underflow)
                 }
@@ -365,9 +365,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                                 // Skip consecutive underscores to find the next actual character
                                 let mut remaining_bytes = bytes;
                                 let mut next_char = None;
+                                let mut after_char: &[u8] = &[];
                                 while let Some((n, rest)) = remaining_bytes.split_first() {
                                     if *n != b'_' {
                                         next_char = Some(*n);
+                                        after_char = rest;
                                         break;
                                     }
                                     remaining_bytes = rest;
@@ -375,13 +377,13 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
                                 if let Some(ch) = next_char {
                                     // Skip underscores and use the next character for rounding
-                                    maybe_round(data, ch, scale, POINT, NEG)
+                                    maybe_round(data, ch, after_char, scale, POINT, NEG)
                                 } else {
                                     handle_data::<NEG, true>(data, scale)
                                 }
                             } else {
                                 // Otherwise, we round as usual
-                                maybe_round(data, next, scale, POINT, NEG)
+                                maybe_round(data, next, bytes, scale, POINT, NEG)
                             }
                         } else {
                             Err(Error::Underflow)
@@ -415,7 +417,14 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
+fn maybe_round(
+    mut data: u128,
+    next_byte: u8,
+    remaining: &[u8],
+    mut scale: u8,
+    point: bool,
+    negative: bool,
+) -> Result<Decimal, Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // This is perhaps an error case, but keep this here for compatibility
@@ -436,6 +445,18 @@ fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negati
             data += 4;
             data /= 10;
             scale -= 1;
+        }
+    }
+
+    // Validate every byte after the rounding position.
+    // Previously these bytes were silently dropped, accepting garbage like "1.000...5zzz".
+    let mut seen_dot = point || next_byte == b'.';
+    for &b in remaining {
+        match b {
+            b'0'..=b'9' | b'_' => {}
+            b'.' if !seen_dot => seen_dot = true,
+            b'.' => return tail_error(crate::Error::DuplicatedDecimalPoint),
+            b => return tail_invalid_digit(b),
         }
     }
 
@@ -1002,6 +1023,33 @@ mod test {
     #[test]
     fn invalid_input_2() {
         assert_eq!(parse_str_radix_10("1.0.5"), Err(crate::Error::DuplicatedDecimalPoint));
+    }
+
+    #[test]
+    fn trailing_garbage_after_rounding_position_is_invalid_character() {
+        // 28 fractional digits → rounding position; "zzz" must not be silently dropped
+        assert_eq!(
+            parse_str_radix_10("1.00000000000000000000000000005zzz"),
+            Err(crate::Error::InvalidCharacter)
+        );
+    }
+
+    #[test]
+    fn trailing_garbage_after_rounding_position_large_integer() {
+        // rounding on a large integer (near MAX); "zzz" must not be silently dropped
+        assert_eq!(
+            parse_str_radix_10("79228162514264337593543950335.4zzz"),
+            Err(crate::Error::InvalidCharacter)
+        );
+    }
+
+    #[test]
+    fn second_decimal_point_after_rounding_position_is_error() {
+        // duplicate decimal point hidden past the rounding position must be caught
+        assert_eq!(
+            parse_str_radix_10("1.00000000000000000000000000005.5"),
+            Err(crate::Error::DuplicatedDecimalPoint)
+        );
     }
 
     #[test]
