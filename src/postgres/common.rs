@@ -40,8 +40,9 @@ impl Decimal {
     ) -> Option<Self> {
         let mut digits = digits.into_iter().collect::<Vec<_>>();
 
-        let fractionals_part_count = digits.len() as i32 + (-weight as i32) - 1;
-        let integers_part_count = weight as i32 + 1;
+        let weight = weight as i32;
+        let fractionals_part_count = digits.len() as i32 + (-weight) - 1;
+        let integers_part_count = weight + 1;
 
         let mut result = Self::ZERO;
         // adding integer part
@@ -56,11 +57,12 @@ impl Decimal {
                 result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4), 0))?;
                 result = result.checked_add(Self::new(digit as i64, 0))?;
             }
-            result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4 * start_integers as u32), 0))?;
+            let scale_pow = 10i128.checked_pow(4 * start_integers as u32)?;
+            result = result.checked_mul(Self::from_i128_with_scale(scale_pow, 0))?;
         }
         // adding fractional part
         if fractionals_part_count > 0 {
-            let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
+            let start_fractionals = if weight < 0 { (-weight) as u32 - 1 } else { 0 };
             for (i, digit) in digits.into_iter().enumerate() {
                 let fract_pow = 4_u32.checked_mul(i as u32 + 1 + start_fractionals)?;
                 if fract_pow <= Self::MAX_SCALE {
@@ -138,5 +140,38 @@ impl Decimal {
             scale,
             weight,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn weight_i16_min_does_not_panic() {
+        // -weight on i16::MIN overflows in debug builds; value is too small for Decimal
+        let result = Decimal::checked_from_postgres(PostgresDecimal {
+            neg: false,
+            weight: i16::MIN,
+            scale: 0,
+            digits: std::iter::once(1u16),
+        });
+        assert!(result.is_none() || result == Some(Decimal::ZERO));
+    }
+
+    #[test]
+    fn large_weight_returns_none_not_panic() {
+        // weight=11 → start_integers=11 → 10i128.pow(44) overflows; must return None, not panic.
+        // Represents e.g. 1e44 stored as ndigits=1, weight=11, digits=[1].
+        let result = Decimal::checked_from_postgres(PostgresDecimal {
+            neg: false,
+            weight: 11,
+            scale: 0,
+            digits: std::iter::once(1u16),
+        });
+        assert!(
+            result.is_none(),
+            "expected None for value exceeding Decimal::MAX, got {result:?}"
+        );
     }
 }

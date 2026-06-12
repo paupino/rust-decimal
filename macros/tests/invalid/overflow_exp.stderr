@@ -1,0 +1,7 @@
+error: proc macro panicked
+ --> tests/invalid/overflow_exp.rs:4:13
+  |
+4 |     let _ = dec!(18_000_000_000e28);
+  |             ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: Number exceeds maximum value that can be represented.

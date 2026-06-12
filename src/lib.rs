@@ -38,8 +38,6 @@ mod proptest;
 mod rand_0_10;
 #[cfg(feature = "rand-0_9")]
 mod rand_0_9;
-#[cfg(feature = "rocket-0_5-traits")]
-mod rocket_0_5;
 #[cfg(all(
     feature = "serde",
     not(any(

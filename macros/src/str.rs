@@ -144,8 +144,15 @@ const fn to_decimal<'src>(is_positive: bool, mut num: i128, mut exp: i32) -> Par
         if exp > 28 {
             return Err(InvalidExp(exp));
         }
-        if let Some(shifted) = num.checked_mul(POWERS_10[exp as usize]) {
-            num = shifted
+        match num.checked_mul(POWERS_10[exp as usize]) {
+            Some(shifted) => num = shifted,
+            None => {
+                return Err(if is_positive {
+                    ExceedsMaximumPossibleValue
+                } else {
+                    LessThanMinimumPossibleValue
+                });
+            }
         }
         exp = 0;
     } else if exp < -28 {
@@ -347,6 +354,10 @@ mod test {
         test("1", -99, ParseError::InvalidExp(-99));
         test("100", 28, ParseError::ExceedsMaximumPossibleValue);
         test("-100", 28, ParseError::LessThanMinimumPossibleValue);
+        // positive exp that causes i128 overflow in checked_mul must error, not silently truncate
+        // 18_000_000_000 * 10^28 = 1.8e38 > i128::MAX, so checked_mul returns None
+        test("18000000000", 28, ParseError::ExceedsMaximumPossibleValue);
+        test("-18000000000", 28, ParseError::LessThanMinimumPossibleValue);
         test(
             "100_000_000_000_000_000_000_000_000_000",
             -1,
