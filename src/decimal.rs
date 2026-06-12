@@ -1740,7 +1740,11 @@ impl Decimal {
                 // If we're requesting a higher number of significant figures, we rescale
                 let mut array = [self.lo, self.mid, self.hi];
                 let mut value_scale = scale;
-                ops::array::rescale_internal(&mut array, &mut value_scale, scale + digits - mantissa_sf);
+                ops::array::rescale_internal(
+                    &mut array,
+                    &mut value_scale,
+                    scale.saturating_add(digits).saturating_sub(mantissa_sf),
+                );
                 Some(Decimal {
                     lo: array[0],
                     mid: array[1],

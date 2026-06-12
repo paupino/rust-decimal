@@ -38,8 +38,9 @@ mod str;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
+    Expr, Ident, LitInt, Result, Token,
     parse::{Parse, ParseStream},
-    parse_macro_input, Expr, Ident, LitInt, Result, Token,
+    parse_macro_input,
 };
 
 /// Transform a literal number directly to a `Decimal` at compile time.

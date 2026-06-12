@@ -63,6 +63,7 @@ diesel = { default-features = false, features = ["mysql", "postgres"], version =
 futures = { default-features = false, version = "0.3" }
 postgres = { default-features = false, version = "0.19" }
 rand = { default-features = false, features = ["getrandom"], version = "0.8" }
+rust_decimal = { path = ".", features = ["macros"] }
 rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
 rkyv-0_8 = { version = "0.8.13", package = "rkyv" }
 tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
@@ -88,6 +89,7 @@ maths-nopanic = ["maths"]
 ndarray = ["dep:ndarray"]
 proptest = ["dep:proptest"]
 rand = ["dep:rand"]
+rand-0_9 = ["dep:rand-0_9"]
 rkyv = ["dep:rkyv"]
 rkyv-safe = ["rkyv/validation"]
 rocket-traits = ["dep:rocket", "std"]
