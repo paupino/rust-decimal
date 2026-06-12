@@ -340,7 +340,9 @@ fn unaligned_add(
         if carry {
             for part in buffer.data.iter_mut().skip(3) {
                 *part = part.wrapping_sub(1);
-                if *part > 0 {
+                // The borrow only continues if this word wrapped (0 -> u32::MAX);
+                // otherwise it is absorbed here and we stop.
+                if *part != u32::MAX {
                     break;
                 }
             }
