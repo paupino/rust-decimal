@@ -1,5 +1,6 @@
 use core::str::FromStr;
 use rust_decimal::{Decimal, RoundingStrategy};
+use rust_decimal_macros::dec;
 
 #[test]
 fn it_can_round_to_2dp() {
@@ -400,4 +401,12 @@ fn it_can_round_significant_figures_with_strategy() {
             );
         }
     }
+}
+
+#[test]
+fn round_sf_large_digits_does_not_overflow() {
+    // scale + digits overflows u32 in debug builds when digits = u32::MAX
+    assert!(dec!(1.5).round_sf(u32::MAX).is_some());
+    assert!(dec!(-1.5).round_sf(u32::MAX).is_some());
+    assert!(Decimal::MAX.round_sf(u32::MAX).is_some());
 }
