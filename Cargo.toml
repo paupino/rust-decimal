@@ -33,7 +33,6 @@ postgres-types = { default-features = false, optional = true, package = "postgre
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
 rand-0_9 = { default-features = false, optional = true, package = "rand", version = "0.9" }
 rand-0_10 = { default-features = false, optional = true, package = "rand", version = "0.10" }
-rocket = { default-features = false, optional = true, version = "0.5" }
 rust_decimal_macros = { path = "macros", default-features = false, optional = true, version = "=2.0.0-alpha.0" }
 serde = { default-features = false, optional = true, version = "1" }
 serde_json = { default-features = false, optional = true, version = "1" }
@@ -88,7 +87,6 @@ ndarray-0_16 = ["dep:ndarray-0_16"]
 proptest = ["dep:proptest"]
 rand-0_9 = ["dep:rand-0_9"]
 rand-0_10 = ["dep:rand-0_10"]
-rocket-0_5-traits = ["dep:rocket", "std"]
 rust-fuzz = ["dep:arbitrary"]
 serde = ["alloc", "dep:serde", "wasm-bindgen?/serde"]
 serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
@@ -131,11 +129,6 @@ required-features = ["db-postgres"]
 name = "proptest_tests"
 path = "tests/proptest_tests.rs"
 required-features = ["proptest"]
-
-[[test]]
-name = "rocket_tests"
-path = "tests/rocket_tests.rs"
-required-features = ["rocket-0_5-traits"]
 
 [[test]]
 name = "rust_fuzz_tests"
