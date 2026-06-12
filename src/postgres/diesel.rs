@@ -27,11 +27,21 @@ impl<'a> TryFrom<&'a PgNumeric> for Decimal {
             PgNumeric::NaN => return Err(Box::from("NaN is not supported in Decimal")),
         };
 
+        let digits: Vec<u16> = digits
+            .iter()
+            .map(|&v| -> deserialize::Result<u16> {
+                if v < 0 || v > 9999 {
+                    Err(Box::from(format!("invalid digit group: {v}")))
+                } else {
+                    Ok(v as u16)
+                }
+            })
+            .collect::<deserialize::Result<_>>()?;
         let Some(result) = Self::checked_from_postgres(PostgresDecimal {
             neg,
             weight,
             scale,
-            digits: digits.iter().copied().map(|v| v.try_into().unwrap()),
+            digits: digits.into_iter(),
         }) else {
             return Err(Box::new(crate::error::Error::ExceedsMaximumPossibleValue));
         };
@@ -89,6 +99,18 @@ impl FromSql<Numeric, Pg> for Decimal {
 mod tests {
     use super::*;
     use core::str::FromStr;
+
+    #[test]
+    fn negative_digit_group_returns_error_not_panic() {
+        // Diesel stores PgNumeric digits as i16; a negative value must not panic via unwrap
+        let pg = PgNumeric::Positive {
+            weight: 0,
+            scale: 0,
+            digits: vec![-1i16],
+        };
+        let result = Decimal::try_from(pg);
+        assert!(result.is_err(), "expected Err for negative digit, got {result:?}");
+    }
 
     #[test]
     fn test_unnecessary_zeroes() {

@@ -40,8 +40,9 @@ impl Decimal {
     ) -> Option<Self> {
         let mut digits = digits.into_iter().collect::<Vec<_>>();
 
-        let fractionals_part_count = digits.len() as i32 + (-weight as i32) - 1;
-        let integers_part_count = weight as i32 + 1;
+        let weight = weight as i32;
+        let fractionals_part_count = digits.len() as i32 + (-weight) - 1;
+        let integers_part_count = weight + 1;
 
         let mut result = Self::ZERO;
         // adding integer part
@@ -61,7 +62,7 @@ impl Decimal {
         }
         // adding fractional part
         if fractionals_part_count > 0 {
-            let start_fractionals = if weight < 0 { (-weight as u32) - 1 } else { 0 };
+            let start_fractionals = if weight < 0 { (-weight) as u32 - 1 } else { 0 };
             for (i, digit) in digits.into_iter().enumerate() {
                 let fract_pow = 4_u32.checked_mul(i as u32 + 1 + start_fractionals)?;
                 if fract_pow <= Self::MAX_SCALE {
@@ -145,6 +146,18 @@ impl Decimal {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn weight_i16_min_does_not_panic() {
+        // -weight on i16::MIN overflows in debug builds; value is too small for Decimal
+        let result = Decimal::checked_from_postgres(PostgresDecimal {
+            neg: false,
+            weight: i16::MIN,
+            scale: 0,
+            digits: std::iter::once(1u16),
+        });
+        assert!(result.is_none() || result == Some(Decimal::ZERO));
+    }
 
     #[test]
     fn large_weight_returns_none_not_panic() {
