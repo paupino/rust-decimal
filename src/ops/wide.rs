@@ -292,7 +292,7 @@ impl DecWide {
 
         let mut scale = self.scale;
 
-        if remainder > 0 {
+        while remainder > 0 {
             let upper = upper_word_6(&data);
             let used_bits = if upper == 0 && data[0] == 0 {
                 0
@@ -302,28 +302,30 @@ impl DecWide {
             let free_digits = (((192 - used_bits as i32) * 77) >> 8).max(0) as u32;
             let extra_scale = free_digits.min(9);
 
-            if extra_scale > 0 && scale + extra_scale <= 57 {
-                let power = POWERS_10[extra_scale as usize];
-                let mut carry = 0u64;
-                for word in data.iter_mut() {
-                    carry += *word as u64 * power as u64;
-                    *word = carry as u32;
-                    carry >>= 32;
-                }
-                let rem_scaled = remainder * power as u64;
-                let extra_quotient = rem_scaled / divisor as u64;
-                remainder = rem_scaled % divisor as u64;
-                let mut add_carry = extra_quotient;
-                for word in data.iter_mut() {
-                    add_carry += *word as u64;
-                    *word = add_carry as u32;
-                    add_carry >>= 32;
-                    if add_carry == 0 {
-                        break;
-                    }
-                }
-                scale += extra_scale;
+            if extra_scale == 0 || scale + extra_scale > 57 {
+                break;
             }
+
+            let power = POWERS_10[extra_scale as usize];
+            let mut carry = 0u64;
+            for word in data.iter_mut() {
+                carry += *word as u64 * power as u64;
+                *word = carry as u32;
+                carry >>= 32;
+            }
+            let rem_scaled = remainder * power as u64;
+            let extra_quotient = rem_scaled / divisor as u64;
+            remainder = rem_scaled % divisor as u64;
+            let mut add_carry = extra_quotient;
+            for word in data.iter_mut() {
+                add_carry += *word as u64;
+                *word = add_carry as u32;
+                add_carry >>= 32;
+                if add_carry == 0 {
+                    break;
+                }
+            }
+            scale += extra_scale;
         }
 
         // Round
@@ -740,6 +742,9 @@ pub(crate) fn exp_wide(value: &Decimal) -> Option<Decimal> {
     Some(result)
 }
 
+// ln(10) = 2.302585092994045684017991454 (scale 27)
+const LN10: Decimal = Decimal::from_parts_raw(267849502, 33690064, 124823388, 1769472);
+
 /// Compute ln(x) using 192-bit intermediate precision.
 ///
 /// Uses range reduction (multiply/divide by e), then the atanh series:
@@ -753,8 +758,28 @@ pub(crate) fn ln_wide(value: &Decimal) -> Option<Decimal> {
         return Some(Decimal::ZERO);
     }
 
-    // Range reduction: multiply/divide by e until value is in (e^-1, 1]
+    // Exact power-of-10 range reduction: write value = x * 10^k with x ∈ [1, 10).
+    // This is exact for Decimal (just adjusting the scale), avoiding the compounding
+    // rounding errors that occur when multiplying tiny values by E repeatedly.
     let mut x = *value;
+    let mut k: i32 = 0;
+    while x < Decimal::ONE {
+        x *= Decimal::TEN;
+        k -= 1;
+    }
+    while x >= Decimal::TEN {
+        x /= Decimal::TEN;
+        k += 1;
+    }
+
+    // Special case: x == 1 means value was an exact power of 10
+    if x == Decimal::ONE {
+        let mut out = Decimal::new(k as i64, 0).checked_mul(LN10)?;
+        out.normalize_assign();
+        return Some(out);
+    }
+
+    // e-based reduction to get x into (e^-1, 1] (at most ~3 steps from [1, 10))
     let mut count: i32 = 0;
     while x >= Decimal::ONE {
         x *= Decimal::E_INVERSE;
@@ -802,9 +827,10 @@ pub(crate) fn ln_wide(value: &Decimal) -> Option<Decimal> {
     let two = DecWide::from_decimal(&Decimal::TWO);
     let ln_x = two.checked_mul(&result)?;
 
-    // ln(value) = count + ln(x)
+    // ln(value) = k*ln(10) + count + ln(x)
     let ln_fractional = ln_x.to_decimal()?;
-    let mut out = Decimal::new(count as i64, 0).checked_add(ln_fractional)?;
+    let k_ln10 = if k != 0 { Decimal::new(k as i64, 0).checked_mul(LN10)? } else { Decimal::ZERO };
+    let mut out = k_ln10.checked_add(Decimal::new(count as i64, 0))?.checked_add(ln_fractional)?;
     out.normalize_assign();
     Some(out)
 }
