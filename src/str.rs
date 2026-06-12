@@ -549,6 +549,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
         _ => return Err(crate::Error::UnsupportedRadix),
     };
 
+    let mut saw_digit = false;
     let mut maybe_round = false;
     while len > 0 {
         let b = bytes[offset];
@@ -557,41 +558,49 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
                 if b > max_n {
                     return Err(crate::Error::InvalidCharacter);
                 }
-                coeff.push(u32::from(b - b'0'));
-                offset += 1;
-                len -= 1;
-
-                // If the coefficient is longer than the max, exit early
-                if coeff.len() as u32 > estimated_max_precision {
-                    maybe_round = true;
-                    break;
+                saw_digit = true;
+                let digit = u32::from(b - b'0');
+                // Skip true leading zeros in the integer part: they carry no value and
+                // would otherwise exhaust the precision budget, corrupting later digits.
+                if digit == 0 && coeff.is_empty() && digits_before_dot < 0 {
+                    offset += 1;
+                    len -= 1;
+                } else {
+                    // Check capacity before pushing to avoid ArrayVec panic
+                    if coeff.len() as u32 == estimated_max_precision {
+                        maybe_round = true;
+                        break;
+                    }
+                    coeff.push(digit);
+                    offset += 1;
+                    len -= 1;
                 }
             }
             b'a'..=b'z' => {
                 if b > max_alpha_lower {
                     return Err(crate::Error::InvalidCharacter);
                 }
-                coeff.push(u32::from(b - b'a') + 10);
-                offset += 1;
-                len -= 1;
-
-                if coeff.len() as u32 > estimated_max_precision {
+                saw_digit = true;
+                if coeff.len() as u32 == estimated_max_precision {
                     maybe_round = true;
                     break;
                 }
+                coeff.push(u32::from(b - b'a') + 10);
+                offset += 1;
+                len -= 1;
             }
             b'A'..=b'Z' => {
                 if b > max_alpha_upper {
                     return Err(crate::Error::InvalidCharacter);
                 }
-                coeff.push(u32::from(b - b'A') + 10);
-                offset += 1;
-                len -= 1;
-
-                if coeff.len() as u32 > estimated_max_precision {
+                saw_digit = true;
+                if coeff.len() as u32 == estimated_max_precision {
                     maybe_round = true;
                     break;
                 }
+                coeff.push(u32::from(b - b'A') + 10);
+                offset += 1;
+                len -= 1;
             }
             b'.' => {
                 if digits_before_dot >= 0 {
@@ -671,7 +680,11 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
 
     // here when no characters left
     if coeff.is_empty() {
-        return Err(crate::Error::NoDigits);
+        if !saw_digit {
+            return Err(crate::Error::NoDigits);
+        }
+        // All integer digits were leading zeros; the value is zero
+        coeff.push(0);
     }
 
     let mut scale = if digits_before_dot >= 0 {
@@ -680,6 +693,11 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
     } else {
         0
     };
+
+    // Guard against scale exceeding MAX_SCALE to avoid assert panic in from_parts
+    if scale > MAX_SCALE as u32 {
+        return Err(crate::Error::ScaleExceedsMaximumPrecision(scale));
+    }
 
     // Parse this using specified radix
     let mut data = [0u32, 0u32, 0u32];
