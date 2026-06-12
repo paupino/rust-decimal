@@ -3,7 +3,6 @@ dependencies = [
     "test-no-alloc",
     "test-proptest",
     "test-rust-fuzz",
-    "test-rocket-traits",
     "test-borsh",
     "test-rand"
 ]
@@ -24,10 +23,6 @@ args = ["test", "--workspace", "--no-default-features", "--features=proptest", "
 [tasks.test-rust-fuzz]
 command = "cargo"
 args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", "--test", "rust_fuzz_tests"]
-
-[tasks.test-rocket-traits]
-command = "cargo"
-args = ["test", "--workspace", "--features=rocket-0_5-traits", "--test", "rocket_tests"]
 
 [tasks.test-borsh]
 command = "cargo"
