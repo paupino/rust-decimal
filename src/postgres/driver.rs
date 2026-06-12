@@ -464,5 +464,11 @@ mod test {
             overflow.unwrap_err().to_string(),
             crate::error::Error::ExceedsMaximumPossibleValue.to_string()
         );
+        // weight=11 (start_integers=11) causes 10i128.pow(44) to overflow i128 — must be Err not panic
+        let large_weight = Decimal::from_sql(
+            &Type::NUMERIC,
+            &[0x00, 0x01, 0x00, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01],
+        );
+        assert!(large_weight.is_err());
     }
 }

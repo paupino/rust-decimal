@@ -56,7 +56,8 @@ impl Decimal {
                 result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4), 0))?;
                 result = result.checked_add(Self::new(digit as i64, 0))?;
             }
-            result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4 * start_integers as u32), 0))?;
+            let scale_pow = 10i128.checked_pow(4 * start_integers as u32)?;
+            result = result.checked_mul(Self::from_i128_with_scale(scale_pow, 0))?;
         }
         // adding fractional part
         if fractionals_part_count > 0 {
@@ -138,5 +139,23 @@ impl Decimal {
             scale,
             weight,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn large_weight_returns_none_not_panic() {
+        // weight=11 → start_integers=11 → 10i128.pow(44) overflows; must return None, not panic.
+        // Represents e.g. 1e44 stored as ndigits=1, weight=11, digits=[1].
+        let result = Decimal::checked_from_postgres(PostgresDecimal {
+            neg: false,
+            weight: 11,
+            scale: 0,
+            digits: std::iter::once(1u16),
+        });
+        assert!(result.is_none(), "expected None for value exceeding Decimal::MAX, got {result:?}");
     }
 }
