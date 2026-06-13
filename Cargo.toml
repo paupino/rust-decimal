@@ -105,6 +105,11 @@ harness = false
 name = "comparison"
 path = "benches/comparison.rs"
 
+[[bench]]
+harness = false
+name = "perf_ops"
+path = "benches/perf_ops.rs"
+
 [[test]]
 name = "borsh_tests"
 path = "tests/borsh_tests.rs"
