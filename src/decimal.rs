@@ -2779,6 +2779,11 @@ impl<'a> RemAssign<&'a Decimal> for &'a mut Decimal {
 impl PartialEq for Decimal {
     #[inline]
     fn eq(&self, other: &Decimal) -> bool {
+        // Identical bit patterns are always equal (same mantissa, scale and sign). This is the
+        // common case for dedup/lookup and short-circuits the full comparison.
+        if self.lo == other.lo && self.mid == other.mid && self.hi == other.hi && self.flags == other.flags {
+            return true;
+        }
         self.cmp(other) == Equal
     }
 }
