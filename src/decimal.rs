@@ -1339,6 +1339,12 @@ impl Decimal {
             return;
         }
 
+        // An odd mantissa cannot be divisible by 10, so there are no trailing zeros to strip.
+        // This is a cheap, common early-out (every other value, and every odd-valued hash key).
+        if self.lo & 1 == 1 {
+            return;
+        }
+
         let mut result = self.mantissa_array3();
         let mut working = self.mantissa_array3();
         while scale > 0 {
