@@ -14,8 +14,8 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
     let negative = d1.is_sign_negative() ^ d2.is_sign_negative();
 
     // See if we can optimize this calculation depending on whether the hi bits are set
-    if d1.hi() | d1.mid() == 0 {
-        if d2.hi() | d2.mid() == 0 {
+    if d1.hi() == 0 && d2.hi() == 0 {
+        if d1.mid() | d2.mid() == 0 {
             // We're multiplying two 32 bit integers, so we can take some liberties to optimize this.
             let mut low64 = d1.lo() as u64 * d2.lo() as u64;
             if scale > Decimal::MAX_SCALE {
@@ -52,8 +52,20 @@ pub(crate) fn mul_impl(d1: &Decimal, d2: &Decimal) -> CalculationResult {
             ));
         }
 
-        // We know that the left hand side is just 32 bits but the right hand side is either
-        // 64 or 96 bits.
+        // Both operands fit within 64 bits, so the full product fits within 128 bits and can be
+        // computed with a single widening multiply rather than the 32-bit limb schoolbook.
+        let m1 = (d1.lo() as u64) | ((d1.mid() as u64) << 32);
+        let m2 = (d2.lo() as u64) | ((d2.mid() as u64) << 32);
+        let product = m1 as u128 * m2 as u128;
+        let mut buffer = Buf24::zero();
+        buffer.set_low64(product as u64);
+        buffer.set_mid64((product >> 64) as u64);
+        return finish_mul(buffer, negative, scale);
+    }
+
+    if d1.mid() | d1.hi() == 0 {
+        // We know that the left hand side is just 32 bits but the right hand side is
+        // 96 bits.
         let mut product = Buf24::zero();
         mul_by_32bit_lhs(d1.lo() as u64, d2, &mut product);
         finish_mul(product, negative, scale)
