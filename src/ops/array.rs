@@ -7,16 +7,25 @@ pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_
     rescale::<true>(value, value_scale, new_scale);
 }
 
+/// Rescales as `rescale_internal` but without rounding, returning whether any nonzero digit was
+/// discarded (i.e. whether the value had a fractional part relative to `desired_scale`).
+#[inline]
+pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, desired_scale: u32) -> bool {
+    rescale::<false>(value, value_scale, desired_scale)
+}
+
+// Returns whether any nonzero digit was discarded while scaling down (always false when scaling up
+// or when there is nothing to do).
 #[inline(always)]
-fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
+fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) -> bool {
     if *value_scale == new_scale {
         // Nothing to do
-        return;
+        return false;
     }
 
     if is_all_zero(value) {
         *value_scale = new_scale.min(MAX_SCALE_U32);
-        return;
+        return false;
     }
 
     if *value_scale > new_scale {
@@ -26,24 +35,26 @@ fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_s
         // the final digit is then isolated with a single divide by 10, so the result is identical
         // to dropping one digit at a time.
         let diff = value_scale.wrapping_sub(new_scale);
+        let mut discarded = false;
         let mut to_drop = diff - 1;
         while to_drop > 0 {
             if is_all_zero(value) {
                 *value_scale = new_scale;
-                return;
+                return discarded;
             }
             let chunk = to_drop.min(9);
-            div_by_u32(value, POWERS_10[chunk as usize]);
+            discarded |= div_by_u32(value, POWERS_10[chunk as usize]) != 0;
             to_drop -= chunk;
         }
 
         if is_all_zero(value) {
             *value_scale = new_scale;
-            return;
+            return discarded;
         }
 
         // Now do the necessary rounding based on the most significant dropped digit.
         let mut remainder = div_by_u32(value, 10);
+        discarded |= remainder != 0;
         if ROUND && remainder >= 5 {
             for part in value.iter_mut() {
                 let digit = u64::from(*part) + 1u64;
@@ -55,6 +66,7 @@ fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_s
             }
         }
         *value_scale = new_scale;
+        discarded
     } else {
         // Scale up by multiplying by powers of 10, in chunks of up to 9 while they fit within 96
         // bits. Once a chunk would overflow we fall back to multiplying one digit at a time so we
@@ -76,12 +88,8 @@ fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_s
             }
         }
         *value_scale = new_scale.wrapping_sub(diff);
+        false
     }
-}
-
-#[inline]
-pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, desired_scale: u32) {
-    rescale::<false>(value, value_scale, desired_scale);
 }
 
 pub(crate) fn add_by_internal_flattened(value: &mut [u32; 3], by: u32) -> u32 {

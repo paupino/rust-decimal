@@ -1230,9 +1230,18 @@ impl Decimal {
             return *self;
         }
 
-        // Opportunity for optimization here
-        let floored = self.trunc();
-        if self.is_sign_negative() && !self.fract().is_zero() {
+        // Truncate once, learning at the same time whether a fractional part was discarded, so we
+        // avoid recomputing the truncation (and a full subtraction) just to test for a fraction.
+        let mut working = [self.lo, self.mid, self.hi];
+        let mut working_scale = scale;
+        let had_fraction = ops::array::truncate_internal(&mut working, &mut working_scale, 0);
+        let floored = Decimal {
+            lo: working[0],
+            mid: working[1],
+            hi: working[2],
+            flags: flags(self.is_sign_negative(), working_scale),
+        };
+        if self.is_sign_negative() && had_fraction {
             floored - ONE
         } else {
             floored
@@ -1259,11 +1268,21 @@ impl Decimal {
             return *self;
         }
 
-        // Opportunity for optimization here
-        if self.is_sign_positive() && !self.fract().is_zero() {
-            self.trunc() + ONE
+        // Truncate once, learning at the same time whether a fractional part was discarded, so we
+        // avoid recomputing the truncation (and a full subtraction) just to test for a fraction.
+        let mut working = [self.lo, self.mid, self.hi];
+        let mut working_scale = scale;
+        let had_fraction = ops::array::truncate_internal(&mut working, &mut working_scale, 0);
+        let truncated = Decimal {
+            lo: working[0],
+            mid: working[1],
+            hi: working[2],
+            flags: flags(self.is_sign_negative(), working_scale),
+        };
+        if self.is_sign_positive() && had_fraction {
+            truncated + ONE
         } else {
-            self.trunc()
+            truncated
         }
     }
 
