@@ -450,3 +450,36 @@ fn it_can_parse_different_radix() {
         }
     }
 }
+
+#[test]
+fn from_str_radix_base2_97_ones_returns_error_not_panic() {
+    // 97 binary ones → value exceeds Decimal::MAX; overflow check was after push so panicked
+    let result = Decimal::from_str_radix(&"1".repeat(97), 2);
+    assert!(result.is_err(), "expected Err, got {result:?}");
+}
+
+#[test]
+fn from_str_radix_base2_97_leading_zeros_then_one_returns_one() {
+    // 97 leading zeros + "1" → value = 1; leading zeros exhausted capacity so panicked
+    let s = format!("{}1", "0".repeat(97));
+    assert_eq!(Decimal::from_str_radix(&s, 2), Ok(Decimal::ONE));
+}
+
+#[test]
+fn from_str_radix_base2_30_fractional_digits_returns_error_not_panic() {
+    // 30 binary fractional digits → scale = 30 > MAX_SCALE; triggers assert in from_parts
+    let result = Decimal::from_str_radix("0.000000000000000000000000000001", 2);
+    assert!(result.is_err(), "expected Err, got {result:?}");
+}
+
+#[test]
+fn from_str_radix_base16_leading_zeros_do_not_corrupt_magnitude() {
+    // 24 leading zeros fill the 24-digit hex precision budget; "98" then gets mangled
+    // 0x98 = 152 decimal; previously returned Ok(16) due to dropped significant digits
+    let s = format!("{}98", "0".repeat(24));
+    assert_eq!(
+        Decimal::from_str_radix(&s, 16),
+        Ok(Decimal::from(152u32)),
+        "0x98 should parse as 152"
+    );
+}

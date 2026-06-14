@@ -133,7 +133,6 @@ assert_eq!(total, dec!(27.26));
 * [maths](#maths)
 * [ndarray](#ndarray)
 * [rkyv](#rkyv)
-* [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
 * [std](#std)
 * [wasm](#wasm)
@@ -249,10 +248,6 @@ Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
 If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'
 s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See
 `examples/rkyv-remote`.
-
-### `rocket-traits`
-
-Enable support for Rocket forms by implementing the `FromFormField` trait.
 
 ### `rust-fuzz`
 

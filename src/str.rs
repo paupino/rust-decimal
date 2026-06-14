@@ -284,7 +284,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
         let next = *next;
         if POINT && BIG && scale >= 28 {
             if ROUND {
-                maybe_round(data64 as u128, next, scale, POINT, NEG)
+                maybe_round(data64 as u128, next, bytes, scale, POINT, NEG)
             } else {
                 Err(Error::Underflow)
             }
@@ -349,7 +349,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                 }
 
                 if ROUND {
-                    maybe_round(data, next_byte, scale, POINT, NEG)
+                    maybe_round(data, next_byte, bytes, scale, POINT, NEG)
                 } else {
                     Err(Error::Underflow)
                 }
@@ -365,9 +365,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                                 // Skip consecutive underscores to find the next actual character
                                 let mut remaining_bytes = bytes;
                                 let mut next_char = None;
+                                let mut after_char: &[u8] = &[];
                                 while let Some((n, rest)) = remaining_bytes.split_first() {
                                     if *n != b'_' {
                                         next_char = Some(*n);
+                                        after_char = rest;
                                         break;
                                     }
                                     remaining_bytes = rest;
@@ -375,13 +377,13 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
                                 if let Some(ch) = next_char {
                                     // Skip underscores and use the next character for rounding
-                                    maybe_round(data, ch, scale, POINT, NEG)
+                                    maybe_round(data, ch, after_char, scale, POINT, NEG)
                                 } else {
                                     handle_data::<NEG, true>(data, scale)
                                 }
                             } else {
                                 // Otherwise, we round as usual
-                                maybe_round(data, next, scale, POINT, NEG)
+                                maybe_round(data, next, bytes, scale, POINT, NEG)
                             }
                         } else {
                             Err(Error::Underflow)
@@ -415,7 +417,14 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 
 #[inline(never)]
 #[cold]
-fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negative: bool) -> Result<Decimal, Error> {
+fn maybe_round(
+    mut data: u128,
+    next_byte: u8,
+    remaining: &[u8],
+    mut scale: u8,
+    point: bool,
+    negative: bool,
+) -> Result<Decimal, Error> {
     let digit = match next_byte {
         b'0'..=b'9' => u32::from(next_byte - b'0'),
         b'_' => 0, // This is perhaps an error case, but keep this here for compatibility
@@ -436,6 +445,18 @@ fn maybe_round(mut data: u128, next_byte: u8, mut scale: u8, point: bool, negati
             data += 4;
             data /= 10;
             scale -= 1;
+        }
+    }
+
+    // Validate every byte after the rounding position.
+    // Previously these bytes were silently dropped, accepting garbage like "1.000...5zzz".
+    let mut seen_dot = point || next_byte == b'.';
+    for &b in remaining {
+        match b {
+            b'0'..=b'9' | b'_' => {}
+            b'.' if !seen_dot => seen_dot = true,
+            b'.' => return tail_error(crate::Error::DuplicatedDecimalPoint),
+            b => return tail_invalid_digit(b),
         }
     }
 
@@ -549,6 +570,7 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
         _ => return Err(crate::Error::UnsupportedRadix),
     };
 
+    let mut saw_digit = false;
     let mut maybe_round = false;
     while len > 0 {
         let b = bytes[offset];
@@ -557,41 +579,49 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
                 if b > max_n {
                     return Err(crate::Error::InvalidCharacter);
                 }
-                coeff.push(u32::from(b - b'0'));
-                offset += 1;
-                len -= 1;
-
-                // If the coefficient is longer than the max, exit early
-                if coeff.len() as u32 > estimated_max_precision {
-                    maybe_round = true;
-                    break;
+                saw_digit = true;
+                let digit = u32::from(b - b'0');
+                // Skip true leading zeros in the integer part: they carry no value and
+                // would otherwise exhaust the precision budget, corrupting later digits.
+                if digit == 0 && coeff.is_empty() && digits_before_dot < 0 {
+                    offset += 1;
+                    len -= 1;
+                } else {
+                    // Check capacity before pushing to avoid ArrayVec panic
+                    if coeff.len() as u32 == estimated_max_precision {
+                        maybe_round = true;
+                        break;
+                    }
+                    coeff.push(digit);
+                    offset += 1;
+                    len -= 1;
                 }
             }
             b'a'..=b'z' => {
                 if b > max_alpha_lower {
                     return Err(crate::Error::InvalidCharacter);
                 }
-                coeff.push(u32::from(b - b'a') + 10);
-                offset += 1;
-                len -= 1;
-
-                if coeff.len() as u32 > estimated_max_precision {
+                saw_digit = true;
+                if coeff.len() as u32 == estimated_max_precision {
                     maybe_round = true;
                     break;
                 }
+                coeff.push(u32::from(b - b'a') + 10);
+                offset += 1;
+                len -= 1;
             }
             b'A'..=b'Z' => {
                 if b > max_alpha_upper {
                     return Err(crate::Error::InvalidCharacter);
                 }
-                coeff.push(u32::from(b - b'A') + 10);
-                offset += 1;
-                len -= 1;
-
-                if coeff.len() as u32 > estimated_max_precision {
+                saw_digit = true;
+                if coeff.len() as u32 == estimated_max_precision {
                     maybe_round = true;
                     break;
                 }
+                coeff.push(u32::from(b - b'A') + 10);
+                offset += 1;
+                len -= 1;
             }
             b'.' => {
                 if digits_before_dot >= 0 {
@@ -671,7 +701,11 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
 
     // here when no characters left
     if coeff.is_empty() {
-        return Err(crate::Error::NoDigits);
+        if !saw_digit {
+            return Err(crate::Error::NoDigits);
+        }
+        // All integer digits were leading zeros; the value is zero
+        coeff.push(0);
     }
 
     let mut scale = if digits_before_dot >= 0 {
@@ -680,6 +714,11 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
     } else {
         0
     };
+
+    // Guard against scale exceeding MAX_SCALE to avoid assert panic in from_parts
+    if scale > MAX_SCALE as u32 {
+        return Err(crate::Error::ScaleExceedsMaximumPrecision(scale));
+    }
 
     // Parse this using specified radix
     let mut data = [0u32, 0u32, 0u32];
@@ -984,6 +1023,33 @@ mod test {
     #[test]
     fn invalid_input_2() {
         assert_eq!(parse_str_radix_10("1.0.5"), Err(crate::Error::DuplicatedDecimalPoint));
+    }
+
+    #[test]
+    fn trailing_garbage_after_rounding_position_is_invalid_character() {
+        // 28 fractional digits → rounding position; "zzz" must not be silently dropped
+        assert_eq!(
+            parse_str_radix_10("1.00000000000000000000000000005zzz"),
+            Err(crate::Error::InvalidCharacter)
+        );
+    }
+
+    #[test]
+    fn trailing_garbage_after_rounding_position_large_integer() {
+        // rounding on a large integer (near MAX); "zzz" must not be silently dropped
+        assert_eq!(
+            parse_str_radix_10("79228162514264337593543950335.4zzz"),
+            Err(crate::Error::InvalidCharacter)
+        );
+    }
+
+    #[test]
+    fn second_decimal_point_after_rounding_position_is_error() {
+        // duplicate decimal point hidden past the rounding position must be caught
+        assert_eq!(
+            parse_str_radix_10("1.00000000000000000000000000005.5"),
+            Err(crate::Error::DuplicatedDecimalPoint)
+        );
     }
 
     #[test]

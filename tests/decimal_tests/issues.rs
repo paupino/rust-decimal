@@ -17,6 +17,28 @@ fn issue_384_neg_overflow_during_subtract_carry() {
 }
 
 #[test]
+fn subtract_borrow_propagation_into_upper_words() {
+    // In `unaligned_add`'s subtract path the borrow-propagation loop had an
+    // inverted stop condition, so when a large integer has a small high-scale
+    // fraction subtracted from it (the scaled operand spilling into the Buf24
+    // upper words with bits 96..128 equal to 0 or 1) the borrow out of the low
+    // 96 bits was either dropped or applied spuriously, leaving the result
+    // wrong by ~2^128.
+    fn sub(a: &str, b: &str, expected: &str) {
+        let a = Decimal::from_str(a).unwrap();
+        let b = Decimal::from_str(b).unwrap();
+        let expected = Decimal::from_str(expected).unwrap();
+        // Value-equality is scale-independent, which is what we care about here.
+        assert_eq!(expected, a - b, "{a} - {b}");
+    }
+
+    // word3 == 0: borrow was lost -> result ~2^128 too large.
+    sub("34028236693", "7.0000000000000000000000000000", "34028236686");
+    // word3 == 1: spurious borrow -> result ~2^128 too small.
+    sub("34028236701", "7.0000000000000000000000000000", "34028236694");
+}
+
+#[test]
 fn issue_392_overflow_during_remainder() {
     let a = Decimal::from_str("-79228157791897.854723898738431").unwrap();
     let b = Decimal::from_str("184512476.73336922111").unwrap();
