@@ -111,6 +111,11 @@ harness = false
 name = "comparison"
 path = "benches/comparison.rs"
 
+[[bench]]
+harness = false
+name = "perf_ops"
+path = "benches/perf_ops.rs"
+
 [[example]]
 name = "rkyv-remote"
 required-features = ["macros"]
