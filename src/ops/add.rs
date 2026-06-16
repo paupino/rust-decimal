@@ -89,11 +89,7 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
 
                 let negative = d1.is_sign_negative();
                 let (magnitude, negative) = if effective_subtract {
-                    if a >= b {
-                        (a - b, negative)
-                    } else {
-                        (b - a, !negative)
-                    }
+                    if a >= b { (a - b, negative) } else { (b - a, !negative) }
                 } else {
                     (a + b, negative)
                 };

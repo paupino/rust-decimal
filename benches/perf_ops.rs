@@ -2,7 +2,7 @@
 //! Inputs are passed through `black_box` so the compiler cannot const-fold them.
 
 use core::hash::{Hash, Hasher};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use rust_decimal::Decimal;
 
 // 64-bit mantissas (hi == 0, mid != 0) to exercise the 64-bit fast paths.
