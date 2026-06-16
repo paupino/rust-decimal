@@ -7,36 +7,54 @@ pub(crate) fn rescale_internal(value: &mut [u32; 3], value_scale: &mut u32, new_
     rescale::<true>(value, value_scale, new_scale);
 }
 
+/// Rescales as `rescale_internal` but without rounding, returning whether any nonzero digit was
+/// discarded (i.e. whether the value had a fractional part relative to `desired_scale`).
+#[inline]
+pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, desired_scale: u32) -> bool {
+    rescale::<false>(value, value_scale, desired_scale)
+}
+
+// Returns whether any nonzero digit was discarded while scaling down (always false when scaling up
+// or when there is nothing to do).
 #[inline(always)]
-fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) {
+fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) -> bool {
     if *value_scale == new_scale {
         // Nothing to do
-        return;
+        return false;
     }
 
     if is_all_zero(value) {
         *value_scale = new_scale.min(MAX_SCALE_U32);
-        return;
+        return false;
     }
 
     if *value_scale > new_scale {
-        let mut diff = value_scale.wrapping_sub(new_scale);
-        // Scaling further isn't possible since we got an overflow
-        // In this case we need to reduce the accuracy of the "side to keep"
-
-        // Now do the necessary rounding
-        let mut remainder = 0;
-        while let Some(diff_minus_one) = diff.checked_sub(1) {
+        // We need to drop `diff` digits. Every dropped digit except the most significant one is
+        // discarded; only that most significant dropped digit determines rounding. The lower
+        // `diff - 1` digits are dropped in chunks of up to 9 (a single `u32` division each) and
+        // the final digit is then isolated with a single divide by 10, so the result is identical
+        // to dropping one digit at a time.
+        let diff = value_scale.wrapping_sub(new_scale);
+        let mut discarded = false;
+        let mut to_drop = diff - 1;
+        while to_drop > 0 {
             if is_all_zero(value) {
                 *value_scale = new_scale;
-                return;
+                return discarded;
             }
-
-            diff = diff_minus_one;
-
-            // Any remainder is discarded if diff > 0 still (i.e. lost precision)
-            remainder = div_by_u32(value, 10);
+            let chunk = to_drop.min(9);
+            discarded |= div_by_u32(value, POWERS_10[chunk as usize]) != 0;
+            to_drop -= chunk;
         }
+
+        if is_all_zero(value) {
+            *value_scale = new_scale;
+            return discarded;
+        }
+
+        // Now do the necessary rounding based on the most significant dropped digit.
+        let mut remainder = div_by_u32(value, 10);
+        discarded |= remainder != 0;
         if ROUND && remainder >= 5 {
             for part in value.iter_mut() {
                 let digit = u64::from(*part) + 1u64;
@@ -48,24 +66,30 @@ fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_s
             }
         }
         *value_scale = new_scale;
+        discarded
     } else {
+        // Scale up by multiplying by powers of 10, in chunks of up to 9 while they fit within 96
+        // bits. Once a chunk would overflow we fall back to multiplying one digit at a time so we
+        // still apply the maximum number of multiplications that fit.
         let mut diff = new_scale.wrapping_sub(*value_scale);
         let mut working = [value[0], value[1], value[2]];
-        while let Some(diff_minus_one) = diff.checked_sub(1) {
-            if mul_by_10(&mut working) == 0 {
+        while diff > 0 {
+            let chunk = diff.min(9);
+            let mut trial = working;
+            if chunk > 1 && mul_by_u32(&mut trial, POWERS_10[chunk as usize]) == 0 {
+                working = trial;
                 value.copy_from_slice(&working);
-                diff = diff_minus_one;
+                diff -= chunk;
+            } else if mul_by_10(&mut working) == 0 {
+                value.copy_from_slice(&working);
+                diff -= 1;
             } else {
                 break;
             }
         }
         *value_scale = new_scale.wrapping_sub(diff);
+        false
     }
-}
-
-#[inline]
-pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, desired_scale: u32) {
-    rescale::<false>(value, value_scale, desired_scale);
 }
 
 pub(crate) fn add_by_internal_flattened(value: &mut [u32; 3], by: u32) -> u32 {
@@ -307,6 +331,31 @@ mod test {
                 value_scale, expected_scale,
                 "value: {value_raw}, requested scale: {new_scale}"
             );
+        }
+    }
+
+    #[test]
+    fn it_rounds_at_the_half_boundary_when_scaling_down() {
+        // Scale differences greater than 9 exercise the chunked scale-down path. Rounding must
+        // still be driven solely by the most significant dropped digit (round half away from zero
+        // for the default rescale), regardless of how the dropped digits are chunked.
+        let tests = &[
+            // value, new_scale, expected rounded value, expected scale
+            ("0.5", 0, "1", 0),
+            ("0.45", 1, "0.5", 1),
+            ("0.4999999999", 0, "0", 0),           // first dropped digit is 4 -> no round up
+            ("0.5000000001", 0, "1", 0),           // first dropped digit is 5 -> round up
+            ("1.50000000000000000000", 0, "2", 0), // diff = 20, chunked
+            ("1.49999999999999999999", 0, "1", 0), // diff = 20, chunked, no round
+            ("2.55000000000000000000", 1, "2.6", 1),
+            ("0.00000000005", 0, "0", 0),
+        ];
+        for &(value_raw, new_scale, expected_value, expected_scale) in tests {
+            let (expected_value, _) = to_mantissa_array_with_scale(expected_value);
+            let (mut value, mut value_scale) = to_mantissa_array_with_scale(value_raw);
+            rescale_internal(&mut value, &mut value_scale, new_scale);
+            assert_eq!(value, expected_value, "value: {value_raw} -> scale {new_scale}");
+            assert_eq!(value_scale, expected_scale, "value: {value_raw} -> scale {new_scale}");
         }
     }
 

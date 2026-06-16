@@ -1,4 +1,7 @@
-use crate::constants::{MAX_I32_SCALE, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK, U32_MAX};
+use crate::constants::{
+    BIG_POWERS_10, MAX_I32_SCALE, MAX_I64_SCALE, OVERFLOW_U96, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, U32_MASK,
+    U32_MAX,
+};
 use crate::decimal::{CalculationResult, Decimal};
 use crate::ops::common::{Buf24, Dec64};
 
@@ -57,6 +60,50 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
             }
         } else {
             return fast_add(lo1, lo2, d1.flags(), effective_subtract);
+        }
+    }
+
+    // Fast path: both operands fit in 64 bits. We can align scales and add/subtract directly in
+    // 128-bit arithmetic, committing only if the result fits within 96 bits.
+    if d1.hi() == 0 && d2.hi() == 0 {
+        let m1 = (d1.lo() as u64) | ((d1.mid() as u64) << 32);
+        let m2 = (d2.lo() as u64) | ((d2.mid() as u64) << 32);
+        // Zeros are handled by the dedicated logic below.
+        if m1 != 0 && m2 != 0 {
+            let s1 = d1.scale();
+            let s2 = d2.scale();
+            let diff = s1.abs_diff(s2);
+            // The smaller-scale operand is scaled up by 10^diff. Keeping diff within 19 ensures
+            // the widening multiply stays inside 128 bits.
+            if diff <= MAX_I64_SCALE {
+                let (a, b, scale) = if diff == 0 {
+                    (m1 as u128, m2 as u128, s1)
+                } else {
+                    let power = BIG_POWERS_10[(diff - 1) as usize] as u128;
+                    if s1 > s2 {
+                        (m1 as u128, m2 as u128 * power, s1)
+                    } else {
+                        (m1 as u128 * power, m2 as u128, s2)
+                    }
+                };
+
+                let negative = d1.is_sign_negative();
+                let (magnitude, negative) = if effective_subtract {
+                    if a >= b { (a - b, negative) } else { (b - a, !negative) }
+                } else {
+                    (a + b, negative)
+                };
+
+                if magnitude < OVERFLOW_U96 {
+                    return CalculationResult::Ok(Decimal::from_parts(
+                        magnitude as u32,
+                        (magnitude >> 32) as u32,
+                        (magnitude >> 64) as u32,
+                        negative,
+                        scale,
+                    ));
+                }
+            }
         }
     }
 
