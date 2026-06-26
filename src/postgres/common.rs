@@ -2,25 +2,6 @@ use crate::{
     ops::array::{div_by_u32, is_all_zero, mul_by_u32},
     Decimal,
 };
-use core::fmt;
-use std::error;
-
-#[derive(Debug, Clone)]
-pub struct InvalidDecimal {
-    inner: Option<String>,
-}
-
-impl fmt::Display for InvalidDecimal {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(ref msg) = self.inner {
-            fmt.write_fmt(format_args!("Invalid Decimal: {}", msg))
-        } else {
-            fmt.write_str("Invalid Decimal")
-        }
-    }
-}
-
-impl error::Error for InvalidDecimal {}
 
 pub(in crate::postgres) struct PostgresDecimal<D> {
     pub neg: bool,

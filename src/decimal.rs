@@ -1145,6 +1145,7 @@ impl Decimal {
     /// Returns `true` if the decimal is negative.
     #[deprecated(since = "0.6.3", note = "please use `is_sign_negative` instead")]
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)] // kept as-is for backwards compatibility only
     pub fn is_negative(&self) -> bool {
         self.is_sign_negative()
     }
@@ -1152,6 +1153,7 @@ impl Decimal {
     /// Returns `true` if the decimal is positive.
     #[deprecated(since = "0.6.3", note = "please use `is_sign_positive` instead")]
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)] // kept as-is for backwards compatibility only
     pub fn is_positive(&self) -> bool {
         self.is_sign_positive()
     }
