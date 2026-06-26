@@ -149,7 +149,7 @@ fn add_sub_internal(d1: &Decimal, d2: &Decimal, subtract: bool) -> CalculationRe
 }
 
 #[inline(always)]
-fn rescale32(num: u32, rescale_factor: i32) -> Option<u32> {
+const fn rescale32(num: u32, rescale_factor: i32) -> Option<u32> {
     if rescale_factor > MAX_I32_SCALE {
         return None;
     }
@@ -157,7 +157,7 @@ fn rescale32(num: u32, rescale_factor: i32) -> Option<u32> {
 }
 
 #[inline(always)]
-fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult {
+const fn fast_add(lo1: u32, lo2: u32, flags: u32, subtract: bool) -> CalculationResult {
     if subtract {
         // Sub can't overflow because we're ensuring the bigger number always subtracts the smaller number
         if lo1 < lo2 {

@@ -188,12 +188,12 @@ fn parse_str_radix_10_dispatch<const BIG: bool, const ROUND: bool>(bytes: &[u8])
 }
 
 #[inline]
-fn overflow_64(val: u64) -> bool {
+const fn overflow_64(val: u64) -> bool {
     val >= WILL_OVERFLOW_U64
 }
 
 #[inline]
-pub fn overflow_128(val: u128) -> bool {
+pub const fn overflow_128(val: u128) -> bool {
     val >= OVERFLOW_U96
 }
 
