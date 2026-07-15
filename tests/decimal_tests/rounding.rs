@@ -410,3 +410,143 @@ fn round_sf_large_digits_does_not_overflow() {
     assert!(dec!(-1.5).round_sf(u32::MAX).is_some());
     assert!(Decimal::MAX.round_sf(u32::MAX).is_some());
 }
+
+#[test]
+fn round_sf_does_not_add_figures_on_carry() {
+    // A round up that carries into a new leading digit (e.g. 0.95 -> 1.0) must not keep the
+    // trailing zero: it is significant here, giving one more figure than requested.
+    let tests = &[
+        ("0.95", 1u32, "1"),
+        ("0.99", 1, "1"),
+        ("0.995", 2, "1.0"),
+        ("0.099", 1, "0.1"),
+        ("0.0095", 1, "0.01"),
+        ("0.0099", 1, "0.01"),
+        ("9.95", 2, "10"),
+        ("99.95", 3, "100"),
+        ("9999999.95", 8, "10000000"),
+        ("99999999999999999999.95", 21, "100000000000000000000"),
+        ("0.000000000000000000000000095", 1, "0.0000000000000000000000001"),
+        ("-0.95", 1, "-1"),
+        ("-0.995", 2, "-1.0"),
+        ("-9.95", 2, "-10"),
+    ];
+    for &(input, sf, expected) in tests {
+        let input = Decimal::from_str(input).unwrap();
+        let result = input.round_sf(sf).unwrap();
+        assert_eq!(expected, result.to_string(), "{input}.round_sf({sf})");
+        // an already rounded value must round to itself
+        let again = result.round_sf(sf).unwrap();
+        assert_eq!(
+            result.serialize(),
+            again.serialize(),
+            "{input}.round_sf({sf}) is not idempotent"
+        );
+    }
+}
+
+#[test]
+fn round_sf_carry_respects_rounding_strategy() {
+    let tests = &[
+        ("0.95", 1u32, RoundingStrategy::MidpointAwayFromZero, "1"),
+        ("0.95", 1, RoundingStrategy::MidpointTowardZero, "0.9"),
+        ("0.96", 1, RoundingStrategy::MidpointAwayFromZero, "1"),
+        ("0.91", 1, RoundingStrategy::AwayFromZero, "1"),
+        ("0.0949", 1, RoundingStrategy::AwayFromZero, "0.1"),
+        ("0.994", 2, RoundingStrategy::AwayFromZero, "1.0"),
+        ("0.99", 1, RoundingStrategy::ToPositiveInfinity, "1"),
+        ("-0.99", 1, RoundingStrategy::ToNegativeInfinity, "-1"),
+        ("-0.99", 1, RoundingStrategy::ToZero, "-0.9"),
+    ];
+    for &(input, sf, strategy, expected) in tests {
+        let input = Decimal::from_str(input).unwrap();
+        let result = input.round_sf_with_strategy(sf, strategy).unwrap();
+        assert_eq!(
+            expected,
+            result.to_string(),
+            "{input}.round_sf_with_strategy({sf}, {strategy:?})"
+        );
+    }
+}
+
+#[test]
+fn round_sf_keeps_legitimate_trailing_zeros() {
+    let tests = &[
+        // the carry stops before adding a digit: the trailing zero is significant
+        ("2.95", 2u32, "3.0"),
+        ("1.00", 2, "1.0"),
+        ("10.0", 3, "10.0"),
+        ("9.95", 3, "9.95"),
+        // integral result: the scale cannot go negative
+        ("99.5", 2, "100"),
+        ("0.045", 1, "0.04"),
+        ("0.012301", 3, "0.0123"),
+        ("0", 5, "0"),
+    ];
+    for &(input, sf, expected) in tests {
+        let input = Decimal::from_str(input).unwrap();
+        let result = input.round_sf(sf).unwrap();
+        assert_eq!(expected, result.to_string(), "{input}.round_sf({sf})");
+    }
+}
+
+// Figures shown by `to_string`: for integral values trailing zeros are placeholders, not
+// significant.
+fn displayed_figures(value: &Decimal) -> u32 {
+    let digits = value.mantissa().unsigned_abs().to_string();
+    let digits = digits.trim_start_matches('0');
+    let digits = if value.scale() == 0 {
+        digits.trim_end_matches('0')
+    } else {
+        digits
+    };
+    digits.len() as u32
+}
+
+#[test]
+fn round_sf_carry_sweep_keeps_requested_figures() {
+    let strategies = &[
+        RoundingStrategy::MidpointNearestEven,
+        RoundingStrategy::MidpointAwayFromZero,
+        RoundingStrategy::MidpointTowardZero,
+        RoundingStrategy::ToZero,
+        RoundingStrategy::AwayFromZero,
+        RoundingStrategy::ToNegativeInfinity,
+        RoundingStrategy::ToPositiveInfinity,
+    ];
+    // deterministic xorshift, biased towards all-nines runs where rounding carries
+    let mut state = 0x9E37_79B9_7F4A_7C15u64;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    for i in 0..2000 {
+        let power = 10i128.pow((next() % 26) as u32 + 1);
+        let mantissa = match i % 3 {
+            0 => power - (next() % 100) as i128,
+            1 => power + (next() % 100) as i128,
+            _ => (next() as i128) % power + 1,
+        };
+        let mantissa = if i % 2 == 0 { mantissa } else { -mantissa };
+        let value = Decimal::from_i128_with_scale(mantissa, (next() % 29) as u32);
+        for &strategy in strategies {
+            for sf in 1..=4u32 {
+                let Some(result) = value.round_sf_with_strategy(sf, strategy) else {
+                    continue;
+                };
+                assert!(
+                    displayed_figures(&result) <= sf,
+                    "{value}.round_sf_with_strategy({sf}, {strategy:?}) = {result} has too many figures"
+                );
+                let again = result.round_sf_with_strategy(sf, strategy).unwrap();
+                assert_eq!(
+                    result.serialize(),
+                    again.serialize(),
+                    "{value}.round_sf_with_strategy({sf}, {strategy:?}) is not idempotent"
+                );
+            }
+        }
+    }
+}
