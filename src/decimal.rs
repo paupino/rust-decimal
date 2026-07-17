@@ -1727,7 +1727,19 @@ impl Decimal {
                     }
                     Some(num)
                 } else {
-                    Some(self.round_dp_with_strategy(scale - diff, strategy))
+                    let rounded = self.round_dp_with_strategy(scale - diff, strategy);
+                    // Rounding away the low digits leaves `digits` figures unless the round up
+                    // carried into a new leading digit, which happens only when the mantissa
+                    // becomes exactly 10^digits (e.g. 0.95 -> 1.0). The gained figure is a
+                    // trailing zero, so dropping it is exact. Integral carries (e.g. 9.95 -> 10)
+                    // have scale 0 and no significant trailing zero, so are left as-is.
+                    // There is a potential performance improvement here by pre-calculating the powers of 10
+                    // (we have this as POWERS_10 and BIG_POWERS_10 however none go to the 28th power)
+                    if rounded.scale() > 0 && rounded.mantissa().unsigned_abs() == 10_u128.pow(digits) {
+                        Some(rounded.round_dp_with_strategy(rounded.scale() - 1, strategy))
+                    } else {
+                        Some(rounded)
+                    }
                 }
             }
             Ordering::Equal => {
