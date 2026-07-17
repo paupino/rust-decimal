@@ -1611,22 +1611,6 @@ impl Decimal {
         self.round_sf_with_strategy(digits, RoundingStrategy::MidpointNearestEven)
     }
 
-    // Counts the digits making up the mantissa, ignoring sign and scale - effectively a naive
-    // log10. Zero has no significant figures.
-    fn significant_figures(&self) -> u32 {
-        let mut working = self.mantissa_array3();
-        let mut count = 0;
-        while !ops::array::is_all_zero(&working) {
-            let _remainder = ops::array::div_by_u32(&mut working, 10u32);
-            count += 1;
-            if working[2] == 0 && working[1] == 0 && working[0] == 1 {
-                count += 1;
-                break;
-            }
-        }
-        count
-    }
-
     /// Returns `Some(Decimal)` number rounded to the specified number of significant digits. If
     /// the resulting number is unable to be represented by the `Decimal` number then `None` will
     /// be returned.
@@ -1670,8 +1654,19 @@ impl Decimal {
             return Some(Decimal::ZERO);
         }
 
-        // We start by figuring out how many significant figures the mantissa is made up of.
-        let mantissa_sf = self.significant_figures();
+        // We start by grabbing the mantissa and figuring out how many significant figures it is
+        // made up of. We do this by just dividing by 10 and checking remainders - effectively
+        // we're performing a naive log10.
+        let mut working = self.mantissa_array3();
+        let mut mantissa_sf = 0;
+        while !ops::array::is_all_zero(&working) {
+            let _remainder = ops::array::div_by_u32(&mut working, 10u32);
+            mantissa_sf += 1;
+            if working[2] == 0 && working[1] == 0 && working[0] == 1 {
+                mantissa_sf += 1;
+                break;
+            }
+        }
         let scale = self.scale();
 
         match digits.cmp(&mantissa_sf) {
@@ -1738,6 +1733,8 @@ impl Decimal {
                     // becomes exactly 10^digits (e.g. 0.95 -> 1.0). The gained figure is a
                     // trailing zero, so dropping it is exact. Integral carries (e.g. 9.95 -> 10)
                     // have scale 0 and no significant trailing zero, so are left as-is.
+                    // There is a potential performance improvement here by pre-calculating the powers of 10
+                    // (we have this as POWERS_10 and BIG_POWERS_10 however none go to the 28th power)
                     if rounded.scale() > 0 && rounded.mantissa().unsigned_abs() == 10_u128.pow(digits) {
                         Some(rounded.round_dp_with_strategy(rounded.scale() - 1, strategy))
                     } else {
