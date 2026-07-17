@@ -1671,13 +1671,18 @@ impl Decimal {
 
         match digits.cmp(&mantissa_sf) {
             Ordering::Greater => {
-                // If we're requesting a higher number of significant figures, we rescale
+                // If we're requesting a higher number of significant figures, we rescale. The
+                // target is capped at MAX_SCALE: a Decimal cannot store a higher scale, and an
+                // uncapped value would be malformed (scale 29-31) and panic on Display.
                 let mut array = [self.lo, self.mid, self.hi];
                 let mut value_scale = scale;
                 ops::array::rescale_internal(
                     &mut array,
                     &mut value_scale,
-                    scale.saturating_add(digits).saturating_sub(mantissa_sf),
+                    scale
+                        .saturating_add(digits)
+                        .saturating_sub(mantissa_sf)
+                        .min(MAX_SCALE_U32),
                 );
                 Some(Decimal {
                     lo: array[0],

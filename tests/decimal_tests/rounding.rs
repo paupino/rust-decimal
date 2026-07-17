@@ -550,3 +550,60 @@ fn round_sf_carry_sweep_keeps_requested_figures() {
         }
     }
 }
+
+#[test]
+fn round_sf_up_scale_stays_within_max_scale() {
+    // Requesting more figures than the magnitude holds up-scales the value by padding zeros. The
+    // target scale must be capped at MAX_SCALE: an uncapped target produced a malformed scale
+    // 29-31 Decimal (e.g. 5e-27.round_sf(5) -> scale 31) that then panics on `to_string`.
+    let strategies = &[
+        RoundingStrategy::MidpointNearestEven,
+        RoundingStrategy::MidpointAwayFromZero,
+        RoundingStrategy::MidpointTowardZero,
+        RoundingStrategy::ToZero,
+        RoundingStrategy::AwayFromZero,
+        RoundingStrategy::ToNegativeInfinity,
+        RoundingStrategy::ToPositiveInfinity,
+    ];
+    // (input, digits, expected) - up-scaling only pads zeros, so every strategy agrees.
+    let tests = &[
+        // over the boundary: without the cap these were scale 29/30/31
+        ("0.000000000000000000000000005", 5u32, "0.0000000000000000000000000050"),
+        ("0.000000000000000000000000005", 4, "0.0000000000000000000000000050"),
+        ("0.000000000000000000000000005", 3, "0.0000000000000000000000000050"),
+        ("-0.000000000000000000000000005", 5, "-0.0000000000000000000000000050"),
+        ("0.05", 28, "0.0500000000000000000000000000"),
+        ("0.005", 27, "0.0050000000000000000000000000"),
+        ("0.5", 29, "0.5000000000000000000000000000"),
+        ("-0.5", 30, "-0.5000000000000000000000000000"),
+        // in range: the cap does not interfere with normal up-scaling
+        ("0.5", 3, "0.500"),
+        ("305.459", 7, "305.4590"),
+    ];
+    for &(input, digits, expected) in tests {
+        let value = Decimal::from_str(input).unwrap();
+        for &strategy in strategies {
+            let result = value
+                .round_sf_with_strategy(digits, strategy)
+                .expect("up-scaling a representable value must not return None");
+            assert!(
+                result.scale() <= Decimal::MAX_SCALE,
+                "{input}.round_sf_with_strategy({digits}, {strategy:?}) scale {} exceeds MAX_SCALE",
+                result.scale()
+            );
+            // `to_string` panics on a malformed scale, so this also guards the crash.
+            assert_eq!(
+                expected,
+                result.to_string(),
+                "{input}.round_sf_with_strategy({digits}, {strategy:?})"
+            );
+            // an already up-scaled value must round to itself
+            let again = result.round_sf_with_strategy(digits, strategy).unwrap();
+            assert_eq!(
+                result.serialize(),
+                again.serialize(),
+                "{input}.round_sf_with_strategy({digits}, {strategy:?}) is not idempotent"
+            );
+        }
+    }
+}
