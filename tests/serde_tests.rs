@@ -148,6 +148,7 @@ fn serialize_decimal_roundtrip() {
 
 #[test]
 #[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_roundtrip_without_serde_str() {
     // bincode is not self-describing, so `deserialize_any` cannot work.
     // This must succeed without any opt-in feature.
@@ -160,6 +161,7 @@ fn bincode_roundtrip_without_serde_str() {
 
 #[test]
 #[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_roundtrip_preserves_scale() {
     let expected = Decimal::from_str("1.0000").unwrap();
     let encoded = bincode::serialize(&expected).unwrap();
@@ -170,6 +172,7 @@ fn bincode_roundtrip_preserves_scale() {
 
 #[test]
 #[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_serialization_not_float() {
     use bincode::{deserialize, serialize};
 
@@ -194,6 +197,7 @@ fn bincode_serialization_not_float() {
 
 #[test]
 #[cfg(feature = "serde-default-number")]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_serialization_serde_float() {
     use bincode::{deserialize, serialize};
 
@@ -217,6 +221,7 @@ fn bincode_serialization_serde_float() {
 
 #[test]
 #[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_nested_serialization() {
     // Issue #361
     #[derive(Deserialize, Serialize, Debug)]
@@ -289,6 +294,7 @@ fn with_str() {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn with_str_bincode() {
     use bincode::{deserialize, serialize};
 
@@ -319,6 +325,7 @@ fn with_str_bincode() {
 }
 
 #[test]
+#[cfg(not(target_arch = "wasm32"))]
 fn with_str_bincode_optional() {
     use bincode::{deserialize, serialize};
 
