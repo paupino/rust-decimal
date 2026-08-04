@@ -36,8 +36,6 @@ mod postgres;
 mod proptest;
 #[cfg(feature = "rand-0_10")]
 mod rand_0_10;
-#[cfg(feature = "rand-0_9")]
-mod rand_0_9;
 /// Serde specific functionality to customize how a decimal is serialized/deserialized (`serde_with`)
 #[cfg(feature = "serde")]
 pub mod serde;

@@ -31,7 +31,6 @@ ndarray-0_16 = { default-features = false, optional = true, package = "ndarray",
 num-traits = { default-features = false, features = ["i128"], package = "num-traits", version = "0.2" }
 postgres-types = { default-features = false, optional = true, package = "postgres-types", version = "0.2" }
 proptest = { default-features = false, optional = true, features = ["std"], version = "1.0" }
-rand-0_9 = { default-features = false, optional = true, package = "rand", version = "0.9" }
 rand-0_10 = { default-features = false, optional = true, package = "rand", version = "0.10" }
 rust_decimal_macros = { path = "macros", default-features = false, optional = true, version = "=2.0.0-alpha.0" }
 serde = { default-features = false, optional = true, version = "1" }
@@ -60,7 +59,6 @@ diesel = { default-features = false, features = ["mysql", "postgres"], version =
 futures = { default-features = false, version = "0.3" }
 postgres = { default-features = false, version = "0.19" }
 rust_decimal = { path = ".", features = ["macros"] }
-rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
 rand-0_10 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.10" }
 rkyv-0_8 = { version = "0.8", package = "rkyv" }
 tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
@@ -85,7 +83,6 @@ maths = ["alloc"]
 maths-nopanic = ["maths"]
 ndarray-0_16 = ["dep:ndarray-0_16"]
 proptest = ["dep:proptest"]
-rand-0_9 = ["dep:rand-0_9"]
 rand-0_10 = ["dep:rand-0_10"]
 rust-fuzz = ["dep:arbitrary"]
 serde = ["alloc", "dep:serde", "wasm-bindgen?/serde"]
@@ -94,8 +91,8 @@ serde-default-number = ["serde"]
 # Read and write with full precision rather than via f64. Affects reading always;
 # affects writing only alongside `serde-default-number`.
 serde-default-exact = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
-std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std", "wasm-bindgen?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
+std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std", "wasm-bindgen?/std"]
 wasm = ["dep:wasm-bindgen"]
 
 [[bench]]
