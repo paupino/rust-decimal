@@ -12,6 +12,8 @@
 
 [docs]: https://docs.rs/rust_decimal
 
+> Upgrading from 1.x? See [MIGRATING.md](MIGRATING.md).
+
 A Decimal number implementation written in pure Rust suitable for financial calculations that require significant
 integral and fractional digits with no round-off errors.
 
