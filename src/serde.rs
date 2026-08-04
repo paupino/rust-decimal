@@ -115,7 +115,6 @@ pub mod arbitrary_precision_option {
 ///     r#"{"value":123.4}"#
 /// );
 /// ```
-#[cfg(feature = "serde-with-float")]
 pub mod float {
     use super::*;
     use serde::Serialize;
@@ -161,7 +160,6 @@ pub mod float {
 ///     r#"{"value":null}"#
 /// );
 /// ```
-#[cfg(feature = "serde-with-float")]
 pub mod float_option {
     use super::*;
     use serde::Serialize;
@@ -207,7 +205,6 @@ pub mod float_option {
 /// );
 ///
 /// ```
-#[cfg(feature = "serde-with-str")]
 pub mod str {
     use super::*;
 
@@ -252,7 +249,6 @@ pub mod str {
 ///     r#"{"value":null}"#
 /// );
 /// ```
-#[cfg(feature = "serde-with-str")]
 pub mod str_option {
     use super::*;
 
@@ -378,10 +374,8 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     }
 }
 
-#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
 struct OptionDecimalVisitor;
 
-#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
 impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
     type Value = Option<Decimal>;
 
@@ -421,10 +415,8 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
     }
 }
 
-#[cfg(feature = "serde-with-str")]
 struct OptionDecimalStrVisitor;
 
-#[cfg(feature = "serde-with-str")]
 impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
     type Value = Option<Decimal>;
 

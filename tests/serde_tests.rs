@@ -495,3 +495,25 @@ fn with_arbitrary_precision_tagged_enum_optional() {
     let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized, original);
 }
+
+#[test]
+fn helper_modules_available_without_extra_features() {
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Helpers {
+        #[serde(with = "rust_decimal::serde::str")]
+        as_str: Decimal,
+        #[serde(with = "rust_decimal::serde::float")]
+        as_float: Decimal,
+    }
+
+    let value = Helpers {
+        as_str: Decimal::from_str("1.25").unwrap(),
+        as_float: Decimal::from_str("1.25").unwrap(),
+    };
+    let json = serde_json::to_string(&value).unwrap();
+    assert_eq!(r#"{"as_str":"1.25","as_float":1.25}"#, json);
+
+    let parsed: Helpers = serde_json::from_str(&json).unwrap();
+    assert_eq!(value.as_str, parsed.as_str);
+    assert_eq!(value.as_float, parsed.as_float);
+}
