@@ -74,8 +74,6 @@ bytemuck = ["c-repr", "dep:bytemuck", "dep:bytemuck_derive"]
 c-repr = [] # Force Decimal to be repr(C)
 db-diesel-mysql = ["diesel/mysql_backend", "std"]
 db-diesel-postgres = ["diesel/postgres_backend", "std"]
-db-diesel2-mysql = ["db-diesel-mysql"]
-db-diesel2-postgres = ["db-diesel-postgres"]
 db-postgres = ["dep:bytes", "dep:postgres-types", "std"]
 db-tokio-postgres = ["dep:bytes", "dep:postgres-types", "std"]
 macros = ["dep:rust_decimal_macros"]
@@ -91,7 +89,6 @@ serde-default-number = ["serde"]
 # Read and write with full precision rather than via f64. Affects reading always;
 # affects writing only alongside `serde-default-number`.
 serde-default-exact = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
-tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std", "wasm-bindgen?/std"]
 wasm = ["dep:wasm-bindgen"]
 
