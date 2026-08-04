@@ -194,7 +194,7 @@ fn overflow_64(val: u64) -> bool {
 }
 
 #[inline]
-pub fn overflow_128(val: u128) -> bool {
+pub(crate) fn overflow_128(val: u128) -> bool {
     val >= OVERFLOW_U96
 }
 

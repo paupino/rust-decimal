@@ -10,7 +10,7 @@ mod constants;
 mod decimal;
 mod error;
 mod ops;
-pub mod str;
+mod str;
 
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
