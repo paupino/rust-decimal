@@ -277,33 +277,27 @@ pub mod str_option {
     }
 }
 
-#[cfg(not(feature = "serde-str"))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
-        deserializer.deserialize_any(DecimalVisitor)
-    }
-}
-
-#[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
-impl<'de> serde::Deserialize<'de> for Decimal {
-    fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
-        deserializer.deserialize_str(DecimalVisitor)
-    }
-}
-
-#[cfg(all(feature = "serde-str", feature = "serde-float"))]
-impl<'de> serde::Deserialize<'de> for Decimal {
-    fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
-        deserializer.deserialize_f64(DecimalVisitor)
+        // Self-describing formats (JSON, YAML) can accept either a string or a
+        // number, so `deserialize_any` is both safe and maximally permissive.
+        // Non-self-describing formats (bincode, postcard) reject `deserialize_any`
+        // outright and must be told the concrete type up front.
+        if deserializer.is_human_readable() {
+            deserializer.deserialize_any(DecimalVisitor)
+        } else {
+            #[cfg(feature = "serde-float")]
+            {
+                deserializer.deserialize_f64(DecimalVisitor)
+            }
+            #[cfg(not(feature = "serde-float"))]
+            {
+                deserializer.deserialize_str(DecimalVisitor)
+            }
+        }
     }
 }
 

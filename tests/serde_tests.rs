@@ -148,7 +148,29 @@ fn serialize_decimal_roundtrip() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
+#[cfg(not(feature = "serde-float"))]
+fn bincode_roundtrip_without_serde_str() {
+    // bincode is not self-describing, so `deserialize_any` cannot work.
+    // This must succeed without any opt-in feature.
+    let expected = Decimal::from_str("12.34").unwrap();
+    let encoded = bincode::serialize(&expected).unwrap();
+    let decoded: Decimal = bincode::deserialize(&encoded).unwrap();
+    assert_eq!(expected, decoded);
+    assert_eq!(expected.scale(), decoded.scale());
+}
+
+#[test]
+#[cfg(not(feature = "serde-float"))]
+fn bincode_roundtrip_preserves_scale() {
+    let expected = Decimal::from_str("1.0000").unwrap();
+    let encoded = bincode::serialize(&expected).unwrap();
+    let decoded: Decimal = bincode::deserialize(&encoded).unwrap();
+    assert_eq!(4, decoded.scale());
+    assert_eq!("1.0000", decoded.to_string());
+}
+
+#[test]
+#[cfg(not(feature = "serde-float"))]
 fn bincode_serialization_not_float() {
     use bincode::{deserialize, serialize};
 
@@ -195,7 +217,7 @@ fn bincode_serialization_serde_float() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
+#[cfg(not(feature = "serde-float"))]
 fn bincode_nested_serialization() {
     // Issue #361
     #[derive(Deserialize, Serialize, Debug)]
