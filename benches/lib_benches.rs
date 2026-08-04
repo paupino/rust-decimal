@@ -202,7 +202,6 @@ fn serialize_bincode(b: &mut test::Bencher) {
     })
 }
 
-#[cfg(feature = "serde-str")]
 #[bench]
 fn deserialize_bincode(b: &mut test::Bencher) {
     let payloads: Vec<Vec<u8>> = SAMPLE_STRS

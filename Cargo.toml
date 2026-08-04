@@ -89,13 +89,11 @@ rand-0_9 = ["dep:rand-0_9"]
 rand-0_10 = ["dep:rand-0_10"]
 rust-fuzz = ["dep:arbitrary"]
 serde = ["alloc", "dep:serde", "wasm-bindgen?/serde"]
-serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
-serde-bincode = ["serde-str"] # Backwards compatability
-serde-float = ["serde-with-float"]
-serde-str = ["serde-with-str"]
-serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
-serde-with-float = ["serde"]
-serde-with-str = ["serde"]
+# Serialize as an unquoted number rather than a quoted string.
+serde-default-number = ["serde"]
+# Read and write with full precision rather than via f64. Affects reading always;
+# affects writing only alongside `serde-default-number`.
+serde-default-exact = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
 std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std", "wasm-bindgen?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 wasm = ["dep:wasm-bindgen"]

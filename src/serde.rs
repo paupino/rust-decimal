@@ -24,7 +24,7 @@ use serde::{self, de::Unexpected};
 ///     r#"{"value":123.400}"#
 /// );
 /// ```
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-exact")]
 pub mod arbitrary_precision {
     use super::*;
     use serde::Serialize;
@@ -71,7 +71,7 @@ pub mod arbitrary_precision {
 ///     r#"{"value":null}"#
 /// );
 /// ```
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-exact")]
 pub mod arbitrary_precision_option {
     use super::*;
     use serde::Serialize;
@@ -285,11 +285,11 @@ impl<'de> serde::Deserialize<'de> for Decimal {
         if deserializer.is_human_readable() {
             deserializer.deserialize_any(DecimalVisitor)
         } else {
-            #[cfg(feature = "serde-float")]
+            #[cfg(feature = "serde-default-number")]
             {
                 deserializer.deserialize_f64(DecimalVisitor)
             }
-            #[cfg(not(feature = "serde-float"))]
+            #[cfg(not(feature = "serde-default-number"))]
             {
                 deserializer.deserialize_str(DecimalVisitor)
             }
@@ -298,7 +298,7 @@ impl<'de> serde::Deserialize<'de> for Decimal {
 }
 
 // It's a shame this needs to be redefined for this feature and not able to be referenced directly
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-exact")]
 const DECIMAL_KEY_TOKEN: &str = "$serde_json::private::Number";
 
 struct DecimalVisitor;
@@ -330,7 +330,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         }
     }
 
-    #[cfg(not(feature = "serde-with-arbitrary-precision"))]
+    #[cfg(not(feature = "serde-default-exact"))]
     fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
     where
         E: serde::de::Error,
@@ -338,7 +338,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
     }
 
-    #[cfg(feature = "serde-with-arbitrary-precision")]
+    #[cfg(feature = "serde-default-exact")]
     fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
     where
         E: serde::de::Error,
@@ -359,7 +359,7 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
             .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
     }
 
-    #[cfg(feature = "serde-with-arbitrary-precision")]
+    #[cfg(feature = "serde-default-exact")]
     fn visit_map<A>(self, map: A) -> Result<Decimal, A::Error>
     where
         A: serde::de::MapAccess<'de>,
@@ -397,20 +397,12 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
         Ok(None)
     }
 
-    #[cfg(all(feature = "serde-str", feature = "serde-float"))]
     fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
-        // We've got multiple types that we may see so we need to use any
-        d.deserialize_any(DecimalVisitor).map(Some)
-    }
-
-    #[cfg(not(all(feature = "serde-str", feature = "serde-float")))]
-    fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
+        // Delegating picks up the format-aware dispatch on the main impl, which
+        // handles both self-describing and binary formats correctly.
         <Decimal as serde::Deserialize>::deserialize(d).map(Some)
     }
 }
@@ -461,10 +453,10 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalStrVisitor {
     }
 }
 
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-exact")]
 struct DecimalKey;
 
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-exact")]
 impl<'de> serde::de::Deserialize<'de> for DecimalKey {
     fn deserialize<D>(deserializer: D) -> Result<DecimalKey, D::Error>
     where
@@ -496,12 +488,12 @@ impl<'de> serde::de::Deserialize<'de> for DecimalKey {
     }
 }
 
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-exact")]
 pub struct DecimalFromString {
     pub value: Decimal,
 }
 
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-exact")]
 impl<'de> serde::de::Deserialize<'de> for DecimalFromString {
     fn deserialize<D>(deserializer: D) -> Result<DecimalFromString, D::Error>
     where
@@ -531,7 +523,7 @@ impl<'de> serde::de::Deserialize<'de> for DecimalFromString {
     }
 }
 
-#[cfg(not(feature = "serde-float"))]
+#[cfg(not(feature = "serde-default-number"))]
 impl serde::Serialize for Decimal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -542,7 +534,7 @@ impl serde::Serialize for Decimal {
     }
 }
 
-#[cfg(all(feature = "serde-float", not(feature = "serde-arbitrary-precision")))]
+#[cfg(all(feature = "serde-default-number", not(feature = "serde-default-exact")))]
 impl serde::Serialize for Decimal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -553,12 +545,19 @@ impl serde::Serialize for Decimal {
     }
 }
 
-#[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+#[cfg(all(feature = "serde-default-number", feature = "serde-default-exact"))]
 impl serde::Serialize for Decimal {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
+        // `serde_json::Number` is JSON-specific: a binary format receives its
+        // internal representation rather than a number. Fall back to the plain
+        // numeric wire form there, matching `serde-default-number` alone.
+        if !serializer.is_human_readable() {
+            use num_traits::ToPrimitive;
+            return serializer.serialize_f64(self.to_f64().unwrap());
+        }
         serde_json::Number::from_str(&self.to_string())
             .map_err(serde::ser::Error::custom)?
             .serialize(serializer)
