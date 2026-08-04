@@ -3,6 +3,7 @@ use core::fmt;
 
 /// Error type for the library.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum Error {
     /// Failed to convert to or from `Decimal` for the specified type. This is typically
     /// due to type constraints (e.g. `Decimal::MAX` cannot be converted into `i32`).
