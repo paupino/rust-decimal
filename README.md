@@ -78,7 +78,7 @@ functions ([see the docs](https://docs.rs/rust_decimal/) for more details):
 use rust_decimal::prelude::*;
 
 // Using an integer followed by the decimal points
-let scaled = Decimal::new(202, 2);
+let scaled = Decimal::from_i64_with_scale(202, 2);
 assert_eq!("2.02", scaled.to_string());
 
 // From a 128 bit integer
@@ -203,7 +203,7 @@ Any Rust number format is supported, including scientific notation and alternate
 ```rust
 use rust_decimal::prelude::*;
 
-assert_eq!(dec!(1.23), Decimal::new(123, 2));
+assert_eq!(dec!(1.23), Decimal::from_i64_with_scale(123, 2));
 ```
 
 ### `maths`

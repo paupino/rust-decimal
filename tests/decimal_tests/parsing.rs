@@ -3,7 +3,7 @@ use rust_decimal::{Decimal, Error};
 
 #[test]
 fn it_creates_a_new_negative_decimal() {
-    let a = Decimal::new(-100, 2);
+    let a = Decimal::from_i64_with_scale(-100, 2);
     assert!(a.is_sign_negative());
     assert_eq!(a.scale(), 2);
     assert_eq!("-1.00", a.to_string());
@@ -11,12 +11,12 @@ fn it_creates_a_new_negative_decimal() {
 
 #[test]
 fn it_creates_a_new_decimal_using_numeric_boundaries() {
-    let a = Decimal::new(i64::MAX, 2);
+    let a = Decimal::from_i64_with_scale(i64::MAX, 2);
     assert!(!a.is_sign_negative());
     assert_eq!(a.scale(), 2);
     assert_eq!("92233720368547758.07", a.to_string());
 
-    let b = Decimal::new(i64::MIN, 2);
+    let b = Decimal::from_i64_with_scale(i64::MIN, 2);
     assert!(b.is_sign_negative());
     assert_eq!(b.scale(), 2);
     assert_eq!("-92233720368547758.08", b.to_string());

@@ -786,7 +786,7 @@ mod test {
     fn from_str_rounding_0() {
         assert_eq!(
             parse_str_radix_10("1.234").unwrap().unpack(),
-            Decimal::new(1234, 3).unpack()
+            Decimal::from_i64_with_scale(1234, 3).unpack()
         );
     }
 
@@ -834,7 +834,7 @@ mod test {
     fn from_str_no_rounding_0() {
         assert_eq!(
             parse_str_radix_10_exact("1.234").unwrap().unpack(),
-            Decimal::new(1234, 3).unpack()
+            Decimal::from_i64_with_scale(1234, 3).unpack()
         );
     }
 

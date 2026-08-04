@@ -33,14 +33,18 @@ fn test_powu() {
 #[test]
 #[should_panic(expected = "Pow overflowed")]
 fn test_powu_panic() {
-    let two = Decimal::new(2, 0);
+    let two = Decimal::from_i64_with_scale(2, 0);
     let _ = two.powu(128);
 }
 
 #[test]
 fn test_checked_powu() {
     let test_cases = &[
-        (Decimal::new(4, 0), 3_u64, Some(Decimal::new(64, 0))),
+        (
+            Decimal::from_i64_with_scale(4, 0),
+            3_u64,
+            Some(Decimal::from_i64_with_scale(64, 0)),
+        ),
         (
             Decimal::from_str("3.222").unwrap(),
             5_u64,
@@ -158,7 +162,7 @@ fn test_sqrt() {
         assert_eq!(expected, a.sqrt().unwrap());
     }
 
-    assert_eq!(Decimal::new(-2, 0).sqrt(), None);
+    assert_eq!(Decimal::from_i64_with_scale(-2, 0).sqrt(), None);
 }
 
 #[test]
@@ -484,7 +488,7 @@ fn test_checked_sin() {
             {
                 let left = sin.unwrap();
                 let right = result;
-                let eps = Decimal::new(1, ACCEPTED_PRECISION);
+                let eps = Decimal::from_i64_with_scale(1, ACCEPTED_PRECISION);
                 let diff = (left - right).abs();
                 assert!(
                     diff <= eps,
@@ -538,7 +542,7 @@ fn test_checked_cos() {
             {
                 let left = cos.unwrap();
                 let right = result;
-                let eps = Decimal::new(1, ACCEPTED_PRECISION);
+                let eps = Decimal::from_i64_with_scale(1, ACCEPTED_PRECISION);
                 let diff = (left - right).abs();
                 assert!(
                     diff <= eps,
@@ -590,7 +594,7 @@ fn test_checked_tan() {
             {
                 let left = tan.unwrap();
                 let right = result;
-                let eps = Decimal::new(1, ACCEPTED_PRECISION);
+                let eps = Decimal::from_i64_with_scale(1, ACCEPTED_PRECISION);
                 let diff = (left - right).abs();
                 assert!(
                     diff <= eps,

@@ -143,7 +143,7 @@ fn it_can_normalize() {
 #[test]
 #[should_panic(expected = "Scale exceeds the maximum precision allowed: 29 > 28")]
 fn it_panics_when_scale_too_large() {
-    let _ = Decimal::new(1, 29);
+    let _ = Decimal::from_i64_with_scale(1, 29);
 }
 
 #[test]
@@ -173,4 +173,36 @@ fn it_can_rescale() {
         assert_eq!(expected_value, value.to_string());
         assert_eq!(expected_scale, value.scale());
     }
+}
+
+#[test]
+fn it_creates_from_i64_with_scale() {
+    let value = Decimal::from_i64_with_scale(1234, 2);
+    assert_eq!("12.34", value.to_string());
+    assert_eq!(2, value.scale());
+}
+
+#[test]
+fn it_returns_error_for_excessive_scale() {
+    let result = Decimal::try_from_i64_with_scale(1234, 29);
+    assert!(result.is_err());
+}
+
+#[test]
+fn it_creates_from_i64_with_scale_in_const_context() {
+    const VALUE: Decimal = match Decimal::try_from_i64_with_scale(1234, 2) {
+        Ok(d) => d,
+        Err(_) => panic!("unexpected"),
+    };
+    assert_eq!("12.34", VALUE.to_string());
+}
+
+#[test]
+#[allow(deprecated)]
+fn deprecated_constructors_still_function() {
+    assert_eq!(Decimal::new(1234, 2), Decimal::from_i64_with_scale(1234, 2));
+    assert_eq!(
+        Decimal::try_new(1234, 2).unwrap(),
+        Decimal::try_from_i64_with_scale(1234, 2).unwrap()
+    );
 }

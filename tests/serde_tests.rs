@@ -69,7 +69,7 @@ fn deserialize_invalid_decimal() {
 #[cfg(not(feature = "serde-default-number"))]
 fn serialize_decimal() {
     let record = Record {
-        amount: Decimal::new(1234, 3),
+        amount: Decimal::from_i64_with_scale(1234, 3),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":\"1.234\"}", serialized);
@@ -87,7 +87,7 @@ fn serialize_negative_zero() {
 #[cfg(feature = "serde-default-number")]
 fn serialize_decimal() {
     let record = Record {
-        amount: Decimal::new(1234, 3),
+        amount: Decimal::from_i64_with_scale(1234, 3),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":1.234}", serialized);
@@ -99,7 +99,7 @@ fn serialize_decimal_roundtrip() {
     let record = Record {
         // 4.81 is intentionally chosen as it is unrepresentable as a floating point number, meaning this test
         // would fail if `serde-default-exact` was not activated.
-        amount: Decimal::new(481, 2),
+        amount: Decimal::from_i64_with_scale(481, 2),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":4.81}", serialized);
@@ -138,7 +138,7 @@ fn serialize_whole_number_decimal() {
 #[cfg(not(feature = "serde-default-number"))]
 fn serialize_decimal_roundtrip() {
     let record = Record {
-        amount: Decimal::new(481, 2),
+        amount: Decimal::from_i64_with_scale(481, 2),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":\"4.81\"}", serialized);
@@ -225,7 +225,7 @@ fn bincode_nested_serialization() {
     }
 
     let s = Foo {
-        value: Decimal::new(-1, 3).round_dp(0),
+        value: Decimal::from_i64_with_scale(-1, 3).round_dp(0),
     };
     let ser = bincode::serialize(&s).unwrap();
     let des: Foo = bincode::deserialize(&ser).unwrap();
@@ -329,7 +329,7 @@ fn with_str_bincode_optional() {
     }
 
     // Some(value)
-    let value = Some(Decimal::new(1234, 3));
+    let value = Some(Decimal::from_i64_with_scale(1234, 3));
     let input = BincodeExample { value };
     let encoded = serialize(&input).unwrap();
     let decoded: BincodeExample = deserialize(&encoded[..]).unwrap();

@@ -774,7 +774,7 @@ pub(crate) fn ln_wide(value: &Decimal) -> Option<Decimal> {
 
     // Special case: x == 1 means value was an exact power of 10
     if x == Decimal::ONE {
-        let mut out = Decimal::new(k as i64, 0).checked_mul(LN10)?;
+        let mut out = Decimal::from_i64_with_scale(k as i64, 0).checked_mul(LN10)?;
         out.normalize_assign();
         return Some(out);
     }
@@ -795,7 +795,7 @@ pub(crate) fn ln_wide(value: &Decimal) -> Option<Decimal> {
     let one_wide = DecWide::one();
     let x_minus_1 = x_wide.checked_sub_impl(&one_wide, false)?;
     if x_minus_1.is_zero() {
-        return Some(Decimal::new(count as i64, 0));
+        return Some(Decimal::from_i64_with_scale(count as i64, 0));
     }
     let x_plus_1 = x_wide.checked_add(&one_wide)?;
 
@@ -830,12 +830,12 @@ pub(crate) fn ln_wide(value: &Decimal) -> Option<Decimal> {
     // ln(value) = k*ln(10) + count + ln(x)
     let ln_fractional = ln_x.to_decimal()?;
     let k_ln10 = if k != 0 {
-        Decimal::new(k as i64, 0).checked_mul(LN10)?
+        Decimal::from_i64_with_scale(k as i64, 0).checked_mul(LN10)?
     } else {
         Decimal::ZERO
     };
     let mut out = k_ln10
-        .checked_add(Decimal::new(count as i64, 0))?
+        .checked_add(Decimal::from_i64_with_scale(count as i64, 0))?
         .checked_add(ln_fractional)?;
     out.normalize_assign();
     Some(out)
