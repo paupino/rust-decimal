@@ -38,7 +38,7 @@ fn deserialize_valid_decimal() {
 }
 
 #[test]
-#[cfg(feature = "serde-default-exact")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn deserialize_basic_decimal() {
     let s = "1.1234127836128763";
     let d: Decimal = serde_json::from_str(s).unwrap();
@@ -47,7 +47,7 @@ fn deserialize_basic_decimal() {
 }
 
 #[test]
-#[cfg(feature = "serde-default-exact")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn deserialize_f64_scientific_notation_from_value() {
     // When serde_json's arbitrary_precision is enabled, small floats that roundtrip
     // through f64 are deserialized via visit_f64. zmij/ryu formats them in scientific
@@ -94,11 +94,11 @@ fn serialize_decimal() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-default-number", feature = "serde-default-exact"))]
+#[cfg(all(feature = "serde-default-number", feature = "serde-default-arbitrary-precision"))]
 fn serialize_decimal_roundtrip() {
     let record = Record {
         // 4.81 is intentionally chosen as it is unrepresentable as a floating point number, meaning this test
-        // would fail if `serde-default-exact` was not activated.
+        // would fail if `serde-default-arbitrary-precision` was not activated.
         amount: Decimal::from_i64_with_scale(481, 2),
     };
     let serialized = serde_json::to_string(&record).unwrap();
@@ -108,7 +108,7 @@ fn serialize_decimal_roundtrip() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-default-number", feature = "serde-default-exact"))]
+#[cfg(all(feature = "serde-default-number", feature = "serde-default-arbitrary-precision"))]
 fn serialize_whole_number_decimal() {
     let data = [
         ("0", "0"),
@@ -238,7 +238,7 @@ fn bincode_nested_serialization() {
 }
 
 #[test]
-#[cfg(feature = "serde-default-exact")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision() {
     #[derive(Serialize, Deserialize)]
     pub struct ArbitraryExample {
@@ -253,7 +253,7 @@ fn with_arbitrary_precision() {
 }
 
 #[test]
-#[cfg(feature = "serde-default-exact")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision_from_string() {
     #[derive(Serialize, Deserialize)]
     pub struct ArbitraryExample {
@@ -447,7 +447,7 @@ fn with_float_tagged_enum_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-default-exact")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision_optional() {
     #[derive(Serialize, Deserialize)]
     pub struct StringExample {
@@ -473,7 +473,7 @@ fn with_arbitrary_precision_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-default-exact")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision_tagged_enum_optional() {
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case")]

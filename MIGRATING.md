@@ -74,8 +74,8 @@ These were deprecated in 1.x and are now gone.
 | 1.x | 2.0 |
 | --- | --- |
 | `serde-float` | `serde-default-number` |
-| `serde-arbitrary-precision` | `serde-default-exact` |
-| `serde-with-arbitrary-precision` | `serde-default-exact` |
+| `serde-arbitrary-precision` | `serde-default-arbitrary-precision` |
+| `serde-with-arbitrary-precision` | `serde-default-arbitrary-precision` |
 | `serde-with-float`, `serde-with-str` | *removed — always available* |
 | `serde-str`, `serde-bincode` | *removed — now automatic* |
 | `tokio-pg` | `db-tokio-postgres` |
@@ -95,15 +95,15 @@ supported:
 | --- | --- | --- |
 | *(neither)* | `"1.0000"` | error |
 | `serde-default-number` | `1.0` | error |
-| `serde-default-exact` | `"1.0000"` | exact |
+| `serde-default-arbitrary-precision` | `"1.0000"` | exact |
 | both | `1.0000` | exact |
 
 `serde-default-number` controls *shape* — unquoted number instead of quoted
-string. `serde-default-exact` controls *fidelity* — exact rather than via `f64`.
+string. `serde-default-arbitrary-precision` controls *fidelity* — exact rather than via `f64`.
 Fidelity always affects reading; it affects writing only alongside
 `serde-default-number`.
 
-Note that `serde-default-exact` on its own is a useful configuration: it writes
+Note that `serde-default-arbitrary-precision` on its own is a useful configuration: it writes
 quoted strings while still accepting high-precision numbers on input.
 
 If you previously used `serde-with-float` or `serde-with-str` to get the
@@ -115,7 +115,7 @@ available under `serde`:
 ```
 
 `arbitrary_precision` and `arbitrary_precision_option` still require
-`serde-default-exact`, because they pull in `serde_json` and `zmij`.
+`serde-default-arbitrary-precision`, because they pull in `serde_json` and `zmij`.
 
 ## Other changes
 

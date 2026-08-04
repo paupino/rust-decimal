@@ -149,7 +149,7 @@ assert_eq!(total, dec!(27.26));
 **Serde**
 
 * [serde-default-number](#serde-default-number)
-* [serde-default-exact](#serde-default-exact)
+* [serde-default-arbitrary-precision](#serde-default-arbitrary-precision)
 * [Per-field helpers](#per-field-helpers)
 
 ### `align16`
@@ -263,9 +263,9 @@ Serializes `Decimal` as an unquoted number instead of the default quoted string.
 ```
 
 On its own this converts via `f64`, so values beyond 64-bit float precision are
-rounded. Combine it with `serde-default-exact` to keep full precision.
+rounded. Combine it with `serde-default-arbitrary-precision` to keep full precision.
 
-### `serde-default-exact`
+### `serde-default-arbitrary-precision`
 
 Reads and writes `Decimal` with full precision rather than via `f64`, using the
 `arbitrary_precision` feature of `serde_json` (added as a weak dependency).
@@ -280,10 +280,10 @@ The two features are independent, and all four combinations are supported:
 | --- | --- | --- |
 | *(neither)* | `"1.0000"` | error |
 | `serde-default-number` | `1.0` | error |
-| `serde-default-exact` | `"1.0000"` | exact |
+| `serde-default-arbitrary-precision` | `"1.0000"` | exact |
 | both | `1.0000` | exact |
 
-Enabling `serde-default-exact` alone is a useful configuration: it writes quoted
+Enabling `serde-default-arbitrary-precision` alone is a useful configuration: it writes quoted
 strings, which are unambiguous, while still accepting high-precision numbers
 from producers you do not control.
 
@@ -308,7 +308,7 @@ pub struct Example {
 ```
 
 Available as `str`, `str_option`, `float` and `float_option`. Enabling
-`serde-default-exact` additionally provides `arbitrary_precision` and
+`serde-default-arbitrary-precision` additionally provides `arbitrary_precision` and
 `arbitrary_precision_option`.
 
 Each module also exposes `serialize` and `deserialize` separately, so one

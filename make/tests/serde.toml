@@ -2,8 +2,8 @@
 dependencies = [
     "test-serde-default",
     "test-serde-number",
-    "test-serde-exact",
-    "test-serde-number-exact",
+    "test-serde-arbitrary-precision",
+    "test-serde-number-arbitrary-precision",
 ]
 
 [tasks.test-serde-default]
@@ -14,10 +14,10 @@ args = ["test", "--workspace", "--features=serde", "--lib", "--test", "serde_tes
 command = "cargo"
 args = ["test", "--workspace", "--features=serde-default-number", "--lib", "--test", "serde_tests"]
 
-[tasks.test-serde-exact]
+[tasks.test-serde-arbitrary-precision]
 command = "cargo"
-args = ["test", "--workspace", "--features=serde-default-exact", "--lib", "--test", "serde_tests"]
+args = ["test", "--workspace", "--features=serde-default-arbitrary-precision", "--lib", "--test", "serde_tests"]
 
-[tasks.test-serde-number-exact]
+[tasks.test-serde-number-arbitrary-precision]
 command = "cargo"
-args = ["test", "--workspace", "--features=serde-default-number,serde-default-exact", "--lib", "--test", "serde_tests"]
+args = ["test", "--workspace", "--features=serde-default-number,serde-default-arbitrary-precision", "--lib", "--test", "serde_tests"]

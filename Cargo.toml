@@ -88,7 +88,7 @@ serde = ["alloc", "dep:serde", "wasm-bindgen?/serde"]
 serde-default-number = ["serde"]
 # Read and write with full precision rather than via f64. Affects reading always;
 # affects writing only alongside `serde-default-number`.
-serde-default-exact = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
+serde-default-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std", "zmij"]
 std = ["alloc", "arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std", "wasm-bindgen?/std"]
 wasm = ["dep:wasm-bindgen"]
 
