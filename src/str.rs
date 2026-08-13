@@ -709,10 +709,10 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
     }
 
     let mut scale = if digits_before_dot >= 0 {
-    coeff
-        .len()
-        .checked_sub(digits_before_dot as usize)
-        .ok_or(crate::Error::ExceedsMaximumPossibleValue)? as u32
+        coeff
+            .len()
+            .checked_sub(digits_before_dot as usize)
+            .ok_or(crate::Error::ExceedsMaximumPossibleValue)? as u32
     } else {
         0
     };
@@ -1055,10 +1055,7 @@ mod test {
     }
     #[test]
     fn from_str_radix_36_does_not_panic_on_rounding_carry() {
-        let result = Decimal::from_str_radix(
-            "zzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzz",
-            36,
-        );
+        let result = Decimal::from_str_radix("zzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzz", 36);
 
         assert_eq!(result, Err(Error::ExceedsMaximumPossibleValue));
     }
