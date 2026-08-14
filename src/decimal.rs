@@ -2018,11 +2018,11 @@ impl Signed for Decimal {
     }
 
     fn is_positive(&self) -> bool {
-        self.is_sign_positive()
+        !self.is_zero() && self.is_sign_positive()
     }
 
     fn is_negative(&self) -> bool {
-        self.is_sign_negative()
+        !self.is_zero() && self.is_sign_negative()
     }
 }
 

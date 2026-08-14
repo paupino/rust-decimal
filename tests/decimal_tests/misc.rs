@@ -51,6 +51,24 @@ fn it_can_calculate_signum() {
 }
 
 #[test]
+fn signed_zero_is_neither_positive_nor_negative() {
+    // #787: num_traits::Signed::is_positive / is_negative must be false for
+    // zero (and negative zero), matching the trait's contract and signum().
+    let mut negative_zero = Decimal::ZERO;
+    negative_zero.set_sign_negative(true);
+
+    assert!(!Decimal::ZERO.is_positive());
+    assert!(!Decimal::ZERO.is_negative());
+    assert!(!negative_zero.is_positive());
+    assert!(!negative_zero.is_negative());
+
+    assert!(Decimal::ONE.is_positive());
+    assert!(!Decimal::ONE.is_negative());
+    assert!(Decimal::NEGATIVE_ONE.is_negative());
+    assert!(!Decimal::NEGATIVE_ONE.is_positive());
+}
+
+#[test]
 fn it_can_calculate_abs_sub() {
     let tests = &[
         ("123", "124", 0),
