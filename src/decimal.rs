@@ -2558,6 +2558,7 @@ impl Neg for &Decimal {
 }
 
 impl AddAssign for Decimal {
+    #[track_caller]
     fn add_assign(&mut self, other: Decimal) {
         let result = self.add(other);
         self.lo = result.lo;
@@ -2568,24 +2569,28 @@ impl AddAssign for Decimal {
 }
 
 impl<'a> AddAssign<&'a Decimal> for Decimal {
+    #[track_caller]
     fn add_assign(&mut self, other: &'a Decimal) {
         Decimal::add_assign(self, *other)
     }
 }
 
 impl AddAssign<Decimal> for &mut Decimal {
+    #[track_caller]
     fn add_assign(&mut self, other: Decimal) {
         Decimal::add_assign(*self, other)
     }
 }
 
 impl<'a> AddAssign<&'a Decimal> for &'a mut Decimal {
+    #[track_caller]
     fn add_assign(&mut self, other: &'a Decimal) {
         Decimal::add_assign(*self, *other)
     }
 }
 
 impl SubAssign for Decimal {
+    #[track_caller]
     fn sub_assign(&mut self, other: Decimal) {
         let result = self.sub(other);
         self.lo = result.lo;
@@ -2596,24 +2601,28 @@ impl SubAssign for Decimal {
 }
 
 impl<'a> SubAssign<&'a Decimal> for Decimal {
+    #[track_caller]
     fn sub_assign(&mut self, other: &'a Decimal) {
         Decimal::sub_assign(self, *other)
     }
 }
 
 impl SubAssign<Decimal> for &mut Decimal {
+    #[track_caller]
     fn sub_assign(&mut self, other: Decimal) {
         Decimal::sub_assign(*self, other)
     }
 }
 
 impl<'a> SubAssign<&'a Decimal> for &'a mut Decimal {
+    #[track_caller]
     fn sub_assign(&mut self, other: &'a Decimal) {
         Decimal::sub_assign(*self, *other)
     }
 }
 
 impl MulAssign for Decimal {
+    #[track_caller]
     fn mul_assign(&mut self, other: Decimal) {
         let result = self.mul(other);
         self.lo = result.lo;
@@ -2624,24 +2633,28 @@ impl MulAssign for Decimal {
 }
 
 impl<'a> MulAssign<&'a Decimal> for Decimal {
+    #[track_caller]
     fn mul_assign(&mut self, other: &'a Decimal) {
         Decimal::mul_assign(self, *other)
     }
 }
 
 impl MulAssign<Decimal> for &mut Decimal {
+    #[track_caller]
     fn mul_assign(&mut self, other: Decimal) {
         Decimal::mul_assign(*self, other)
     }
 }
 
 impl<'a> MulAssign<&'a Decimal> for &'a mut Decimal {
+    #[track_caller]
     fn mul_assign(&mut self, other: &'a Decimal) {
         Decimal::mul_assign(*self, *other)
     }
 }
 
 impl DivAssign for Decimal {
+    #[track_caller]
     fn div_assign(&mut self, other: Decimal) {
         let result = self.div(other);
         self.lo = result.lo;
@@ -2652,24 +2665,28 @@ impl DivAssign for Decimal {
 }
 
 impl<'a> DivAssign<&'a Decimal> for Decimal {
+    #[track_caller]
     fn div_assign(&mut self, other: &'a Decimal) {
         Decimal::div_assign(self, *other)
     }
 }
 
 impl DivAssign<Decimal> for &mut Decimal {
+    #[track_caller]
     fn div_assign(&mut self, other: Decimal) {
         Decimal::div_assign(*self, other)
     }
 }
 
 impl<'a> DivAssign<&'a Decimal> for &'a mut Decimal {
+    #[track_caller]
     fn div_assign(&mut self, other: &'a Decimal) {
         Decimal::div_assign(*self, *other)
     }
 }
 
 impl RemAssign for Decimal {
+    #[track_caller]
     fn rem_assign(&mut self, other: Decimal) {
         let result = self.rem(other);
         self.lo = result.lo;
@@ -2680,18 +2697,21 @@ impl RemAssign for Decimal {
 }
 
 impl<'a> RemAssign<&'a Decimal> for Decimal {
+    #[track_caller]
     fn rem_assign(&mut self, other: &'a Decimal) {
         Decimal::rem_assign(self, *other)
     }
 }
 
 impl RemAssign<Decimal> for &mut Decimal {
+    #[track_caller]
     fn rem_assign(&mut self, other: Decimal) {
         Decimal::rem_assign(*self, other)
     }
 }
 
 impl<'a> RemAssign<&'a Decimal> for &'a mut Decimal {
+    #[track_caller]
     fn rem_assign(&mut self, other: &'a Decimal) {
         Decimal::rem_assign(*self, *other)
     }

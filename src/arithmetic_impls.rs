@@ -117,6 +117,7 @@ macro_rules! forward_ref_val_binop {
             type Output = $res;
 
             #[inline]
+            #[track_caller]
             fn $method(self, other: $res) -> $res {
                 self.$method(&other)
             }
@@ -130,6 +131,7 @@ macro_rules! forward_val_ref_binop {
             type Output = $res;
 
             #[inline]
+            #[track_caller]
             fn $method(self, other: &$res) -> $res {
                 (&self).$method(other)
             }
@@ -143,6 +145,7 @@ macro_rules! forward_val_val_binop {
             type Output = $res;
 
             #[inline]
+            #[track_caller]
             fn $method(self, other: $res) -> $res {
                 (&self).$method(&other)
             }
@@ -155,6 +158,7 @@ impl Add<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline(always)]
+    #[track_caller]
     fn add(self, other: &Decimal) -> Decimal {
         match ops::add_impl(self, other) {
             CalculationResult::Ok(sum) => sum,
@@ -202,6 +206,7 @@ impl Inv for Decimal {
     type Output = Self;
 
     #[inline]
+    #[track_caller]
     fn inv(self) -> Self {
         Decimal::ONE / self
     }
@@ -212,6 +217,7 @@ impl Div<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline]
+    #[track_caller]
     fn div(self, other: &Decimal) -> Decimal {
         match ops::div_impl(self, other) {
             CalculationResult::Ok(quot) => quot,
@@ -226,6 +232,7 @@ impl Mul<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline]
+    #[track_caller]
     fn mul(self, other: &Decimal) -> Decimal {
         match ops::mul_impl(self, other) {
             CalculationResult::Ok(prod) => prod,
@@ -239,6 +246,7 @@ impl Rem<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline]
+    #[track_caller]
     fn rem(self, other: &Decimal) -> Decimal {
         match ops::rem_impl(self, other) {
             CalculationResult::Ok(rem) => rem,
@@ -253,6 +261,7 @@ impl Sub<&Decimal> for &Decimal {
     type Output = Decimal;
 
     #[inline(always)]
+    #[track_caller]
     fn sub(self, other: &Decimal) -> Decimal {
         match ops::sub_impl(self, other) {
             CalculationResult::Ok(sum) => sum,
