@@ -821,12 +821,12 @@ impl Decimal {
     /// # use rust_decimal::Error;
     /// #
     /// # fn main() -> Result<(), rust_decimal::Error> {
-    /// assert_eq!(Decimal::from_str_exact("0.001")?.array_string().as_ref(), "0.001");
+    /// assert_eq!(Decimal::from_str_exact("-0.001")?.array_string().as_ref(), "-0.001");
     /// #     Ok(())
     /// # }
     /// ```
     pub fn array_string(&self) -> impl AsRef<str> {
-        let (result, _) = crate::str::to_str_internal(self, false, None);
+        let (result, _) = crate::str::to_str_internal(self, true, None);
         result
     }
 
