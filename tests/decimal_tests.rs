@@ -4938,3 +4938,239 @@ mod issues {
         assert_result(29, a, b);
     }
 }
+
+mod num_traits_impls {
+    use core::str::FromStr;
+    use num_traits::{
+        Bounded, ConstOne, ConstZero, FromPrimitive, NumCast, SaturatingAdd, SaturatingMul, SaturatingSub, ToPrimitive,
+    };
+    use proptest::prelude::*;
+    use rust_decimal::Decimal;
+
+    #[test]
+    fn bounded_min_max() {
+        assert_eq!(<Decimal as Bounded>::min_value(), Decimal::MIN);
+        assert_eq!(<Decimal as Bounded>::max_value(), Decimal::MAX);
+    }
+
+    #[test]
+    fn const_zero_and_one_usable_in_const_context() {
+        const Z: Decimal = <Decimal as ConstZero>::ZERO;
+        const O: Decimal = <Decimal as ConstOne>::ONE;
+        assert_eq!(Z, Decimal::ZERO);
+        assert_eq!(O, Decimal::ONE);
+    }
+
+    #[test]
+    fn bounded_in_prelude() {
+        use rust_decimal::prelude::*;
+        let _: Decimal = Bounded::min_value();
+        let _: Decimal = Bounded::max_value();
+    }
+
+    #[test]
+    fn num_cast_from_integers() {
+        assert_eq!(<Decimal as NumCast>::from(0i8), Some(Decimal::ZERO));
+        assert_eq!(<Decimal as NumCast>::from(-1i8), Some(Decimal::NEGATIVE_ONE));
+        assert_eq!(<Decimal as NumCast>::from(1i32), Some(Decimal::ONE));
+        assert_eq!(<Decimal as NumCast>::from(42u64), Decimal::from_str("42").ok());
+        assert_eq!(<Decimal as NumCast>::from(100i128), Decimal::from_str("100").ok());
+    }
+
+    #[test]
+    fn num_cast_from_floats() {
+        assert_eq!(<Decimal as NumCast>::from(0.0f32), Some(Decimal::ZERO));
+        assert_eq!(<Decimal as NumCast>::from(1.5f64), Decimal::from_str("1.5").ok());
+        assert_eq!(<Decimal as NumCast>::from(-2.25f64), Decimal::from_str("-2.25").ok());
+    }
+
+    #[test]
+    fn num_cast_rejects_non_finite_and_out_of_range() {
+        assert_eq!(<Decimal as NumCast>::from(f64::NAN), None);
+        assert_eq!(<Decimal as NumCast>::from(f64::INFINITY), None);
+        assert_eq!(<Decimal as NumCast>::from(f64::NEG_INFINITY), None);
+        // Decimal::MAX is ~7.9e28; 1e30 sits above it.
+        assert_eq!(<Decimal as NumCast>::from(1.0e30f64), None);
+        assert_eq!(<Decimal as NumCast>::from(-1.0e30f64), None);
+    }
+
+    #[test]
+    fn num_cast_u64_above_f64_integer_precision() {
+        // 2^53 + 1 cannot be represented exactly as an f64, so routing
+        // through to_f64 would silently round to 2^53. NumCast should
+        // preserve the integer value.
+        let n: u64 = 9_007_199_254_740_993;
+        assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_u64(n));
+    }
+
+    #[test]
+    fn num_cast_i128_near_decimal_max() {
+        // Value close to (but below) Decimal::MAX. The f64 approximation
+        // would lose enough precision to drift outside Decimal's range, so
+        // the integer path must be taken.
+        let n: i128 = 79_228_162_514_264_337_593_543_950_000;
+        assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_i128(n));
+    }
+
+    #[test]
+    fn num_cast_i128_negative_near_decimal_min() {
+        let n: i128 = -79_228_162_514_264_337_593_543_950_000;
+        assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_i128(n));
+    }
+
+    #[test]
+    fn num_cast_integer_out_of_decimal_range() {
+        // i128::MAX exceeds Decimal::MAX, so even via the integer path the
+        // result should be None rather than a rounded approximation.
+        assert_eq!(<Decimal as NumCast>::from(i128::MAX), None);
+        assert_eq!(<Decimal as NumCast>::from(i128::MIN), None);
+        assert_eq!(<Decimal as NumCast>::from(u128::MAX), None);
+    }
+
+    #[test]
+    fn num_cast_integer_valued_float() {
+        // A finite float with no fractional component should still take the
+        // float path (its source type's ToPrimitive::to_i128 yields the
+        // truncated integer, which equals the value).
+        assert_eq!(<Decimal as NumCast>::from(3.0f64), Decimal::from_i32(3));
+        assert_eq!(<Decimal as NumCast>::from(-7.0f32), Decimal::from_i32(-7));
+    }
+
+    #[test]
+    fn num_cast_extremes_of_primitive_integer_types() {
+        assert_eq!(<Decimal as NumCast>::from(i64::MAX), Decimal::from_i64(i64::MAX));
+        assert_eq!(<Decimal as NumCast>::from(i64::MIN), Decimal::from_i64(i64::MIN));
+        assert_eq!(<Decimal as NumCast>::from(u64::MAX), Decimal::from_u64(u64::MAX));
+    }
+
+    #[test]
+    fn saturating_add_normal_and_overflow() {
+        let a = Decimal::from_str("1.5").unwrap();
+        let b = Decimal::from_str("2.5").unwrap();
+        assert_eq!(SaturatingAdd::saturating_add(&a, &b), Decimal::from_str("4.0").unwrap());
+        assert_eq!(
+            SaturatingAdd::saturating_add(&Decimal::MAX, &Decimal::ONE),
+            Decimal::MAX
+        );
+        assert_eq!(
+            SaturatingAdd::saturating_add(&Decimal::MIN, &Decimal::NEGATIVE_ONE),
+            Decimal::MIN
+        );
+    }
+
+    #[test]
+    fn saturating_sub_normal_and_overflow() {
+        let a = Decimal::from_str("5").unwrap();
+        let b = Decimal::from_str("2").unwrap();
+        assert_eq!(SaturatingSub::saturating_sub(&a, &b), Decimal::from_str("3").unwrap());
+        assert_eq!(
+            SaturatingSub::saturating_sub(&Decimal::MIN, &Decimal::ONE),
+            Decimal::MIN
+        );
+        assert_eq!(
+            SaturatingSub::saturating_sub(&Decimal::MAX, &Decimal::NEGATIVE_ONE),
+            Decimal::MAX
+        );
+    }
+
+    #[test]
+    fn saturating_mul_normal_and_overflow() {
+        let a = Decimal::from_str("3").unwrap();
+        let b = Decimal::from_str("4").unwrap();
+        assert_eq!(SaturatingMul::saturating_mul(&a, &b), Decimal::from_str("12").unwrap());
+        assert_eq!(
+            SaturatingMul::saturating_mul(&Decimal::MAX, &Decimal::TWO),
+            Decimal::MAX
+        );
+        assert_eq!(
+            SaturatingMul::saturating_mul(&Decimal::MIN, &Decimal::TWO),
+            Decimal::MIN
+        );
+    }
+
+    proptest! {
+        #[test]
+        fn num_cast_matches_from_i128(n: i128) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_i128(n));
+        }
+
+        #[test]
+        fn num_cast_matches_from_u128(n: u128) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_u128(n));
+        }
+
+        #[test]
+        fn num_cast_matches_from_i64(n: i64) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_i64(n));
+        }
+
+        #[test]
+        fn num_cast_matches_from_u64(n: u64) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_u64(n));
+        }
+
+        #[test]
+        fn num_cast_matches_from_i32(n: i32) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_i32(n));
+        }
+
+        #[test]
+        fn num_cast_matches_from_u32(n: u32) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_u32(n));
+        }
+
+        #[test]
+        fn num_cast_matches_from_f64(n: f64) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_f64(n));
+        }
+
+        // f32 cannot round-trip through Decimal::from_f32: NumCast::from is
+        // generic over ToPrimitive, which only exposes to_f64, so f32 sources
+        // are losslessly cast to f64 and then funneled through Decimal::from_f64.
+        // That preserves more digits than from_f32 would (which applies
+        // f32-precision-aware truncation). Both paths represent the same
+        // numeric value, but produce different Decimal digit counts. The
+        // contract we *can* uphold is that f32 sources match the f32-cast-to-f64
+        // conversion.
+        #[test]
+        fn num_cast_f32_matches_f64_path(n: f32) {
+            prop_assert_eq!(<Decimal as NumCast>::from(n), Decimal::from_f64(n as f64));
+        }
+    }
+
+    proptest! {
+        // The same integer value reached through different source types should
+        // produce the same Decimal. Restricted to f64's exact-integer range so
+        // the float source is also lossless; outside that range, n as f64 would
+        // round and the three paths would legitimately diverge.
+        #[test]
+        fn num_cast_consistent_across_source_types(n in -(1i64 << 53)..(1i64 << 53)) {
+            let via_i64 = <Decimal as NumCast>::from(n);
+            let via_i128 = <Decimal as NumCast>::from(n as i128);
+            let via_f64 = <Decimal as NumCast>::from(n as f64);
+            prop_assert_eq!(via_i64, via_i128);
+            prop_assert_eq!(via_i64, via_f64);
+        }
+
+        // For any i128 that NumCast accepts, converting back via ToPrimitive
+        // must recover the original value.
+        #[test]
+        fn num_cast_i128_round_trip_through_decimal(n: i128) {
+            if let Some(d) = <Decimal as NumCast>::from(n) {
+                prop_assert_eq!(d.to_i128(), Some(n));
+            }
+        }
+
+        // Ordering on the source type must be preserved by NumCast for any pair
+        // both successfully converted.
+        #[test]
+        fn num_cast_preserves_ordering_i128(a: i128, b: i128) {
+            if let (Some(da), Some(db)) = (
+                <Decimal as NumCast>::from(a),
+                <Decimal as NumCast>::from(b),
+            ) {
+                prop_assert_eq!(a.cmp(&b), da.cmp(&db));
+            }
+        }
+    }
+}

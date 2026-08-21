@@ -20,7 +20,7 @@ use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Numer
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
-use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
+use num_traits::{Bounded, ConstOne, ConstZero, FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
 #[cfg(feature = "rkyv")]
 use rkyv::{Archive, Deserialize, Serialize};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
@@ -2072,6 +2072,14 @@ impl One for Decimal {
     }
 }
 
+impl ConstZero for Decimal {
+    const ZERO: Self = Decimal::ZERO;
+}
+
+impl ConstOne for Decimal {
+    const ONE: Self = Decimal::ONE;
+}
+
 impl Signed for Decimal {
     fn abs(&self) -> Self {
         self.abs()
@@ -2111,6 +2119,35 @@ impl Num for Decimal {
 
     fn from_str_radix(str: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
         Decimal::from_str_radix(str, radix)
+    }
+}
+
+impl Bounded for Decimal {
+    fn min_value() -> Self {
+        Decimal::MIN
+    }
+
+    fn max_value() -> Self {
+        Decimal::MAX
+    }
+}
+
+impl num_traits::NumCast for Decimal {
+    fn from<T: ToPrimitive>(n: T) -> Option<Self> {
+        // f64 can only exactly represent integers up to 2^53, and Decimal::MAX
+        // exceeds f64's integer range, so funneling everything through to_f64
+        // loses precision for large integer inputs. When the source is
+        // integer-valued, prefer the wide-integer path so values like
+        // 9_007_199_254_740_993u64 or i128 values near Decimal::MAX round-trip.
+        let f = n.to_f64()?;
+        if f.is_finite() && f.fract() == 0.0 {
+            if let Some(i) = n.to_i128() {
+                return Decimal::from_i128(i);
+            }
+            // we don't need to check n.to_u128() because no value in the interval
+            // (i128::MAX, u128::MAX] is representable by Decimal.
+        }
+        Decimal::from_f64(f)
     }
 }
 

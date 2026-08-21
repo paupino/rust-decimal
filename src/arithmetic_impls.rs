@@ -3,7 +3,9 @@
 
 use crate::{decimal::CalculationResult, ops, Decimal};
 use core::ops::{Add, Div, Mul, Rem, Sub};
-use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Inv};
+use num_traits::{
+    CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Inv, SaturatingAdd, SaturatingMul, SaturatingSub,
+};
 
 // Macros and `Decimal` implementations
 
@@ -195,6 +197,27 @@ impl CheckedRem for Decimal {
     #[inline]
     fn checked_rem(&self, v: &Decimal) -> Option<Decimal> {
         Decimal::checked_rem(*self, *v)
+    }
+}
+
+impl SaturatingAdd for Decimal {
+    #[inline]
+    fn saturating_add(&self, v: &Decimal) -> Decimal {
+        Decimal::saturating_add(*self, *v)
+    }
+}
+
+impl SaturatingSub for Decimal {
+    #[inline]
+    fn saturating_sub(&self, v: &Decimal) -> Decimal {
+        Decimal::saturating_sub(*self, *v)
+    }
+}
+
+impl SaturatingMul for Decimal {
+    #[inline]
+    fn saturating_mul(&self, v: &Decimal) -> Decimal {
+        Decimal::saturating_mul(*self, *v)
     }
 }
 
