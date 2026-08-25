@@ -9,6 +9,7 @@ fn test_constants() {
     assert_eq!("1.5707963267948966192313216916", Decimal::HALF_PI.to_string());
     assert_eq!("2.7182818284590452353602874714", Decimal::E.to_string());
     assert_eq!("0.3678794411714423215955237702", Decimal::E_INVERSE.to_string());
+    assert_eq!("1.6180339887498948482045868344", Decimal::GOLDEN_RATIO.to_string());
 }
 
 #[test]

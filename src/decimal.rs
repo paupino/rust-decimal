@@ -375,6 +375,23 @@ impl Decimal {
         mid: 2857938002,
         hi: 199427844,
     };
+    /// A constant representing the golden ratio (φ) as 1.6180339887498948482045868344
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    /// ```
+    /// # use rust_decimal::Decimal;
+    /// # use rust_decimal_macros::dec;
+    /// assert_eq!(Decimal::GOLDEN_RATIO, dec!(1.6180339887498948482045868344));
+    /// ```
+    #[cfg(feature = "maths")]
+    pub const GOLDEN_RATIO: Decimal = Decimal {
+        flags: 1835008,
+        lo: 3068950840,
+        mid: 3775324002,
+        hi: 877137982,
+    };
 
     /// Returns a `Decimal` with a 64 bit `m` representation and corresponding `e` scale.
     ///
