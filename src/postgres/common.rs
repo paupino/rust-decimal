@@ -55,7 +55,7 @@ impl Decimal {
             let integers: Vec<_> = digits.drain(..last as usize).collect();
             for digit in integers {
                 result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4), 0))?;
-                result = result.checked_add(Self::new(digit as i64, 0))?;
+                result = result.checked_add(Self::from_i64_with_scale(digit as i64, 0))?;
             }
             let scale_pow = 10i128.checked_pow(4 * start_integers as u32)?;
             result = result.checked_mul(Self::from_i128_with_scale(scale_pow, 0))?;
@@ -67,13 +67,15 @@ impl Decimal {
                 let fract_pow = 4_u32.checked_mul(i as u32 + 1 + start_fractionals)?;
                 if fract_pow <= Self::MAX_SCALE {
                     result = result.checked_add(
-                        Self::new(digit as i64, 0) / Self::from_i128_with_scale(10i128.pow(fract_pow), 0),
+                        Self::from_i64_with_scale(digit as i64, 0)
+                            / Self::from_i128_with_scale(10i128.pow(fract_pow), 0),
                     )?;
                 } else if fract_pow == Self::MAX_SCALE + 4 {
                     // rounding last digit
                     if digit >= 5000 {
                         result = result.checked_add(
-                            Self::new(1_i64, 0) / Self::from_i128_with_scale(10i128.pow(Self::MAX_SCALE), 0),
+                            Self::from_i64_with_scale(1_i64, 0)
+                                / Self::from_i128_with_scale(10i128.pow(Self::MAX_SCALE), 0),
                         )?;
                     }
                 }

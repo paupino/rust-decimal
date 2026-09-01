@@ -12,6 +12,8 @@
 
 [docs]: https://docs.rs/rust_decimal
 
+> Upgrading from 1.x? See [MIGRATING.md](MIGRATING.md).
+
 A Decimal number implementation written in pure Rust suitable for financial calculations that require significant
 integral and fractional digits with no round-off errors.
 
@@ -78,7 +80,7 @@ functions ([see the docs](https://docs.rs/rust_decimal/) for more details):
 use rust_decimal::prelude::*;
 
 // Using an integer followed by the decimal points
-let scaled = Decimal::new(202, 2);
+let scaled = Decimal::from_i64_with_scale(202, 2);
 assert_eq!("2.02", scaled.to_string());
 
 // From a 128 bit integer
@@ -146,12 +148,9 @@ assert_eq!(total, dec!(27.26));
 
 **Serde**
 
-* [serde-float](#serde-float)
-* [serde-str](#serde-str)
-* [serde-arbitrary-precision](#serde-arbitrary-precision)
-* [serde-with-float](#serde-with-float)
-* [serde-with-str](#serde-with-str)
-* [serde-with-arbitrary-precision](#serde-with-arbitrary-precision)
+* [serde-default-number](#serde-default-number)
+* [serde-default-arbitrary-precision](#serde-default-arbitrary-precision)
+* [Per-field helpers](#per-field-helpers)
 
 ### `align16`
 
@@ -206,7 +205,7 @@ Any Rust number format is supported, including scientific notation and alternate
 ```rust
 use rust_decimal::prelude::*;
 
-assert_eq!(dec!(1.23), Decimal::new(123, 2));
+assert_eq!(dec!(1.23), Decimal::from_i64_with_scale(123, 2));
 ```
 
 ### `maths`
@@ -253,15 +252,9 @@ s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) sh
 
 Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 
-### `serde-float`
+### `serde-default-number`
 
-> **Note:** This feature applies float serialization/deserialization rules as the default method for handling `Decimal`
-> numbers.
-> See also the `serde-with-*` features for greater flexibility.
-
-Enable this so that JSON serialization of `Decimal` types are sent as a float instead of a string (default).
-
-e.g. with this turned on, JSON serialization would output:
+Serializes `Decimal` as an unquoted number instead of the default quoted string.
 
 ```json
 {
@@ -269,136 +262,65 @@ e.g. with this turned on, JSON serialization would output:
 }
 ```
 
-### `serde-str`
+On its own this converts via `f64`, so values beyond 64-bit float precision are
+rounded. Combine it with `serde-default-arbitrary-precision` to keep full precision.
 
-> **Note:** This feature applies string serialization/deserialization rules as the default method for handling `Decimal`
-> numbers.
-> See also the `serde-with-*` features for greater flexibility.
+### `serde-default-arbitrary-precision`
 
-This is typically useful for `bincode` or `csv` like implementations.
+Reads and writes `Decimal` with full precision rather than via `f64`, using the
+`arbitrary_precision` feature of `serde_json` (added as a weak dependency).
 
-Since `bincode` does not specify type information, we need to ensure that a type hint is provided in order to
-correctly be able to deserialize. Enabling this feature on its own will force deserialization to use `deserialize_str`
-instead of `deserialize_any`.
+This affects *reading* whenever it is enabled: without it, an unquoted number
+carrying more precision than an `f64` can hold fails to deserialize. It affects
+*writing* only when combined with `serde-default-number`.
 
-If, for some reason, you also have `serde-float` enabled then this will use `deserialize_f64` as a type hint. Because
-converting to `f64` _loses_ precision, it's highly recommended that you do NOT enable this feature when working with
-`bincode`. That being said, this will only use 8 bytes so is slightly more efficient in terms of storage size.
+The two features are independent, and all four combinations are supported:
 
-### `serde-arbitrary-precision`
+| Features | `1.0000` serializes as | reads unquoted 28-digit |
+| --- | --- | --- |
+| *(neither)* | `"1.0000"` | error |
+| `serde-default-number` | `1.0` | error |
+| `serde-default-arbitrary-precision` | `"1.0000"` | exact |
+| both | `1.0000` | exact |
 
-> **Note:** This feature applies arbitrary serialization/deserialization rules as the default method for
-> handling `Decimal` numbers.
-> See also the `serde-with-*` features for greater flexibility.
+Enabling `serde-default-arbitrary-precision` alone is a useful configuration: it writes quoted
+strings, which are unambiguous, while still accepting high-precision numbers
+from producers you do not control.
 
-This is used primarily with `serde_json` and consequently adds it as a "weak dependency". This supports the
-`arbitrary_precision` feature inside `serde_json` when parsing decimals.
+> **Note:** binary formats such as `bincode` and `postcard` need no configuration.
+> They are detected automatically and always round-trip correctly.
 
-This is recommended when parsing "float" looking data as it will prevent data loss.
+### Per-field helpers
 
-Please note, this currently serializes numbers in a float like format by default, which can be an unexpected
-consequence. For greater
-control over the serialization format, please use the `serde-with-arbitrary-precision` feature.
-
-### `serde-with-float`
-
-Enable this to access the module for serializing `Decimal` types to a float. This can be used in `struct` definitions
-like so:
+The `serde` feature always provides modules for overriding the format on
+individual fields, without changing the crate-wide default:
 
 ```rust
 #[derive(Serialize, Deserialize)]
-pub struct FloatExample {
-    #[serde(with = "rust_decimal::serde::float")]
-    value: Decimal,
-}
-```
-
-```rust
-#[derive(Serialize, Deserialize)]
-pub struct OptionFloatExample {
-    #[serde(with = "rust_decimal::serde::float_option")]
-    value: Option<Decimal>,
-}
-```
-
-Alternatively, if only the serialization feature is desired (e.g. to keep flexibility while deserialization):
-
-```rust
-#[derive(Serialize, Deserialize)]
-pub struct FloatExample {
-    #[serde(serialize_with = "rust_decimal::serde::float::serialize")]
-    value: Decimal,
-}
-```
-
-### `serde-with-str`
-
-Enable this to access the module for serializing `Decimal` types to a `String`. This can be used in `struct` definitions
-like so:
-
-```rust
-#[derive(Serialize, Deserialize)]
-pub struct StrExample {
+pub struct Example {
     #[serde(with = "rust_decimal::serde::str")]
-    value: Decimal,
-}
-```
-
-```rust
-#[derive(Serialize, Deserialize)]
-pub struct OptionStrExample {
+    as_string: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
+    as_float: Decimal,
     #[serde(with = "rust_decimal::serde::str_option")]
-    value: Option<Decimal>,
+    optional: Option<Decimal>,
 }
 ```
 
-This feature isn't typically required for serialization however can be useful for deserialization purposes since it does
-not require
-a type hint. Consequently, you can force this for just deserialization by:
+Available as `str`, `str_option`, `float` and `float_option`. Enabling
+`serde-default-arbitrary-precision` additionally provides `arbitrary_precision` and
+`arbitrary_precision_option`.
+
+Each module also exposes `serialize` and `deserialize` separately, so one
+direction can be overridden while the other keeps the default:
 
 ```rust
 #[derive(Serialize, Deserialize)]
-pub struct StrExample {
+pub struct Example {
     #[serde(deserialize_with = "rust_decimal::serde::str::deserialize")]
     value: Decimal,
 }
 ```
-
-### `serde-with-arbitrary-precision`
-
-Enable this to access the module for deserializing `Decimal` types using the `serde_json/arbitrary_precision` feature.
-This can be used in `struct` definitions like so:
-
-```rust
-#[derive(Serialize, Deserialize)]
-pub struct ArbitraryExample {
-    #[serde(with = "rust_decimal::serde::arbitrary_precision")]
-    value: Decimal,
-}
-```
-
-```rust
-#[derive(Serialize, Deserialize)]
-pub struct OptionArbitraryExample {
-    #[serde(with = "rust_decimal::serde::arbitrary_precision_option")]
-    value: Option<Decimal>,
-}
-```
-
-An unexpected consequence of this feature is that it will serialize as a float like number. To prevent this, you can
-target the struct to only deserialize with the `arbitrary_precision` feature:
-
-```rust
-#[derive(Serialize, Deserialize)]
-pub struct ArbitraryExample {
-    #[serde(deserialize_with = "rust_decimal::serde::arbitrary_precision::deserialize")]
-    value: Decimal,
-}
-```
-
-This will ensure that serialization still occurs as a string.
-
-Please see the `examples` directory for more information regarding `serde_json` scenarios.
 
 ### `std`
 

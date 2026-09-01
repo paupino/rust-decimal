@@ -23,10 +23,10 @@ When adding a new 0.X release, in order to avoid ambiguity as the dependency add
 
 ```toml
 [dependencies]
-rand-0_9 = { default-features = false, optional = true, package = "rand", version = "0.9" }
+rand-0_10 = { default-features = false, optional = true, package = "rand", version = "0.10" }
 
 [features]
-rand-0_9 = ["dep:rand-0_9"]
+rand-0_10 = ["dep:rand-0_10"]
 ```
 
 ## Pull Request Checklist

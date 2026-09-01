@@ -17,6 +17,7 @@ jobs:
       - check_style
       - minimum_rust_version
       - docs
+      - semver_checks
       - test
     steps:
       - run: exit 0
@@ -103,6 +104,28 @@ jobs:
         env:
           RUSTDOCFLAGS: --cfg docsrs
         run: cargo doc --no-deps --all-features
+
+  semver_checks:
+    name: "Check semver compatibility"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
+        with:
+          toolchain: stable
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
+
+      # No baseline exists until 2.0.0 is published, so this is a no-op until the
+      # first patch release. It is in place now so the gate exists from then on.
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
+        with:
+          package: rust_decimal
 
   test:
     name: "Test"

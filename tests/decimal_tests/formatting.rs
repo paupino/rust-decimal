@@ -186,9 +186,15 @@ fn it_formats_scientific_precision() {
             ],
         ),
     ] {
-        assert_eq!(format!("{:e}", Decimal::new(num, scale)), expected_no_precision);
+        assert_eq!(
+            format!("{:e}", Decimal::from_i64_with_scale(num, scale)),
+            expected_no_precision
+        );
         for (i, precision) in expected_precision.iter().enumerate() {
-            assert_eq!(&format!("{:.prec$e}", Decimal::new(num, scale), prec = i), precision);
+            assert_eq!(
+                &format!("{:.prec$e}", Decimal::from_i64_with_scale(num, scale), prec = i),
+                precision
+            );
         }
     }
 }

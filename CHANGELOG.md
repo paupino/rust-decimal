@@ -1,6 +1,11 @@
-# Version History
+# Version History (archive)
 
-**Please see [Github Releases](https://github.com/paupino/rust-decimal/releases) for version history going forward.**
+**This file is no longer updated.** It covers releases from `0.3.0` through `1.36.0`.
+
+Release notes for `1.32.0` onwards — including `2.0.0` — are published on
+[Github Releases](https://github.com/paupino/rust-decimal/releases), which is the canonical source.
+
+Upgrading from 1.x to 2.0? See [MIGRATING.md](MIGRATING.md).
 
 # 1.36.0
 

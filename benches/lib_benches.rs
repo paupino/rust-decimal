@@ -137,7 +137,7 @@ impl Iterator for DecimalIterator {
     fn next(&mut self) -> Option<Decimal> {
         self.count += 1;
         if self.count < 6 {
-            Some(Decimal::new(314, 2))
+            Some(Decimal::from_i64_with_scale(314, 2))
         } else {
             None
         }
@@ -147,7 +147,7 @@ impl Iterator for DecimalIterator {
 #[bench]
 fn iterator_individual(b: &mut ::test::Bencher) {
     b.iter(|| {
-        let mut result = Decimal::new(0, 0);
+        let mut result = Decimal::from_i64_with_scale(0, 0);
         let iterator = DecimalIterator::new();
         for i in iterator {
             result += i;
@@ -202,7 +202,6 @@ fn serialize_bincode(b: &mut test::Bencher) {
     })
 }
 
-#[cfg(feature = "serde-str")]
 #[bench]
 fn deserialize_bincode(b: &mut test::Bencher) {
     let payloads: Vec<Vec<u8>> = SAMPLE_STRS

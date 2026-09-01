@@ -194,7 +194,7 @@ fn overflow_64(val: u64) -> bool {
 }
 
 #[inline]
-pub fn overflow_128(val: u128) -> bool {
+pub(crate) fn overflow_128(val: u128) -> bool {
     val >= OVERFLOW_U96
 }
 
@@ -788,7 +788,7 @@ mod test {
     fn from_str_rounding_0() {
         assert_eq!(
             parse_str_radix_10("1.234").unwrap().unpack(),
-            Decimal::new(1234, 3).unpack()
+            Decimal::from_i64_with_scale(1234, 3).unpack()
         );
     }
 
@@ -836,7 +836,7 @@ mod test {
     fn from_str_no_rounding_0() {
         assert_eq!(
             parse_str_radix_10_exact("1.234").unwrap().unpack(),
-            Decimal::new(1234, 3).unpack()
+            Decimal::from_i64_with_scale(1234, 3).unpack()
         );
     }
 

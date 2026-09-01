@@ -34,9 +34,9 @@ args = ["test", "--workspace", "--features=ndarray-0_16", "--test", "ndarray_tes
 
 [tasks.test-rand]
 dependencies = [
-    "test-rand-0_9"
+    "test-rand-0_10"
 ]
 
-[tasks.test-rand-0_9]
+[tasks.test-rand-0_10]
 command = "cargo"
-args = ["test", "--workspace", "--features=rand-0_9", "rand_tests"]
+args = ["test", "--workspace", "--features=rand-0_10", "rand_tests"]

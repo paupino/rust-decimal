@@ -97,8 +97,8 @@ fn it_can_round_using_bankers_rounding() {
 #[test]
 fn it_can_round_complex_numbers_using_bankers_rounding() {
     // Issue #71
-    let rate = Decimal::new(19, 2); // 0.19
-    let one = Decimal::new(1, 0); // 1
+    let rate = Decimal::from_i64_with_scale(19, 2); // 0.19
+    let one = Decimal::from_i64_with_scale(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
     let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointNearestEven); // 0.16
     assert_eq!("0.16", part.to_string(), "MidpointNearestEven");
@@ -128,8 +128,8 @@ fn it_can_round_using_round_half_up() {
 #[test]
 fn it_can_round_complex_numbers_using_round_half_up() {
     // Issue #71
-    let rate = Decimal::new(19, 2); // 0.19
-    let one = Decimal::new(1, 0); // 1
+    let rate = Decimal::from_i64_with_scale(19, 2); // 0.19
+    let one = Decimal::from_i64_with_scale(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
     let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointAwayFromZero); // 0.16
     assert_eq!("0.16", part.to_string(), "MidpointAwayFromZero");
@@ -159,8 +159,8 @@ fn it_can_round_using_round_half_down() {
 #[test]
 fn it_can_round_complex_numbers_using_round_half_down() {
     // Issue #71
-    let rate = Decimal::new(19, 2); // 0.19
-    let one = Decimal::new(1, 0); // 1
+    let rate = Decimal::from_i64_with_scale(19, 2); // 0.19
+    let one = Decimal::from_i64_with_scale(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
 
     let part = part.round_dp_with_strategy(2, RoundingStrategy::MidpointTowardZero); // 0.16
@@ -268,8 +268,8 @@ fn it_can_round_simple_numbers_with_high_precision() {
 #[test]
 fn it_can_round_complex_numbers() {
     // Issue #71
-    let rate = Decimal::new(19, 2); // 0.19
-    let one = Decimal::new(1, 0); // 1
+    let rate = Decimal::from_i64_with_scale(19, 2); // 0.19
+    let one = Decimal::from_i64_with_scale(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
     let part = part.round_dp(2); // 0.16
     assert_eq!("0.16", part.to_string());
@@ -278,7 +278,7 @@ fn it_can_round_complex_numbers() {
 #[test]
 fn it_does_not_round_decimals_to_too_many_dp() {
     // Issue 574
-    let zero = Decimal::new(0, 28);
+    let zero = Decimal::from_i64_with_scale(0, 28);
     let rounded = zero.round_dp(32);
     assert_eq!(rounded.scale(), 28); // If dp > old_scale, we retain the old scale.
     rounded.to_string();

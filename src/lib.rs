@@ -10,7 +10,7 @@ mod constants;
 mod decimal;
 mod error;
 mod ops;
-pub mod str;
+mod str;
 
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
@@ -36,26 +36,8 @@ mod postgres;
 mod proptest;
 #[cfg(feature = "rand-0_10")]
 mod rand_0_10;
-#[cfg(feature = "rand-0_9")]
-mod rand_0_9;
-#[cfg(all(
-    feature = "serde",
-    not(any(
-        feature = "serde-with-str",
-        feature = "serde-with-float",
-        feature = "serde-with-arbitrary-precision"
-    ))
-))]
-mod serde;
 /// Serde specific functionality to customize how a decimal is serialized/deserialized (`serde_with`)
-#[cfg(all(
-    feature = "serde",
-    any(
-        feature = "serde-with-str",
-        feature = "serde-with-float",
-        feature = "serde-with-arbitrary-precision"
-    )
-))]
+#[cfg(feature = "serde")]
 pub mod serde;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 pub mod wasm;

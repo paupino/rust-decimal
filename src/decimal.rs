@@ -86,6 +86,7 @@ const NEGATIVE_ONE: Decimal = Decimal {
 /// `UnpackedDecimal` contains unpacked representation of `Decimal` where each component
 /// of decimal-format stored in it's own field
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct UnpackedDecimal {
     pub negative: bool,
     pub scale: u32,
@@ -409,28 +410,40 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let pi = Decimal::new(3141, 3);
+    /// let pi = Decimal::from_i64_with_scale(3141, 3);
     /// assert_eq!(pi.to_string(), "3.141");
     /// ```
     #[must_use]
-    pub fn new(num: i64, scale: u32) -> Decimal {
-        match Self::try_new(num, scale) {
+    pub fn from_i64_with_scale(num: i64, scale: u32) -> Decimal {
+        match Self::try_from_i64_with_scale(num, scale) {
             Err(e) => panic!("{e}"),
             Ok(d) => d,
         }
     }
 
-    /// Checked version of [`Self::new`]. Will return an error instead of panicking at run-time.
+    /// Creates a new `Decimal` from an `i64` and a scale.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if `scale` is > [`Self::MAX_SCALE`].
+    #[deprecated(since = "2.0.0", note = "renamed to `from_i64_with_scale`")]
+    #[must_use]
+    pub fn new(num: i64, scale: u32) -> Decimal {
+        Self::from_i64_with_scale(num, scale)
+    }
+
+    /// Checked version of [`Self::from_i64_with_scale`]. Will return an error instead of panicking
+    /// at run-time.
     ///
     /// # Example
     ///
     /// ```rust
     /// # use rust_decimal::Decimal;
     /// #
-    /// let max = Decimal::try_new(i64::MAX, u32::MAX);
+    /// let max = Decimal::try_from_i64_with_scale(i64::MAX, u32::MAX);
     /// assert!(max.is_err());
     /// ```
-    pub const fn try_new(num: i64, scale: u32) -> crate::Result<Decimal> {
+    pub const fn try_from_i64_with_scale(num: i64, scale: u32) -> crate::Result<Decimal> {
         if scale > Self::MAX_SCALE {
             return Err(Error::ScaleExceedsMaximumPrecision(scale));
         }
@@ -450,6 +463,12 @@ impl Decimal {
             lo: (num as u64 & U32_MASK) as u32,
             mid: ((num as u64 >> 32) & U32_MASK) as u32,
         })
+    }
+
+    /// Checked version of [`Self::new`]. Will return an error instead of panicking at run-time.
+    #[deprecated(since = "2.0.0", note = "renamed to `try_from_i64_with_scale`")]
+    pub const fn try_new(num: i64, scale: u32) -> crate::Result<Decimal> {
+        Self::try_from_i64_with_scale(num, scale)
     }
 
     /// Creates a `Decimal` using a 128 bit signed `m` representation and corresponding `e` scale.
@@ -823,7 +842,7 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let num = Decimal::new(1234, 3);
+    /// let num = Decimal::from_i64_with_scale(1234, 3);
     /// assert_eq!(num.scale(), 3u32);
     /// ```
     #[inline]
@@ -1111,8 +1130,8 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::prelude::*;
     /// #
-    /// assert_eq!(true, Decimal::new(-1, 0).is_sign_negative());
-    /// assert_eq!(false, Decimal::new(1, 0).is_sign_negative());
+    /// assert_eq!(true, Decimal::from_i64_with_scale(-1, 0).is_sign_negative());
+    /// assert_eq!(false, Decimal::from_i64_with_scale(1, 0).is_sign_negative());
     /// ```
     #[inline(always)]
     #[must_use]
@@ -1126,8 +1145,8 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::prelude::*;
     /// #
-    /// assert_eq!(false, Decimal::new(-1, 0).is_sign_positive());
-    /// assert_eq!(true, Decimal::new(1, 0).is_sign_positive());
+    /// assert_eq!(false, Decimal::from_i64_with_scale(-1, 0).is_sign_positive());
+    /// assert_eq!(true, Decimal::from_i64_with_scale(1, 0).is_sign_positive());
     /// ```
     #[inline(always)]
     #[must_use]
@@ -1200,8 +1219,8 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let pi = Decimal::new(3141, 3);
-    /// let fract = Decimal::new(141, 3);
+    /// let pi = Decimal::from_i64_with_scale(3141, 3);
+    /// let fract = Decimal::from_i64_with_scale(141, 3);
     /// // note that it returns a decimal
     /// assert_eq!(pi.fract(), fract);
     /// ```
@@ -1219,7 +1238,7 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let num = Decimal::new(-3141, 3);
+    /// let num = Decimal::from_i64_with_scale(-3141, 3);
     /// assert_eq!(num.abs().to_string(), "3.141");
     /// ```
     #[must_use]
@@ -1236,7 +1255,7 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let num = Decimal::new(3641, 3);
+    /// let num = Decimal::from_i64_with_scale(3641, 3);
     /// assert_eq!(num.floor().to_string(), "3");
     /// ```
     #[must_use]
@@ -1272,9 +1291,9 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let num = Decimal::new(3141, 3);
+    /// let num = Decimal::from_i64_with_scale(3141, 3);
     /// assert_eq!(num.ceil().to_string(), "4");
-    /// let num = Decimal::new(3, 0);
+    /// let num = Decimal::from_i64_with_scale(3, 0);
     /// assert_eq!(num.ceil().to_string(), "3");
     /// ```
     #[must_use]
@@ -1308,8 +1327,8 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let x = Decimal::new(1, 0);
-    /// let y = Decimal::new(2, 0);
+    /// let x = Decimal::from_i64_with_scale(1, 0);
+    /// let y = Decimal::from_i64_with_scale(2, 0);
     /// assert_eq!(y, x.max(y));
     /// ```
     #[must_use]
@@ -1322,8 +1341,8 @@ impl Decimal {
     /// ```
     /// # use rust_decimal::Decimal;
     /// #
-    /// let x = Decimal::new(1, 0);
-    /// let y = Decimal::new(2, 0);
+    /// let x = Decimal::from_i64_with_scale(1, 0);
+    /// let y = Decimal::from_i64_with_scale(2, 0);
     /// assert_eq!(x, x.min(y));
     /// ```
     #[must_use]
@@ -1405,8 +1424,8 @@ impl Decimal {
     /// # use rust_decimal::Decimal;
     /// #
     /// // Demonstrating bankers rounding...
-    /// let number_down = Decimal::new(65, 1);
-    /// let number_up   = Decimal::new(75, 1);
+    /// let number_down = Decimal::from_i64_with_scale(65, 1);
+    /// let number_up   = Decimal::from_i64_with_scale(75, 1);
     /// assert_eq!(number_down.round().to_string(), "6");
     /// assert_eq!(number_up.round().to_string(), "8");
     /// ```
@@ -2818,7 +2837,7 @@ mod tests {
     use super::*;
 
     // Ensures that `Error` is allowed in constant environments
-    const _ERROR_ENUM_IS_CONST: Decimal = if let Ok(elem) = Decimal::try_new(0, 0) {
+    const _ERROR_ENUM_IS_CONST: Decimal = if let Ok(elem) = Decimal::try_from_i64_with_scale(0, 0) {
         elem
     } else {
         panic!()

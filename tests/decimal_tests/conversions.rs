@@ -432,16 +432,16 @@ fn it_converts_to_integers() {
 #[test]
 fn it_handles_simple_underflow() {
     // Issue #71
-    let rate = Decimal::new(19, 2); // 0.19
-    let one = Decimal::new(1, 0); // 1
+    let rate = Decimal::from_i64_with_scale(19, 2); // 0.19
+    let one = Decimal::from_i64_with_scale(1, 0); // 1
     let part = rate / (rate + one); // 0.19 / (0.19 + 1) = 0.1596638655462184873949579832
     let result = one * part;
     assert_eq!("0.1596638655462184873949579832", result.to_string());
 
     // 169 * 0.1596638655462184873949579832 = 26.983193277310924
-    let result = part * Decimal::new(169, 0);
+    let result = part * Decimal::from_i64_with_scale(169, 0);
     assert_eq!("26.983193277310924369747899161", result.to_string());
-    let result = Decimal::new(169, 0) * part;
+    let result = Decimal::from_i64_with_scale(169, 0) * part;
     assert_eq!("26.983193277310924369747899161", result.to_string());
 }
 

@@ -11,7 +11,6 @@ struct Record {
 }
 
 #[test]
-#[cfg(not(feature = "serde-str"))]
 fn deserialize_valid_decimal() {
     let data = [
         ("{\"amount\":\"1.234\"}", "1.234"),
@@ -39,7 +38,7 @@ fn deserialize_valid_decimal() {
 }
 
 #[test]
-#[cfg(feature = "serde-arbitrary-precision")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn deserialize_basic_decimal() {
     let s = "1.1234127836128763";
     let d: Decimal = serde_json::from_str(s).unwrap();
@@ -48,7 +47,7 @@ fn deserialize_basic_decimal() {
 }
 
 #[test]
-#[cfg(feature = "serde-arbitrary-precision")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn deserialize_f64_scientific_notation_from_value() {
     // When serde_json's arbitrary_precision is enabled, small floats that roundtrip
     // through f64 are deserialized via visit_f64. zmij/ryu formats them in scientific
@@ -67,17 +66,17 @@ fn deserialize_invalid_decimal() {
 }
 
 #[test]
-#[cfg(not(feature = "serde-float"))]
+#[cfg(not(feature = "serde-default-number"))]
 fn serialize_decimal() {
     let record = Record {
-        amount: Decimal::new(1234, 3),
+        amount: Decimal::from_i64_with_scale(1234, 3),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":\"1.234\"}", serialized);
 }
 
 #[test]
-#[cfg(not(feature = "serde-float"))]
+#[cfg(not(feature = "serde-default-number"))]
 fn serialize_negative_zero() {
     let record = Record { amount: -Decimal::ZERO };
     let serialized = serde_json::to_string(&record).unwrap();
@@ -85,22 +84,22 @@ fn serialize_negative_zero() {
 }
 
 #[test]
-#[cfg(feature = "serde-float")]
+#[cfg(feature = "serde-default-number")]
 fn serialize_decimal() {
     let record = Record {
-        amount: Decimal::new(1234, 3),
+        amount: Decimal::from_i64_with_scale(1234, 3),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":1.234}", serialized);
 }
 
 #[test]
-#[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+#[cfg(all(feature = "serde-default-number", feature = "serde-default-arbitrary-precision"))]
 fn serialize_decimal_roundtrip() {
     let record = Record {
         // 4.81 is intentionally chosen as it is unrepresentable as a floating point number, meaning this test
-        // would fail if the `serde-arbitrary-precision` was not activated.
-        amount: Decimal::new(481, 2),
+        // would fail if `serde-default-arbitrary-precision` was not activated.
+        amount: Decimal::from_i64_with_scale(481, 2),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":4.81}", serialized);
@@ -109,7 +108,7 @@ fn serialize_decimal_roundtrip() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-float", feature = "serde-arbitrary-precision"))]
+#[cfg(all(feature = "serde-default-number", feature = "serde-default-arbitrary-precision"))]
 fn serialize_whole_number_decimal() {
     let data = [
         ("0", "0"),
@@ -136,10 +135,10 @@ fn serialize_whole_number_decimal() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
+#[cfg(not(feature = "serde-default-number"))]
 fn serialize_decimal_roundtrip() {
     let record = Record {
-        amount: Decimal::new(481, 2),
+        amount: Decimal::from_i64_with_scale(481, 2),
     };
     let serialized = serde_json::to_string(&record).unwrap();
     assert_eq!("{\"amount\":\"4.81\"}", serialized);
@@ -148,7 +147,32 @@ fn serialize_decimal_roundtrip() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
+#[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
+fn bincode_roundtrip_without_serde_str() {
+    // bincode is not self-describing, so `deserialize_any` cannot work.
+    // This must succeed without any opt-in feature.
+    let expected = Decimal::from_str("12.34").unwrap();
+    let encoded = bincode::serialize(&expected).unwrap();
+    let decoded: Decimal = bincode::deserialize(&encoded).unwrap();
+    assert_eq!(expected, decoded);
+    assert_eq!(expected.scale(), decoded.scale());
+}
+
+#[test]
+#[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
+fn bincode_roundtrip_preserves_scale() {
+    let expected = Decimal::from_str("1.0000").unwrap();
+    let encoded = bincode::serialize(&expected).unwrap();
+    let decoded: Decimal = bincode::deserialize(&encoded).unwrap();
+    assert_eq!(4, decoded.scale());
+    assert_eq!("1.0000", decoded.to_string());
+}
+
+#[test]
+#[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_serialization_not_float() {
     use bincode::{deserialize, serialize};
 
@@ -172,7 +196,8 @@ fn bincode_serialization_not_float() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-str", feature = "serde-float"))]
+#[cfg(feature = "serde-default-number")]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_serialization_serde_float() {
     use bincode::{deserialize, serialize};
 
@@ -195,7 +220,8 @@ fn bincode_serialization_serde_float() {
 }
 
 #[test]
-#[cfg(all(feature = "serde-str", not(feature = "serde-float")))]
+#[cfg(not(feature = "serde-default-number"))]
+#[cfg(not(target_arch = "wasm32"))]
 fn bincode_nested_serialization() {
     // Issue #361
     #[derive(Deserialize, Serialize, Debug)]
@@ -204,7 +230,7 @@ fn bincode_nested_serialization() {
     }
 
     let s = Foo {
-        value: Decimal::new(-1, 3).round_dp(0),
+        value: Decimal::from_i64_with_scale(-1, 3).round_dp(0),
     };
     let ser = bincode::serialize(&s).unwrap();
     let des: Foo = bincode::deserialize(&ser).unwrap();
@@ -212,7 +238,7 @@ fn bincode_nested_serialization() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision() {
     #[derive(Serialize, Deserialize)]
     pub struct ArbitraryExample {
@@ -227,7 +253,7 @@ fn with_arbitrary_precision() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision_from_string() {
     #[derive(Serialize, Deserialize)]
     pub struct ArbitraryExample {
@@ -240,7 +266,6 @@ fn with_arbitrary_precision_from_string() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-float")]
 fn with_float() {
     #[derive(Serialize, Deserialize)]
     pub struct FloatExample {
@@ -255,7 +280,6 @@ fn with_float() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-str")]
 fn with_str() {
     #[derive(Serialize, Deserialize)]
     pub struct StringExample {
@@ -270,7 +294,7 @@ fn with_str() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-str")]
+#[cfg(not(target_arch = "wasm32"))]
 fn with_str_bincode() {
     use bincode::{deserialize, serialize};
 
@@ -301,7 +325,7 @@ fn with_str_bincode() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-str")]
+#[cfg(not(target_arch = "wasm32"))]
 fn with_str_bincode_optional() {
     use bincode::{deserialize, serialize};
 
@@ -312,7 +336,7 @@ fn with_str_bincode_optional() {
     }
 
     // Some(value)
-    let value = Some(Decimal::new(1234, 3));
+    let value = Some(Decimal::from_i64_with_scale(1234, 3));
     let input = BincodeExample { value };
     let encoded = serialize(&input).unwrap();
     let decoded: BincodeExample = deserialize(&encoded[..]).unwrap();
@@ -326,7 +350,6 @@ fn with_str_bincode_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-str")]
 fn with_str_optional() {
     #[derive(Serialize, Deserialize)]
     pub struct StringExample {
@@ -358,7 +381,6 @@ fn with_str_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-str")]
 fn with_str_tagged_enum_optional() {
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case")]
@@ -380,7 +402,6 @@ fn with_str_tagged_enum_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-float")]
 fn with_float_optional() {
     #[derive(Serialize, Deserialize)]
     pub struct StringExample {
@@ -405,7 +426,6 @@ fn with_float_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-float")]
 fn with_float_tagged_enum_optional() {
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case")]
@@ -427,7 +447,7 @@ fn with_float_tagged_enum_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision_optional() {
     #[derive(Serialize, Deserialize)]
     pub struct StringExample {
@@ -453,7 +473,7 @@ fn with_arbitrary_precision_optional() {
 }
 
 #[test]
-#[cfg(feature = "serde-with-arbitrary-precision")]
+#[cfg(feature = "serde-default-arbitrary-precision")]
 fn with_arbitrary_precision_tagged_enum_optional() {
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case")]
@@ -472,4 +492,26 @@ fn with_arbitrary_precision_tagged_enum_optional() {
 
     let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized, original);
+}
+
+#[test]
+fn helper_modules_available_without_extra_features() {
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Helpers {
+        #[serde(with = "rust_decimal::serde::str")]
+        as_str: Decimal,
+        #[serde(with = "rust_decimal::serde::float")]
+        as_float: Decimal,
+    }
+
+    let value = Helpers {
+        as_str: Decimal::from_str("1.25").unwrap(),
+        as_float: Decimal::from_str("1.25").unwrap(),
+    };
+    let json = serde_json::to_string(&value).unwrap();
+    assert_eq!(r#"{"as_str":"1.25","as_float":1.25}"#, json);
+
+    let parsed: Helpers = serde_json::from_str(&json).unwrap();
+    assert_eq!(value.as_str, parsed.as_str);
+    assert_eq!(value.as_float, parsed.as_float);
 }
