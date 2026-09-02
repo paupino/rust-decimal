@@ -236,38 +236,6 @@ mod ndarray_tests {
     }
 }
 
-#[cfg(feature = "rkyv")]
-mod rkyv_tests {
-    use rust_decimal::Decimal;
-    use std::str::FromStr;
-
-    #[test]
-    fn it_can_serialize_deserialize_rkyv() {
-        use rkyv::Deserialize;
-        let tests = [
-            "12.3456789",
-            "5233.9008808150288439427720175",
-            "-5233.9008808150288439427720175",
-        ];
-        for test in &tests {
-            let a = Decimal::from_str(test).unwrap();
-            let bytes = rkyv::to_bytes::<_, 256>(&a).unwrap();
-
-            #[cfg(feature = "rkyv-safe")]
-            {
-                let archived = rkyv::check_archived_root::<Decimal>(&bytes[..]).unwrap();
-                assert_eq!(archived, &a);
-            }
-
-            let archived = unsafe { rkyv::archived_root::<Decimal>(&bytes[..]) };
-            assert_eq!(archived, &a);
-
-            let deserialized: Decimal = archived.deserialize(&mut rkyv::Infallible).unwrap();
-            assert_eq!(deserialized, a);
-        }
-    }
-}
-
 #[test]
 fn it_can_deserialize_unbounded_values() {
     // Mantissa for these: 19393111376951473493673267553

@@ -21,8 +21,6 @@ use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Numer
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
 use num_traits::{FromPrimitive, Num, One, Signed, ToPrimitive, Zero};
-#[cfg(feature = "rkyv")]
-use rkyv::{Archive, Deserialize, Serialize};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -124,13 +122,6 @@ impl From<UnpackedDecimal> for Decimal {
     derive(borsh::BorshDeserialize, borsh::BorshSerialize, borsh::BorshSchema)
 )]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable))]
-#[cfg_attr(
-    feature = "rkyv",
-    derive(Archive, Deserialize, Serialize),
-    archive(compare(PartialEq)),
-    archive_attr(derive(Clone, Copy, Debug))
-)]
-#[cfg_attr(feature = "rkyv-safe", archive(check_bytes))]
 #[cfg_attr(all(target_arch = "wasm32", feature = "wasm"), wasm_bindgen)]
 pub struct Decimal {
     // Bits 0-15: unused

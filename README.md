@@ -116,7 +116,6 @@ assert_eq!(total, dec!(27.26));
 * [macros](#macros)
 * [maths](#maths)
 * [ndarray](#ndarray)
-* [rkyv](#rkyv)
 * [rocket-traits](#rocket-traits)
 * [rust-fuzz](#rust-fuzz)
 * [std](#std)
@@ -225,14 +224,38 @@ two).
 
 ### `rkyv`
 
-Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`. In order to avoid breaking changes, this is
-currently locked at version `0.7`.
+Removed in `1.43.0`. This feature previously enabled [rkyv](https://github.com/rkyv/rkyv) `0.7` serialization for
+`Decimal`. The `0.7` line is no longer supported upstream and will not receive further fixes
+(see [RUSTSEC-2026-0235](https://rustsec.org/advisories/RUSTSEC-2026-0235.html)), so it was carried in every downstream
+lockfile regardless of whether the feature was enabled.
 
-Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
+Use rkyv's [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) instead. These work against any
+rkyv version without `rust_decimal` needing to depend on rkyv at all, and are demonstrated in `examples/rkyv-remote`:
 
-If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'
-s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See
-`examples/rkyv-remote`.
+```ignore
+use rkyv::{rancor::Error, Archive, Deserialize, Serialize};
+use rust_decimal::prelude::{dec, Decimal};
+
+#[derive(Archive, Serialize, Deserialize, Debug, PartialEq, Eq)]
+struct Root {
+    #[rkyv(with = RkyvDecimal)]
+    decimal: Decimal,
+}
+
+/// Archived layout of `Decimal`
+#[derive(Archive, Serialize, Deserialize)]
+#[rkyv(remote = Decimal)]
+struct RkyvDecimal {
+    #[rkyv(getter = Decimal::serialize)]
+    bytes: [u8; 16],
+}
+
+impl From<RkyvDecimal> for Decimal {
+    fn from(RkyvDecimal { bytes }: RkyvDecimal) -> Self {
+        Self::deserialize(bytes)
+    }
+}
+```
 
 ### `rocket-traits`
 
