@@ -1,7 +1,7 @@
 use crate::Error;
 use crate::constants::{
-    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U8_MASK, U32_MASK,
-    UNSIGN_MASK,
+    MAX_I128_REPR, MAX_SCALE_U32, POWERS_5_U128, POWERS_10, POWERS_10_F64, SCALE_MASK, SCALE_SHIFT, SIGN_MASK,
+    SIGN_SHIFT, U8_MASK, U32_MASK, UNSIGN_MASK,
 };
 use crate::ops;
 use core::{
@@ -2429,23 +2429,21 @@ impl Decimal {
         } else if self.scale() == 0 {
             // An integer to float conversion rounds to nearest, ties to even.
             mantissa as f64
+        } else if !cfg!(all(target_arch = "x86", not(target_feature = "sse2")))
+            && self.hi == 0
+            && self.mid < (1 << 21)
+            && self.scale() <= 22
+        {
+            // The mantissa is below 2^53 and 10^scale is at most 10^22, so both operands are
+            // exact in f64 and a single division already yields the nearest f64. x87 arithmetic
+            // without SSE2 would round the division twice, so those targets take the exact path.
+            (mantissa as f64) / POWERS_10_F64[self.scale() as usize]
         } else {
             scaled_mantissa_to_f64(mantissa, self.scale())
         };
         if self.is_sign_negative() { -magnitude } else { magnitude }
     }
 }
-
-/// `5^n` for `n` in `0..=28`.
-const POWERS_5_U128: [u128; 29] = {
-    let mut table = [1u128; 29];
-    let mut i = 1;
-    while i < table.len() {
-        table[i] = table[i - 1] * 5;
-        i += 1;
-    }
-    table
-};
 
 /// The `f64` nearest to `mantissa / 10^scale`, ties to even, for `mantissa != 0` and
 /// `scale` in `1..=28`.
