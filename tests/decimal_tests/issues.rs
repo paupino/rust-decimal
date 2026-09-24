@@ -66,6 +66,20 @@ fn issue_624_to_f64_precision() {
 }
 
 #[test]
+fn issue_828_to_f64_correct_rounding() {
+    let tests = [
+        "41564725111192.09",
+        "42374010.16301119",
+        "964550194732601.1",
+        "9533848929109301.5",
+    ];
+    for value in tests {
+        let expected: f64 = value.parse().unwrap();
+        assert_eq!(Decimal::from_str(value).unwrap().to_f64(), Some(expected), "{value}");
+    }
+}
+
+#[test]
 fn issue_618_rescaling_overflow() {
     fn assert_result(scale: u32, v1: Decimal, v2: Decimal) {
         assert_eq!(scale, v1.scale(), "initial scale: {scale}");

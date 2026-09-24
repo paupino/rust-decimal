@@ -114,6 +114,100 @@ fn it_converts_to_f64() {
 }
 
 #[test]
+fn it_converts_to_f64_nearest() {
+    // Values with 16 or more significant digits. The reference is the standard library's parser,
+    // which returns the nearest f64.
+    let tests = [
+        "42374010.16301119",
+        "367360219.0653660",
+        "41564725111192.09",
+        "41178314804.09036",
+        "7266536452.7374987",
+        "964550194732601.1",
+        "9533848929109301.5",
+    ];
+    for value in tests {
+        let expected: f64 = value.parse().unwrap();
+        assert_eq!(Decimal::from_str(value).unwrap().to_f64(), Some(expected), "{value}");
+        assert_eq!(
+            Decimal::from_str(&format!("-{value}")).unwrap().to_f64(),
+            Some(-expected),
+            "-{value}"
+        );
+    }
+}
+
+#[test]
+fn it_converts_to_f64_at_the_edges() {
+    let tests = [
+        // Either side of the single-division domain: mantissa 2^53 - 1 and 2^53 at scale 22, and
+        // 2^53 - 1 at scale 23.
+        ("0.0000009007199254740991", 9.007199254740991e-7),
+        ("0.0000009007199254740992", 9.007199254740992e-7),
+        ("0.00000009007199254740991", 9.007199254740992e-8),
+        // Ties resolve to the even significand, in both directions.
+        ("9007199254740993", 9007199254740992.0),
+        ("4503599627370496.5", 4503599627370496.0),
+        ("4503599627370497.5", 4503599627370498.0),
+        // A hair above a tie rounds up.
+        ("4503599627370496.5000000000001", 4503599627370497.0),
+        // The quotient's dropped bits are exactly half, so only the remainder of the division
+        // decides: above the tie rounds up, the tie itself goes to the even significand.
+        ("0.0000000000000000000000001338", 1.338e-25),
+        ("34359738368.000003814697265626", 34359738368.00001),
+        ("34359738368.000003814697265625", 34359738368.0),
+        // Rounding up carries into the next power of two.
+        ("0.99999999999999999", 1.0),
+        // The ends of the range.
+        ("79228162514264337593543950335", 7.922816251426434e28),
+        ("7.9228162514264337593543950335", 7.9228162514264335),
+        ("0.0000000000000000000000000001", 1e-28),
+    ];
+    for (value, expected) in tests {
+        assert_eq!(value.parse::<f64>().unwrap(), expected, "{value}: expectation");
+        assert_eq!(Decimal::from_str(value).unwrap().to_f64(), Some(expected), "{value}");
+    }
+}
+
+#[test]
+fn it_converts_negative_zero_to_negative_zero() {
+    for value in [-Decimal::ZERO, Decimal::from_str("-0.4").unwrap().trunc()] {
+        assert_eq!(value.to_string(), "-0");
+        assert_eq!(value.to_f64().map(f64::to_bits), Some((-0.0f64).to_bits()), "{value:?}");
+    }
+}
+
+#[test]
+fn it_converts_to_f64_like_str_parse() {
+    // Compare against the standard library's parser over mantissas of every bit width and every
+    // scale. A fixed-seed generator keeps the test deterministic without a dependency.
+    let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    for width in 1..=96u32 {
+        for scale in 0..=28u32 {
+            for _ in 0..8 {
+                let random = (u128::from(next()) << 64) | u128::from(next());
+                let mantissa = (random & ((1u128 << width) - 1)) | (1u128 << (width - 1));
+                let lo = mantissa as u32;
+                let mid = (mantissa >> 32) as u32;
+                let hi = (mantissa >> 64) as u32;
+                for negative in [false, true] {
+                    let value = Decimal::from_parts(lo, mid, hi, negative, scale);
+                    let text = value.to_string();
+                    let expected: f64 = text.parse().unwrap();
+                    assert_eq!(value.to_f64(), Some(expected), "{text}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn it_converts_to_f64_try() {
     let tests = &[
         ("5", Some(5f64)),
