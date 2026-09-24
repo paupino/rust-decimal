@@ -2102,14 +2102,10 @@ impl FromPrimitive for Decimal {
     }
 
     fn from_i128(n: i128) -> Option<Decimal> {
-        let flags;
-        let unsigned;
-        if n >= 0 {
-            unsigned = n as u128;
-            flags = 0;
+        let (unsigned, flags) = if n >= 0 {
+            (n as u128, 0)
         } else {
-            unsigned = n.unsigned_abs();
-            flags = SIGN_MASK;
+            (n.unsigned_abs(), SIGN_MASK)
         };
         // Check if we overflow
         if unsigned >> 96 != 0 {
