@@ -2424,22 +2424,28 @@ impl Decimal {
     /// This is the infallible equivalent of [`ToPrimitive::to_f64`].
     pub fn as_f64(&self) -> f64 {
         let mantissa = (u128::from(self.hi) << 64) | (u128::from(self.mid) << 32) | u128::from(self.lo);
+        let scale = self.scale();
         let magnitude = if mantissa == 0 {
             0.0
-        } else if self.scale() == 0 {
-            // An integer to float conversion rounds to nearest, ties to even.
-            mantissa as f64
+        } else if scale == 0 {
+            // An integer to float conversion rounds to nearest, ties to even. Converting from u64
+            // when the value fits avoids the 128-bit conversion, a library call on most targets.
+            if self.hi == 0 {
+                (mantissa as u64) as f64
+            } else {
+                mantissa as f64
+            }
         } else if !cfg!(all(target_arch = "x86", not(target_feature = "sse2")))
             && self.hi == 0
             && self.mid < (1 << 21)
-            && self.scale() <= 22
+            && scale <= 22
         {
             // The mantissa is below 2^53 and 10^scale is at most 10^22, so both operands are
             // exact in f64 and a single division already yields the nearest f64. x87 arithmetic
             // without SSE2 would round the division twice, so those targets take the exact path.
-            (mantissa as f64) / POWERS_10_F64[self.scale() as usize]
+            (mantissa as i64 as f64) / POWERS_10_F64[scale as usize]
         } else {
-            scaled_mantissa_to_f64(mantissa, self.scale())
+            scaled_mantissa_to_f64(mantissa, scale)
         };
         if self.is_sign_negative() { -magnitude } else { magnitude }
     }
@@ -2477,7 +2483,9 @@ fn scaled_mantissa_to_f64(mantissa: u128, scale: u32) -> f64 {
     // is a normal f64 and the product is exact.
     let exponent = excess as i32 - shift as i32 - scale as i32;
     let power_of_two = f64::from_bits(((exponent + 1023) as u64) << 52);
-    (significand as f64) * power_of_two
+    // The significand is at most 2^53, so converting from i64 is exact and avoids the 128-bit
+    // conversion.
+    (significand as i64 as f64) * power_of_two
 }
 
 impl ToPrimitive for Decimal {
