@@ -39,7 +39,7 @@ impl Decimal {
                 result = result.checked_add(Self::new(digit as i64, 0))?;
             }
             let scale_pow = 10i128.checked_pow(4 * start_integers as u32)?;
-            result = result.checked_mul(Self::from_i128_with_scale(scale_pow, 0))?;
+            result = result.checked_mul(Self::try_from_i128_with_scale(scale_pow, 0).ok()?)?;
         }
         // adding fractional part
         if fractionals_part_count > 0 {
