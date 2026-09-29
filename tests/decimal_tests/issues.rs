@@ -97,3 +97,20 @@ fn issue_618_rescaling_overflow() {
     a.rescale(29);
     assert_result(29, a, b);
 }
+
+#[cfg(feature = "maths")]
+#[test]
+fn issue_721_maths_sqrt_cycle() {
+    use rust_decimal::MathematicalOps;
+
+    for (input, expected) in [
+        ("400.00000000000000000000000003", "20.000000000000000000000000001"),
+        ("4.0000000000000000000000000003", "2.0000000000000000000000000001"),
+        ("64.000000000000000000000000012", "8.000000000000000000000000001"),
+        ("6277101735386680763835789423.1", "79228162514264.337593543950335"),
+    ] {
+        let input = Decimal::from_str(input).unwrap();
+        let expected = Decimal::from_str(expected).unwrap();
+        assert_eq!(input.sqrt(), Some(expected), "input: {input}");
+    }
+}

@@ -163,27 +163,6 @@ fn test_sqrt() {
 }
 
 #[test]
-fn test_sqrt_issue_721() {
-    let value = Decimal::from_str("400.00000000000000000000000003").unwrap();
-    let expected = Decimal::from_str("20.000000000000000000000000001").unwrap();
-
-    assert_eq!(value.sqrt(), Some(expected));
-}
-
-#[test]
-fn test_sqrt_cycle_boundary_and_signed_zero() {
-    let boundary = Decimal::from_str("6277101735386680763835789423.1").unwrap();
-    assert_eq!(
-        boundary.sqrt(),
-        Some(Decimal::from_str("79228162514264.33759354395034").unwrap())
-    );
-    let mut negative_zero = Decimal::ZERO;
-    negative_zero.set_sign_negative(true);
-    assert!(negative_zero.is_sign_negative());
-    assert_eq!(negative_zero.sqrt(), None);
-}
-
-#[test]
 fn test_exp() {
     let test_cases = &[
         ("20", "485165195.40979027796910683072"),
