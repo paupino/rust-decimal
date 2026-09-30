@@ -18,13 +18,14 @@ pub(crate) fn truncate_internal(value: &mut [u32; 3], value_scale: &mut u32, des
 // or when there is nothing to do).
 #[inline(always)]
 fn rescale<const ROUND: bool>(value: &mut [u32; 3], value_scale: &mut u32, new_scale: u32) -> bool {
+    let new_scale = new_scale.min(MAX_SCALE_U32);
     if *value_scale == new_scale {
         // Nothing to do
         return false;
     }
 
     if is_all_zero(value) {
-        *value_scale = new_scale.min(MAX_SCALE_U32);
+        *value_scale = new_scale;
         return false;
     }
 

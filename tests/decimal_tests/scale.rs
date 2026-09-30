@@ -174,3 +174,38 @@ fn it_can_rescale() {
         assert_eq!(expected_scale, value.scale());
     }
 }
+
+#[test]
+fn it_caps_scale_when_rescaling_and_truncating() {
+    let cases = [
+        ("0", 28),
+        ("0.1", 28),
+        ("-0.1", 28),
+        ("0.0000000000000000000000000001", 28),
+        ("-0.0000000000000000000000000001", 28),
+        ("11.76470588235294", 27),
+        ("-11.76470588235294", 27),
+        ("79228162514264337593543950335", 0),
+    ];
+
+    for (value_raw, expected_scale) in cases {
+        let original = Decimal::from_str(value_raw).unwrap();
+        for requested_scale in [28, 29, 31, 32, 40, u32::MAX] {
+            let mut rescaled = original;
+            rescaled.rescale(requested_scale);
+            for (operation, result) in [
+                ("rescale", rescaled),
+                ("trunc_with_scale", original.trunc_with_scale(requested_scale)),
+            ] {
+                assert_eq!(
+                    result.scale(),
+                    expected_scale,
+                    "{operation}({value_raw}, {requested_scale})"
+                );
+                assert_eq!(result, original);
+                assert_eq!(result.is_sign_negative(), original.is_sign_negative());
+                assert_eq!(Decimal::deserialize(result.serialize()), original);
+            }
+        }
+    }
+}

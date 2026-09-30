@@ -89,11 +89,11 @@ fn issue_618_rescaling_overflow() {
     let b = Decimal::from_str("0.1").unwrap();
     assert_result(28, a, b);
 
-    // Try at a new scale (this works)
+    // Requests above the supported scale retain the value at scale 28.
     a.rescale(30);
-    assert_result(30, a, b);
+    assert_result(28, a, b);
 
-    // And finally the scale causing an issue
+    // The scale-29 request previously caused incorrect arithmetic.
     a.rescale(29);
-    assert_result(29, a, b);
+    assert_result(28, a, b);
 }
