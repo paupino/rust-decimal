@@ -157,6 +157,64 @@ fn it_can_deserialize_unbounded_values() {
 }
 
 #[test]
+fn it_deserializes_unbounded_scales_at_the_correct_midpoint() {
+    let tests: &[(u8, i128, i128)] = &[
+        (29, 0, 0),
+        (29, 1, 0),
+        (29, 10, 1),
+        (29, 4, 0),
+        (29, 5, 1),
+        (29, 6, 1),
+        (29, 14, 1),
+        (29, 15, 2),
+        (29, 16, 2),
+        (29, 42949672955, 4294967296),
+        (29, 184467440737095516155, 18446744073709551616),
+        (29, 79228162514264337593543950335, 7922816251426433759354395034),
+        (30, 0, 0),
+        (30, 1, 0),
+        (30, 10, 0),
+        (30, 49, 0),
+        (30, 50, 1),
+        (30, 51, 1),
+        (30, 149, 1),
+        (30, 150, 2),
+        (30, 151, 2),
+        (30, 429496729550, 4294967296),
+        (30, 1844674407370955161550, 18446744073709551616),
+        (30, 79228162514264337593543950335, 792281625142643375935439503),
+        (31, 0, 0),
+        (31, 1, 0),
+        (31, 100, 0),
+        (31, 499, 0),
+        (31, 500, 1),
+        (31, 501, 1),
+        (31, 1499, 1),
+        (31, 1500, 2),
+        (31, 1501, 2),
+        (31, 4294967295500, 4294967296),
+        (31, 18446744073709551615500, 18446744073709551616),
+        (31, 79228162514264337593543950335, 79228162514264337593543950),
+    ];
+    for &(scale, mantissa, rounded) in tests {
+        for negative in [false, true] {
+            let mut bytes = Decimal::from_i128_with_scale(mantissa, 0).serialize();
+            bytes[2] = scale;
+            bytes[3] = if negative { 0x80 } else { 0 };
+            let result = Decimal::deserialize(bytes);
+            let expected = Decimal::from_i128_with_scale(if negative { -rounded } else { rounded }, 28);
+            assert_eq!(
+                result, expected,
+                "scale {scale}, mantissa {mantissa}, negative {negative}"
+            );
+            assert_eq!(result.scale(), 28);
+            assert_eq!(result.is_sign_negative(), negative);
+            assert_eq!(Decimal::deserialize(result.serialize()).serialize(), result.serialize());
+        }
+    }
+}
+
+#[test]
 fn it_can_parse_highly_significant_numbers() {
     let tests = &[
         ("11.111111111111111111111111111", "11.111111111111111111111111111"),
