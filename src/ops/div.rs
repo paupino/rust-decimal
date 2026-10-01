@@ -148,8 +148,8 @@ impl Buf16 {
         quotient as u32
     }
 
-    // Does a partial divide with a 96 bit divisor. The divisor in this case must require 96 bits
-    // otherwise various assumptions fail (e.g. 32 bit quotient).
+    // Divides a 128-bit window by a normalised 96-bit divisor.
+    // The exact quotient must fit in 32 bits; the remainder replaces the low three words.
     #[inline]
     pub(super) fn partial_divide_96(&mut self, divisor: &Buf12) -> u32 {
         let dividend = self.high64();
@@ -159,8 +159,10 @@ impl Buf16 {
             return 0;
         }
 
-        let mut quo = (dividend / divisor_hi as u64) as u32;
-        let mut remainder = (dividend as u32).wrapping_sub(quo.wrapping_mul(divisor_hi));
+        let mut quo = (dividend / divisor_hi as u64).min(u32::MAX as u64) as u32;
+        // A clamped estimate can leave a 33-bit top remainder. Keep its carry until
+        // subtracting the lower-word product.
+        let mut remainder = dividend - quo as u64 * divisor_hi as u64;
 
         // Compute full remainder
         let mut prod1 = quo as u64 * divisor.data[0] as u64;
@@ -171,23 +173,21 @@ impl Buf16 {
 
         let mut num = self.low64();
         num = num.wrapping_sub(prod1);
-        remainder = remainder.wrapping_sub(prod2 as u32);
+        remainder = remainder.wrapping_sub(prod2);
 
         // If there are carries make sure they are propagated
         if num > !prod1 {
             remainder = remainder.wrapping_sub(1);
-            if remainder < !(prod2 as u32) {
-                self.set_low64(num);
-                self.data[2] = remainder;
-                return quo;
-            }
-        } else if remainder <= !(prod2 as u32) {
+        }
+        // A non-negative candidate remainder fits in 96 bits.
+        if remainder <= u32::MAX as u64 {
             self.set_low64(num);
-            self.data[2] = remainder;
+            self.data[2] = remainder as u32;
             return quo;
         }
 
         // Remainder went negative, add divisor back until it's positive
+        let mut remainder = remainder as u32;
         prod1 = divisor.low64();
         loop {
             quo = quo.wrapping_sub(1);
@@ -722,4 +722,51 @@ fn unscale(num: &mut Buf12, scale: i32) -> i32 {
         scale -= 1;
     }
     scale
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Buf12, Buf16};
+
+    #[test]
+    fn partial_divide_96_preserves_the_clamped_estimate_carry() {
+        let divisor = Buf12 {
+            data: [0, u32::MAX, 0x8000_0000],
+        };
+        let mut dividend = Buf16 {
+            data: [0, 0, 0x8000_0000, 0x8000_0000],
+        };
+        assert_eq!(dividend.partial_divide_96(&divisor), u32::MAX);
+        assert_eq!(&dividend.data[..3], &[0, u32::MAX, 1]);
+    }
+
+    #[test]
+    fn partial_divide_96_handles_quotient_boundaries() {
+        let divisors = [
+            [0, 0, 0x8000_0000],
+            [0, u32::MAX, 0x8000_0000],
+            [u32::MAX, u32::MAX, 0x8000_0000],
+            [u32::MAX, u32::MAX, u32::MAX],
+        ];
+        for data in divisors {
+            let divisor = Buf12 { data };
+            let divisor_value = (u128::from(data[2]) << 64) | u128::from(divisor.low64());
+            for quotient in [0, 1, u32::MAX - 1, u32::MAX] {
+                for remainder in [0, divisor_value / 2, divisor_value - 1] {
+                    let value = divisor_value * u128::from(quotient) + remainder;
+                    let mut dividend = Buf16 {
+                        data: [
+                            value as u32,
+                            (value >> 32) as u32,
+                            (value >> 64) as u32,
+                            (value >> 96) as u32,
+                        ],
+                    };
+                    assert_eq!(dividend.partial_divide_96(&divisor), quotient);
+                    let actual = (u128::from(dividend.data[2]) << 64) | u128::from(dividend.low64());
+                    assert_eq!(actual, remainder, "dividend {value}, divisor {divisor_value}");
+                }
+            }
+        }
+    }
 }
