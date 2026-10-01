@@ -617,7 +617,8 @@ fn div_remainder_96(
 
         let tmp = remainder.partial_divide_96(&divisor);
         if let Err(DivError::Overflow) = quotient.add32(tmp) {
-            scale = unscale_from_overflow(&mut quotient, scale, (remainder.low64() | remainder.high64()) != 0)?;
+            // The fourth word retains scaling scratch, not part of the 96-bit remainder.
+            scale = unscale_from_overflow(&mut quotient, scale, remainder.low64() != 0 || remainder.data[2] != 0)?;
             break;
         }
     }
