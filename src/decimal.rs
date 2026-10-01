@@ -2512,22 +2512,7 @@ impl ToPrimitive for Decimal {
 
 impl fmt::Display for Decimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let (rep, additional) = crate::str::to_str_internal(self, false, f.precision());
-        if let Some(additional) = additional {
-            // Use a stack buffer to avoid heap allocation.
-            // Decimal has a max scale of 28 and max 96-bit integer (29 digits), so the
-            // representation is at most ~32 chars + 28 zeros = 60 bytes. 64 is sufficient.
-            let mut value = arrayvec::ArrayString::<64>::new();
-            let _ = value.try_push_str(rep.as_str());
-            for _ in 0..additional {
-                if value.try_push('0').is_err() {
-                    break;
-                }
-            }
-            f.pad_integral(self.is_sign_positive(), "", value.as_str())
-        } else {
-            f.pad_integral(self.is_sign_positive(), "", rep.as_str())
-        }
+        crate::str::fmt_decimal(self, f)
     }
 }
 
