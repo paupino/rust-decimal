@@ -30,7 +30,7 @@ impl<'a> TryFrom<&'a PgNumeric> for Decimal {
         let digits: Vec<u16> = digits
             .iter()
             .map(|&v| -> deserialize::Result<u16> {
-                if v < 0 || v > 9999 {
+                if !(0..=9999).contains(&v) {
                     Err(Box::from(format!("invalid digit group: {v}")))
                 } else {
                     Ok(v as u16)

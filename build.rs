@@ -32,7 +32,7 @@ fn prepare(readme: &str) -> Result<String, Box<dyn std::error::Error>> {
             write!(
                 cleaned,
                 "{}",
-                &line.replace(
+                line.replace(
                     "(BUILD.md)",
                     "(https://github.com/paupino/rust-decimal/blob/master/BUILD.md)",
                 )

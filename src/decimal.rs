@@ -1,7 +1,7 @@
 use crate::Error;
 use crate::constants::{
-    MAX_I128_REPR, MAX_SCALE_U32, POWERS_10, SCALE_MASK, SCALE_SHIFT, SIGN_MASK, SIGN_SHIFT, U8_MASK, U32_MASK,
-    UNSIGN_MASK,
+    MAX_I128_REPR, MAX_SCALE_U32, POWERS_5_U128, POWERS_10, POWERS_10_F64, SCALE_MASK, SCALE_SHIFT, SIGN_MASK,
+    SIGN_SHIFT, U8_MASK, U32_MASK, UNSIGN_MASK,
 };
 use crate::ops;
 use core::{
@@ -2106,14 +2106,10 @@ impl FromPrimitive for Decimal {
     }
 
     fn from_i128(n: i128) -> Option<Decimal> {
-        let flags;
-        let unsigned;
-        if n >= 0 {
-            unsigned = n as u128;
-            flags = 0;
+        let (unsigned, flags) = if n >= 0 {
+            (n as u128, 0)
         } else {
-            unsigned = n.unsigned_abs();
-            flags = SIGN_MASK;
+            (n.unsigned_abs(), SIGN_MASK)
         };
         // Check if we overflow
         if unsigned >> 96 != 0 {
@@ -2422,40 +2418,74 @@ impl Decimal {
 
     /// Converts this `Decimal` to an `f64`.
     ///
+    /// Returns the `f64` nearest to the decimal value, with ties resolved to the even significand:
+    /// the same value `f64::from_str` returns for the decimal's string representation.
+    ///
     /// This is the infallible equivalent of [`ToPrimitive::to_f64`].
     pub fn as_f64(&self) -> f64 {
-        if self.scale() == 0 {
-            // If scale is zero, we are storing a 96-bit integer value, that would
-            // always fit into i128, which in turn is always representable as f64,
-            // albeit with loss of precision for values outside of -2^53..2^53 range.
-            self.as_i128() as f64
-        } else {
-            let neg = self.is_sign_negative();
-            let mut mantissa: u128 = self.lo.into();
-            mantissa |= (self.mid as u128) << 32;
-            mantissa |= (self.hi as u128) << 64;
-            // scale is at most 28, so this fits comfortably into a u128.
-            let scale = self.scale();
-            let precision: u128 = 10_u128.pow(scale);
-            let integral_part = mantissa / precision;
-            let frac_part = mantissa % precision;
-            let frac_f64 = (frac_part as f64) / (precision as f64);
-            let integral = integral_part as f64;
-            // If there is a fractional component then we will need to add that and remove any
-            // inaccuracies that creep in during addition. Otherwise, if the fractional component
-            // is zero we can exit early.
-            if frac_f64.is_zero() {
-                if neg {
-                    return -integral;
-                }
-                return integral;
+        let mantissa = (u128::from(self.hi) << 64) | (u128::from(self.mid) << 32) | u128::from(self.lo);
+        let scale = self.scale();
+        let magnitude = if mantissa == 0 {
+            0.0
+        } else if scale == 0 {
+            // An integer to float conversion rounds to nearest, ties to even. Converting from u64
+            // when the value fits avoids the 128-bit conversion, a library call on most targets.
+            if self.hi == 0 {
+                (mantissa as u64) as f64
+            } else {
+                mantissa as f64
             }
-            let value = integral + frac_f64;
-            let round_to = 10f64.powi(self.scale() as i32);
-            let rounded = (value * round_to).round() / round_to;
-            if neg { -rounded } else { rounded }
-        }
+        } else if !cfg!(all(target_arch = "x86", not(target_feature = "sse2")))
+            && self.hi == 0
+            && self.mid < (1 << 21)
+            && scale <= 22
+        {
+            // The mantissa is below 2^53 and 10^scale is at most 10^22, so both operands are
+            // exact in f64 and a single division already yields the nearest f64. x87 arithmetic
+            // without SSE2 would round the division twice, so those targets take the exact path.
+            (mantissa as i64 as f64) / POWERS_10_F64[scale as usize]
+        } else {
+            scaled_mantissa_to_f64(mantissa, scale)
+        };
+        if self.is_sign_negative() { -magnitude } else { magnitude }
     }
+}
+
+/// The `f64` nearest to `mantissa / 10^scale`, ties to even, for `mantissa != 0` and
+/// `scale` in `1..=28`.
+///
+/// `10^scale` is `5^scale * 2^scale`, so the division by `5^scale` is done exactly in integers
+/// and the power of two becomes an exponent adjustment. The mantissa is first shifted to the top
+/// of a `u128`; with `5^28 < 2^66` the quotient then has at least 62 bits, enough to round to a
+/// 53-bit significand with the remainder acting as the sticky bit.
+#[inline]
+fn scaled_mantissa_to_f64(mantissa: u128, scale: u32) -> f64 {
+    let shift = mantissa.leading_zeros();
+    let numerator = mantissa << shift;
+    let divisor = POWERS_5_U128[scale as usize];
+    let quotient = numerator / divisor;
+    let remainder = numerator % divisor;
+
+    // Round the quotient to 53 significant bits, to nearest, ties to even. The exact value is
+    // `quotient + remainder / divisor`, so the discarded part is the dropped low bits of the
+    // quotient plus a fraction that is nonzero exactly when the remainder is.
+    let bits = 128 - quotient.leading_zeros();
+    let excess = bits - 53;
+    let mut significand = quotient >> excess;
+    let dropped = quotient & ((1u128 << excess) - 1);
+    let half = 1u128 << (excess - 1);
+    if dropped > half || (dropped == half && (remainder != 0 || significand & 1 == 1)) {
+        // May carry to 2^53, which is still exactly representable.
+        significand += 1;
+    }
+
+    // value = significand * 2^exponent. The exponent lies within -146..=40, so the power of two
+    // is a normal f64 and the product is exact.
+    let exponent = excess as i32 - shift as i32 - scale as i32;
+    let power_of_two = f64::from_bits(((exponent + 1023) as u64) << 52);
+    // The significand is at most 2^53, so converting from i64 is exact and avoids the 128-bit
+    // conversion.
+    (significand as i64 as f64) * power_of_two
 }
 
 impl ToPrimitive for Decimal {
