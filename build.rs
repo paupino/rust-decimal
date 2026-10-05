@@ -45,7 +45,7 @@ fn prepare(readme: &str) -> Result<String, Box<dyn std::error::Error>> {
                 // This is a bit naive, but it's to make the Serde examples cleaner. Should probably
                 // be a bit more "defensive" here.
                 writeln!(cleaned, "# use serde::{{Serialize, Deserialize}};")?;
-                write!(cleaned, "# #[cfg(features = \"{feature}\")]")?;
+                write!(cleaned, "# #[cfg(feature = \"{feature}\")]")?;
             }
         } else {
             if !feature_section && line.starts_with("## Features") {

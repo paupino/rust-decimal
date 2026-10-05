@@ -46,14 +46,18 @@ const FACTORIAL: [Decimal; 28] = [
 
 /// Trait exposing various mathematical operations that can be applied using a Decimal. This is only
 /// present when the `maths` feature has been enabled, e.g. by adding the crate with
-// `cargo add rust_decimal --features maths` and importing in your Rust file with `use rust_decimal::MathematicalOps;`
+/// `cargo add rust_decimal --features maths` and importing in your Rust file with `use rust_decimal::MathematicalOps;`
 pub trait MathematicalOps {
-    /// The estimated exponential function, e<sup>x</sup>. Stops calculating when it is within
-    /// tolerance of roughly `0.0000002`.
+    /// The exponential function, e<sup>x</sup>.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the result overflows, or if `self` is so negative that the result underflows.
+    /// Use [`checked_exp`](MathematicalOps::checked_exp) to handle these cases.
     fn exp(&self) -> Decimal;
 
-    /// The estimated exponential function, e<sup>x</sup>. Stops calculating when it is within
-    /// tolerance of roughly `0.0000002`. Returns `None` on overflow.
+    /// The exponential function, e<sup>x</sup>. Returns `None` if the result overflows, or if
+    /// `self` is so negative that the result underflows.
     fn checked_exp(&self) -> Option<Decimal>;
 
     /// The estimated exponential function, e<sup>x</sup> using the `tolerance` provided as a hint
@@ -96,11 +100,16 @@ pub trait MathematicalOps {
     /// The square root of a Decimal. Uses a standard Babylonian method.
     fn sqrt(&self) -> Option<Decimal>;
 
-    /// Calculates the natural logarithm for a Decimal calculated using Taylor's series.
+    /// Calculates the natural logarithm of a Decimal.
+    ///
+    /// # Panics
+    ///
+    /// Panics for negative numbers or zero, unless the `maths-nopanic` feature is enabled, in
+    /// which case it returns zero. Use [`checked_ln`](MathematicalOps::checked_ln) to handle
+    /// these cases.
     fn ln(&self) -> Decimal;
 
-    /// Calculates the checked natural logarithm for a Decimal calculated using Taylor's series.
-    /// Returns `None` for negative numbers or zero.
+    /// Calculates the natural logarithm of a Decimal. Returns `None` for negative numbers or zero.
     fn checked_ln(&self) -> Option<Decimal>;
 
     /// Calculates the base 10 logarithm of a specified Decimal number.

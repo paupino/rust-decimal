@@ -525,6 +525,10 @@ impl Decimal {
     /// * `negative` - `true` to indicate a negative number.
     /// * `scale` - A power of 10 ranging from 0 to [`Self::MAX_SCALE`].
     ///
+    /// # Panics
+    ///
+    /// Panics if `scale` is greater than [`Self::MAX_SCALE`].
+    ///
     /// # Example
     ///
     /// ```
