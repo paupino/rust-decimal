@@ -311,19 +311,34 @@ impl MathematicalOps for Decimal {
         if result.is_zero() {
             result = *self;
         }
-        let mut last = result + Decimal::ONE;
-
-        // Keep going while the difference is larger than the tolerance
+        let mut previous = None;
         let mut circuit_breaker = 0;
-        while last != result {
+        loop {
             circuit_breaker += 1;
-            assert!(circuit_breaker < 1000, "geo mean circuit breaker");
+            assert!(circuit_breaker < 1000, "sqrt circuit breaker");
 
-            last = result;
-            result = (result + self / result) / Decimal::TWO;
+            let next = (result + self / result) / Decimal::TWO;
+            if next == result {
+                return Some(next);
+            }
+            if let Some(last) = previous {
+                // Match value and scale: rounding depends on the estimate's representation.
+                if next == last && next.scale() == last.scale() {
+                    let (low, high) = if next < result { (next, result) } else { (result, next) };
+                    let residual = |x: Decimal| {
+                        x.checked_mul(x)
+                            .and_then(|square| square.checked_sub(*self))
+                            .map(|difference| difference.abs())
+                    };
+                    return Some(match (residual(low), residual(high)) {
+                        (Some(low_error), Some(high_error)) if high_error < low_error => high,
+                        _ => low,
+                    });
+                }
+            }
+            previous = Some(result);
+            result = next;
         }
-
-        Some(result)
     }
 
     #[cfg(feature = "maths-nopanic")]
