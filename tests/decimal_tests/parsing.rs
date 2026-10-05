@@ -441,12 +441,8 @@ fn it_can_parse_different_radix() {
             radix,
             result.err()
         );
-        if result.is_ok() {
-            assert_eq!(
-                expected,
-                result.unwrap().to_string(),
-                "Original input: {input} radix {radix}"
-            );
+        if let Ok(value) = result {
+            assert_eq!(expected, value.to_string(), "Original input: {input} radix {radix}");
         }
     }
 }
