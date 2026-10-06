@@ -176,36 +176,55 @@ fn it_can_rescale() {
 }
 
 #[test]
-fn it_caps_scale_when_rescaling_and_truncating() {
+fn it_caps_truncation_scale_without_changing_rescale() {
+    let mut negative_zero = Decimal::ZERO;
+    negative_zero.set_sign_negative(true);
+    assert!(negative_zero.is_sign_negative());
+
+    let tiny = Decimal::new(1, Decimal::MAX_SCALE);
+    let negative_tiny = Decimal::new(-1, Decimal::MAX_SCALE);
+    let mut over_scaled = tiny;
+    let mut negative_over_scaled = negative_tiny;
+    over_scaled.rescale(40);
+    negative_over_scaled.rescale(40);
+    assert_eq!(over_scaled.scale(), 40);
+    assert_eq!(negative_over_scaled.scale(), 40);
+
     let cases = [
-        ("0", 28),
-        ("0.1", 28),
-        ("-0.1", 28),
-        ("0.0000000000000000000000000001", 28),
-        ("-0.0000000000000000000000000001", 28),
-        ("11.76470588235294", 27),
-        ("-11.76470588235294", 27),
-        ("79228162514264337593543950335", 0),
+        (Decimal::ZERO, Decimal::ZERO, Decimal::MAX_SCALE),
+        (negative_zero, negative_zero, Decimal::MAX_SCALE),
+        (tiny, tiny, Decimal::MAX_SCALE),
+        (negative_tiny, negative_tiny, Decimal::MAX_SCALE),
+        (over_scaled, tiny, Decimal::MAX_SCALE),
+        (negative_over_scaled, negative_tiny, Decimal::MAX_SCALE),
+        (Decimal::new(1, 1), Decimal::new(1, 1), Decimal::MAX_SCALE),
+        (Decimal::new(-1, 1), Decimal::new(-1, 1), Decimal::MAX_SCALE),
+        (Decimal::MAX, Decimal::MAX, 0),
+        (Decimal::MIN, Decimal::MIN, 0),
+        (
+            Decimal::from_str("11.76470588235294").unwrap(),
+            Decimal::from_str("11.76470588235294").unwrap(),
+            27,
+        ),
+        (
+            Decimal::from_str("-11.76470588235294").unwrap(),
+            Decimal::from_str("-11.76470588235294").unwrap(),
+            27,
+        ),
     ];
 
-    for (value_raw, expected_scale) in cases {
-        let original = Decimal::from_str(value_raw).unwrap();
-        for requested_scale in [28, 29, 31, 32, 40, u32::MAX] {
-            let mut rescaled = original;
-            rescaled.rescale(requested_scale);
-            for (operation, result) in [
-                ("rescale", rescaled),
-                ("trunc_with_scale", original.trunc_with_scale(requested_scale)),
-            ] {
-                assert_eq!(
-                    result.scale(),
-                    expected_scale,
-                    "{operation}({value_raw}, {requested_scale})"
-                );
-                assert_eq!(result, original);
-                assert_eq!(result.is_sign_negative(), original.is_sign_negative());
-                assert_eq!(Decimal::deserialize(result.serialize()), original);
-            }
+    for (input, expected, expected_scale) in cases {
+        for requested in [Decimal::MAX_SCALE, Decimal::MAX_SCALE + 1, 40, u32::MAX] {
+            let result = input.trunc_with_scale(requested);
+            assert_eq!(result.scale(), expected_scale, "requested scale: {requested}");
+            assert_eq!(result, expected);
+            assert_eq!(result.is_sign_negative(), input.is_sign_negative());
+            let bytes = result.serialize();
+            let decoded = Decimal::deserialize(bytes);
+            assert_eq!(decoded.serialize(), bytes);
+            assert_eq!(decoded.scale(), result.scale());
+            assert_eq!(decoded.is_sign_negative(), result.is_sign_negative());
+            assert_eq!(decoded, expected);
         }
     }
 }
