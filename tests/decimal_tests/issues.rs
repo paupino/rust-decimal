@@ -66,6 +66,20 @@ fn issue_624_to_f64_precision() {
 }
 
 #[test]
+fn issue_828_to_f64_correct_rounding() {
+    let tests = [
+        "41564725111192.09",
+        "42374010.16301119",
+        "964550194732601.1",
+        "9533848929109301.5",
+    ];
+    for value in tests {
+        let expected: f64 = value.parse().unwrap();
+        assert_eq!(Decimal::from_str(value).unwrap().to_f64(), Some(expected), "{value}");
+    }
+}
+
+#[test]
 fn issue_618_rescaling_overflow() {
     fn assert_result(scale: u32, v1: Decimal, v2: Decimal) {
         assert_eq!(scale, v1.scale(), "initial scale: {scale}");
@@ -96,4 +110,21 @@ fn issue_618_rescaling_overflow() {
     // The scale-29 request previously caused incorrect arithmetic.
     a.rescale(29);
     assert_result(28, a, b);
+}
+
+#[cfg(feature = "maths")]
+#[test]
+fn issue_721_maths_sqrt_cycle() {
+    use rust_decimal::MathematicalOps;
+
+    for (input, expected) in [
+        ("400.00000000000000000000000003", "20.000000000000000000000000001"),
+        ("4.0000000000000000000000000003", "2.0000000000000000000000000001"),
+        ("64.000000000000000000000000012", "8.000000000000000000000000001"),
+        ("6277101735386680763835789423.1", "79228162514264.337593543950335"),
+    ] {
+        let input = Decimal::from_str(input).unwrap();
+        let expected = Decimal::from_str(expected).unwrap();
+        assert_eq!(input.sqrt(), Some(expected), "input: {input}");
+    }
 }

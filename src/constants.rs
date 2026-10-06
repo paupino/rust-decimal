@@ -57,6 +57,23 @@ pub const BIG_POWERS_10: [u64; 19] = [
 ];
 
 // The maximum power of 10 that a 32 bit integer can store
+/// `10^n` for `n` in `0..=22`, the powers of ten that are exact in an `f64`.
+pub const POWERS_10_F64: [f64; 23] = [
+    1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20,
+    1e21, 1e22,
+];
+
+/// `5^n` for `n` in `0..=28`.
+pub const POWERS_5_U128: [u128; 29] = {
+    let mut table = [1u128; 29];
+    let mut i = 1;
+    while i < table.len() {
+        table[i] = table[i - 1] * 5;
+        i += 1;
+    }
+    table
+};
+
 pub const MAX_I32_SCALE: i32 = 9;
 // The maximum power of 10 that a 64 bit integer can store
 pub const MAX_I64_SCALE: u32 = 19;
