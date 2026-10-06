@@ -71,3 +71,25 @@ fn postgres_from_sql_special_numeric() {
         }
     }
 }
+
+#[test]
+fn postgres_from_sql_exceeds_maximum_value() {
+    use postgres::types::{FromSql, Kind, Type};
+    use rust_decimal::{Decimal, Error};
+
+    // Single group of 1 with a large weight: 10000^weight. These fit into an i128 but exceed the
+    // 96 bit mantissa of a Decimal, so they must return an error instead of panicking.
+    let tests: &[(&str, &[u8])] = &[
+        ("1e32", &[0x00, 0x01, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01]),
+        ("1e36", &[0x00, 0x01, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01]),
+    ];
+
+    let t = Type::new("".into(), 0, Kind::Simple, "".into());
+
+    for (name, bytes) in tests {
+        match Decimal::from_sql(&t, bytes) {
+            Ok(value) => panic!("Expected error for {}, got {}", name, value),
+            Err(e) => assert_eq!(e.to_string(), Error::ExceedsMaximumPossibleValue.to_string()),
+        }
+    }
+}
