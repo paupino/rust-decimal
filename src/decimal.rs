@@ -1089,16 +1089,16 @@ impl Decimal {
                 | ((bytes[14] as u32) << 16)
                 | ((bytes[15] as u32) << 24),
         };
-        // Scale must be bound to maximum precision. Only two values can be greater than this
+        // Scale must be bound to maximum precision. Only three values can be greater than this
         if raw.scale() > Self::MAX_SCALE {
             let mut bits = raw.mantissa_array3();
-            let remainder = match raw.scale() {
-                29 => ops::array::div_by_power::<1>(&mut bits),
-                30 => ops::array::div_by_power::<2>(&mut bits),
-                31 => ops::array::div_by_power::<3>(&mut bits),
-                _ => 0,
+            let (remainder, midpoint) = match raw.scale() {
+                29 => (ops::array::div_by_power::<1>(&mut bits), 5),
+                30 => (ops::array::div_by_power::<2>(&mut bits), 50),
+                31 => (ops::array::div_by_power::<3>(&mut bits), 500),
+                _ => (0, 5),
             };
-            if remainder >= 5 {
+            if remainder >= midpoint {
                 ops::array::add_one_internal(&mut bits);
             }
             raw.lo = bits[0];
