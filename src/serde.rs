@@ -340,6 +340,32 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         }
     }
 
+    fn visit_i128<E>(self, value: i128) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        match Decimal::from_i128(value) {
+            Some(s) => Ok(s),
+            None => Err(E::invalid_value(
+                Unexpected::Other("i128 out of range for Decimal"),
+                &self,
+            )),
+        }
+    }
+
+    fn visit_u128<E>(self, value: u128) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        match Decimal::from_u128(value) {
+            Some(s) => Ok(s),
+            None => Err(E::invalid_value(
+                Unexpected::Other("u128 out of range for Decimal"),
+                &self,
+            )),
+        }
+    }
+
     #[cfg(not(feature = "serde-with-arbitrary-precision"))]
     fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
     where
