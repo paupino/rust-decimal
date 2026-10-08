@@ -473,3 +473,32 @@ fn with_arbitrary_precision_tagged_enum_optional() {
     let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized, original);
 }
+
+#[test]
+#[cfg(not(feature = "serde-str"))]
+fn deserialize_128_bit_integers() {
+    use serde::de::IntoDeserializer;
+    use serde::de::value::{Error, I128Deserializer, U128Deserializer};
+
+    // Beyond the u64/i64 range but within Decimal's 96 bit mantissa
+    let big = u64::MAX as u128 + 1;
+    let d = <Decimal as Deserialize>::deserialize(IntoDeserializer::<Error>::into_deserializer(big)).unwrap();
+    assert_eq!(d.to_string(), "18446744073709551616");
+    let d =
+        <Decimal as Deserialize>::deserialize(IntoDeserializer::<Error>::into_deserializer(-(big as i128))).unwrap();
+    assert_eq!(d.to_string(), "-18446744073709551616");
+
+    // Largest and smallest Decimal
+    let d = <Decimal as Deserialize>::deserialize(U128Deserializer::<Error>::new(
+        u128::from(u32::MAX) << 64 | u128::from(u64::MAX),
+    ))
+    .unwrap();
+    assert_eq!(d, Decimal::MAX);
+    let d = <Decimal as Deserialize>::deserialize(I128Deserializer::<Error>::new(-(Decimal::MAX.mantissa()))).unwrap();
+    assert_eq!(d, Decimal::MIN);
+
+    // Out of range yields an error rather than a panic
+    assert!(<Decimal as Deserialize>::deserialize(U128Deserializer::<Error>::new(u128::MAX)).is_err());
+    assert!(<Decimal as Deserialize>::deserialize(I128Deserializer::<Error>::new(i128::MAX)).is_err());
+    assert!(<Decimal as Deserialize>::deserialize(I128Deserializer::<Error>::new(i128::MIN)).is_err());
+}
