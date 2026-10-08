@@ -288,6 +288,50 @@ fn it_can_parse_exact_highly_significant_numbers() {
 }
 
 #[test]
+fn it_can_parse_exact_with_separators_after_the_last_fractional_digit() {
+    // A separator carries no value, so it may follow the 28th fractional digit.
+    let tests = &[
+        // 96 bit mantissa
+        (
+            "0.1234567890123456789012345678_",
+            Ok("0.1234567890123456789012345678".to_string()),
+        ),
+        (
+            "0.1234567890123456789012345678___",
+            Ok("0.1234567890123456789012345678".to_string()),
+        ),
+        (
+            "-0.1234567890123456789012345678_",
+            Ok("-0.1234567890123456789012345678".to_string()),
+        ),
+        (
+            "7.9228162514264337593543950335_",
+            Ok("7.9228162514264337593543950335".to_string()),
+        ),
+        // 64 bit mantissa
+        (
+            "0.0000000000000000000000000001_",
+            Ok("0.0000000000000000000000000001".to_string()),
+        ),
+        // Another digit still cannot be represented, with or without a separator in front of it.
+        ("0.1234567890123456789012345678_9", Err(Error::Underflow)),
+        ("0.1234567890123456789012345678_0", Err(Error::Underflow)),
+        ("0.1234567890123456789012345678__1", Err(Error::Underflow)),
+        ("0.0000000000000000000000000001_1", Err(Error::Underflow)),
+        ("0.12345678901234567890123456780", Err(Error::Underflow)),
+        // Anything else is reported the same way as it is earlier in the string.
+        ("0.1234567890123456789012345678x", Err(Error::InvalidCharacter)),
+        ("0.1234567890123456789012345678_x", Err(Error::InvalidCharacter)),
+        ("0.0000000000000000000000000001x", Err(Error::InvalidCharacter)),
+        ("0.1234567890123456789012345678.", Err(Error::DuplicatedDecimalPoint)),
+    ];
+    for &(value, ref expected) in tests.iter() {
+        let actual = Decimal::from_str_exact(value).map(|d| d.to_string());
+        assert_eq!(*expected, actual, "from_str_exact({value:?})");
+    }
+}
+
+#[test]
 fn it_can_parse_alternative_formats() {
     let tests = &[
         ("1_000", "1000"),
