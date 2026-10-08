@@ -6,6 +6,7 @@ use crate::{
 };
 
 use arrayvec::{ArrayString, ArrayVec};
+use core::fmt::{self, Write};
 
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
@@ -32,7 +33,9 @@ pub(crate) fn to_str_internal(
 
     let (prec, additional) = match precision {
         Some(prec) => {
-            let max: usize = MAX_SCALE.into();
+            // Keep intrinsic digits in the buffer and stream any extra zeroes.
+            // At scale zero, one fractional digit also supplies the decimal point.
+            let max = scale.max(1);
             if prec > max {
                 (max, Some(prec - max))
             } else {
@@ -74,6 +77,71 @@ pub(crate) fn to_str_internal(
     }
 
     (rep, additional)
+}
+
+pub(crate) fn fmt_decimal(value: &Decimal, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let (rep, additional) = to_str_internal(value, false, f.precision());
+    let Some(additional) = additional else {
+        return f.pad_integral(value.is_sign_positive(), "", rep.as_str());
+    };
+
+    let sign = if value.is_sign_negative() {
+        Some('-')
+    } else if f.sign_plus() {
+        Some('+')
+    } else {
+        None
+    };
+    let len = rep
+        .len()
+        .checked_add(additional)
+        .and_then(|len| len.checked_add(usize::from(sign.is_some())))
+        .ok_or(fmt::Error)?;
+    let padding = f.width().unwrap_or(0).saturating_sub(len);
+    let zero_pad = f.sign_aware_zero_pad();
+    let (fill, align) = if zero_pad {
+        ('0', fmt::Alignment::Right)
+    } else {
+        (f.fill(), f.align().unwrap_or(fmt::Alignment::Right))
+    };
+    let (before, after) = match align {
+        fmt::Alignment::Left => (0, padding),
+        fmt::Alignment::Right => (padding, 0),
+        fmt::Alignment::Center => (padding / 2, padding - padding / 2),
+    };
+
+    // Match pad_integral: zero padding follows the sign and overrides alignment.
+    if zero_pad {
+        if let Some(sign) = sign {
+            f.write_char(sign)?;
+        }
+        write_zeroes(f, before)?;
+    } else {
+        for _ in 0..before {
+            f.write_char(fill)?;
+        }
+        if let Some(sign) = sign {
+            f.write_char(sign)?;
+        }
+    }
+    f.write_str(rep.as_str())?;
+    write_zeroes(f, additional)?;
+    for _ in 0..after {
+        f.write_char(fill)?;
+    }
+    Ok(())
+}
+
+fn write_zeroes(f: &mut fmt::Formatter<'_>, mut count: usize) -> fmt::Result {
+    const ZEROES: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+    while count >= ZEROES.len() {
+        f.write_str(ZEROES)?;
+        count -= ZEROES.len();
+    }
+    if count > 0 {
+        f.write_str(&ZEROES[..count])?;
+    }
+    Ok(())
 }
 
 #[cfg(feature = "alloc")]
