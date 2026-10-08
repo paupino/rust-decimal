@@ -422,21 +422,11 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
 #[inline(never)]
 #[cold]
 fn exact_tail<const NEG: bool>(data: u128, scale: u8, next_byte: u8, remaining: &[u8]) -> Result<Decimal, Error> {
-    let mut b = next_byte;
-    let mut bytes = remaining;
-    loop {
-        match b {
-            b'_' => {}
-            b'0'..=b'9' => return Err(Error::Underflow),
-            b => return tail_invalid_digit(b),
-        }
-        match bytes.split_first() {
-            Some((next, rest)) => {
-                b = *next;
-                bytes = rest;
-            }
-            None => return handle_data::<NEG, true>(data, scale),
-        }
+    let mut tail = core::iter::once(next_byte).chain(remaining.iter().copied());
+    match tail.find(|&b| b != b'_') {
+        None => handle_data::<NEG, true>(data, scale),
+        Some(b'0'..=b'9') => Err(Error::Underflow),
+        Some(b) => tail_invalid_digit(b),
     }
 }
 
