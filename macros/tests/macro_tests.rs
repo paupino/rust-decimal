@@ -80,10 +80,23 @@ fn it_can_parse_decimal_with_args() {
         (dec!(radix 2, 10, exp 5), "200000"),
         (dec!(exp -3, radix 8, -1_777), "-1.023"),
         (dec!(exp - 3, -1023), "-1.023"),
+        (dec!(radix 2 -1), "-1"),
+        (dec!(exp 3 -1), "-1000"),
     ];
     for &(a, b) in tests {
         assert_eq!(a.to_string(), b);
     }
+}
+
+#[test]
+fn it_can_parse_forwarded_arguments() {
+    macro_rules! decimal {
+        ($radix:expr, $exp:expr) => {
+            dec!(101, radix $radix, exp $exp)
+        };
+    }
+
+    assert_eq!(decimal!(2, -1), dec!(0.5));
 }
 
 #[test]
