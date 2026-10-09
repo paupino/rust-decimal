@@ -1,4 +1,4 @@
-use crate::Decimal;
+use crate::{Decimal, RoundingStrategy};
 use rand_0_9::{
     Rng,
     distr::{
@@ -58,8 +58,18 @@ impl UniformSampler for DecimalSampler {
         B1: SampleBorrow<Self::X> + Sized,
         B2: SampleBorrow<Self::X> + Sized,
     {
-        let (low, high) = sync_scales(*low.borrow(), *high.borrow());
-        let high = Decimal::from_i128_with_scale(high.mantissa() - 1, high.scale());
+        let (low, high) = (*low.borrow(), *high.borrow());
+        let (low, synced_high) = sync_scales(low, high);
+        // `sync_scales` may have rounded `high` down to a coarser scale. If it did, the result is
+        // already strictly below the exclusive bound; otherwise step down to the previous value
+        // at this scale. If that is not representable then nothing is below `high`, so the
+        // range is empty.
+        let high = if synced_high < high {
+            synced_high
+        } else {
+            Decimal::try_from_i128_with_scale(synced_high.mantissa() - 1, synced_high.scale())
+                .map_err(|_| rand_0_9::distr::uniform::Error::EmptyRange)?
+        };
         UniformSampler::new_inclusive(low, high)
     }
 
@@ -105,25 +115,30 @@ impl UniformSampler for DecimalSampler {
 
 /// Return equivalent Decimal objects with the same scale as one another.
 #[inline]
-fn sync_scales(mut a: Decimal, mut b: Decimal) -> (Decimal, Decimal) {
-    if a.scale() == b.scale() {
-        return (a, b);
+fn sync_scales(mut low: Decimal, mut high: Decimal) -> (Decimal, Decimal) {
+    if low.scale() == high.scale() {
+        return (low, high);
     }
 
     // Set scales to match one another, because we are relying on mantissas'
     // being comparable in order outsource the actual sampling implementation.
-    a.rescale(a.scale().max(b.scale()));
-    b.rescale(a.scale().max(b.scale()));
+    // Padding with zeros is exact, so this does not change either bound.
+    let target = low.scale().max(high.scale());
+    low.rescale(target);
+    high.rescale(target);
 
     // Edge case: If the values have _wildly_ different scales, the values may not have rescaled far enough to match one another.
     //
-    // In this case, we accept some precision loss because the randomization approach we are using assumes that the scales will necessarily match.
-    if a.scale() != b.scale() {
-        a.rescale(a.scale().min(b.scale()));
-        b.rescale(a.scale().min(b.scale()));
+    // In this case we drop to the smaller scale. The range must only ever shrink, so `low` is
+    // rounded up and `high` is rounded down; rounding to nearest could yield samples outside
+    // the requested bounds.
+    if low.scale() != high.scale() {
+        let scale = low.scale().min(high.scale());
+        low = low.round_dp_with_strategy(scale, RoundingStrategy::ToPositiveInfinity);
+        high = high.round_dp_with_strategy(scale, RoundingStrategy::ToNegativeInfinity);
     }
 
-    (a, b)
+    (low, high)
 }
 
 #[cfg(test)]
@@ -179,5 +194,32 @@ mod rand_tests {
     fn test_edge_case_scales_match() {
         let (low, high) = sync_scales(dec!(1.000_000_000_000_000_000_01), dec!(100_000_000_000_000_000_001));
         assert_eq!(low.scale(), high.scale());
+    }
+
+    #[test]
+    fn samples_stay_within_bounds_with_mismatched_scales() {
+        use core::str::FromStr;
+        let mut rng = rng();
+        let low = Decimal::from_str("7922816251426433759354395033.4").unwrap();
+        let high = Decimal::from_str("7922816251426433759354395034").unwrap();
+        // Only 7922816251426433759354395034 lies in [low, high], and nothing lies in [low, high).
+        let inclusive = rng.random_range(low..=high);
+        assert!(inclusive >= low && inclusive <= high);
+        assert!(rand_0_9::distr::uniform::Uniform::new(low, high).is_err());
+    }
+
+    #[test]
+    fn non_empty_range_with_mismatched_scales_is_accepted() {
+        use core::str::FromStr;
+        let low = Decimal::from_str("-7922816251426433759354395034").unwrap();
+        let high = Decimal::from_str("-7922816251426433759354395033.5").unwrap();
+        // -7922816251426433759354395034 is the only value in [low, high).
+        let uniform = rand_0_9::distr::uniform::Uniform::new(low, high).unwrap();
+        assert_eq!(low, uniform.sample(&mut rng()));
+    }
+
+    #[test]
+    fn empty_range_at_min_is_an_error_not_a_panic() {
+        assert!(rand_0_9::distr::uniform::Uniform::new(Decimal::MIN, Decimal::MIN).is_err());
     }
 }
