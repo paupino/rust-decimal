@@ -307,6 +307,41 @@ mod test {
     }
 
     #[test]
+    fn long_fractional_literals_are_rejected() {
+        for scale in [255, 256, 257, 512] {
+            let value = format!("0.{}1", "0".repeat(scale as usize - 1));
+            assert_eq!(
+                parse_dec(&value, 0),
+                Err(ParseError::InvalidExp(-scale)),
+                "scale {scale}"
+            );
+        }
+    }
+
+    #[test]
+    fn long_literals_preserve_their_value() {
+        for zeros in ["0".repeat(255), "0_".repeat(255)] {
+            let integer = format!("{zeros}1");
+            assert_eq!(parse_dec(&integer, 0), Ok(Decimal::ONE), "{integer}");
+            assert_eq!(parse_radix_dec(&integer, 0, 2), Ok(Decimal::ONE), "{integer}");
+
+            let scientific = format!("0.{integer}e256");
+            assert_eq!(parse_dec(&scientific, 0), Ok(Decimal::ONE), "{scientific}");
+        }
+    }
+
+    #[test]
+    fn combined_exponent_overflow_is_rejected() {
+        for (value, exp) in [("1e1", i32::MAX), ("1e-1", i32::MIN), ("0.1", i32::MIN)] {
+            assert_eq!(
+                parse_dec(value, exp),
+                Err(ParseError::InvalidExp(exp)),
+                "{value}, exp {exp}"
+            );
+        }
+    }
+
+    #[test]
     // cases that don’t have their own Error symbol
     pub fn parse_dec_string() {
         let test = |src, exp, result: &str| {
