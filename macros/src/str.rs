@@ -172,7 +172,8 @@ const fn to_decimal<'src>(is_positive: bool, mut num: i128, mut exp: i32) -> Par
 }
 
 // parse normal (radix 10) numbers with optional float-like .fraction and 10’s exponent
-const fn parse_10(is_positive: bool, src: &[u8], mut exp: i32) -> ParseResult<'_> {
+const fn parse_10(is_positive: bool, src: &[u8], exp: i32) -> ParseResult<'_> {
+    let mut exp = exp as i64;
     // parse 1st part (upto optional . or e)
     let (mut num, len, mut more) = parse_bytes_inner(10, src, 0);
     // Numbers can’t be empty (before optional . or e)
@@ -192,7 +193,7 @@ const fn parse_10(is_positive: bool, src: &[u8], mut exp: i32) -> ParseResult<'_
         if num > MAX_I128_REPR {
             return Err(ParseError::Underflow);
         }
-        exp -= scale as i32
+        exp -= scale as i64
     }
 
     // parse optional 10’s exponent
@@ -210,24 +211,31 @@ const fn parse_10(is_positive: bool, src: &[u8], mut exp: i32) -> ParseResult<'_
             return Err(ParseError::InvalidExp(i32::MAX));
         }
         if exp_is_positive {
-            exp += e_part as i32
+            exp += e_part as i64
         } else {
-            exp -= e_part as i32
+            exp -= e_part as i64
         }
     }
 
     if let Some(rest) = more {
         Err(ParseError::Unparseable(rest))
     } else {
-        to_decimal(is_positive, num, exp)
+        if exp < i32::MIN as i64 {
+            return Err(ParseError::InvalidExp(i32::MIN));
+        }
+        if exp > i32::MAX as i64 {
+            return Err(ParseError::InvalidExp(i32::MAX));
+        }
+
+        to_decimal(is_positive, num, exp as i32)
     }
 }
 
 // Can’t use `from_str_radix`, as that neither groks '_', nor allows to continue after '.' or 'e'.
 // For multi-step (see test) return: number parsed, digits count, offending rest
 // num saturates at i128::MAX, which is currently not a valid Decimal
-const fn parse_bytes_inner(radix: u32, src: &[u8], mut num: i128) -> (i128, u8, Option<&[u8]>) {
-    let mut count = 0;
+const fn parse_bytes_inner(radix: u32, src: &[u8], mut num: i128) -> (i128, u32, Option<&[u8]>) {
+    let mut count = 0u32;
     let mut next = src;
     while let [byte, rest @ ..] = next {
         if let Some(digit) = (*byte as char).to_digit(radix) {
