@@ -447,3 +447,27 @@ fn it_can_remassign() {
     c %= &b;
     assert_eq!("1", a.to_string());
 }
+
+#[test]
+fn it_does_not_return_negative_zero_from_wide_multiplication() {
+    let y = Decimal::new(1, 20);
+    for (x, expected) in [
+        (-5_000_000_000_i64, "0.0000000000000000000000000000"),
+        (-5, "0.0000000000000000000000000000"),
+    ] {
+        let x = Decimal::new(x, 20);
+        let product = x * y;
+        assert_eq!(expected, product.to_string(), "{x} * {y}");
+        assert!(!product.is_sign_negative(), "{x} * {y} is negative zero");
+        let checked = x.checked_mul(y).unwrap();
+        assert!(!checked.is_sign_negative(), "checked_mul({x}, {y}) is negative zero");
+        let mut assigned = x;
+        assigned *= y;
+        assert!(!assigned.is_sign_negative(), "{x} *= {y} is negative zero");
+    }
+    // Positive operands are unaffected.
+    assert_eq!(
+        "0.0000000000000000000000000000",
+        (Decimal::new(5_000_000_000, 20) * y).to_string()
+    );
+}
