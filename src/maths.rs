@@ -304,12 +304,12 @@ impl MathematicalOps for Decimal {
     }
 
     fn sqrt(&self) -> Option<Decimal> {
-        if self.is_sign_negative() {
-            return None;
-        }
-
         if self.is_zero() {
             return Some(Decimal::ZERO);
+        }
+
+        if self.is_sign_negative() {
+            return None;
         }
 
         // Start with an arbitrary number as the first guess
@@ -363,10 +363,10 @@ impl MathematicalOps for Decimal {
         match self.checked_ln() {
             Some(result) => result,
             None => {
-                if self.is_sign_negative() {
-                    panic!("Unable to calculate ln for negative numbers")
-                } else if self.is_zero() {
+                if self.is_zero() {
                     panic!("Unable to calculate ln for zero")
+                } else if self.is_sign_negative() {
+                    panic!("Unable to calculate ln for negative numbers")
                 } else {
                     panic!("Calculation of ln failed for unknown reasons")
                 }
@@ -391,10 +391,10 @@ impl MathematicalOps for Decimal {
         match self.checked_log10() {
             Some(result) => result,
             None => {
-                if self.is_sign_negative() {
-                    panic!("Unable to calculate log10 for negative numbers")
-                } else if self.is_zero() {
+                if self.is_zero() {
                     panic!("Unable to calculate log10 for zero")
+                } else if self.is_sign_negative() {
+                    panic!("Unable to calculate log10 for negative numbers")
                 } else {
                     panic!("Calculation of log10 failed for unknown reasons")
                 }
