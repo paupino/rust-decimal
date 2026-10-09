@@ -38,7 +38,7 @@ mod str;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Expr, Ident, LitInt, Result, Token,
+    Expr, Ident, Result, Token,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
@@ -147,14 +147,10 @@ impl Parse for DecInputParser {
 
                 match ident_str.as_str() {
                     "radix" => {
-                        if let Some(value) = parse_radix(input)? {
-                            radix = Some(value);
-                        }
+                        radix = Some(parse_radix(input)?);
                     }
                     "exp" => {
-                        if let Some(value) = parse_exp(input)? {
-                            exp = Some(value);
-                        }
+                        exp = Some(parse_exp(input)?);
                     }
                     _ => {
                         // This is not a parameter but a value
@@ -190,17 +186,13 @@ impl Parse for DecInputParser {
                         if radix.is_some() {
                             panic!("Duplicate radix parameter");
                         }
-                        if let Some(value) = parse_radix(input)? {
-                            radix = Some(value);
-                        }
+                        radix = Some(parse_radix(input)?);
                     }
                     "exp" => {
                         if exp.is_some() {
                             panic!("Duplicate exp parameter");
                         }
-                        if let Some(value) = parse_exp(input)? {
-                            exp = Some(value);
-                        }
+                        exp = Some(parse_exp(input)?);
                     }
                     _ => {
                         // This is not a parameter but a value
@@ -229,50 +221,50 @@ impl Parse for DecInputParser {
     }
 }
 
-fn parse_radix(input: ParseStream) -> Result<Option<u32>> {
-    // Parse the value after the parameter name
-    if input.peek(LitInt) {
-        let lit_int = input.parse::<LitInt>()?;
-        return Ok(Some(lit_int.base10_parse::<u32>()?));
-    }
-    let expr = input.parse::<Expr>()?;
-    match expr {
-        Expr::Lit(lit) => {
-            if let syn::Lit::Int(lit_int) = lit.lit {
-                return Ok(Some(lit_int.base10_parse::<u32>()?));
-            }
-        }
-        _ => panic!("Expected a literal integer for radix"),
+fn parse_radix(input: ParseStream) -> Result<u32> {
+    if input.peek(syn::LitInt) {
+        return input.parse::<syn::LitInt>()?.base10_parse::<u32>();
     }
 
-    Ok(None)
+    let expr = input.parse::<Expr>()?;
+
+    if let Expr::Lit(lit) = &expr {
+        if let syn::Lit::Int(value) = &lit.lit {
+            return value.base10_parse::<u32>();
+        }
+    }
+
+    Err(syn::Error::new_spanned(expr, "expected an integer literal for radix"))
 }
 
-fn parse_exp(input: ParseStream) -> Result<Option<i32>> {
-    // Parse the value after the parameter name
-    if input.peek(LitInt) {
-        let lit_int = input.parse::<LitInt>()?;
-        return Ok(Some(lit_int.base10_parse::<i32>()?));
+fn parse_exp(input: ParseStream) -> Result<i32> {
+    if input.peek(syn::LitInt) {
+        return input.parse::<syn::LitInt>()?.base10_parse::<i32>();
     }
+
     let expr = input.parse::<Expr>()?;
-    match expr {
-        Expr::Lit(lit) => {
-            if let syn::Lit::Int(lit_int) = lit.lit {
-                return Ok(Some(lit_int.base10_parse::<i32>()?));
-            }
+    let invalid = || {
+        syn::Error::new_spanned(
+            &expr,
+            "expected an integer literal or a negated integer literal for exp",
+        )
+    };
+
+    let (literal, negative) = match &expr {
+        Expr::Lit(lit) => (lit, false),
+        Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Neg(_)) => {
+            let Expr::Lit(lit) = unary.expr.as_ref() else {
+                return Err(invalid());
+            };
+            (lit, true)
         }
-        Expr::Unary(unary) => {
-            if let Expr::Lit(lit) = *unary.expr {
-                if let syn::Lit::Int(lit_int) = lit.lit {
-                    let mut val = lit_int.base10_parse::<i32>()?;
-                    if let syn::UnOp::Neg(_) = unary.op {
-                        val = -val;
-                    }
-                    return Ok(Some(val));
-                }
-            }
-        }
-        _ => panic!("Expected a literal integer for exp"),
-    }
-    Ok(None)
+        _ => return Err(invalid()),
+    };
+
+    let syn::Lit::Int(integer) = &literal.lit else {
+        return Err(invalid());
+    };
+
+    let value = integer.base10_parse::<i32>()?;
+    Ok(if negative { -value } else { value })
 }
