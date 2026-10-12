@@ -174,3 +174,46 @@ fn it_can_rescale() {
         assert_eq!(expected_scale, value.scale());
     }
 }
+
+#[test]
+fn it_does_not_return_negative_zero_when_the_integer_part_is_zero() {
+    // Issue #860: these matched `round` and returned "0", not "-0", once the result is zero
+    type Op = fn(Decimal) -> Decimal;
+    let tests: &[(&str, Op, &str)] = &[
+        ("-0.4", |d| d.trunc(), "0"),
+        ("-0.9999", |d| d.trunc(), "0"),
+        ("-0.4", |d| d.trunc_with_scale(0), "0"),
+        ("-0.004", |d| d.trunc_with_scale(2), "0.00"),
+        ("-0.4", |d| d.ceil(), "0"),
+        ("-0.9999", |d| d.ceil(), "0"),
+        (
+            "-0.4",
+            |mut d| {
+                d.rescale(0);
+                d
+            },
+            "0",
+        ),
+        (
+            "-0.00004",
+            |mut d| {
+                d.rescale(2);
+                d
+            },
+            "0.00",
+        ),
+        // Non-zero results keep their sign
+        ("-1.4", |d| d.trunc(), "-1"),
+        ("-1.4", |d| d.ceil(), "-1"),
+        ("-0.4", |d| d.floor(), "-1"),
+        ("-0.4", |d| d.round(), "0"),
+    ];
+
+    for &(value, op, expected) in tests {
+        let result = op(Decimal::from_str(value).unwrap());
+        assert_eq!(expected, result.to_string(), "Input: {value}");
+        if result.is_zero() {
+            assert!(result.is_sign_positive(), "Input: {value} returned negative zero");
+        }
+    }
+}

@@ -171,8 +171,8 @@ fn it_converts_to_f64_at_the_edges() {
 
 #[test]
 fn it_converts_negative_zero_to_negative_zero() {
-    for value in [-Decimal::ZERO, Decimal::from_str("-0.4").unwrap().trunc()] {
-        assert_eq!(value.to_string(), "-0");
+    for (value, display) in [(-Decimal::ZERO, "-0"), (-Decimal::from_str("0.0").unwrap(), "-0.0")] {
+        assert_eq!(value.to_string(), display);
         assert_eq!(value.to_f64().map(f64::to_bits), Some((-0.0f64).to_bits()), "{value:?}");
     }
 }
