@@ -2519,11 +2519,11 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_u64(&self) -> Option<u64> {
-        if self.is_sign_negative() {
+        // Truncate first, like to_i64: -0.5 truncates to 0, which fits
+        let d = self.trunc();
+        if d.is_sign_negative() {
             return None;
         }
-
-        let d = self.trunc();
         if d.hi != 0 {
             // Overflow
             return None;
@@ -2533,11 +2533,11 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_u128(&self) -> Option<u128> {
-        if self.is_sign_negative() {
+        // Truncate first, like to_i64: -0.5 truncates to 0, which fits
+        let d = self.trunc();
+        if d.is_sign_negative() {
             return None;
         }
-
-        let d = self.trunc();
         Some((u128::from(d.hi) << 64) | (u128::from(d.mid) << 32) | u128::from(d.lo))
     }
 
