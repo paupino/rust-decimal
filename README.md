@@ -221,7 +221,7 @@ to curb against this. When the `maths` feature was first developed the library w
 input. To re-enable this
 non-panicking behavior, please use the feature: `maths-nopanic`.
 
-### `ndarray`
+### `ndarray-0_16`
 
 Enables arithmetic operations using [`ndarray`](https://github.com/rust-ndarray/ndarray) on arrays of `Decimal`.
 
@@ -229,25 +229,20 @@ Enables arithmetic operations using [`ndarray`](https://github.com/rust-ndarray/
 
 Enables a [`proptest`](https://github.com/proptest-rs/proptest) strategy to generate values for Rust Decimal.
 
-### `rand`
+### `rand-0_9` and `rand-0_10`
 
-Implements `rand::distributions::Distribution<Decimal>` to allow the creation of random instances.
+Implements `rand::distr::Distribution<Decimal>` for `StandardUniform`, and `SampleUniform` for `Decimal`, for rand
+0.9 and 0.10 respectively. This allows the creation of random instances.
 
 Note: When using `rand::Rng` trait to generate a decimal between a range of two other decimals, the scale of the
 randomly-generated
 decimal will be the same as the scale of the input decimals (or, if the inputs have different scales, the higher of the
 two).
 
-### `rkyv`
+### rkyv
 
-Enables [rkyv](https://github.com/rkyv/rkyv) serialization for `Decimal`. In order to avoid breaking changes, this is
-currently locked at version `0.7`.
-
-Supports rkyv's safe API when the `rkyv-safe` feature is enabled as well.
-
-If `rkyv` support for versions `0.8` of greater is desired, `rkyv`'
-s [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html) should be used instead. See
-`examples/rkyv-remote`.
+There is no `rkyv` feature. To serialize `Decimal` with [rkyv](https://github.com/rkyv/rkyv), use rkyv's
+[remote derives](https://rkyv.org/derive-macro-features/remote-derive.html); see `examples/rkyv-remote`.
 
 ### `rust-fuzz`
 

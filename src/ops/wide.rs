@@ -559,7 +559,7 @@ fn rescale_buf<const N: usize, const TARGET: usize>(
                 break;
             }
         }
-        if carry || data.get(TARGET + 1).map_or(false, |&w| w > 0) {
+        if carry || data.get(TARGET + 1).is_some_and(|&w| w > 0) {
             if *scale <= 0 {
                 return None;
             }

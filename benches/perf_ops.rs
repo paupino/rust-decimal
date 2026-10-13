@@ -4,6 +4,7 @@
 use core::hash::{Hash, Hasher};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
 
 // 64-bit mantissas (hi == 0, mid != 0) to exercise the 64-bit fast paths.
 const A_64: Decimal = Decimal::from_parts(0x1234_5678, 0x9ABC, 0, false, 6);
@@ -26,6 +27,10 @@ const EQ_150: Decimal = Decimal::from_parts(150, 0, 0, false, 2);
 // and discards it, falling back to the slow path.
 const ADD_BIG: Decimal = Decimal::from_parts(0x540B_E400, 0x2, 0, false, 0);
 const ADD_SMALL_S19: Decimal = Decimal::from_parts(1, 0, 0, false, 19);
+// 64-bit mantissa above 2^53 (mid >= 2^21): not exact in f64, so to_f64 takes the exact division path.
+const D_64_WIDE: Decimal = Decimal::from_parts(0x1234_5678, 0x9ABC_DEF0, 0, false, 6);
+// The same 64-bit mantissa at scale 0: an integer, converted directly.
+const D_64_INT: Decimal = Decimal::from_parts(0x1234_5678, 0x9ABC_DEF0, 0, false, 0);
 // Even mantissa with no trailing zeros (0.00012): normalize finds nothing to strip but still has
 // to check.
 const NORM_NOSTRIP: Decimal = Decimal::from_parts(12, 0, 0, false, 5);
@@ -55,6 +60,13 @@ fn benches(c: &mut Criterion) {
     c.bench_function("sub_64_diff_scale", |b| {
         b.iter(|| black_box(A_64_S2) - black_box(B_64_S8))
     });
+
+    // to_f64: mantissa below 2^53 with a small scale takes the single-division path; the other
+    // two take the exact integer path.
+    c.bench_function("to_f64_53", |b| b.iter(|| black_box(A_64).to_f64()));
+    c.bench_function("to_f64_64", |b| b.iter(|| black_box(D_64_WIDE).to_f64()));
+    c.bench_function("to_f64_64_int", |b| b.iter(|| black_box(D_64_INT).to_f64()));
+    c.bench_function("to_f64_96", |b| b.iter(|| black_box(C_96).to_f64()));
 
     c.bench_function("rescale_up", |b| b.iter(|| black_box(A_64).rescale(black_box(20))));
     c.bench_function("rescale_down", |b| b.iter(|| black_box(C_96).rescale(black_box(2))));

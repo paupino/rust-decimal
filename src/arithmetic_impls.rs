@@ -9,13 +9,15 @@ use num_traits::{CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, Inv
 
 #[rustfmt::skip]
 macro_rules! impl_checked {
-    ($long:literal, $short:literal, $fun:ident, $impl:ident) => {
+    ($long:literal, $short:literal, $fun:ident, $impl:ident, $none_when:literal) => {
         #[doc = concat!(
             "Checked ",
             $long,
             ". Computes `self ",
             $short,
-            " other`, returning `None` if overflow occurred."
+            " other`, returning `None` ",
+            $none_when,
+            "."
         )]
         #[inline(always)]
         #[must_use]
@@ -60,7 +62,13 @@ macro_rules! impl_checked_and_saturating {
         $saturating_fun:ident,
         $saturating_cmp:ident
     ) => {
-        impl_checked!($op_long, $op_short, $checked_fun, $checked_impl);
+        impl_checked!(
+            $op_long,
+            $op_short,
+            $checked_fun,
+            $checked_impl,
+            "if overflow occurred"
+        );
         impl_saturating!(
             $op_long,
             $op_short,
@@ -97,8 +105,14 @@ impl Decimal {
         if_a_is_positive_then_max
     );
 
-    impl_checked!("division", "/", checked_div, div_impl);
-    impl_checked!("remainder", "%", checked_rem, rem_impl);
+    impl_checked!(
+        "division",
+        "/",
+        checked_div,
+        div_impl,
+        "if `other` is zero or overflow occurred"
+    );
+    impl_checked!("remainder", "%", checked_rem, rem_impl, "if `other` is zero");
 }
 
 // Macros and trait implementations
