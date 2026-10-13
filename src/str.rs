@@ -286,7 +286,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
             if ROUND {
                 maybe_round(data64 as u128, next, bytes, scale, POINT, NEG)
             } else {
-                Err(Error::Underflow)
+                exact_tail::<NEG>(data64 as u128, scale, next, bytes)
             }
         } else if BIG && overflow_64(data64) {
             handle_full_128::<POINT, NEG, ROUND>(data64 as u128, bytes, scale, next)
@@ -386,7 +386,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                                 maybe_round(data, next, bytes, scale, POINT, NEG)
                             }
                         } else {
-                            Err(Error::Underflow)
+                            exact_tail::<NEG>(data, scale, next, bytes)
                         }
                     } else {
                         handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
@@ -412,6 +412,21 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
             }
         }
         b => tail_invalid_digit(b),
+    }
+}
+
+/// Finishes an exact parse once all 28 fractional digits are in.
+///
+/// Another digit cannot be represented, so it is an underflow. A digit separator carries no
+/// value, so any number of them may still follow.
+#[inline(never)]
+#[cold]
+fn exact_tail<const NEG: bool>(data: u128, scale: u8, next_byte: u8, remaining: &[u8]) -> Result<Decimal, Error> {
+    let mut tail = core::iter::once(next_byte).chain(remaining.iter().copied());
+    match tail.find(|&b| b != b'_') {
+        None => handle_data::<NEG, true>(data, scale),
+        Some(b'0'..=b'9') => Err(Error::Underflow),
+        Some(b) => tail_invalid_digit(b),
     }
 }
 
