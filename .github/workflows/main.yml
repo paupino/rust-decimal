@@ -10,7 +10,7 @@ name: CI
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Keep this the same as this is what Github looks for to determine if the build passed
     name: "Pass"
     needs:
@@ -23,9 +23,11 @@ jobs:
 
   check_style:
     name: Check file formatting and style
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
@@ -33,7 +35,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -53,16 +55,18 @@ jobs:
 
   minimum_rust_version:
     name: Check minimum rust version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
           toolchain: 1.85.0
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -83,16 +87,18 @@ jobs:
 
   docs:
     name: "Check documentation"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
           toolchain: nightly
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -106,7 +112,7 @@ jobs:
 
   test:
     name: "Test"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - standard_tests
       - dependency_tests
@@ -118,7 +124,7 @@ jobs:
 
   standard_tests:
     name: "Standard Tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       # There doesn't seem to be a way to share the matrix between jobs
       matrix:
@@ -131,7 +137,9 @@ jobs:
           - name: beta
             rust: beta
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
@@ -139,14 +147,14 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: tests-std-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
-      - uses: davidB/rust-cargo-make@291dc18d931d07d4960a5c40e9b6afcea9287f5b # v1.15.0
+      - uses: davidB/rust-cargo-make@eb4338cc4e8145107109b722ee749f23e61455f0 # v1.17.0
 
       - name: Run no_std tests
         run: cargo make test-no-std
@@ -168,7 +176,7 @@ jobs:
 
   dependency_tests:
     name: "Dependency Tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       # There doesn't seem to be a way to share the matrix between jobs
       matrix:
@@ -181,7 +189,9 @@ jobs:
           - name: beta
             rust: beta
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
@@ -189,14 +199,14 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: tests-dep-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
-      - uses: davidB/rust-cargo-make@291dc18d931d07d4960a5c40e9b6afcea9287f5b # v1.15.0
+      - uses: davidB/rust-cargo-make@eb4338cc4e8145107109b722ee749f23e61455f0 # v1.17.0
 
       - name: Run serde tests
         run: cargo make test-serde
@@ -206,7 +216,7 @@ jobs:
 
   database_tests:
     name: "Database Tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - postgres_tests
       - mysql_tests
@@ -215,7 +225,7 @@ jobs:
 
   postgres_tests:
     name: "Database Tests - PostgreSQL"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       # There doesn't seem to be a way to share the matrix between jobs
       matrix:
@@ -237,7 +247,9 @@ jobs:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
@@ -245,14 +257,14 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: tests-pgsql-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
-      - uses: davidB/rust-cargo-make@291dc18d931d07d4960a5c40e9b6afcea9287f5b # v1.15.0
+      - uses: davidB/rust-cargo-make@eb4338cc4e8145107109b722ee749f23e61455f0 # v1.17.0
 
       - name: Install dependencies
         run: |
@@ -264,7 +276,7 @@ jobs:
 
   mysql_tests:
     name: "Database Tests - MySQL"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       # There doesn't seem to be a way to share the matrix between jobs
       matrix:
@@ -286,7 +298,9 @@ jobs:
         ports:
           - 3306:3306
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
         with:
@@ -294,23 +308,25 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: tests-mysql-${{ matrix.rust }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.toml') }}
 
-      - uses: davidB/rust-cargo-make@291dc18d931d07d4960a5c40e9b6afcea9287f5b # v1.15.0
+      - uses: davidB/rust-cargo-make@eb4338cc4e8145107109b722ee749f23e61455f0 # v1.17.0
 
       - name: Run database tests
         run: cargo make test-db-mysql-all
 
   wasm_tests:
     name: "WASM Tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -319,7 +335,7 @@ jobs:
           components: clippy
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -342,10 +358,12 @@ jobs:
 
   fuzz_tests:
     name: Fuzz Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # master
@@ -353,7 +371,7 @@ jobs:
           toolchain: nightly
 
       - name: Cache cargo registry
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -363,7 +381,7 @@ jobs:
       - name: Install Cargo Fuzz
         run: cargo install cargo-fuzz
 
-      - uses: davidB/rust-cargo-make@291dc18d931d07d4960a5c40e9b6afcea9287f5b # v1.15.0
+      - uses: davidB/rust-cargo-make@eb4338cc4e8145107109b722ee749f23e61455f0 # v1.17.0
 
       - name: Run fuzz tests
         run: cargo make fuzz
