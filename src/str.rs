@@ -660,6 +660,10 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
 
     // If we exited before the end of the string then do some rounding if necessary
     if maybe_round && offset < bytes.len() {
+        // Discarding integer digits changes the magnitude rather than reducing precision.
+        if digits_before_dot < 0 {
+            return Err(crate::Error::ExceedsMaximumPossibleValue);
+        }
         let next_byte = bytes[offset];
         let digit = match next_byte {
             b'0'..=b'9' => {
