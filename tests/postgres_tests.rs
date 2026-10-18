@@ -1,6 +1,28 @@
 #![cfg(any(feature = "db-postgres", feature = "db-tokio-postgres"))]
 
 #[test]
+fn postgres_zero_retains_scale() {
+    use bytes::BytesMut;
+    use postgres::types::{FromSql, ToSql, Type};
+    use rust_decimal::Decimal;
+
+    for scale in 0..=Decimal::MAX_SCALE {
+        for negative in [false, true] {
+            let input = Decimal::from_parts(0, 0, 0, negative, scale);
+            let mut bytes = BytesMut::new();
+            input.to_sql(&Type::NUMERIC, &mut bytes).unwrap();
+
+            // Zero has no digit groups and a positive sign, but retains its display scale.
+            assert_eq!(&bytes[..], &[0, 0, 0, 0, 0, 0, 0, scale as u8]);
+            let output = Decimal::from_sql(&Type::NUMERIC, &bytes).unwrap();
+            assert!(output.is_zero());
+            assert!(output.is_sign_positive());
+            assert_eq!(output.scale(), scale);
+        }
+    }
+}
+
+#[test]
 fn postgres_to_from_sql() {
     use bytes::BytesMut;
     use core::str::FromStr;

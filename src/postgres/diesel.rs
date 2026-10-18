@@ -101,6 +101,28 @@ mod tests {
     use core::str::FromStr;
 
     #[test]
+    fn decimal_to_pg_numeric_zero_retains_scale() {
+        for scale in 0..=Decimal::MAX_SCALE {
+            for negative in [false, true] {
+                let input = Decimal::from_parts(0, 0, 0, negative, scale);
+                let numeric = PgNumeric::from(input);
+                assert_eq!(
+                    numeric,
+                    PgNumeric::Positive {
+                        weight: 0,
+                        scale: scale as u16,
+                        digits: vec![],
+                    }
+                );
+                let output = Decimal::try_from(numeric).unwrap();
+                assert!(output.is_zero());
+                assert!(output.is_sign_positive());
+                assert_eq!(output.scale(), scale);
+            }
+        }
+    }
+
+    #[test]
     fn negative_digit_group_returns_error_not_panic() {
         // Diesel stores PgNumeric digits as i16; a negative value must not panic via unwrap
         let pg = PgNumeric::Positive {
