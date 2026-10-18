@@ -8,7 +8,9 @@ fn postgres_zero_retains_scale() {
 
     for scale in 0..=Decimal::MAX_SCALE {
         for negative in [false, true] {
-            let input = Decimal::from_parts(0, 0, 0, negative, scale);
+            let mut input = Decimal::from_parts(0, 0, 0, false, scale);
+            input.set_sign_negative(negative);
+            assert_eq!(input.is_sign_negative(), negative);
             let mut bytes = BytesMut::new();
             input.to_sql(&Type::NUMERIC, &mut bytes).unwrap();
 
