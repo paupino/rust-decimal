@@ -208,6 +208,69 @@ fn it_converts_to_f64_like_str_parse() {
 }
 
 #[test]
+fn it_converts_to_f32_nearest() {
+    let tests = [
+        // Just past a tie between two f32 values, but within half an f64 ulp of it, so rounding
+        // through f64 would land on the tie and then go the wrong way.
+        ("16777217.000000001", 16777218.0),
+        ("33554434.000000001", 33554436.0),
+        ("1.0000000596046447753906250001", 1.0000001),
+        // Ties resolve to the even significand, in both directions.
+        ("16777217", 16777216.0),
+        ("16777219", 16777220.0),
+        ("1.000000059604644775390625", 1.0),
+        // Either side of the single-division domain: mantissa 2^24 - 1 and 2^24 at scale 10, and
+        // 2^24 - 1 at scale 11.
+        ("0.0016777215", 0.0016777215),
+        ("0.0016777216", 0.0016777216),
+        ("0.00016777215", 0.00016777215),
+        // Rounding up carries into the next power of two.
+        ("0.99999999999", 1.0),
+        // The ends of the range.
+        ("79228162514264337593543950335", 7.9228163e28),
+        ("0.0000000000000000000000000001", 1e-28),
+    ];
+    for (value, expected) in tests {
+        assert_eq!(value.parse::<f32>().unwrap(), expected, "{value}: expectation");
+        let decimal = Decimal::from_str(value).unwrap();
+        assert_eq!(decimal.to_f32(), Some(expected), "{value}");
+        assert_eq!((-decimal).to_f32(), Some(-expected), "-{value}");
+        assert_eq!(f32::try_from(decimal).ok(), Some(expected), "{value}");
+    }
+    assert_eq!(Decimal::ZERO.to_f32().map(f32::to_bits), Some(0.0f32.to_bits()));
+    assert_eq!((-Decimal::ZERO).to_f32().map(f32::to_bits), Some((-0.0f32).to_bits()));
+}
+
+#[test]
+fn it_converts_to_f32_like_str_parse() {
+    // Same approach as `it_converts_to_f64_like_str_parse`, against the f32 parser.
+    let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    for width in 1..=96u32 {
+        for scale in 0..=28u32 {
+            for _ in 0..8 {
+                let random = (u128::from(next()) << 64) | u128::from(next());
+                let mantissa = (random & ((1u128 << width) - 1)) | (1u128 << (width - 1));
+                let lo = mantissa as u32;
+                let mid = (mantissa >> 32) as u32;
+                let hi = (mantissa >> 64) as u32;
+                for negative in [false, true] {
+                    let value = Decimal::from_parts(lo, mid, hi, negative, scale);
+                    let text = value.to_string();
+                    let expected: f32 = text.parse().unwrap();
+                    assert_eq!(value.to_f32(), Some(expected), "{text}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn it_converts_to_f64_try() {
     let tests = &[
         ("5", Some(5f64)),
