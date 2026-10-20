@@ -99,6 +99,9 @@ impl<'a> FromSql<'a> for Decimal {
         for _ in 0..num_groups as usize {
             groups.push(u16::from_be_bytes(read_two_bytes(&mut raw)?));
         }
+        if groups.iter().any(|&digit| digit > 9999) {
+            return Err(Box::new(Error::ConversionTo("valid PostgreSQL NUMERIC digit group")));
+        }
 
         let Some(result) = Self::checked_from_postgres(PostgresDecimal {
             neg: sign == 0x4000,
