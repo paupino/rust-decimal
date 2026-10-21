@@ -608,3 +608,44 @@ fn test_checked_tan() {
         }
     }
 }
+
+#[test]
+fn test_erf_large_inputs_saturate() {
+    for x in [
+        Decimal::from_str("9.4").unwrap(),
+        Decimal::from_str("10").unwrap(),
+        Decimal::from_str("1000").unwrap(),
+        Decimal::from_str("1000000000000000").unwrap(),
+        Decimal::MAX,
+    ] {
+        assert_eq!(Decimal::ONE, x.erf(), "erf({x})");
+        assert_eq!(-Decimal::ONE, (-x).erf(), "erf(-{x})");
+    }
+}
+
+#[test]
+fn test_norm_cdf_large_inputs_saturate() {
+    for x in [
+        Decimal::from_str("13.3").unwrap(),
+        Decimal::from_str("20").unwrap(),
+        Decimal::from_str("1000").unwrap(),
+        Decimal::MAX,
+    ] {
+        assert_eq!(Decimal::ONE, x.norm_cdf(), "norm_cdf({x})");
+        assert_eq!(Decimal::ZERO, (-x).norm_cdf(), "norm_cdf(-{x})");
+    }
+}
+
+#[test]
+fn test_norm_pdf_large_inputs_underflow_to_zero() {
+    for x in [
+        Decimal::from_str("11.5").unwrap(),
+        Decimal::from_str("12").unwrap(),
+        Decimal::from_str("1000").unwrap(),
+        Decimal::MAX,
+    ] {
+        assert_eq!(Some(Decimal::ZERO), x.checked_norm_pdf(), "checked_norm_pdf({x})");
+        assert_eq!(Decimal::ZERO, x.norm_pdf(), "norm_pdf({x})");
+        assert_eq!(Decimal::ZERO, (-x).norm_pdf(), "norm_pdf(-{x})");
+    }
+}

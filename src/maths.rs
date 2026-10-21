@@ -154,6 +154,38 @@ pub trait MathematicalOps {
     fn checked_tan(&self) -> Option<Decimal>;
 }
 
+/// Abramowitz & Stegun approximation of `erf(x)` for `x >= 0`, returning `None` if an
+/// intermediate value overflows.
+fn erf_positive(x: &Decimal) -> Option<Decimal> {
+    let one = Decimal::ONE;
+
+    let xa1 = x.checked_mul(Decimal::from_parts(705230784, 0, 0, false, 10))?;
+    let xa2 = x
+        .checked_powi(2)?
+        .checked_mul(Decimal::from_parts(422820123, 0, 0, false, 10))?;
+    let xa3 = x
+        .checked_powi(3)?
+        .checked_mul(Decimal::from_parts(92705272, 0, 0, false, 10))?;
+    let xa4 = x
+        .checked_powi(4)?
+        .checked_mul(Decimal::from_parts(1520143, 0, 0, false, 10))?;
+    let xa5 = x
+        .checked_powi(5)?
+        .checked_mul(Decimal::from_parts(2765672, 0, 0, false, 10))?;
+    let xa6 = x
+        .checked_powi(6)?
+        .checked_mul(Decimal::from_parts(430638, 0, 0, false, 10))?;
+
+    let sum = one
+        .checked_add(xa1)?
+        .checked_add(xa2)?
+        .checked_add(xa3)?
+        .checked_add(xa4)?
+        .checked_add(xa5)?
+        .checked_add(xa6)?;
+    one.checked_sub(one.checked_div(sum.checked_powi(16)?)?)
+}
+
 impl MathematicalOps for Decimal {
     fn exp(&self) -> Decimal {
         match self.checked_exp() {
@@ -452,17 +484,10 @@ impl MathematicalOps for Decimal {
 
     fn erf(&self) -> Decimal {
         if self.is_sign_positive() {
-            let one = &Decimal::ONE;
-
-            let xa1 = self * Decimal::from_parts(705230784, 0, 0, false, 10);
-            let xa2 = self.powi(2) * Decimal::from_parts(422820123, 0, 0, false, 10);
-            let xa3 = self.powi(3) * Decimal::from_parts(92705272, 0, 0, false, 10);
-            let xa4 = self.powi(4) * Decimal::from_parts(1520143, 0, 0, false, 10);
-            let xa5 = self.powi(5) * Decimal::from_parts(2765672, 0, 0, false, 10);
-            let xa6 = self.powi(6) * Decimal::from_parts(430638, 0, 0, false, 10);
-
-            let sum = one + xa1 + xa2 + xa3 + xa4 + xa5 + xa6;
-            one - (one / sum.powi(16))
+            // For large inputs an intermediate term exceeds Decimal::MAX. By then
+            // 1 / sum^16 is far below the smallest representable Decimal, so the
+            // result rounds to exactly 1.
+            erf_positive(self).unwrap_or(Decimal::ONE)
         } else {
             -self.abs().erf()
         }
@@ -481,9 +506,16 @@ impl MathematicalOps for Decimal {
 
     fn checked_norm_pdf(&self) -> Option<Decimal> {
         let sqrt2pi = Decimal::from_parts_raw(2133383024, 2079885984, 1358845910, 1835008);
-        let factor = -self.checked_powi(2)?;
-        let factor = factor.checked_div(Decimal::TWO)?;
-        factor.checked_exp()?.checked_div(sqrt2pi)
+        // For large inputs x^2 overflows, and exp(-x^2 / 2) underflows; the density is then
+        // (to within Decimal's precision) zero.
+        let Some(square) = self.checked_powi(2) else {
+            return Some(Decimal::ZERO);
+        };
+        let factor = (-square).checked_div(Decimal::TWO)?;
+        match factor.checked_exp() {
+            Some(exp) => exp.checked_div(sqrt2pi),
+            None => Some(Decimal::ZERO),
+        }
     }
 
     fn sin(&self) -> Decimal {
