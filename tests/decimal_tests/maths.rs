@@ -608,3 +608,25 @@ fn test_checked_tan() {
         }
     }
 }
+
+#[test]
+fn test_sqrt_negative_zero() {
+    let neg_zero = -Decimal::ZERO;
+    assert!(neg_zero.is_zero());
+    assert!(neg_zero.is_sign_negative());
+    assert_eq!(Some(Decimal::ZERO), neg_zero.sqrt());
+}
+
+#[test]
+#[should_panic(expected = "Unable to calculate ln for zero")]
+#[cfg(not(feature = "maths-nopanic"))]
+fn test_invalid_ln_negative_zero_panic() {
+    let _ = (-Decimal::ZERO).ln();
+}
+
+#[test]
+#[should_panic(expected = "Unable to calculate log10 for zero")]
+#[cfg(not(feature = "maths-nopanic"))]
+fn test_invalid_log10_negative_zero_panic() {
+    let _ = (-Decimal::ZERO).log10();
+}
