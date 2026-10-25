@@ -1170,6 +1170,7 @@ impl Decimal {
 
     /// Returns a new `Decimal` with the fractional portion delimited by `scale`.
     /// This is a true truncation whereby no rounding is performed.
+    /// Requests above [`Self::MAX_SCALE`] are treated as [`Self::MAX_SCALE`].
     ///
     /// # Example
     ///
@@ -1186,6 +1187,7 @@ impl Decimal {
     /// ```
     #[must_use]
     pub fn trunc_with_scale(&self, scale: u32) -> Decimal {
+        let scale = scale.min(Self::MAX_SCALE);
         let mut working = [self.lo, self.mid, self.hi];
         let mut working_scale = self.scale();
         ops::array::truncate_internal(&mut working, &mut working_scale, scale);
