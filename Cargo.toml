@@ -92,6 +92,8 @@ name = "rkyv-remote"
 required-features = ["macros"]
 
 [workspace]
+# Plain `cargo test` / `cargo build` cover the core crates only; integrations are run per crate.
+default-members = [".", "./macros"]
 members = [
     ".",
     "./integrations/*",

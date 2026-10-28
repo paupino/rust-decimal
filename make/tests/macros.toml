@@ -1,2 +1,6 @@
+# Runs the task defined in macros/Makefile.toml. Not using `workspace = true`, which would
+# visit every member, including the integration crates.
 [tasks.test-macros]
-workspace = true
+cwd = "./macros"
+command = "cargo"
+args = ["make", "test-macros"]
