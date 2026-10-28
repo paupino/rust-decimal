@@ -158,12 +158,14 @@ fn finish_mul(mut product: Buf24, negative: bool, mut scale: u32) -> Calculation
         }
     }
 
-    // Result is non-zero (both inputs are non-zero, checked at entry of mul_impl)
+    // Both inputs are non-zero, but rescaling may still have rounded the product to zero.
+    // Zero must not carry a sign.
+    let is_zero = product.data[0] == 0 && product.data[1] == 0 && product.data[2] == 0;
     CalculationResult::Ok(Decimal::from_parts_raw_unchecked(
         product.data[0],
         product.data[1],
         product.data[2],
-        crate::decimal::flags(negative, scale),
+        crate::decimal::flags(negative && !is_zero, scale),
     ))
 }
 
