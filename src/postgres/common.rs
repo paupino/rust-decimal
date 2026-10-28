@@ -72,7 +72,7 @@ impl Decimal {
             return PostgresDecimal {
                 neg: false,
                 weight: 0,
-                scale: 0,
+                scale: self.scale() as u16,
                 digits: vec![],
             };
         }
