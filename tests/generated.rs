@@ -223,6 +223,12 @@ gen_test!(test_mul_111_100, "Mul_111_100.csv", checked_mul);
 gen_test!(test_mul_111_101, "Mul_111_101.csv", checked_mul);
 gen_test!(test_mul_111_110, "Mul_111_110.csv", checked_mul);
 gen_test!(test_mul_111_111, "Mul_111_111.csv", checked_mul);
+gen_test!(test_mul_all_scales, "Mul_all_scales.csv", checked_mul);
+gen_test!(test_mul_carry_96, "Mul_carry_96.csv", checked_mul);
+gen_test!(test_mul_extremes, "Mul_extremes.csv", checked_mul);
+gen_test!(test_mul_near_2_96, "Mul_near_2_96.csv", checked_mul);
+gen_test!(test_mul_ties, "Mul_ties.csv", checked_mul);
+gen_test!(test_mul_underflow, "Mul_underflow.csv", checked_mul);
 
 gen_test!(test_rem_000_001, "Rem_000_001.csv", checked_rem);
 gen_test!(test_rem_000_010, "Rem_000_010.csv", checked_rem);
