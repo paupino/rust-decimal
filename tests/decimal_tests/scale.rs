@@ -174,3 +174,57 @@ fn it_can_rescale() {
         assert_eq!(expected_scale, value.scale());
     }
 }
+
+#[test]
+fn it_caps_truncation_scale_without_changing_rescale() {
+    let mut negative_zero = Decimal::ZERO;
+    negative_zero.set_sign_negative(true);
+    assert!(negative_zero.is_sign_negative());
+
+    let tiny = Decimal::new(1, Decimal::MAX_SCALE);
+    let negative_tiny = Decimal::new(-1, Decimal::MAX_SCALE);
+    let mut over_scaled = tiny;
+    let mut negative_over_scaled = negative_tiny;
+    over_scaled.rescale(40);
+    negative_over_scaled.rescale(40);
+    assert_eq!(over_scaled.scale(), 40);
+    assert_eq!(negative_over_scaled.scale(), 40);
+
+    let cases = [
+        (Decimal::ZERO, Decimal::ZERO, Decimal::MAX_SCALE),
+        (negative_zero, negative_zero, Decimal::MAX_SCALE),
+        (tiny, tiny, Decimal::MAX_SCALE),
+        (negative_tiny, negative_tiny, Decimal::MAX_SCALE),
+        (over_scaled, tiny, Decimal::MAX_SCALE),
+        (negative_over_scaled, negative_tiny, Decimal::MAX_SCALE),
+        (Decimal::new(1, 1), Decimal::new(1, 1), Decimal::MAX_SCALE),
+        (Decimal::new(-1, 1), Decimal::new(-1, 1), Decimal::MAX_SCALE),
+        (Decimal::MAX, Decimal::MAX, 0),
+        (Decimal::MIN, Decimal::MIN, 0),
+        (
+            Decimal::from_str("11.76470588235294").unwrap(),
+            Decimal::from_str("11.76470588235294").unwrap(),
+            27,
+        ),
+        (
+            Decimal::from_str("-11.76470588235294").unwrap(),
+            Decimal::from_str("-11.76470588235294").unwrap(),
+            27,
+        ),
+    ];
+
+    for (input, expected, expected_scale) in cases {
+        for requested in [Decimal::MAX_SCALE, Decimal::MAX_SCALE + 1, 40, u32::MAX] {
+            let result = input.trunc_with_scale(requested);
+            assert_eq!(result.scale(), expected_scale, "requested scale: {requested}");
+            assert_eq!(result, expected);
+            assert_eq!(result.is_sign_negative(), input.is_sign_negative());
+            let bytes = result.serialize();
+            let decoded = Decimal::deserialize(bytes);
+            assert_eq!(decoded.serialize(), bytes);
+            assert_eq!(decoded.scale(), result.scale());
+            assert_eq!(decoded.is_sign_negative(), result.is_sign_negative());
+            assert_eq!(decoded, expected);
+        }
+    }
+}

@@ -85,10 +85,6 @@ pub(crate) fn fmt_scientific_notation(
     #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::string::ToString;
 
-    if value.is_zero() {
-        return f.write_str("0e0");
-    }
-
     // Get the scale - this is the e value. With multiples of 10 this may get bigger.
     let mut exponent = -(value.scale() as isize);
 
@@ -98,6 +94,11 @@ pub(crate) fn fmt_scientific_notation(
     while !is_all_zero(&working) {
         let remainder = div_by_u32(&mut working, 10u32);
         chars.push(char::from(b'0' + remainder as u8));
+    }
+
+    if chars.is_empty() {
+        chars.push('0');
+        exponent = 0;
     }
 
     // First of all, apply scientific notation rules. That is:
