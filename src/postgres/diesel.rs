@@ -364,4 +364,91 @@ mod tests {
         let res: Decimal = pg_numeric.try_into().unwrap();
         assert_eq!(res.to_string(), expected.to_string());
     }
+
+    #[test]
+    fn pg_numeric_to_decimal_rounds_from_complete_value() {
+        let numeric = PgNumeric::Positive {
+            weight: 4,
+            scale: 16,
+            digits: vec![9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 1],
+        };
+        let actual = Decimal::try_from(numeric).unwrap();
+        assert_eq!(actual.mantissa(), 9999999999999999999900000001);
+        assert_eq!(actual.scale(), 8);
+    }
+
+    #[test]
+    fn pg_numeric_to_decimal_rounds_negative_complete_value() {
+        let numeric = PgNumeric::Negative {
+            weight: 4,
+            scale: 16,
+            digits: vec![9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 1],
+        };
+        let actual = Decimal::try_from(numeric).unwrap();
+        assert_eq!(actual.mantissa(), -9999999999999999999900000001);
+        assert_eq!(actual.scale(), 8);
+    }
+
+    #[test]
+    fn pg_numeric_to_decimal_rounding_controls() {
+        let cases = [
+            (
+                vec![9999, 9999, 9999, 9999, 9999, 0, 0, 4999, 9999],
+                4,
+                16,
+                false,
+                "99999999999999999999.00000000",
+            ),
+            (
+                vec![9999, 9999, 9999, 9999, 9999, 0, 0, 4999, 9999],
+                4,
+                16,
+                true,
+                "-99999999999999999999.00000000",
+            ),
+            (
+                vec![9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 0],
+                4,
+                16,
+                false,
+                "99999999999999999999.00000000",
+            ),
+            (
+                vec![9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 0],
+                4,
+                16,
+                true,
+                "-99999999999999999999.00000000",
+            ),
+            (
+                vec![9999, 9999, 9999, 9999, 9999, 0, 1, 5000, 0],
+                4,
+                16,
+                false,
+                "99999999999999999999.00000002",
+            ),
+            (
+                vec![9999, 9999, 9999, 9999, 9999, 0, 1, 5000, 0],
+                4,
+                16,
+                true,
+                "-99999999999999999999.00000002",
+            ),
+            (vec![5000], -8, 29, false, "0.0000000000000000000000000001"),
+            (vec![5000], -8, 29, true, "-0.0000000000000000000000000001"),
+            (vec![4999, 9000], -8, 33, false, "0.0000000000000000000000000000"),
+            (vec![5000, 1000], -8, 33, false, "0.0000000000000000000000000001"),
+            (vec![1, 2450, 9999, 9999, 9999, 9999, 9999, 9999], 0, 2, false, "1.25"),
+        ];
+
+        for (digits, weight, scale, negative, expected) in cases {
+            let numeric = if negative {
+                PgNumeric::Negative { weight, scale, digits }
+            } else {
+                PgNumeric::Positive { weight, scale, digits }
+            };
+            let actual = Decimal::try_from(numeric).unwrap();
+            assert_eq!(actual.to_string(), expected);
+        }
+    }
 }
