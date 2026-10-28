@@ -17,6 +17,7 @@ all-features = true
 [dependencies]
 diesel = { default-features = false, version = "2.2.3" }
 rust_decimal = { default-features = false, features = ["std"], path = "../..", version = "=2.0.0-alpha.0" }
+rust_decimal_pg_numeric = { optional = true, path = "../pg-numeric", version = "=2.0.0-alpha.0" }
 
 [dev-dependencies]
 diesel = { default-features = false, features = ["mysql", "postgres"], version = "2.2.3" }
@@ -24,4 +25,4 @@ diesel = { default-features = false, features = ["mysql", "postgres"], version =
 [features]
 default = []
 mysql = ["diesel/mysql_backend"]
-postgres = ["diesel/postgres_backend"]
+postgres = ["diesel/postgres_backend", "dep:rust_decimal_pg_numeric"]

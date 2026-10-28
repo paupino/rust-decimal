@@ -15,6 +15,7 @@ version = "2.0.0-alpha.0"
 bytes = { default-features = false, version = "1" }
 postgres-types = { default-features = false, version = "0.2" }
 rust_decimal = { default-features = false, features = ["std"], path = "../..", version = "=2.0.0-alpha.0" }
+rust_decimal_pg_numeric = { path = "../pg-numeric", version = "=2.0.0-alpha.0" }
 
 [dev-dependencies]
 futures = { default-features = false, version = "0.3" }

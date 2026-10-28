@@ -19,8 +19,8 @@
 
 use bytes::{BufMut, BytesMut};
 use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
-use rust_decimal::postgres::PostgresDecimal;
 use rust_decimal::{Decimal, Error};
+use rust_decimal_pg_numeric::{PostgresDecimal, from_postgres, to_postgres};
 use std::io::{Cursor, Read};
 
 /// A [`Decimal`] that implements [`ToSql`] and [`FromSql`] for the PostgreSQL `NUMERIC` type.
@@ -137,7 +137,7 @@ impl<'a> FromSql<'a> for PgDecimal {
             return Err(Box::new(Error::ConversionTo("valid PostgreSQL NUMERIC digit group")));
         }
 
-        let Some(result) = Decimal::checked_from_postgres(PostgresDecimal {
+        let Some(result) = from_postgres(PostgresDecimal {
             neg: sign == 0x4000,
             weight,
             scale,
@@ -164,7 +164,7 @@ impl ToSql for PgDecimal {
             weight,
             scale,
             digits,
-        } = self.0.to_postgres();
+        } = to_postgres(self.0);
 
         let num_digits = digits.len();
 

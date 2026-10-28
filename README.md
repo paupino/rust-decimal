@@ -135,6 +135,7 @@ on `Decimal` directly; most expose a thin wrapper type with `From` conversions i
 | `rust_decimal_diesel` | [diesel](https://diesel.rs) (`postgres`, `mysql` features) | `DieselDecimal` |
 | `rust_decimal_ndarray` | [ndarray](https://docs.rs/ndarray) 0.16 | `ScalarDecimal` |
 | `rust_decimal_postgres` | [postgres](https://docs.rs/postgres) / [tokio-postgres](https://docs.rs/tokio-postgres) | `PgDecimal` |
+| `rust_decimal_pg_numeric` | (none) | PostgreSQL `NUMERIC` conversion shared by the diesel and postgres crates |
 | `rust_decimal_proptest` | [proptest](https://docs.rs/proptest) | `arb_decimal` strategy |
 | `rust_decimal_rand` | [rand](https://docs.rs/rand) (`rand-0_9`, `rand-0_10` features) | `StandardDecimal`, `UniformDecimal` |
 

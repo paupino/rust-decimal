@@ -6,8 +6,8 @@ use diesel::{
     serialize::{self, Output, ToSql},
     sql_types::Numeric,
 };
-use rust_decimal::postgres::PostgresDecimal;
 use rust_decimal::{Decimal, Error};
+use rust_decimal_pg_numeric::{PostgresDecimal, from_postgres, to_postgres};
 use std::error;
 
 impl<'a> TryFrom<&'a PgNumeric> for DieselDecimal {
@@ -38,7 +38,7 @@ impl<'a> TryFrom<&'a PgNumeric> for DieselDecimal {
                 }
             })
             .collect::<deserialize::Result<_>>()?;
-        let Some(result) = Decimal::checked_from_postgres(PostgresDecimal {
+        let Some(result) = from_postgres(PostgresDecimal {
             neg,
             weight,
             scale,
@@ -65,7 +65,7 @@ impl<'a> From<&'a DieselDecimal> for PgNumeric {
             weight,
             scale,
             digits,
-        } = decimal.0.to_postgres();
+        } = to_postgres(decimal.0);
 
         if neg {
             PgNumeric::Negative { digits, scale, weight }

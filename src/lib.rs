@@ -17,11 +17,6 @@ mod arithmetic_impls;
 
 #[cfg(feature = "maths")]
 mod maths;
-// Shared PostgreSQL NUMERIC conversion for the `rust_decimal_postgres` and `rust_decimal_diesel`
-// crates. Not part of the public API.
-#[cfg(feature = "alloc")]
-#[doc(hidden)]
-pub mod postgres;
 #[cfg(all(
     feature = "serde",
     not(any(

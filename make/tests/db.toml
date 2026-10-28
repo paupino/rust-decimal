@@ -13,7 +13,7 @@ dependencies = [
 # Covers both `postgres` and `tokio-postgres`
 [tasks.test-db-postgres]
 command = "cargo"
-args = ["test", "-p", "rust_decimal_postgres"]
+args = ["test", "-p", "rust_decimal_postgres", "-p", "rust_decimal_pg_numeric"]
 
 [tasks.test-db-mysql-all]
 dependencies = [
