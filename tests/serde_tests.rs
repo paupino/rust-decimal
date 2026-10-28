@@ -427,6 +427,31 @@ fn with_float_tagged_enum_optional() {
 }
 
 #[test]
+#[cfg(feature = "serde-with-float")]
+fn with_float_optional_bincode() {
+    #[derive(Serialize, Deserialize)]
+    struct BincodeExample {
+        #[serde(with = "rust_decimal::serde::float_option")]
+        value: Option<Decimal>,
+    }
+
+    // Non-self-describing formats rely on the option tag to tell `Some` from `None`
+    let input = BincodeExample {
+        value: Some(Decimal::new(15, 1)),
+    };
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&Some(1.5_f64)).unwrap()
+    );
+
+    let input = BincodeExample { value: None };
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&None::<f64>).unwrap()
+    );
+}
+
+#[test]
 #[cfg(feature = "serde-with-arbitrary-precision")]
 fn with_arbitrary_precision_optional() {
     #[derive(Serialize, Deserialize)]
@@ -472,4 +497,59 @@ fn with_arbitrary_precision_tagged_enum_optional() {
 
     let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized, original);
+}
+
+#[test]
+#[cfg(feature = "serde-with-arbitrary-precision")]
+fn with_arbitrary_precision_optional_bincode() {
+    #[derive(Serialize, Deserialize)]
+    struct BincodeExample {
+        #[serde(with = "rust_decimal::serde::arbitrary_precision_option")]
+        value: Option<Decimal>,
+    }
+
+    // Non-self-describing formats rely on the option tag to tell `Some` from `None`
+    let input = BincodeExample {
+        value: Some(Decimal::new(1500, 3)),
+    };
+    let number = serde_json::Number::from_str("1.500").unwrap();
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&Some(number)).unwrap()
+    );
+
+    let input = BincodeExample { value: None };
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&None::<serde_json::Number>).unwrap()
+    );
+}
+
+#[test]
+#[cfg(not(feature = "serde-str"))]
+fn deserialize_128_bit_integers() {
+    use serde::de::IntoDeserializer;
+    use serde::de::value::{Error, I128Deserializer, U128Deserializer};
+
+    // Beyond the u64/i64 range but within Decimal's 96 bit mantissa
+    let big = u64::MAX as u128 + 1;
+    let d = <Decimal as Deserialize>::deserialize(IntoDeserializer::<Error>::into_deserializer(big)).unwrap();
+    assert_eq!(d.to_string(), "18446744073709551616");
+    let d =
+        <Decimal as Deserialize>::deserialize(IntoDeserializer::<Error>::into_deserializer(-(big as i128))).unwrap();
+    assert_eq!(d.to_string(), "-18446744073709551616");
+
+    // Largest and smallest Decimal
+    let d = <Decimal as Deserialize>::deserialize(U128Deserializer::<Error>::new(
+        u128::from(u32::MAX) << 64 | u128::from(u64::MAX),
+    ))
+    .unwrap();
+    assert_eq!(d, Decimal::MAX);
+    let d = <Decimal as Deserialize>::deserialize(I128Deserializer::<Error>::new(-(Decimal::MAX.mantissa()))).unwrap();
+    assert_eq!(d, Decimal::MIN);
+
+    // Out of range yields an error rather than a panic
+    assert!(<Decimal as Deserialize>::deserialize(U128Deserializer::<Error>::new(u128::MAX)).is_err());
+    assert!(<Decimal as Deserialize>::deserialize(I128Deserializer::<Error>::new(i128::MAX)).is_err());
+    assert!(<Decimal as Deserialize>::deserialize(I128Deserializer::<Error>::new(i128::MIN)).is_err());
 }

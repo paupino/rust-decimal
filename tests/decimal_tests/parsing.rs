@@ -288,6 +288,50 @@ fn it_can_parse_exact_highly_significant_numbers() {
 }
 
 #[test]
+fn it_can_parse_exact_with_separators_after_the_last_fractional_digit() {
+    // A separator carries no value, so it may follow the 28th fractional digit.
+    let tests = &[
+        // 96 bit mantissa
+        (
+            "0.1234567890123456789012345678_",
+            Ok("0.1234567890123456789012345678".to_string()),
+        ),
+        (
+            "0.1234567890123456789012345678___",
+            Ok("0.1234567890123456789012345678".to_string()),
+        ),
+        (
+            "-0.1234567890123456789012345678_",
+            Ok("-0.1234567890123456789012345678".to_string()),
+        ),
+        (
+            "7.9228162514264337593543950335_",
+            Ok("7.9228162514264337593543950335".to_string()),
+        ),
+        // 64 bit mantissa
+        (
+            "0.0000000000000000000000000001_",
+            Ok("0.0000000000000000000000000001".to_string()),
+        ),
+        // Another digit still cannot be represented, with or without a separator in front of it.
+        ("0.1234567890123456789012345678_9", Err(Error::Underflow)),
+        ("0.1234567890123456789012345678_0", Err(Error::Underflow)),
+        ("0.1234567890123456789012345678__1", Err(Error::Underflow)),
+        ("0.0000000000000000000000000001_1", Err(Error::Underflow)),
+        ("0.12345678901234567890123456780", Err(Error::Underflow)),
+        // Anything else is reported the same way as it is earlier in the string.
+        ("0.1234567890123456789012345678x", Err(Error::InvalidCharacter)),
+        ("0.1234567890123456789012345678_x", Err(Error::InvalidCharacter)),
+        ("0.0000000000000000000000000001x", Err(Error::InvalidCharacter)),
+        ("0.1234567890123456789012345678.", Err(Error::DuplicatedDecimalPoint)),
+    ];
+    for &(value, ref expected) in tests.iter() {
+        let actual = Decimal::from_str_exact(value).map(|d| d.to_string());
+        assert_eq!(*expected, actual, "from_str_exact({value:?})");
+    }
+}
+
+#[test]
 fn it_can_parse_alternative_formats() {
     let tests = &[
         ("1_000", "1000"),
@@ -536,4 +580,38 @@ fn from_str_radix_base16_leading_zeros_do_not_corrupt_magnitude() {
         Ok(Decimal::from(152u32)),
         "0x98 should parse as 152"
     );
+}
+
+#[test]
+fn it_parses_long_runs_of_zeros_and_separators_on_a_small_stack() {
+    // Issue #840: the parser recursed once per leading zero or separator, which overflowed the
+    // stack (and aborted the process) for long runs, e.g. in debug builds or on spawned threads.
+    let run = 100_000;
+    let tests = vec![
+        ("0".repeat(run) + "1", "1"),
+        ("0".repeat(run) + ".25", "0.25"),
+        (format!("-{}7", "0_".repeat(run / 2)), "-7"),
+        (format!("1{}2", "_".repeat(run)), "12"),
+        (format!("0.{}5", "_".repeat(run)), "0.5"),
+        // Separators once the value no longer fits in 64 bits
+        (
+            format!("12345678901234567890{}1", "_".repeat(run)),
+            "123456789012345678901",
+        ),
+    ];
+    std::thread::Builder::new()
+        .stack_size(256 * 1024)
+        .spawn(move || {
+            for (input, expected) in &tests {
+                assert_eq!(Decimal::from_str(input).unwrap().to_string(), *expected);
+                assert_eq!(Decimal::from_str_exact(input).unwrap().to_string(), *expected);
+            }
+            assert_eq!(
+                Decimal::from_str(&("0".repeat(run) + "x")),
+                Err(Error::InvalidCharacter)
+            );
+        })
+        .unwrap()
+        .join()
+        .unwrap();
 }

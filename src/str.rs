@@ -85,10 +85,6 @@ pub(crate) fn fmt_scientific_notation(
     #[cfg(all(not(feature = "std"), feature = "alloc"))]
     use alloc::string::ToString;
 
-    if value.is_zero() {
-        return f.write_str("0e0");
-    }
-
     // Get the scale - this is the e value. With multiples of 10 this may get bigger.
     let mut exponent = -(value.scale() as isize);
 
@@ -98,6 +94,11 @@ pub(crate) fn fmt_scientific_notation(
     while !is_all_zero(&working) {
         let remainder = div_by_u32(&mut working, 10u32);
         chars.push(char::from(b'0' + remainder as u8));
+    }
+
+    if chars.is_empty() {
+        chars.push('0');
+        exponent = 0;
     }
 
     // First of all, apply scientific notation rules. That is:
@@ -279,6 +280,13 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
     // we have already validated that we cannot overflow
     let data64 = data64 * 10 + digit as u64;
     let scale = if POINT { scale + 1 } else { 0 };
+    // Leading zeros (and separators between them) don't change the value. Skip them in a loop
+    // rather than recursing once per byte, which overflows the stack for long runs.
+    let bytes = if !POINT && data64 == 0 {
+        skip_leading_zeros(bytes)
+    } else {
+        bytes
+    };
 
     if let Some((next, bytes)) = bytes.split_first() {
         let next = *next;
@@ -286,7 +294,7 @@ fn handle_digit_64<const POINT: bool, const NEG: bool, const BIG: bool, const RO
             if ROUND {
                 maybe_round(data64 as u128, next, bytes, scale, POINT, NEG)
             } else {
-                Err(Error::Underflow)
+                exact_tail::<NEG>(data64 as u128, scale, next, bytes)
             }
         } else if BIG && overflow_64(data64) {
             handle_full_128::<POINT, NEG, ROUND>(data64 as u128, bytes, scale, next)
@@ -315,7 +323,26 @@ fn handle_separator<const POINT: bool, const NEG: bool, const BIG: bool, const R
     data64: u64,
     scale: u8,
 ) -> Result<Decimal, Error> {
-    dispatch_next::<POINT, NEG, true, BIG, ROUND>(bytes, data64, scale)
+    dispatch_next::<POINT, NEG, true, BIG, ROUND>(skip_separators(bytes), data64, scale)
+}
+
+/// Skips a run of digit separators, so that a long run costs one stack frame instead of one each.
+#[inline]
+fn skip_separators(mut bytes: &[u8]) -> &[u8] {
+    while let [b'_', rest @ ..] = bytes {
+        bytes = rest;
+    }
+    bytes
+}
+
+/// Skips a run of zeros and digit separators following a leading zero.
+#[inline(never)]
+#[cold]
+fn skip_leading_zeros(mut bytes: &[u8]) -> &[u8] {
+    while let [b'0' | b'_', rest @ ..] = bytes {
+        bytes = rest;
+    }
+    bytes
 }
 
 #[inline(never)]
@@ -386,7 +413,7 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
                                 maybe_round(data, next, bytes, scale, POINT, NEG)
                             }
                         } else {
-                            Err(Error::Underflow)
+                            exact_tail::<NEG>(data, scale, next, bytes)
                         }
                     } else {
                         handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, next)
@@ -405,13 +432,28 @@ fn handle_full_128<const POINT: bool, const NEG: bool, const ROUND: bool>(
             }
         }
         b'_' => {
-            if let Some((next, bytes)) = bytes.split_first() {
+            if let Some((next, bytes)) = skip_separators(bytes).split_first() {
                 handle_full_128::<POINT, NEG, ROUND>(data, bytes, scale, *next)
             } else {
                 handle_data::<NEG, true>(data, scale)
             }
         }
         b => tail_invalid_digit(b),
+    }
+}
+
+/// Finishes an exact parse once all 28 fractional digits are in.
+///
+/// Another digit cannot be represented, so it is an underflow. A digit separator carries no
+/// value, so any number of them may still follow.
+#[inline(never)]
+#[cold]
+fn exact_tail<const NEG: bool>(data: u128, scale: u8, next_byte: u8, remaining: &[u8]) -> Result<Decimal, Error> {
+    let mut tail = core::iter::once(next_byte).chain(remaining.iter().copied());
+    match tail.find(|&b| b != b'_') {
+        None => handle_data::<NEG, true>(data, scale),
+        Some(b'0'..=b'9') => Err(Error::Underflow),
+        Some(b) => tail_invalid_digit(b),
     }
 }
 

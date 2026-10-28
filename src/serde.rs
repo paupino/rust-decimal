@@ -74,7 +74,6 @@ pub mod arbitrary_precision {
 #[cfg(feature = "serde-with-arbitrary-precision")]
 pub mod arbitrary_precision_option {
     use super::*;
-    use serde::Serialize;
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
     where
@@ -88,9 +87,10 @@ pub mod arbitrary_precision_option {
         S: serde::Serializer,
     {
         match *value {
-            Some(ref decimal) => serde_json::Number::from_str(&decimal.to_string())
-                .map_err(serde::ser::Error::custom)?
-                .serialize(serializer),
+            Some(ref decimal) => {
+                let number = serde_json::Number::from_str(&decimal.to_string()).map_err(serde::ser::Error::custom)?;
+                serializer.serialize_some(&number)
+            }
             None => serializer.serialize_none(),
         }
     }
@@ -164,7 +164,6 @@ pub mod float {
 #[cfg(feature = "serde-with-float")]
 pub mod float_option {
     use super::*;
-    use serde::Serialize;
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
     where
@@ -180,7 +179,7 @@ pub mod float_option {
         match *value {
             Some(ref decimal) => {
                 use num_traits::ToPrimitive;
-                decimal.to_f64().unwrap().serialize(serializer)
+                serializer.serialize_some(&decimal.to_f64().unwrap())
             }
             None => serializer.serialize_none(),
         }
@@ -340,6 +339,32 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         }
     }
 
+    fn visit_i128<E>(self, value: i128) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        match Decimal::from_i128(value) {
+            Some(s) => Ok(s),
+            None => Err(E::invalid_value(
+                Unexpected::Other("i128 out of range for Decimal"),
+                &self,
+            )),
+        }
+    }
+
+    fn visit_u128<E>(self, value: u128) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        match Decimal::from_u128(value) {
+            Some(s) => Ok(s),
+            None => Err(E::invalid_value(
+                Unexpected::Other("u128 out of range for Decimal"),
+                &self,
+            )),
+        }
+    }
+
     #[cfg(not(feature = "serde-with-arbitrary-precision"))]
     fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
     where
@@ -409,21 +434,13 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
         Ok(None)
     }
 
-    #[cfg(all(feature = "serde-str", feature = "serde-float"))]
     fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
-        // We've got multiple types that we may see so we need to use any
+        // We've got multiple types that we may see so we need to use any. `Decimal::deserialize`
+        // isn't suitable here since it expects a string when `serde-str` is enabled.
         d.deserialize_any(DecimalVisitor).map(Some)
-    }
-
-    #[cfg(not(all(feature = "serde-str", feature = "serde-float")))]
-    fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
-    where
-        D: serde::de::Deserializer<'de>,
-    {
-        <Decimal as serde::Deserialize>::deserialize(d).map(Some)
     }
 }
 

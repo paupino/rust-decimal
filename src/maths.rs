@@ -231,8 +231,20 @@ impl MathematicalOps for Decimal {
 
         // Get the unsigned exponent
         let exp = exp.unsigned_abs();
-        let pow = self.checked_powu(exp)?;
-        Decimal::ONE.checked_div(pow)
+
+        // For |x| < 1, x^y loses most of its digits (or underflows to zero) before the
+        // division happens. Take the reciprocal first instead: 1 / x is greater than one
+        // and keeps the full precision.
+        if self.abs() < Decimal::ONE {
+            let pow = Decimal::ONE.checked_div(*self)?.checked_powu(exp)?;
+            return Some(pow.normalize());
+        }
+
+        match self.checked_powu(exp) {
+            Some(pow) => Decimal::ONE.checked_div(pow),
+            // |x| > 1 here, so if x^y overflows then 1 / x^y is too small to be represented.
+            None => Some(Decimal::ZERO),
+        }
     }
 
     fn powu(&self, exp: u64) -> Decimal {
