@@ -231,8 +231,20 @@ impl MathematicalOps for Decimal {
 
         // Get the unsigned exponent
         let exp = exp.unsigned_abs();
-        let pow = self.checked_powu(exp)?;
-        Decimal::ONE.checked_div(pow)
+
+        // For |x| < 1, x^y loses most of its digits (or underflows to zero) before the
+        // division happens. Take the reciprocal first instead: 1 / x is greater than one
+        // and keeps the full precision.
+        if self.abs() < Decimal::ONE {
+            let pow = Decimal::ONE.checked_div(*self)?.checked_powu(exp)?;
+            return Some(pow.normalize());
+        }
+
+        match self.checked_powu(exp) {
+            Some(pow) => Decimal::ONE.checked_div(pow),
+            // |x| > 1 here, so if x^y overflows then 1 / x^y is too small to be represented.
+            None => Some(Decimal::ZERO),
+        }
     }
 
     fn powu(&self, exp: u64) -> Decimal {
@@ -304,12 +316,12 @@ impl MathematicalOps for Decimal {
     }
 
     fn sqrt(&self) -> Option<Decimal> {
-        if self.is_sign_negative() {
-            return None;
-        }
-
         if self.is_zero() {
             return Some(Decimal::ZERO);
+        }
+
+        if self.is_sign_negative() {
+            return None;
         }
 
         // Start with an arbitrary number as the first guess
@@ -363,10 +375,10 @@ impl MathematicalOps for Decimal {
         match self.checked_ln() {
             Some(result) => result,
             None => {
-                if self.is_sign_negative() {
-                    panic!("Unable to calculate ln for negative numbers")
-                } else if self.is_zero() {
+                if self.is_zero() {
                     panic!("Unable to calculate ln for zero")
+                } else if self.is_sign_negative() {
+                    panic!("Unable to calculate ln for negative numbers")
                 } else {
                     panic!("Calculation of ln failed for unknown reasons")
                 }
@@ -391,10 +403,10 @@ impl MathematicalOps for Decimal {
         match self.checked_log10() {
             Some(result) => result,
             None => {
-                if self.is_sign_negative() {
-                    panic!("Unable to calculate log10 for negative numbers")
-                } else if self.is_zero() {
+                if self.is_zero() {
                     panic!("Unable to calculate log10 for zero")
+                } else if self.is_sign_negative() {
+                    panic!("Unable to calculate log10 for negative numbers")
                 } else {
                     panic!("Calculation of log10 failed for unknown reasons")
                 }

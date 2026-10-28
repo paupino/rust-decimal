@@ -1,6 +1,30 @@
 #![cfg(any(feature = "db-postgres", feature = "db-tokio-postgres"))]
 
 #[test]
+fn postgres_zero_retains_scale() {
+    use bytes::BytesMut;
+    use postgres::types::{FromSql, ToSql, Type};
+    use rust_decimal::Decimal;
+
+    for scale in 0..=Decimal::MAX_SCALE {
+        for negative in [false, true] {
+            let mut input = Decimal::from_parts(0, 0, 0, false, scale);
+            input.set_sign_negative(negative);
+            assert_eq!(input.is_sign_negative(), negative);
+            let mut bytes = BytesMut::new();
+            input.to_sql(&Type::NUMERIC, &mut bytes).unwrap();
+
+            // Zero has no digit groups and a positive sign, but retains its display scale.
+            assert_eq!(&bytes[..], &[0, 0, 0, 0, 0, 0, 0, scale as u8]);
+            let output = Decimal::from_sql(&Type::NUMERIC, &bytes).unwrap();
+            assert!(output.is_zero());
+            assert!(output.is_sign_positive());
+            assert_eq!(output.scale(), scale);
+        }
+    }
+}
+
+#[test]
 fn postgres_to_from_sql() {
     use bytes::BytesMut;
     use core::str::FromStr;
@@ -91,5 +115,115 @@ fn postgres_from_sql_exceeds_maximum_value() {
             Ok(value) => panic!("Expected error for {}, got {}", name, value),
             Err(e) => assert_eq!(e.to_string(), Error::ExceedsMaximumPossibleValue.to_string()),
         }
+    }
+}
+
+#[test]
+fn postgres_from_sql_numeric_rounds_from_complete_wire_value() {
+    use postgres::types::{FromSql, Kind, Type};
+    use rust_decimal::Decimal;
+
+    let mut raw = vec![0, 9, 0, 4, 0, 0, 0, 16];
+    for group in [9999u16, 9999, 9999, 9999, 9999, 0, 0, 5000, 1] {
+        raw.extend_from_slice(&group.to_be_bytes());
+    }
+    let ty = Type::new("".into(), 0, Kind::Simple, "".into());
+    let actual = Decimal::from_sql(&ty, &raw).unwrap();
+    assert_eq!(actual.mantissa(), 9999999999999999999900000001);
+    assert_eq!(actual.scale(), 8);
+}
+
+#[test]
+fn postgres_from_sql_numeric_rounds_negative_complete_wire_value() {
+    use postgres::types::{FromSql, Kind, Type};
+    use rust_decimal::Decimal;
+
+    let mut raw = vec![0, 9, 0, 4, 0x40, 0, 0, 16];
+    for group in [9999u16, 9999, 9999, 9999, 9999, 0, 0, 5000, 1] {
+        raw.extend_from_slice(&group.to_be_bytes());
+    }
+    let ty = Type::new("".into(), 0, Kind::Simple, "".into());
+    let actual = Decimal::from_sql(&ty, &raw).unwrap();
+    assert_eq!(actual.mantissa(), -9999999999999999999900000001);
+    assert_eq!(actual.scale(), 8);
+}
+
+#[test]
+fn postgres_from_sql_rejects_invalid_digit_group() {
+    use postgres::types::{FromSql, Kind, Type};
+    use rust_decimal::Decimal;
+
+    let raw = [0, 1, 0, 0, 0, 0, 0, 0, 0x27, 0x10];
+    let ty = Type::new("".into(), 0, Kind::Simple, "".into());
+    assert!(Decimal::from_sql(&ty, &raw).is_err());
+}
+
+#[test]
+fn postgres_from_sql_numeric_rounding_controls() {
+    use core::str::FromStr;
+    use postgres::types::{FromSql, Kind, Type};
+    use rust_decimal::Decimal;
+
+    let cases: &[(&[u16], i16, u16, bool, &str)] = &[
+        (
+            &[9999, 9999, 9999, 9999, 9999, 0, 0, 4999, 9999],
+            4,
+            16,
+            false,
+            "99999999999999999999.00000000",
+        ),
+        (
+            &[9999, 9999, 9999, 9999, 9999, 0, 0, 4999, 9999],
+            4,
+            16,
+            true,
+            "-99999999999999999999.00000000",
+        ),
+        (
+            &[9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 0],
+            4,
+            16,
+            false,
+            "99999999999999999999.00000000",
+        ),
+        (
+            &[9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 0],
+            4,
+            16,
+            true,
+            "-99999999999999999999.00000000",
+        ),
+        (
+            &[9999, 9999, 9999, 9999, 9999, 0, 1, 5000, 0],
+            4,
+            16,
+            false,
+            "99999999999999999999.00000002",
+        ),
+        (
+            &[9999, 9999, 9999, 9999, 9999, 0, 1, 5000, 0],
+            4,
+            16,
+            true,
+            "-99999999999999999999.00000002",
+        ),
+        (&[5000], -8, 29, false, "0.0000000000000000000000000001"),
+        (&[5000], -8, 29, true, "-0.0000000000000000000000000001"),
+        (&[4999, 9000], -8, 33, false, "0.0000000000000000000000000000"),
+        (&[5000, 1000], -8, 33, false, "0.0000000000000000000000000001"),
+        (&[1, 2450, 9999, 9999, 9999, 9999, 9999, 9999], 0, 2, false, "1.25"),
+    ];
+    let ty = Type::new("".into(), 0, Kind::Simple, "".into());
+    for (digits, weight, scale, negative, expected) in cases {
+        let mut raw = Vec::new();
+        raw.extend_from_slice(&(digits.len() as u16).to_be_bytes());
+        raw.extend_from_slice(&weight.to_be_bytes());
+        raw.extend_from_slice(&(if *negative { 0x4000u16 } else { 0 }).to_be_bytes());
+        raw.extend_from_slice(&scale.to_be_bytes());
+        for digit in *digits {
+            raw.extend_from_slice(&digit.to_be_bytes());
+        }
+        let actual = Decimal::from_sql(&ty, &raw).unwrap();
+        assert_eq!(actual, Decimal::from_str(expected).unwrap());
     }
 }
