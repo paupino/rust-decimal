@@ -1,0 +1,23 @@
+error: expected an integer literal for radix
+ --> tests/invalid/invalid_arguments.rs:4:29
+  |
+4 |     let _ = dec!(101, radix "2");
+  |                             ^^^
+
+error: expected an integer literal or a negated integer literal for exp
+ --> tests/invalid/invalid_arguments.rs:5:25
+  |
+5 |     let _ = dec!(1, exp 1.5);
+  |                         ^^^
+
+error: expected an integer literal or a negated integer literal for exp
+ --> tests/invalid/invalid_arguments.rs:6:25
+  |
+6 |     let _ = dec!(1, exp !3);
+  |                         ^^
+
+error: expected an integer literal or a negated integer literal for exp
+ --> tests/invalid/invalid_arguments.rs:7:25
+  |
+7 |     let _ = dec!(1, exp - 1.5);
+  |                         ^^^^^
