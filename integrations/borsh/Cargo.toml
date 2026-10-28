@@ -1,0 +1,16 @@
+[package]
+authors = ["Paul Mason <paul@form1.co.nz>"]
+categories = ["science", "mathematics", "data-structures"]
+description = "Borsh serialization for rust_decimal."
+documentation = "https://docs.rs/rust_decimal_borsh/"
+edition = "2024"
+keywords = ["decimal", "borsh", "serialization"]
+license = "MIT"
+name = "rust_decimal_borsh"
+repository = "https://github.com/paupino/rust-decimal"
+rust-version = "1.85.0"
+version = "2.0.0-alpha.0"
+
+[dependencies]
+borsh = { default-features = false, features = ["std", "unstable__schema"], version = "1" }
+rust_decimal = { default-features = false, path = "../..", version = "=2.0.0-alpha.0" }

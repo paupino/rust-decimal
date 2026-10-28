@@ -1,0 +1,30 @@
+[package]
+authors = ["Paul Mason <paul@form1.co.nz>"]
+categories = ["science", "mathematics", "data-structures"]
+description = "rand distributions for rust_decimal."
+documentation = "https://docs.rs/rust_decimal_rand/"
+edition = "2024"
+keywords = ["decimal", "rand", "random"]
+license = "MIT"
+name = "rust_decimal_rand"
+repository = "https://github.com/paupino/rust-decimal"
+rust-version = "1.85.0"
+version = "2.0.0-alpha.0"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+rand-0_9 = { default-features = false, optional = true, package = "rand", version = "0.9" }
+rand-0_10 = { default-features = false, optional = true, package = "rand", version = "0.10" }
+rust_decimal = { default-features = false, path = "../..", version = "=2.0.0-alpha.0" }
+
+[dev-dependencies]
+rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
+rand-0_10 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.10" }
+rust_decimal_macros = { path = "../../macros" }
+
+[features]
+default = []
+rand-0_9 = ["dep:rand-0_9"]
+rand-0_10 = ["dep:rand-0_10"]

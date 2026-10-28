@@ -15,29 +15,13 @@ pub mod str;
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
 
-#[cfg(feature = "borsh")]
-mod borsh;
-#[cfg(feature = "rust-fuzz")]
-mod fuzz;
 #[cfg(feature = "maths")]
 mod maths;
-#[cfg(all(feature = "db-diesel-mysql", not(target_arch = "wasm32")))]
-mod mysql;
-#[cfg(all(
-    any(
-        feature = "db-tokio-postgres",
-        feature = "db-postgres",
-        feature = "db-diesel-postgres",
-    ),
-    not(target_arch = "wasm32")
-))]
-mod postgres;
-#[cfg(feature = "proptest")]
-mod proptest;
-#[cfg(feature = "rand-0_10")]
-mod rand_0_10;
-#[cfg(feature = "rand-0_9")]
-mod rand_0_9;
+// Shared PostgreSQL NUMERIC conversion for the `rust_decimal_postgres` and `rust_decimal_diesel`
+// crates. Not part of the public API.
+#[cfg(feature = "alloc")]
+#[doc(hidden)]
+pub mod postgres;
 #[cfg(all(
     feature = "serde",
     not(any(
@@ -78,9 +62,6 @@ pub mod prelude {
 
 #[cfg(feature = "macros")]
 pub use rust_decimal_macros::dec;
-
-#[cfg(all(feature = "diesel", not(target_arch = "wasm32")))]
-extern crate diesel;
 
 /// Shortcut for `core::result::Result<T, rust_decimal::Error>`. Useful to distinguish
 /// between `rust_decimal` and `std` types.

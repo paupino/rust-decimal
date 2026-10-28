@@ -121,28 +121,46 @@ let total = amount + (amount * tax_percentage).round_dp(2);
 assert_eq!(total, dec!(27.26));
 ```
 
+## Integrations
+
+Support for third party crates lives in separate crates, so `rust_decimal` itself pulls in no
+integration dependencies. Rust's orphan rule means these crates cannot implement third party traits
+on `Decimal` directly; most expose a thin wrapper type with `From` conversions in both directions.
+
+| Crate | Integrates with | Provides |
+|-------|-----------------|----------|
+| `rust_decimal_arbitrary` | [arbitrary](https://docs.rs/arbitrary) | `arbitrary_decimal` for `#[arbitrary(with = ...)]` |
+| `rust_decimal_borsh` | [borsh](https://borsh.io/) | `BorshDecimal` |
+| `rust_decimal_bytemuck` | [bytemuck](https://docs.rs/bytemuck) | `PodDecimal` (`Pod`, `Zeroable`, `TransparentWrapper`) |
+| `rust_decimal_diesel` | [diesel](https://diesel.rs) (`postgres`, `mysql` features) | `DieselDecimal` |
+| `rust_decimal_ndarray` | [ndarray](https://docs.rs/ndarray) 0.16 | `ScalarDecimal` |
+| `rust_decimal_postgres` | [postgres](https://docs.rs/postgres) / [tokio-postgres](https://docs.rs/tokio-postgres) | `PgDecimal` |
+| `rust_decimal_proptest` | [proptest](https://docs.rs/proptest) | `arb_decimal` strategy |
+| `rust_decimal_rand` | [rand](https://docs.rs/rand) (`rand-0_9`, `rand-0_10` features) | `StandardDecimal`, `UniformDecimal` |
+
+For example, with Diesel:
+
+```toml
+[dependencies]
+rust_decimal = "2.0.0-alpha.0"
+rust_decimal_diesel = { version = "2.0.0-alpha.0", features = ["postgres"] }
+```
+
+Then use `DieselDecimal` in your models, or keep `Decimal` fields and annotate them with
+`#[diesel(serialize_as = DieselDecimal, deserialize_as = DieselDecimal)]`.
+
 ## Features
 
 **Behavior / Functionality**
 
+* [align16](#align16)
 * [alloc](#alloc)
-* [borsh](#borsh)
-* [bytemuck](#bytemuck)
 * [c-repr](#c-repr)
 * [macros](#macros)
 * [maths](#maths)
-* [ndarray](#ndarray)
 * [rkyv](#rkyv)
-* [rust-fuzz](#rust-fuzz)
 * [std](#std)
 * [wasm](#wasm)
-
-**Database**
-
-* [db-postgres](#db-postgres)
-* [db-tokio-postgres](#db-tokio-postgres)
-* [db-diesel-postgres](#db-diesel-postgres)
-* [db-diesel-mysql](#db-diesel-mysql)
 
 **Serde**
 
@@ -165,34 +183,9 @@ requiring `std`. Suitable for `no_std` environments that have an allocator avail
 Currently this gates the `LowerExp` / `UpperExp` (scientific notation) `Display` implementations. Enabled by default.
 Implied by `std`.
 
-### `borsh`
-
-Enables [Borsh](https://borsh.io/) serialization for `Decimal`.
-
-### `bytemuck`
-
-Enables [bytemuck](https://github.com/Lokathor/bytemuck) support by deriving `Pod` and `Zeroable` for `Decimal`. This also activates the `c-repr` feature since `Pod` requires `repr(C)`.
-
 ### `c-repr`
 
-Forces `Decimal` to use `[repr(C)]`.
-
-### `db-postgres`
-
-Enables a PostgreSQL communication module. It allows for reading and writing the `Decimal`
-type by transparently serializing/deserializing into the `NUMERIC` data type within PostgreSQL.
-
-### `db-tokio-postgres`
-
-Enables the tokio postgres module allowing for async communication with PostgreSQL.
-
-### `db-diesel-postgres`
-
-Enable [`diesel`](https://diesel.rs) PostgreSQL support.
-
-### `db-diesel-mysql`
-
-Enable [`diesel`](https://diesel.rs) MySQL support.
+Forces `Decimal` to use `[repr(C)]`. Enabled by `rust_decimal_bytemuck`.
 
 ### `macros`
 
@@ -221,32 +214,10 @@ to curb against this. When the `maths` feature was first developed the library w
 input. To re-enable this
 non-panicking behavior, please use the feature: `maths-nopanic`.
 
-### `ndarray-0_16`
-
-Enables arithmetic operations using [`ndarray`](https://github.com/rust-ndarray/ndarray) on arrays of `Decimal`.
-
-### `proptest`
-
-Enables a [`proptest`](https://github.com/proptest-rs/proptest) strategy to generate values for Rust Decimal.
-
-### `rand-0_9` and `rand-0_10`
-
-Implements `rand::distr::Distribution<Decimal>` for `StandardUniform`, and `SampleUniform` for `Decimal`, for rand
-0.9 and 0.10 respectively. This allows the creation of random instances.
-
-Note: When using `rand::Rng` trait to generate a decimal between a range of two other decimals, the scale of the
-randomly-generated
-decimal will be the same as the scale of the input decimals (or, if the inputs have different scales, the higher of the
-two).
-
 ### rkyv
 
 There is no `rkyv` feature. To serialize `Decimal` with [rkyv](https://github.com/rkyv/rkyv), use rkyv's
 [remote derives](https://rkyv.org/derive-macro-features/remote-derive.html); see `examples/rkyv-remote`.
-
-### `rust-fuzz`
-
-Enable `rust-fuzz` support by implementing the `Arbitrary` trait.
 
 ### `serde-float`
 

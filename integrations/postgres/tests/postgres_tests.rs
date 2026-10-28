@@ -1,10 +1,9 @@
-#![cfg(any(feature = "db-postgres", feature = "db-tokio-postgres"))]
-
 #[test]
 fn postgres_zero_retains_scale() {
     use bytes::BytesMut;
     use postgres::types::{FromSql, ToSql, Type};
     use rust_decimal::Decimal;
+    use rust_decimal_postgres::PgDecimal;
 
     for scale in 0..=Decimal::MAX_SCALE {
         for negative in [false, true] {
@@ -12,11 +11,11 @@ fn postgres_zero_retains_scale() {
             input.set_sign_negative(negative);
             assert_eq!(input.is_sign_negative(), negative);
             let mut bytes = BytesMut::new();
-            input.to_sql(&Type::NUMERIC, &mut bytes).unwrap();
+            PgDecimal(input).to_sql(&Type::NUMERIC, &mut bytes).unwrap();
 
             // Zero has no digit groups and a positive sign, but retains its display scale.
             assert_eq!(&bytes[..], &[0, 0, 0, 0, 0, 0, 0, scale as u8]);
-            let output = Decimal::from_sql(&Type::NUMERIC, &bytes).unwrap();
+            let output = PgDecimal::from_sql(&Type::NUMERIC, &bytes).unwrap().0;
             assert!(output.is_zero());
             assert!(output.is_sign_positive());
             assert_eq!(output.scale(), scale);
@@ -30,6 +29,7 @@ fn postgres_to_from_sql() {
     use core::str::FromStr;
     use postgres::types::{FromSql, Kind, ToSql, Type};
     use rust_decimal::Decimal;
+    use rust_decimal_postgres::PgDecimal;
 
     let tests = &[
         "3950.123456",
@@ -59,8 +59,8 @@ fn postgres_to_from_sql() {
     for test in tests {
         let input = Decimal::from_str(test).unwrap();
         let mut bytes = BytesMut::new();
-        input.to_sql(&t, &mut bytes).unwrap();
-        let output = Decimal::from_sql(&t, &bytes).unwrap();
+        PgDecimal(input).to_sql(&t, &mut bytes).unwrap();
+        let output = PgDecimal::from_sql(&t, &bytes).unwrap().0;
 
         assert_eq!(input, output);
     }
@@ -69,7 +69,8 @@ fn postgres_to_from_sql() {
 #[test]
 fn postgres_from_sql_special_numeric() {
     use postgres::types::{FromSql, Kind, Type};
-    use rust_decimal::Decimal;
+
+    use rust_decimal_postgres::PgDecimal;
 
     // The numbers below are the big-endian equivalent of the NUMERIC_* masks for NAN, PINF, NINF
     let tests = &[
@@ -81,7 +82,7 @@ fn postgres_from_sql_special_numeric() {
     let t = Type::new("".into(), 0, Kind::Simple, "".into());
 
     for (name, bytes) in tests {
-        let res = Decimal::from_sql(&t, *bytes);
+        let res = PgDecimal::from_sql(&t, *bytes);
         match &res {
             Ok(_) => panic!("Expected error, got Ok"),
             Err(e) => {
@@ -99,7 +100,8 @@ fn postgres_from_sql_special_numeric() {
 #[test]
 fn postgres_from_sql_exceeds_maximum_value() {
     use postgres::types::{FromSql, Kind, Type};
-    use rust_decimal::{Decimal, Error};
+    use rust_decimal::Error;
+    use rust_decimal_postgres::PgDecimal;
 
     // Single group of 1 with a large weight: 10000^weight. These fit into an i128 but exceed the
     // 96 bit mantissa of a Decimal, so they must return an error instead of panicking.
@@ -111,8 +113,8 @@ fn postgres_from_sql_exceeds_maximum_value() {
     let t = Type::new("".into(), 0, Kind::Simple, "".into());
 
     for (name, bytes) in tests {
-        match Decimal::from_sql(&t, bytes) {
-            Ok(value) => panic!("Expected error for {}, got {}", name, value),
+        match PgDecimal::from_sql(&t, bytes) {
+            Ok(value) => panic!("Expected error for {}, got {}", name, value.0),
             Err(e) => assert_eq!(e.to_string(), Error::ExceedsMaximumPossibleValue.to_string()),
         }
     }
@@ -121,14 +123,15 @@ fn postgres_from_sql_exceeds_maximum_value() {
 #[test]
 fn postgres_from_sql_numeric_rounds_from_complete_wire_value() {
     use postgres::types::{FromSql, Kind, Type};
-    use rust_decimal::Decimal;
+
+    use rust_decimal_postgres::PgDecimal;
 
     let mut raw = vec![0, 9, 0, 4, 0, 0, 0, 16];
     for group in [9999u16, 9999, 9999, 9999, 9999, 0, 0, 5000, 1] {
         raw.extend_from_slice(&group.to_be_bytes());
     }
     let ty = Type::new("".into(), 0, Kind::Simple, "".into());
-    let actual = Decimal::from_sql(&ty, &raw).unwrap();
+    let actual = PgDecimal::from_sql(&ty, &raw).unwrap().0;
     assert_eq!(actual.mantissa(), 9999999999999999999900000001);
     assert_eq!(actual.scale(), 8);
 }
@@ -136,14 +139,15 @@ fn postgres_from_sql_numeric_rounds_from_complete_wire_value() {
 #[test]
 fn postgres_from_sql_numeric_rounds_negative_complete_wire_value() {
     use postgres::types::{FromSql, Kind, Type};
-    use rust_decimal::Decimal;
+
+    use rust_decimal_postgres::PgDecimal;
 
     let mut raw = vec![0, 9, 0, 4, 0x40, 0, 0, 16];
     for group in [9999u16, 9999, 9999, 9999, 9999, 0, 0, 5000, 1] {
         raw.extend_from_slice(&group.to_be_bytes());
     }
     let ty = Type::new("".into(), 0, Kind::Simple, "".into());
-    let actual = Decimal::from_sql(&ty, &raw).unwrap();
+    let actual = PgDecimal::from_sql(&ty, &raw).unwrap().0;
     assert_eq!(actual.mantissa(), -9999999999999999999900000001);
     assert_eq!(actual.scale(), 8);
 }
@@ -151,11 +155,12 @@ fn postgres_from_sql_numeric_rounds_negative_complete_wire_value() {
 #[test]
 fn postgres_from_sql_rejects_invalid_digit_group() {
     use postgres::types::{FromSql, Kind, Type};
-    use rust_decimal::Decimal;
+
+    use rust_decimal_postgres::PgDecimal;
 
     let raw = [0, 1, 0, 0, 0, 0, 0, 0, 0x27, 0x10];
     let ty = Type::new("".into(), 0, Kind::Simple, "".into());
-    assert!(Decimal::from_sql(&ty, &raw).is_err());
+    assert!(PgDecimal::from_sql(&ty, &raw).is_err());
 }
 
 #[test]
@@ -163,6 +168,7 @@ fn postgres_from_sql_numeric_rounding_controls() {
     use core::str::FromStr;
     use postgres::types::{FromSql, Kind, Type};
     use rust_decimal::Decimal;
+    use rust_decimal_postgres::PgDecimal;
 
     let cases: &[(&[u16], i16, u16, bool, &str)] = &[
         (
@@ -223,7 +229,7 @@ fn postgres_from_sql_numeric_rounding_controls() {
         for digit in *digits {
             raw.extend_from_slice(&digit.to_be_bytes());
         }
-        let actual = Decimal::from_sql(&ty, &raw).unwrap();
+        let actual = PgDecimal::from_sql(&ty, &raw).unwrap().0;
         assert_eq!(actual, Decimal::from_str(expected).unwrap());
     }
 }

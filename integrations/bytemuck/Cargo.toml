@@ -1,0 +1,16 @@
+[package]
+authors = ["Paul Mason <paul@form1.co.nz>"]
+categories = ["science", "mathematics", "data-structures"]
+description = "bytemuck Pod support for rust_decimal."
+documentation = "https://docs.rs/rust_decimal_bytemuck/"
+edition = "2024"
+keywords = ["decimal", "bytemuck", "pod"]
+license = "MIT"
+name = "rust_decimal_bytemuck"
+repository = "https://github.com/paupino/rust-decimal"
+rust-version = "1.85.0"
+version = "2.0.0-alpha.0"
+
+[dependencies]
+bytemuck = { default-features = false, version = "1.17.1" }
+rust_decimal = { default-features = false, features = ["c-repr"], path = "../..", version = "=2.0.0-alpha.0" }
