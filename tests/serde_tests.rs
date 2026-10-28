@@ -427,6 +427,31 @@ fn with_float_tagged_enum_optional() {
 }
 
 #[test]
+#[cfg(feature = "serde-with-float")]
+fn with_float_optional_bincode() {
+    #[derive(Serialize, Deserialize)]
+    struct BincodeExample {
+        #[serde(with = "rust_decimal::serde::float_option")]
+        value: Option<Decimal>,
+    }
+
+    // Non-self-describing formats rely on the option tag to tell `Some` from `None`
+    let input = BincodeExample {
+        value: Some(Decimal::new(15, 1)),
+    };
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&Some(1.5_f64)).unwrap()
+    );
+
+    let input = BincodeExample { value: None };
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&None::<f64>).unwrap()
+    );
+}
+
+#[test]
 #[cfg(feature = "serde-with-arbitrary-precision")]
 fn with_arbitrary_precision_optional() {
     #[derive(Serialize, Deserialize)]
@@ -472,6 +497,32 @@ fn with_arbitrary_precision_tagged_enum_optional() {
 
     let deserialized: TaggedEnumExample = serde_json::from_str(&serialized).unwrap();
     assert_eq!(deserialized, original);
+}
+
+#[test]
+#[cfg(feature = "serde-with-arbitrary-precision")]
+fn with_arbitrary_precision_optional_bincode() {
+    #[derive(Serialize, Deserialize)]
+    struct BincodeExample {
+        #[serde(with = "rust_decimal::serde::arbitrary_precision_option")]
+        value: Option<Decimal>,
+    }
+
+    // Non-self-describing formats rely on the option tag to tell `Some` from `None`
+    let input = BincodeExample {
+        value: Some(Decimal::new(1500, 3)),
+    };
+    let number = serde_json::Number::from_str("1.500").unwrap();
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&Some(number)).unwrap()
+    );
+
+    let input = BincodeExample { value: None };
+    assert_eq!(
+        bincode::serialize(&input).unwrap(),
+        bincode::serialize(&None::<serde_json::Number>).unwrap()
+    );
 }
 
 #[test]

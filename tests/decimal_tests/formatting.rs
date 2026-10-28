@@ -108,6 +108,22 @@ fn it_formats_lower_exp_padding() {
 
 #[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
+fn it_formats_zero_scientific_flags() {
+    for scale in [0, 3, 28] {
+        let zero = Decimal::new(0, scale);
+        assert_eq!(format!("{zero:e}"), "0e0");
+        assert_eq!(format!("{zero:E}"), "0E0");
+        assert_eq!(format!("{zero:.0e}"), "0e0");
+        assert_eq!(format!("{zero:.3e}"), "0.000e0");
+        assert_eq!(format!("{zero:+08.2E}"), "+00.00E0");
+        assert_eq!(format!("{zero:*>8e}"), "*****0e0");
+        let negative_zero = -zero;
+        assert_eq!(format!("{negative_zero:.2E}"), "-0.00E0");
+    }
+}
+
+#[cfg(any(feature = "alloc", feature = "std"))]
+#[test]
 fn it_formats_scientific_precision() {
     for (num, scale, expected_no_precision, expected_precision) in [
         (
