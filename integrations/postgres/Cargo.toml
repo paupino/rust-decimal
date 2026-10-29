@@ -1,0 +1,24 @@
+[package]
+authors = ["Paul Mason <paul@form1.co.nz>"]
+categories = ["science", "mathematics", "data-structures"]
+description = "PostgreSQL NUMERIC support for rust_decimal (postgres / tokio-postgres)."
+documentation = "https://docs.rs/rust_decimal_postgres/"
+edition = "2024"
+keywords = ["decimal", "postgres", "database", "numeric"]
+license = "MIT"
+name = "rust_decimal_postgres"
+repository = "https://github.com/paupino/rust-decimal"
+rust-version = "1.85.0"
+version = "2.0.0-alpha.0"
+
+[dependencies]
+bytes = { default-features = false, version = "1" }
+postgres-types = { default-features = false, version = "0.2" }
+rust_decimal = { default-features = false, features = ["std"], path = "../..", version = "=2.0.0-alpha.0" }
+rust_decimal_pg_numeric = { path = "../pg-numeric", version = "=2.0.0-alpha.0" }
+
+[dev-dependencies]
+futures = { default-features = false, version = "0.3" }
+postgres = { default-features = false, version = "0.19" }
+tokio = { default-features = false, features = ["macros", "rt-multi-thread"], version = "1.0" }
+tokio-postgres = { default-features = false, version = "0.7" }

@@ -26,7 +26,7 @@ alias = "clean"
 [tasks.test-default]
 dependencies = ["clean-default"]
 command = "cargo"
-args = ["test", "--workspace", "--features=default"]
+args = ["test", "--features=default"]
 
 # This should reflect the steps in github
 [tasks.test-all]
@@ -44,4 +44,4 @@ dependencies = [
 [tasks.test-generated]
 description = "Run the CSV-driven generated tests (opted out of test-default)"
 command = "cargo"
-args = ["test", "--workspace", "--test", "generated"]
+args = ["test", "--test", "generated"]
