@@ -5,6 +5,7 @@
 //!
 //! * `StandardDecimal`: any `Decimal` across the full mantissa and scale range.
 //! * `UniformDecimal`: a `Decimal` uniformly sampled from a range, at the inputs' scale.
+//! * `DecimalRng`: `rng.random_decimal()` and `rng.random_decimal_range(low..high)` on any `Rng`.
 #![no_std]
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

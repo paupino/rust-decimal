@@ -125,19 +125,19 @@ assert_eq!(total, dec!(27.26));
 
 Support for third party crates lives in separate crates, so `rust_decimal` itself pulls in no
 integration dependencies. Rust's orphan rule means these crates cannot implement third party traits
-on `Decimal` directly; most expose a thin wrapper type with `From` conversions in both directions.
+on `Decimal` directly, so they expose helper functions, extension traits, or a thin wrapper type
+with `From` conversions in both directions.
 
 | Crate | Integrates with | Provides |
 |-------|-----------------|----------|
 | `rust_decimal_arbitrary` | [arbitrary](https://docs.rs/arbitrary) | `arbitrary_decimal` for `#[arbitrary(with = ...)]` |
-| `rust_decimal_borsh` | [borsh](https://borsh.io/) | `BorshDecimal` |
+| `rust_decimal_borsh` | [borsh](https://borsh.io/) | `serialize` / `deserialize` for `#[borsh(serialize_with = ...)]`, `BorshDecimal` |
 | `rust_decimal_bytemuck` | [bytemuck](https://docs.rs/bytemuck) | `PodDecimal` (`Pod`, `Zeroable`, `TransparentWrapper`) |
 | `rust_decimal_diesel` | [diesel](https://diesel.rs) (`postgres`, `mysql` features) | `DieselDecimal` |
-| `rust_decimal_ndarray` | [ndarray](https://docs.rs/ndarray) 0.16 | `ScalarDecimal` |
 | `rust_decimal_postgres` | [postgres](https://docs.rs/postgres) / [tokio-postgres](https://docs.rs/tokio-postgres) | `PgDecimal` |
 | `rust_decimal_pg_numeric` | (none) | PostgreSQL `NUMERIC` conversion shared by the diesel and postgres crates |
 | `rust_decimal_proptest` | [proptest](https://docs.rs/proptest) | `arb_decimal` strategy |
-| `rust_decimal_rand` | [rand](https://docs.rs/rand) (`rand-0_9`, `rand-0_10` features) | `StandardDecimal`, `UniformDecimal` |
+| `rust_decimal_rand` | [rand](https://docs.rs/rand) (`rand-0_9`, `rand-0_10` features) | `DecimalRng` (`rng.random_decimal_range(a..b)`), `StandardDecimal`, `UniformDecimal` |
 
 For example, with Diesel:
 
@@ -149,6 +149,10 @@ rust_decimal_diesel = { version = "2.0.0-alpha.0", features = ["postgres"] }
 
 Then use `DieselDecimal` in your models, or keep `Decimal` fields and annotate them with
 `#[diesel(serialize_as = DieselDecimal, deserialize_as = DieselDecimal)]`.
+
+[ndarray](https://docs.rs/ndarray) needs no integration crate: arrays of `Decimal` support element-wise
+arithmetic directly. For scalar operations, broadcast a 0-dimensional array (`&a + &ndarray::arr0(d)`)
+or map over the elements (`a.mapv(|x| x * d)`).
 
 ## Features
 

@@ -5,7 +5,6 @@ dependencies = [
     "test-arbitrary",
     "test-borsh",
     "test-bytemuck",
-    "test-ndarray",
     "test-rand"
 ]
 
@@ -33,10 +32,6 @@ args = ["test", "-p", "rust_decimal_borsh"]
 [tasks.test-bytemuck]
 command = "cargo"
 args = ["test", "-p", "rust_decimal_bytemuck"]
-
-[tasks.test-ndarray]
-command = "cargo"
-args = ["test", "-p", "rust_decimal_ndarray"]
 
 [tasks.test-rand]
 command = "cargo"

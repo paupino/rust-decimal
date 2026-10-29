@@ -73,3 +73,31 @@ fn wire_format_is_flags_hi_lo_mid() {
         "flags, hi, lo, mid (little-endian)"
     );
 }
+
+#[derive(borsh::BorshSerialize, borsh::BorshDeserialize, borsh::BorshSchema, Debug, PartialEq)]
+struct Order {
+    id: u32,
+    #[borsh(
+        serialize_with = "rust_decimal_borsh::serialize",
+        deserialize_with = "rust_decimal_borsh::deserialize",
+        schema(with_funcs(
+            declaration = "rust_decimal_borsh::schema_declaration",
+            definitions = "rust_decimal_borsh::schema_definitions"
+        ))
+    )]
+    amount: Decimal,
+}
+
+#[test]
+fn decimal_field_round_trips_with_schema() {
+    let order = Order {
+        id: 7,
+        amount: Decimal::from_str("-5233.9008808150288439427720175").unwrap(),
+    };
+    let bytes = borsh::to_vec(&order).unwrap();
+    assert_eq!(bytes[4..], borsh::to_vec(&BorshDecimal(order.amount)).unwrap());
+    assert_eq!(borsh::from_slice::<Order>(&bytes).unwrap(), order);
+
+    let bytes = borsh::try_to_vec_with_schema(&order).unwrap();
+    assert_eq!(borsh::try_from_slice_with_schema::<Order>(&bytes).unwrap(), order);
+}

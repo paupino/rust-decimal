@@ -6,7 +6,7 @@ use diesel::{
     serialize::{self, Output, ToSql},
     sql_types::Numeric,
 };
-use rust_decimal::{Decimal, Error};
+use rust_decimal::Error;
 use rust_decimal_pg_numeric::{PostgresDecimal, from_postgres, to_postgres};
 use std::error;
 
@@ -98,6 +98,7 @@ impl FromSql<Numeric, Pg> for DieselDecimal {
 mod tests {
     use super::*;
     use core::str::FromStr;
+    use rust_decimal::Decimal;
 
     #[test]
     fn decimal_to_pg_numeric_zero_retains_scale() {
