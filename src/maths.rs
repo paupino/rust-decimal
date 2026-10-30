@@ -90,10 +90,11 @@ pub trait MathematicalOps {
     fn checked_powf(&self, exp: f64) -> Option<Decimal>;
 
     /// Raise self to the given Decimal exponent: x<sup>y</sup>. If `exp` is not whole then the approximation
-    /// e<sup>y*ln(x)</sup> is used.
+    /// e<sup>y*ln(x)</sup> is used, which requires a positive base.
     fn powd(&self, exp: Decimal) -> Decimal;
 
-    /// Raise self to the given Decimal exponent x<sup>y</sup> returning `None` on overflow.
+    /// Raise self to the given Decimal exponent x<sup>y</sup> returning `None` on overflow,
+    /// for zero raised to a negative exponent, or for a negative base and a non-whole exponent.
     /// If `exp` is not whole then the approximation e<sup>y*ln(x)</sup> is used.
     fn checked_powd(&self, exp: Decimal) -> Option<Decimal>;
 
@@ -282,7 +283,11 @@ impl MathematicalOps for Decimal {
             return Some(Decimal::ONE);
         }
         if self.is_zero() {
-            return Some(Decimal::ZERO);
+            return if exp.is_sign_negative() {
+                None
+            } else {
+                Some(Decimal::ZERO)
+            };
         }
         if self.is_one() {
             return Some(Decimal::ONE);
@@ -294,25 +299,17 @@ impl MathematicalOps for Decimal {
         // If the scale is 0 then it's a trivial calculation
         let exp = exp.normalize();
         if exp.scale() == 0 {
-            if exp.mid() != 0 || exp.hi() != 0 {
-                // Exponent way too big
-                return None;
-            }
-
             return if exp.is_sign_negative() {
-                self.checked_powi(-(exp.lo() as i64))
+                self.checked_powi(exp.to_i64()?)
             } else {
-                self.checked_powu(exp.lo() as u64)
+                self.checked_powu(exp.to_u64()?)
             };
         }
 
         // We do some approximations since we've got a decimal exponent.
         // For positive bases: a^b = exp(b*ln(a))
-        let negative = self.is_sign_negative();
-        let e = self.abs().ln().checked_mul(exp)?;
-        let mut result = e.checked_exp()?;
-        result.set_sign_negative(negative);
-        Some(result)
+        let e = self.checked_ln()?.checked_mul(exp)?;
+        e.checked_exp()
     }
 
     fn sqrt(&self) -> Option<Decimal> {
