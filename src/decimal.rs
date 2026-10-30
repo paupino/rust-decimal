@@ -564,17 +564,6 @@ impl Decimal {
         Decimal { flags, hi, lo, mid }
     }
 
-    /// Builds the result of truncating `self` to the given digits. A negative value
-    /// truncated to zero becomes `0`, while a value that already is `-0` keeps its sign.
-    const fn truncated(&self, lo: u32, mid: u32, hi: u32, scale: u32) -> Decimal {
-        let flags = flags(self.is_sign_negative(), scale);
-        if self.is_zero() {
-            Decimal::from_parts_raw_unchecked(lo, mid, hi, flags)
-        } else {
-            Decimal::from_parts_raw(lo, mid, hi, flags)
-        }
-    }
-
     pub(crate) const fn from_parts_raw(lo: u32, mid: u32, hi: u32, flags: u32) -> Decimal {
         if lo == 0 && mid == 0 && hi == 0 {
             Decimal {
@@ -1038,7 +1027,12 @@ impl Decimal {
         let mut array = [self.lo, self.mid, self.hi];
         let mut value_scale = self.scale();
         ops::array::rescale_internal(&mut array, &mut value_scale, scale);
-        *self = self.truncated(array[0], array[1], array[2], value_scale);
+        *self = Decimal::from_parts_raw(
+            array[0],
+            array[1],
+            array[2],
+            flags(self.is_sign_negative(), value_scale),
+        );
     }
 
     /// Returns a serialized version of the decimal number.
@@ -1168,7 +1162,12 @@ impl Decimal {
         let mut working = [self.lo, self.mid, self.hi];
         let mut working_scale = self.scale();
         ops::array::truncate_internal(&mut working, &mut working_scale, 0);
-        self.truncated(working[0], working[1], working[2], working_scale)
+        Decimal::from_parts_raw(
+            working[0],
+            working[1],
+            working[2],
+            flags(self.is_sign_negative(), working_scale),
+        )
     }
 
     /// Returns a new `Decimal` with the fractional portion delimited by `scale`.
@@ -1194,7 +1193,12 @@ impl Decimal {
         let mut working = [self.lo, self.mid, self.hi];
         let mut working_scale = self.scale();
         ops::array::truncate_internal(&mut working, &mut working_scale, scale);
-        self.truncated(working[0], working[1], working[2], working_scale)
+        Decimal::from_parts_raw(
+            working[0],
+            working[1],
+            working[2],
+            flags(self.is_sign_negative(), working_scale),
+        )
     }
 
     /// Returns a new `Decimal` representing the fractional portion of the number.
@@ -1256,7 +1260,12 @@ impl Decimal {
         let mut working = [self.lo, self.mid, self.hi];
         let mut working_scale = scale;
         let had_fraction = ops::array::truncate_internal(&mut working, &mut working_scale, 0);
-        let floored = self.truncated(working[0], working[1], working[2], working_scale);
+        let floored = Decimal::from_parts_raw(
+            working[0],
+            working[1],
+            working[2],
+            flags(self.is_sign_negative(), working_scale),
+        );
         if self.is_sign_negative() && had_fraction {
             floored - ONE
         } else {
@@ -1289,7 +1298,12 @@ impl Decimal {
         let mut working = [self.lo, self.mid, self.hi];
         let mut working_scale = scale;
         let had_fraction = ops::array::truncate_internal(&mut working, &mut working_scale, 0);
-        let truncated = self.truncated(working[0], working[1], working[2], working_scale);
+        let truncated = Decimal::from_parts_raw(
+            working[0],
+            working[1],
+            working[2],
+            flags(self.is_sign_negative(), working_scale),
+        );
         if self.is_sign_positive() && had_fraction {
             truncated + ONE
         } else {
@@ -2507,9 +2521,9 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_u64(&self) -> Option<u64> {
-        // Truncate first, like to_i64: -0.5 truncates to 0, which fits (as does -0)
+        // Truncate first, like to_i64: -0.5 truncates to 0, which fits
         let d = self.trunc();
-        if d.is_sign_negative() && !d.is_zero() {
+        if d.is_sign_negative() {
             return None;
         }
         if d.hi != 0 {
@@ -2521,9 +2535,9 @@ impl ToPrimitive for Decimal {
     }
 
     fn to_u128(&self) -> Option<u128> {
-        // Truncate first, like to_i64: -0.5 truncates to 0, which fits (as does -0)
+        // Truncate first, like to_i64: -0.5 truncates to 0, which fits
         let d = self.trunc();
-        if d.is_sign_negative() && !d.is_zero() {
+        if d.is_sign_negative() {
             return None;
         }
         Some((u128::from(d.hi) << 64) | (u128::from(d.mid) << 32) | u128::from(d.lo))

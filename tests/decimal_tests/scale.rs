@@ -235,7 +235,8 @@ fn it_caps_truncation_scale_without_changing_rescale() {
 
     let cases = [
         (Decimal::ZERO, Decimal::ZERO, Decimal::MAX_SCALE),
-        (negative_zero, negative_zero, Decimal::MAX_SCALE),
+        // An existing -0 comes back as 0, like any other truncation to zero
+        (negative_zero, Decimal::ZERO, Decimal::MAX_SCALE),
         (tiny, tiny, Decimal::MAX_SCALE),
         (negative_tiny, negative_tiny, Decimal::MAX_SCALE),
         (over_scaled, tiny, Decimal::MAX_SCALE),
@@ -261,7 +262,7 @@ fn it_caps_truncation_scale_without_changing_rescale() {
             let result = input.trunc_with_scale(requested);
             assert_eq!(result.scale(), expected_scale, "requested scale: {requested}");
             assert_eq!(result, expected);
-            assert_eq!(result.is_sign_negative(), input.is_sign_negative());
+            assert_eq!(result.is_sign_negative(), expected.is_sign_negative());
             let bytes = result.serialize();
             let decoded = Decimal::deserialize(bytes);
             assert_eq!(decoded.serialize(), bytes);
