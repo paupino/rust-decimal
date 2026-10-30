@@ -83,12 +83,28 @@ fn test_powi() {
         ("3", -3, "0.037037037037037037037037037"),
         ("6", 3, "216"),
         ("0.5", 2, "0.25"),
+        ("0.5", -2, "4"),
+        ("0.2", -40, "9094947017729282379150390625"),
+        ("-0.2", -3, "-125"),
+        ("0.000000000000025", -2, "1600000000000000000000000000"),
+        ("0.0000000005", -3, "8000000000000000000000000000"),
+        ("1000000000000000", -2, "0"),
     ];
     for &(x, y, expected) in test_cases {
         let x = Decimal::from_str(x).unwrap();
         let pow = x.powi(y);
         assert_eq!(pow.to_string(), expected, "{} ^ {}", x, y);
     }
+}
+
+#[test]
+fn test_checked_powi_negative_exponent() {
+    // 0.88 ^ 512 underflows, but 0.88 ^ -512 (~2.66e28) still fits
+    let pow = Decimal::from_str("0.88").unwrap().checked_powi(-512).unwrap();
+    assert_eq!(pow.round_sf(3).unwrap().to_string(), "26600000000000000000000000000");
+    // 0.2 ^ -50 (~8.9e34) does not fit
+    assert_eq!(Decimal::from_str("0.2").unwrap().checked_powi(-50), None);
+    assert_eq!(Decimal::ZERO.checked_powi(-1), None);
 }
 
 #[test]
@@ -607,4 +623,26 @@ fn test_checked_tan() {
             assert!(tan.is_none(), "Unexpected result for tan({})", input);
         }
     }
+}
+
+#[test]
+fn test_sqrt_negative_zero() {
+    let neg_zero = -Decimal::ZERO;
+    assert!(neg_zero.is_zero());
+    assert!(neg_zero.is_sign_negative());
+    assert_eq!(Some(Decimal::ZERO), neg_zero.sqrt());
+}
+
+#[test]
+#[should_panic(expected = "Unable to calculate ln for zero")]
+#[cfg(not(feature = "maths-nopanic"))]
+fn test_invalid_ln_negative_zero_panic() {
+    let _ = (-Decimal::ZERO).ln();
+}
+
+#[test]
+#[should_panic(expected = "Unable to calculate log10 for zero")]
+#[cfg(not(feature = "maths-nopanic"))]
+fn test_invalid_log10_negative_zero_panic() {
+    let _ = (-Decimal::ZERO).log10();
 }

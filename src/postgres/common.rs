@@ -19,50 +19,111 @@ impl Decimal {
             weight,
         }: PostgresDecimal<D>,
     ) -> Option<Self> {
-        let mut digits = digits.into_iter().collect::<Vec<_>>();
+        let digits = digits.into_iter().collect::<Vec<_>>();
 
         let weight = weight as i32;
         let fractionals_part_count = digits.len() as i32 + (-weight) - 1;
         let integers_part_count = weight + 1;
 
-        let mut result = Self::ZERO;
-        // adding integer part
+        let mut integer_part = Self::ZERO;
         if integers_part_count > 0 {
-            let (start_integers, last) = if integers_part_count > digits.len() as i32 {
+            let (start_integers, integer_digits_count) = if integers_part_count > digits.len() as i32 {
                 (integers_part_count - digits.len() as i32, digits.len() as i32)
             } else {
                 (0, integers_part_count)
             };
-            let integers: Vec<_> = digits.drain(..last as usize).collect();
-            for digit in integers {
-                result = result.checked_mul(Self::from_i128_with_scale(10i128.pow(4), 0))?;
-                result = result.checked_add(Self::new(digit as i64, 0))?;
+            for &digit in digits.iter().take(integer_digits_count as usize) {
+                integer_part = integer_part.checked_mul(Self::from_i128_with_scale(10i128.pow(4), 0))?;
+                integer_part = integer_part.checked_add(Self::new(digit as i64, 0))?;
             }
             let scale_pow = 10i128.checked_pow(4 * start_integers as u32)?;
-            result = result.checked_mul(Self::try_from_i128_with_scale(scale_pow, 0).ok()?)?;
+            integer_part = integer_part.checked_mul(Self::try_from_i128_with_scale(scale_pow, 0).ok()?)?;
         }
-        // adding fractional part
-        if fractionals_part_count > 0 {
-            let start_fractionals = if weight < 0 { (-weight) as u32 - 1 } else { 0 };
-            for (i, digit) in digits.into_iter().enumerate() {
-                let fract_pow = 4_u32.checked_mul(i as u32 + 1 + start_fractionals)?;
-                if fract_pow <= Self::MAX_SCALE {
-                    result = result.checked_add(
-                        Self::new(digit as i64, 0) / Self::from_i128_with_scale(10i128.pow(fract_pow), 0),
-                    )?;
-                } else if fract_pow == Self::MAX_SCALE + 4 {
-                    // rounding last digit
-                    if digit >= 5000 {
-                        result = result.checked_add(
-                            Self::new(1_i64, 0) / Self::from_i128_with_scale(10i128.pow(Self::MAX_SCALE), 0),
-                        )?;
-                    }
+        if fractionals_part_count <= 0 {
+            integer_part.set_sign_negative(neg);
+            integer_part.rescale((scale as u32).min(Self::MAX_SCALE));
+            return Some(integer_part);
+        }
+
+        let Some((first_group_index, first_group)) = digits.iter().enumerate().find(|(_, digit)| **digit != 0) else {
+            integer_part.set_sign_negative(neg);
+            integer_part.rescale((scale as u32).min(Self::MAX_SCALE));
+            return Some(integer_part);
+        };
+
+        let mut first_group_digits = 1i128;
+        let mut first_group_divisor = 10u16;
+        while *first_group >= first_group_divisor {
+            first_group_digits += 1;
+            first_group_divisor *= 10;
+        }
+        let exponent = 4 * (weight as i128 - first_group_index as i128) + first_group_digits - 1;
+        let mut prefix = 0u128;
+        let mut prefix_digits = 0usize;
+        let mut sticky = false;
+        for (group_index, &group) in digits.iter().enumerate().skip(first_group_index) {
+            let group_digits = if group_index == first_group_index {
+                first_group_digits
+            } else {
+                4
+            };
+            let mut divisor = 10u16.pow((group_digits - 1) as u32);
+            for _ in 0..group_digits {
+                let digit = (group / divisor) % 10;
+                if prefix_digits < 30 {
+                    prefix = prefix * 10 + digit as u128;
+                    prefix_digits += 1;
+                } else {
+                    sticky |= digit != 0;
                 }
+                divisor /= 10;
             }
         }
 
+        let max_mantissa = (1u128 << 96) - 1;
+        let mut rounded = None;
+        for candidate_scale in (0..=Self::MAX_SCALE).rev() {
+            let coefficient_digits = exponent + candidate_scale as i128 + 1;
+            if coefficient_digits > 29 {
+                continue;
+            }
+
+            let (coefficient, guard, remaining_nonzero) = if coefficient_digits < 0 {
+                (0, 0, false)
+            } else if coefficient_digits == 0 {
+                let divisor = 10u128.pow((prefix_digits - 1) as u32);
+                (0, (prefix / divisor) as u8, prefix % divisor != 0 || sticky)
+            } else {
+                let coefficient_digits = coefficient_digits as usize;
+                if coefficient_digits >= prefix_digits {
+                    (
+                        prefix * 10u128.pow((coefficient_digits - prefix_digits) as u32),
+                        0,
+                        sticky,
+                    )
+                } else {
+                    let divisor = 10u128.pow((prefix_digits - coefficient_digits) as u32);
+                    let guard_divisor = divisor / 10;
+                    (
+                        prefix / divisor,
+                        ((prefix / guard_divisor) % 10) as u8,
+                        prefix % guard_divisor != 0 || sticky,
+                    )
+                }
+            };
+
+            let increment = guard > 5
+                || (guard == 5 && (remaining_nonzero || candidate_scale == Self::MAX_SCALE || coefficient % 2 == 1));
+            let candidate = coefficient + u128::from(increment);
+            if candidate <= max_mantissa {
+                rounded = Some((candidate, candidate_scale));
+                break;
+            }
+        }
+
+        let (coefficient, candidate_scale) = rounded?;
+        let mut result = Self::try_from_i128_with_scale(coefficient as i128, candidate_scale).ok()?;
         result.set_sign_negative(neg);
-        // Rescale to the postgres value, automatically rounding as needed.
         result.rescale((scale as u32).min(Self::MAX_SCALE));
         Some(result)
     }

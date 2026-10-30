@@ -1,9 +1,9 @@
 use crate::Decimal;
 use diesel::{
     deserialize::{self, FromSql},
-    mysql::Mysql,
+    mysql::{Mysql, MysqlType, sql_types::Unsigned},
     serialize::{self, IsNull, Output, ToSql},
-    sql_types::Numeric,
+    sql_types::{BigInt, Double, Float, Integer, Numeric, SmallInt, TinyInt},
 };
 use std::io::Write;
 use std::str::FromStr;
@@ -18,11 +18,33 @@ impl ToSql<Numeric, Mysql> for Decimal {
 #[cfg(feature = "diesel")]
 impl FromSql<Numeric, Mysql> for Decimal {
     fn from_sql(numeric: diesel::mysql::MysqlValue) -> deserialize::Result<Self> {
-        // From what I can ascertain, MySQL simply reads from a string format for the Decimal type.
-        // Explicitly, it looks like it is length followed by the string. Regardless, we can leverage
-        // internal types.
-        let s = std::str::from_utf8(numeric.as_bytes())?;
-        Decimal::from_str(s).map_err(|e| e.into())
+        match numeric.value_type() {
+            MysqlType::Numeric => {
+                let s = std::str::from_utf8(numeric.as_bytes())?;
+                Decimal::from_str(s).map_err(|e| e.into())
+            }
+            MysqlType::Tiny => <i8 as FromSql<TinyInt, Mysql>>::from_sql(numeric).map(Decimal::from),
+            MysqlType::UnsignedTiny => <u8 as FromSql<Unsigned<TinyInt>, Mysql>>::from_sql(numeric).map(Decimal::from),
+            MysqlType::Short => <i16 as FromSql<SmallInt, Mysql>>::from_sql(numeric).map(Decimal::from),
+            MysqlType::UnsignedShort => {
+                <u16 as FromSql<Unsigned<SmallInt>, Mysql>>::from_sql(numeric).map(Decimal::from)
+            }
+            MysqlType::Long => <i32 as FromSql<Integer, Mysql>>::from_sql(numeric).map(Decimal::from),
+            MysqlType::UnsignedLong => <u32 as FromSql<Unsigned<Integer>, Mysql>>::from_sql(numeric).map(Decimal::from),
+            MysqlType::LongLong => <i64 as FromSql<BigInt, Mysql>>::from_sql(numeric).map(Decimal::from),
+            MysqlType::UnsignedLongLong => {
+                <u64 as FromSql<Unsigned<BigInt>, Mysql>>::from_sql(numeric).map(Decimal::from)
+            }
+            MysqlType::Float => {
+                let value = <f32 as FromSql<Float, Mysql>>::from_sql(numeric)?;
+                Decimal::try_from(value).map_err(Into::into)
+            }
+            MysqlType::Double => {
+                let value = <f64 as FromSql<Double, Mysql>>::from_sql(numeric)?;
+                Decimal::try_from(value).map_err(Into::into)
+            }
+            value_type => Err(format!("Unexpected MySQL type for numeric value: {value_type:?}").into()),
+        }
     }
 }
 
@@ -125,6 +147,91 @@ mod tests {
                     sent
                 );
             }
+        }
+
+        #[test]
+        fn read_native_numeric_types() {
+            let mut connection = diesel::MysqlConnection::establish(&get_mysql_url()).expect("Establish connection");
+            sql_query(
+                "CREATE TEMPORARY TABLE native_numeric_values (
+                    tiny_signed TINYINT,
+                    tiny_unsigned TINYINT UNSIGNED,
+                    small_signed SMALLINT,
+                    small_unsigned SMALLINT UNSIGNED,
+                    medium_signed MEDIUMINT,
+                    medium_unsigned MEDIUMINT UNSIGNED,
+                    int_signed INT,
+                    int_unsigned INT UNSIGNED,
+                    big_signed BIGINT,
+                    big_unsigned BIGINT UNSIGNED,
+                    float_value FLOAT,
+                    double_value DOUBLE,
+                    amount DECIMAL(35, 6)
+                )",
+            )
+            .execute(&mut connection)
+            .expect("Unable to create native numeric fixture");
+            sql_query(
+                "INSERT INTO native_numeric_values VALUES (
+                    -42, 200, -4200, 60000, -420000, 16000000,
+                    825307441, 4000000000, -9000000000000000000,
+                    18446744073709551615, 1.5, 1.5, 3950.123456
+                )",
+            )
+            .execute(&mut connection)
+            .expect("Unable to insert native numeric fixture");
+
+            let checks = [
+                ("int_signed", "825307441"),
+                ("tiny_signed", "-42"),
+                ("tiny_unsigned", "200"),
+                ("small_signed", "-4200"),
+                ("small_unsigned", "60000"),
+                ("medium_signed", "-420000"),
+                ("medium_unsigned", "16000000"),
+                ("int_unsigned", "4000000000"),
+                ("big_signed", "-9000000000000000000"),
+                ("big_unsigned", "18446744073709551615"),
+                ("float_value", "1.5"),
+                ("double_value", "1.5"),
+                ("amount", "3950.123456"),
+            ];
+            for (column, expected) in checks {
+                let cast: Vec<Test> = sql_query(format!(
+                    "SELECT CAST({column} AS DECIMAL(35, 6)) AS value FROM native_numeric_values"
+                ))
+                .load(&mut connection)
+                .expect("Unable to read DECIMAL numeric control");
+                let expected = Decimal::from_str(expected).unwrap();
+                assert_eq!(expected, cast[0].value, "DECIMAL cast of {column}");
+                let native: Vec<Test> = sql_query(format!("SELECT {column} AS value FROM native_numeric_values"))
+                    .load(&mut connection)
+                    .expect("Unable to read native numeric value");
+                assert_eq!(expected, native[0].value, "native column {column}");
+            }
+
+            let count: Vec<Test> = sql_query("SELECT COUNT(*) AS value FROM native_numeric_values")
+                .load(&mut connection)
+                .expect("Unable to read COUNT result");
+            assert_eq!(Decimal::ONE, count[0].value);
+            let count_cast: Vec<Test> =
+                sql_query("SELECT CAST(COUNT(*) AS DECIMAL(35, 6)) AS value FROM native_numeric_values")
+                    .load(&mut connection)
+                    .expect("Unable to read COUNT DECIMAL control");
+            assert_eq!(Decimal::ONE, count_cast[0].value);
+            let sum: Vec<Test> = sql_query("SELECT SUM(double_value) AS value FROM native_numeric_values")
+                .load(&mut connection)
+                .expect("Unable to read SUM result");
+            assert_eq!(Decimal::from_str("1.5").unwrap(), sum[0].value);
+            let sum_cast: Vec<Test> =
+                sql_query("SELECT CAST(SUM(double_value) AS DECIMAL(35, 6)) AS value FROM native_numeric_values")
+                    .load(&mut connection)
+                    .expect("Unable to read SUM DECIMAL control");
+            assert_eq!(Decimal::from_str("1.5").unwrap(), sum_cast[0].value);
+
+            let unsupported: Result<Vec<Test>, _> =
+                sql_query("SELECT CAST('1' AS CHAR) AS value").load(&mut connection);
+            assert!(unsupported.is_err());
         }
 
         #[test]
