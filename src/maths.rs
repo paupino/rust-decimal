@@ -95,6 +95,8 @@ pub trait MathematicalOps {
 
     /// Raise self to the given Decimal exponent x<sup>y</sup> returning `None` on overflow.
     /// If `exp` is not whole then the approximation e<sup>y*ln(x)</sup> is used.
+    /// Returns `None` if self is zero and `exp` is negative, or if self is negative and `exp`
+    /// is not whole.
     fn checked_powd(&self, exp: Decimal) -> Option<Decimal>;
 
     /// The square root of a Decimal. Uses a standard Babylonian method.
@@ -230,21 +232,7 @@ impl MathematicalOps for Decimal {
         }
 
         // Get the unsigned exponent
-        let exp = exp.unsigned_abs();
-
-        // For |x| < 1, x^y loses most of its digits (or underflows to zero) before the
-        // division happens. Take the reciprocal first instead: 1 / x is greater than one
-        // and keeps the full precision.
-        if self.abs() < Decimal::ONE {
-            let pow = Decimal::ONE.checked_div(*self)?.checked_powu(exp)?;
-            return Some(pow.normalize());
-        }
-
-        match self.checked_powu(exp) {
-            Some(pow) => Decimal::ONE.checked_div(pow),
-            // |x| > 1 here, so if x^y overflows then 1 / x^y is too small to be represented.
-            None => Some(Decimal::ZERO),
-        }
+        checked_powi_negative(self, exp.unsigned_abs())
     }
 
     fn powu(&self, exp: u64) -> Decimal {
@@ -282,7 +270,12 @@ impl MathematicalOps for Decimal {
             return Some(Decimal::ONE);
         }
         if self.is_zero() {
-            return Some(Decimal::ZERO);
+            // 0^y is undefined for negative y
+            return if exp.is_sign_negative() {
+                None
+            } else {
+                Some(Decimal::ZERO)
+            };
         }
         if self.is_one() {
             return Some(Decimal::ONE);
@@ -294,25 +287,28 @@ impl MathematicalOps for Decimal {
         // If the scale is 0 then it's a trivial calculation
         let exp = exp.normalize();
         if exp.scale() == 0 {
-            if exp.mid() != 0 || exp.hi() != 0 {
-                // Exponent way too big
-                return None;
+            let mut magnitude = (u64::from(exp.mid()) << 32) | u64::from(exp.lo());
+            if exp.hi() != 0 {
+                // The exponent doesn't fit in a u64. Any result is saturated at this point
+                // (either 0, ±1 or an overflow), so only the parity of the exponent matters.
+                magnitude = u64::MAX - 1 + (magnitude & 1);
             }
 
             return if exp.is_sign_negative() {
-                self.checked_powi(-(exp.lo() as i64))
+                checked_powi_negative(self, magnitude)
             } else {
-                self.checked_powu(exp.lo() as u64)
+                self.checked_powu(magnitude)
             };
         }
 
-        // We do some approximations since we've got a decimal exponent.
-        // For positive bases: a^b = exp(b*ln(a))
-        let negative = self.is_sign_negative();
-        let e = self.abs().ln().checked_mul(exp)?;
-        let mut result = e.checked_exp()?;
-        result.set_sign_negative(negative);
-        Some(result)
+        // A negative base with a non-integer exponent has no real result in general
+        if self.is_sign_negative() {
+            return None;
+        }
+
+        // We do some approximations since we've got a decimal exponent: a^b = exp(b*ln(a))
+        let e = self.ln().checked_mul(exp)?;
+        e.checked_exp()
     }
 
     fn sqrt(&self) -> Option<Decimal> {
@@ -612,6 +608,23 @@ impl MathematicalOps for Decimal {
             result += fraction * self.powu(pow);
         }
         Some(result)
+    }
+}
+
+/// Raises `base` to the negative integer exponent `-exp`, i.e. computes 1 / base^exp.
+fn checked_powi_negative(base: &Decimal, exp: u64) -> Option<Decimal> {
+    // For |x| < 1, x^y loses most of its digits (or underflows to zero) before the
+    // division happens. Take the reciprocal first instead: 1 / x is greater than one
+    // and keeps the full precision.
+    if base.abs() < Decimal::ONE {
+        let pow = Decimal::ONE.checked_div(*base)?.checked_powu(exp)?;
+        return Some(pow.normalize());
+    }
+
+    match base.checked_powu(exp) {
+        Some(pow) => Decimal::ONE.checked_div(pow),
+        // |x| > 1 here, so if x^y overflows then 1 / x^y is too small to be represented.
+        None => Some(Decimal::ZERO),
     }
 }
 
