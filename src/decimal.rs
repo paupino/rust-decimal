@@ -2268,48 +2268,19 @@ fn base2_to_decimal(
     is64: bool,
     remove_excess_bits: bool,
 ) -> Option<Decimal> {
+    if exponent2 < 0 {
+        // The value is `mantissa / 2^-exponent2`. Scale it by the largest power of ten that
+        // keeps it within 96 bits, rounding exactly once.
+        let mantissa = u64::from(bits[0]) | (u64::from(bits[1]) << 32);
+        let (scaled, scale) = scale_fraction(mantissa, exponent2.unsigned_abs());
+        *bits = scaled;
+        return finish_base2_to_decimal(bits, -(scale as i32), positive, is64, remove_excess_bits);
+    }
+
     // 2^exponent2 = (10^exponent2)/(5^exponent2)
     //             = (5^-exponent2)*(10^exponent2)
     let mut exponent5 = -exponent2;
     let mut exponent10 = exponent2; // Ultimately, we want this for the scale
-
-    while exponent5 > 0 {
-        // Check to see if the mantissa is divisible by 2
-        if bits[0] & 0x1 == 0 {
-            exponent10 += 1;
-            exponent5 -= 1;
-
-            // We can divide by 2 without losing precision
-            let hi_carry = bits[2] & 0x1 == 1;
-            bits[2] >>= 1;
-            let mid_carry = bits[1] & 0x1 == 1;
-            bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
-            bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
-        } else {
-            // The mantissa is NOT divisible by 2. Therefore the mantissa should
-            // be multiplied by 5, unless the multiplication overflows.
-            exponent5 -= 1;
-
-            let mut temp = [bits[0], bits[1], bits[2]];
-            if ops::array::mul_by_u32(&mut temp, 5) == 0 {
-                // Multiplication succeeded without overflow, so copy result back
-                bits[0] = temp[0];
-                bits[1] = temp[1];
-                bits[2] = temp[2];
-            } else {
-                // Multiplication by 5 overflows. The mantissa should be divided
-                // by 2, and therefore will lose significant digits.
-                exponent10 += 1;
-
-                // Shift right
-                let hi_carry = bits[2] & 0x1 == 1;
-                bits[2] >>= 1;
-                let mid_carry = bits[1] & 0x1 == 1;
-                bits[1] = (bits[1] >> 1) | if hi_carry { SIGN_MASK } else { 0 };
-                bits[0] = (bits[0] >> 1) | if mid_carry { SIGN_MASK } else { 0 };
-            }
-        }
-    }
 
     // In order to divide the value by 5, it is best to multiply by 2/10.
     // Therefore, exponent10 is decremented, and the mantissa should be multiplied by 2
@@ -2347,20 +2318,18 @@ fn base2_to_decimal(
         }
     }
 
-    // In order to bring exponent up to -MAX_SCALE, the mantissa should
-    // be divided by 10 to compensate. If the exponent10 is too small, this
-    // will cause the mantissa to underflow and become 0.
-    while exponent10 < -(Decimal::MAX_SCALE as i32) {
-        let rem10 = ops::array::div_by_u32(bits, 10);
-        exponent10 += 1;
-        if ops::array::is_all_zero(bits) {
-            // Underflow, unable to keep dividing
-            exponent10 = 0;
-        } else if rem10 >= 5 {
-            ops::array::add_one_internal(bits);
-        }
-    }
+    finish_base2_to_decimal(bits, exponent10, positive, is64, remove_excess_bits)
+}
 
+/// Shared tail of `base2_to_decimal`: optionally removes the bits of precision the float does not
+/// guarantee, then assembles the `Decimal`. `exponent10` must be in `-MAX_SCALE..=0`.
+fn finish_base2_to_decimal(
+    bits: &mut [u32; 3],
+    mut exponent10: i32,
+    positive: bool,
+    is64: bool,
+    remove_excess_bits: bool,
+) -> Option<Decimal> {
     if remove_excess_bits {
         // This step is required in order to remove excess bits of precision from the
         // end of the bit representation, down to the precision guaranteed by the
@@ -2406,6 +2375,54 @@ fn base2_to_decimal(
         hi: bits[2],
         flags: flags(!positive, -exponent10 as u32),
     })
+}
+
+/// Computes `mantissa / 2^shift` as a 96-bit integer and a scale, using the largest scale up to
+/// `MAX_SCALE` for which the rounded result still fits in 96 bits. Stops early when the value is
+/// exactly representable. The only rounding is a single round-half-up at the end, so the result
+/// is the nearest representable value. A value that rounds to zero gets a scale of zero.
+fn scale_fraction(mantissa: u64, shift: u32) -> ([u32; 3], u32) {
+    // mantissa < 2^53 and 10^28 < 2^94, so the scaled numerator needs at most 147 bits.
+    let mut numerator = [mantissa as u32, (mantissa >> 32) as u32, 0, 0, 0];
+    let word = (shift / 32) as usize;
+    let bit = shift % 32;
+    let limb = |n: &[u32; 5], i: usize| n.get(i).copied().unwrap_or(0);
+    let mut best = ([0u32; 3], 0u32);
+
+    for scale in 0..=Decimal::MAX_SCALE {
+        let mut quotient = [0u32; 5];
+        for (i, q) in quotient.iter_mut().enumerate() {
+            let high = if bit == 0 {
+                0
+            } else {
+                limb(&numerator, i + word + 1) << (32 - bit)
+            };
+            *q = (limb(&numerator, i + word) >> bit) | high;
+        }
+        let exact = numerator.iter().enumerate().all(|(i, &w)| match i.cmp(&word) {
+            core::cmp::Ordering::Less => w == 0,
+            core::cmp::Ordering::Equal => w & ((1u32 << bit) - 1) == 0,
+            core::cmp::Ordering::Greater => true,
+        });
+        // The bit just below the quotient decides the rounding.
+        let half_bit = shift - 1;
+        if (limb(&numerator, (half_bit / 32) as usize) >> (half_bit % 32)) & 1 == 1 {
+            ops::array::manage_add_by_internal(1, &mut quotient);
+        }
+        if quotient[3] != 0 || quotient[4] != 0 {
+            break;
+        }
+        best = ([quotient[0], quotient[1], quotient[2]], scale);
+        if exact {
+            break;
+        }
+        ops::array::mul_by_u32(&mut numerator, 10);
+    }
+
+    if ops::array::is_all_zero(&best.0) {
+        best.1 = 0;
+    }
+    best
 }
 
 impl Decimal {

@@ -504,7 +504,7 @@ fn it_converts_from_f64_retaining_bits() {
         (0.1_f64, "0.1000000000000000055511151231"),
         (2_f64, "2"),
         (4.000_f64, "4"),
-        (5.1_f64, "5.0999999999999996447286321175"),
+        (5.1_f64, "5.0999999999999996447286321199"),
     ];
 
     for &(input, expected) in &tests {
@@ -512,6 +512,61 @@ fn it_converts_from_f64_retaining_bits() {
             expected,
             Decimal::from_f64_retain(input).unwrap().to_string(),
             "from_f64_retain({input})"
+        );
+    }
+}
+
+#[test]
+fn it_converts_from_f64_retaining_bits_rounded_to_nearest() {
+    // Expected values are the exact binary expansion of each f64, rounded once (half up) to the
+    // largest scale that fits in 96 bits. Issue #845.
+    let tests = [
+        (7.9_f64, "7.9000000000000003552713678801"),
+        (-7.9_f64, "-7.9000000000000003552713678801"),
+        (6.3_f64, "6.2999999999999998223643160600"),
+        (1.0_f64 / 3.0, "0.3333333333333333148296162562"),
+        (0.3_f64, "0.2999999999999999888977697537"),
+        (1.0_f64 + f64::EPSILON, "1.0000000000000002220446049250"),
+        (123456.789_f64, "123456.78900000000430736690760"),
+        (1e-10_f64, "0.0000000001000000000000000036"),
+        (0.5_f64, "0.5"),
+        (0.75_f64, "0.75"),
+        // Exactly representable with 29 decimal places: a tie, which rounds up.
+        (1.862645149230957e-9_f64, "0.0000000018626451492309570313"),
+        // Near the 96 bit limit, where the scale drops below 28.
+        (1e28_f64, "9999999999999999583119736832"),
+        // Values that underflow the maximum scale.
+        (1.5e-28_f64, "0.0000000000000000000000000002"),
+        (f64::MIN_POSITIVE, "0"),
+        (5e-324_f64, "0"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f64_retain(input).unwrap().to_string(),
+            "from_f64_retain({input:e})"
+        );
+    }
+
+    assert!(Decimal::from_f64_retain(-0.0).unwrap().is_sign_negative());
+}
+
+#[test]
+fn it_converts_from_f32_retaining_bits_rounded_to_nearest() {
+    let tests = [
+        (7.9_f32, "7.900000095367431640625"),
+        (0.3_f32, "0.300000011920928955078125"),
+        (1e-10_f32, "0.0000000001000000013351431960"),
+        // Underflows the maximum scale, so the exact expansion is rounded once.
+        (1.4634649e-28_f32, "0.0000000000000000000000000001"),
+    ];
+
+    for &(input, expected) in &tests {
+        assert_eq!(
+            expected,
+            Decimal::from_f32_retain(input).unwrap().to_string(),
+            "from_f32_retain({input:e})"
         );
     }
 }
