@@ -17,9 +17,17 @@ efforts from contributors on the same issue.
 
 ## Adding new dependencies
 
+`rust_decimal` itself does not depend on third party integration crates. Support for another
+crate (e.g. a database driver or serialization format) goes in its own crate under
+`integrations/<name>` (published as `rust_decimal_<name>`), versioned in lockstep with
+`rust_decimal`. Because of Rust's orphan rule these crates expose a wrapper type (e.g.
+`rust_decimal_diesel::DieselDecimal`), a local type implementing the third party trait (e.g.
+`rust_decimal_rand::rand_0_9::UniformDecimal`), or a free function (e.g.
+`rust_decimal_proptest::arb_decimal`).
+
 ### Pre-1.0 releases
 
-When adding a new 0.X release, in order to avoid ambiguity as the dependency adds new versions, ensure the version is included in the feature name. e.g. 
+When adding a new 0.X release, in order to avoid ambiguity as the dependency adds new versions, ensure the version is included in the feature name. e.g. in `integrations/rand/Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -44,8 +52,9 @@ rand-0_9 = ["dep:rand-0_9"]
   tests for the main `Decimal` type go in the appropriate topical file under
   `tests/decimal_tests/` (`parsing.rs`, `formatting.rs`, `arithmetic.rs`, `comparison.rs`,
   `rounding.rs`, `scale.rs`, `conversions.rs`, `maths.rs`, `misc.rs`, or `issues.rs`).
-  Tests for feature-gated integrations go in the matching standalone binary
-  (`tests/<feature>_tests.rs`).
+  Tests for feature-gated functionality go in the matching standalone binary
+  (`tests/<feature>_tests.rs`); tests for integrations go in the integration crate under
+  `integrations/<name>`.
 
 - If necessary, add documentation for the new feature to the readme and/or to the public 
   functions. 

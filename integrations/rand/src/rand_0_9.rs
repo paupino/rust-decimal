@@ -1,13 +1,27 @@
-use crate::{Decimal, RoundingStrategy};
-use rand_0_10::{
-    Rng, RngExt,
+use core::ops::{Range, RangeInclusive};
+use rand_0_9::{
+    Rng,
     distr::{
-        Distribution, StandardUniform,
-        uniform::{SampleBorrow, SampleUniform, UniformInt, UniformSampler},
+        Distribution,
+        uniform::{Error, UniformInt, UniformSampler},
     },
 };
+use rust_decimal::{Decimal, RoundingStrategy};
 
-impl Distribution<Decimal> for StandardUniform {
+/// Samples any [`Decimal`] across the full mantissa and scale range.
+///
+/// ```
+/// # use rand_0_9 as rand;
+/// # use rand::Rng;
+/// use rust_decimal_rand::rand_0_9::StandardDecimal;
+///
+/// let value = rand::rng().sample(StandardDecimal);
+/// assert!(value.scale() <= 28);
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StandardDecimal;
+
+impl Distribution<Decimal> for StandardDecimal {
     fn sample<R>(&self, rng: &mut R) -> Decimal
     where
         R: Rng + ?Sized,
@@ -22,43 +36,33 @@ impl Distribution<Decimal> for StandardUniform {
     }
 }
 
-impl SampleUniform for Decimal {
-    type Sampler = DecimalSampler;
-}
-
+/// Samples a [`Decimal`] uniformly from a range.
+///
+/// Samples always have the same scale as the inputs; if the inputs have different scales, the
+/// higher scale is used.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct DecimalSampler {
+pub struct UniformDecimal {
     mantissa_sampler: UniformInt<i128>,
     scale: u32,
 }
 
-impl UniformSampler for DecimalSampler {
-    type X = Decimal;
-
-    /// Creates a new sampler that will yield random decimal objects between `low` and `high`.
-    ///
-    /// The sampler will always provide decimals at the same scale as the inputs; if the inputs
-    /// have different scales, the higher scale is used.
+impl UniformDecimal {
+    /// Creates a sampler for the range `low..high`.
     ///
     /// # Example
     ///
     /// ```
-    /// # use rand_0_10 as rand;
-    /// # use rand::RngExt;
+    /// # use rand_0_9 as rand;
+    /// # use rand::Rng;
     /// # use rust_decimal_macros::dec;
+    /// use rust_decimal_rand::rand_0_9::UniformDecimal;
     /// let mut rng = rand::rng();
-    /// let random = rng.random_range(dec!(1.00)..dec!(2.00));
+    /// let random = rng.sample(UniformDecimal::new(dec!(1.00), dec!(2.00)).unwrap());
     /// assert!(random >= dec!(1.00));
     /// assert!(random < dec!(2.00));
     /// assert_eq!(random.scale(), 2);
     /// ```
-    #[inline]
-    fn new<B1, B2>(low: B1, high: B2) -> Result<Self, rand_0_10::distr::uniform::Error>
-    where
-        B1: SampleBorrow<Self::X> + Sized,
-        B2: SampleBorrow<Self::X> + Sized,
-    {
-        let (low, high) = (*low.borrow(), *high.borrow());
+    pub fn new(low: Decimal, high: Decimal) -> Result<Self, Error> {
         let (low, synced_high) = sync_scales(low, high);
         // `sync_scales` may have rounded `high` down to a coarser scale. If it did, the result is
         // already strictly below the exclusive bound; otherwise step down to the previous value
@@ -68,49 +72,98 @@ impl UniformSampler for DecimalSampler {
             synced_high
         } else {
             Decimal::try_from_i128_with_scale(synced_high.mantissa() - 1, synced_high.scale())
-                .map_err(|_| rand_0_10::distr::uniform::Error::EmptyRange)?
+                .map_err(|_| Error::EmptyRange)?
         };
-        UniformSampler::new_inclusive(low, high)
+        Self::new_inclusive(low, high)
     }
 
-    /// Creates a new sampler that will yield random decimal objects between `low` and `high`.
-    ///
-    /// The sampler will always provide decimals at the same scale as the inputs; if the inputs
-    /// have different scales, the higher scale is used.
+    /// Creates a sampler for the range `low..=high`.
     ///
     /// # Example
     ///
     /// ```
-    /// # use rand_0_10 as rand;
-    /// # use rand::RngExt;
+    /// # use rand_0_9 as rand;
+    /// # use rand::Rng;
     /// # use rust_decimal_macros::dec;
+    /// use rust_decimal_rand::rand_0_9::UniformDecimal;
     /// let mut rng = rand::rng();
-    /// let random = rng.random_range(dec!(1.00)..=dec!(2.00));
+    /// let random = rng.sample(UniformDecimal::new_inclusive(dec!(1.00), dec!(2.00)).unwrap());
     /// assert!(random >= dec!(1.00));
     /// assert!(random <= dec!(2.00));
     /// assert_eq!(random.scale(), 2);
     /// ```
-    #[inline]
-    fn new_inclusive<B1, B2>(low: B1, high: B2) -> Result<Self, rand_0_10::distr::uniform::Error>
-    where
-        B1: SampleBorrow<Self::X> + Sized,
-        B2: SampleBorrow<Self::X> + Sized,
-    {
-        let (low, high) = sync_scales(*low.borrow(), *high.borrow());
+    pub fn new_inclusive(low: Decimal, high: Decimal) -> Result<Self, Error> {
+        let (low, high) = sync_scales(low, high);
 
+        // Return our sampler, which contains an underlying i128 sampler so we
+        // outsource the actual randomness implementation.
         Ok(Self {
             mantissa_sampler: UniformInt::new_inclusive(low.mantissa(), high.mantissa())?,
             scale: low.scale(),
         })
     }
+}
 
+impl Distribution<Decimal> for UniformDecimal {
     #[inline]
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Self::X {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Decimal {
         let mantissa = self.mantissa_sampler.sample(rng);
         Decimal::from_i128_with_scale(mantissa, self.scale)
     }
 }
 
+/// Adds [`Decimal`] sampling methods to every [`Rng`].
+///
+/// ```
+/// # use rand_0_9 as rand;
+/// # use rust_decimal_macros::dec;
+/// use rust_decimal_rand::rand_0_9::DecimalRng;
+///
+/// let mut rng = rand::rng();
+/// let any = rng.random_decimal();
+/// let price = rng.random_decimal_range(dec!(1.00)..dec!(2.00));
+/// assert!(price >= dec!(1.00) && price < dec!(2.00));
+/// assert_eq!(price.scale(), 2);
+/// ```
+pub trait DecimalRng: Rng {
+    /// Returns any [`Decimal`] across the full mantissa and scale range. See [`StandardDecimal`].
+    fn random_decimal(&mut self) -> Decimal {
+        StandardDecimal.sample(self)
+    }
+
+    /// Returns a [`Decimal`] sampled uniformly from `low..high` or `low..=high`, at the inputs'
+    /// scale. See [`UniformDecimal`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the range is empty, as `rand::Rng::random_range` does.
+    fn random_decimal_range<T: DecimalRange>(&mut self, range: T) -> Decimal {
+        range.uniform().expect("empty decimal range").sample(self)
+    }
+}
+
+impl<R: Rng + ?Sized> DecimalRng for R {}
+
+/// A range of [`Decimal`]s accepted by [`DecimalRng::random_decimal_range`].
+pub trait DecimalRange {
+    /// Builds the sampler for this range.
+    fn uniform(self) -> Result<UniformDecimal, Error>;
+}
+
+impl DecimalRange for Range<Decimal> {
+    fn uniform(self) -> Result<UniformDecimal, Error> {
+        UniformDecimal::new(self.start, self.end)
+    }
+}
+
+impl DecimalRange for RangeInclusive<Decimal> {
+    fn uniform(self) -> Result<UniformDecimal, Error> {
+        let (low, high) = self.into_inner();
+        UniformDecimal::new_inclusive(low, high)
+    }
+}
+
+/// Return equivalent Decimal objects with the same scale as one another.
 #[inline]
 fn sync_scales(mut low: Decimal, mut high: Decimal) -> (Decimal, Decimal) {
     if low.scale() == high.scale() {
@@ -140,7 +193,7 @@ fn sync_scales(mut low: Decimal, mut high: Decimal) -> (Decimal, Decimal) {
 
 #[cfg(test)]
 mod rand_tests {
-    use rand_0_10::rng;
+    use rand_0_9::rng;
 
     use super::*;
 
@@ -153,7 +206,7 @@ mod rand_tests {
     #[test]
     fn has_random_decimal_instances() {
         let mut rng = rng();
-        let random: [Decimal; 32] = rng.random();
+        let random: [Decimal; 32] = core::array::from_fn(|_| rng.random_decimal());
         assert!(random.windows(2).any(|slice| { slice[0] != slice[1] }));
     }
 
@@ -161,7 +214,7 @@ mod rand_tests {
     fn generates_within_range() {
         let mut rng = rng();
         for _ in 0..128 {
-            let random = rng.random_range(dec!(1.00)..dec!(1.05));
+            let random = rng.random_decimal_range(dec!(1.00)..dec!(1.05));
             assert!(random < dec!(1.05));
             assert!(random >= dec!(1.00));
         }
@@ -173,7 +226,8 @@ mod rand_tests {
         let mut saw_low = false;
         let mut saw_high = false;
         for _ in 0..256 {
-            let random = rng.random_range(dec!(1.00)..=dec!(1.01));
+            let random = rng.random_decimal_range(dec!(1.00)..=dec!(1.01));
+            // The scale is 2, so 1.00 and 1.01 are the only two valid choices.
             assert!(random == dec!(1.00) || random == dec!(1.01));
             if random == dec!(1.00) {
                 saw_low = true;
@@ -181,6 +235,8 @@ mod rand_tests {
                 saw_high = true;
             }
         }
+        // Somewhat flaky, will fail 1 out of every 2^255 times this is run.
+        // Probably acceptable in the real world.
         assert!(saw_low && saw_high);
     }
 
@@ -197,9 +253,9 @@ mod rand_tests {
         let low = Decimal::from_str("7922816251426433759354395033.4").unwrap();
         let high = Decimal::from_str("7922816251426433759354395034").unwrap();
         // Only 7922816251426433759354395034 lies in [low, high], and nothing lies in [low, high).
-        let inclusive = rng.random_range(low..=high);
+        let inclusive = rng.random_decimal_range(low..=high);
         assert!(inclusive >= low && inclusive <= high);
-        assert!(rand_0_10::distr::uniform::Uniform::new(low, high).is_err());
+        assert!(UniformDecimal::new(low, high).is_err());
     }
 
     #[test]
@@ -208,12 +264,12 @@ mod rand_tests {
         let low = Decimal::from_str("-7922816251426433759354395034").unwrap();
         let high = Decimal::from_str("-7922816251426433759354395033.5").unwrap();
         // -7922816251426433759354395034 is the only value in [low, high).
-        let uniform = rand_0_10::distr::uniform::Uniform::new(low, high).unwrap();
+        let uniform = UniformDecimal::new(low, high).unwrap();
         assert_eq!(low, uniform.sample(&mut rng()));
     }
 
     #[test]
     fn empty_range_at_min_is_an_error_not_a_panic() {
-        assert!(rand_0_10::distr::uniform::Uniform::new(Decimal::MIN, Decimal::MIN).is_err());
+        assert!(UniformDecimal::new(Decimal::MIN, Decimal::MIN).is_err());
     }
 }

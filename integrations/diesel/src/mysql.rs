@@ -1,24 +1,23 @@
-use crate::Decimal;
+use crate::DieselDecimal;
 use diesel::{
     deserialize::{self, FromSql},
     mysql::{Mysql, MysqlType, sql_types::Unsigned},
     serialize::{self, IsNull, Output, ToSql},
     sql_types::{BigInt, Double, Float, Integer, Numeric, SmallInt, TinyInt},
 };
+use rust_decimal::Decimal;
 use std::io::Write;
 use std::str::FromStr;
 
-#[cfg(feature = "diesel")]
-impl ToSql<Numeric, Mysql> for Decimal {
+impl ToSql<Numeric, Mysql> for DieselDecimal {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Mysql>) -> serialize::Result {
-        write!(out, "{}", *self).map(|_| IsNull::No).map_err(|e| e.into())
+        write!(out, "{}", self.0).map(|_| IsNull::No).map_err(|e| e.into())
     }
 }
 
-#[cfg(feature = "diesel")]
-impl FromSql<Numeric, Mysql> for Decimal {
+impl FromSql<Numeric, Mysql> for DieselDecimal {
     fn from_sql(numeric: diesel::mysql::MysqlValue) -> deserialize::Result<Self> {
-        match numeric.value_type() {
+        let value: deserialize::Result<Decimal> = match numeric.value_type() {
             MysqlType::Numeric => {
                 let s = std::str::from_utf8(numeric.as_bytes())?;
                 Decimal::from_str(s).map_err(|e| e.into())
@@ -44,7 +43,8 @@ impl FromSql<Numeric, Mysql> for Decimal {
                 Decimal::try_from(value).map_err(Into::into)
             }
             value_type => Err(format!("Unexpected MySQL type for numeric value: {value_type:?}").into()),
-        }
+        };
+        value.map(Self)
     }
 }
 
@@ -93,7 +93,6 @@ mod tests {
         "mysql://root@127.0.0.1/mysql".to_string()
     }
 
-    #[cfg(feature = "diesel")]
     mod diesel_tests {
         use super::*;
         use diesel::deserialize::QueryableByName;
@@ -104,14 +103,15 @@ mod tests {
 
         impl QueryableByName<Mysql> for Test {
             fn build<'a>(row: &impl NamedRow<'a, Mysql>) -> deserialize::Result<Self> {
-                let value = NamedRow::get(row, "value")?;
+                let value = NamedRow::get::<Numeric, DieselDecimal>(row, "value")?.0;
                 Ok(Test { value })
             }
         }
 
         impl QueryableByName<Mysql> for NullableTest {
             fn build<'a>(row: &impl NamedRow<'a, Mysql>) -> deserialize::Result<Self> {
-                let value = NamedRow::get(row, "value")?;
+                let value = NamedRow::get::<diesel::sql_types::Nullable<Numeric>, Option<DieselDecimal>>(row, "value")?
+                    .map(Decimal::from);
                 Ok(NullableTest { value })
             }
         }

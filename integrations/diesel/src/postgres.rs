@@ -1,5 +1,4 @@
-use crate::Decimal;
-use crate::postgres::common::*;
+use crate::DieselDecimal;
 use diesel::{
     deserialize::{self, FromSql},
     pg::Pg,
@@ -7,9 +6,11 @@ use diesel::{
     serialize::{self, Output, ToSql},
     sql_types::Numeric,
 };
+use rust_decimal::Error;
+use rust_decimal_pg_numeric::{PostgresDecimal, from_postgres, to_postgres};
 use std::error;
 
-impl<'a> TryFrom<&'a PgNumeric> for Decimal {
+impl<'a> TryFrom<&'a PgNumeric> for DieselDecimal {
     type Error = Box<dyn error::Error + Send + Sync>;
 
     fn try_from(numeric: &'a PgNumeric) -> deserialize::Result<Self> {
@@ -37,19 +38,19 @@ impl<'a> TryFrom<&'a PgNumeric> for Decimal {
                 }
             })
             .collect::<deserialize::Result<_>>()?;
-        let Some(result) = Self::checked_from_postgres(PostgresDecimal {
+        let Some(result) = from_postgres(PostgresDecimal {
             neg,
             weight,
             scale,
             digits: digits.into_iter(),
         }) else {
-            return Err(Box::new(crate::error::Error::ExceedsMaximumPossibleValue));
+            return Err(Box::new(Error::ExceedsMaximumPossibleValue));
         };
-        Ok(result)
+        Ok(Self(result))
     }
 }
 
-impl TryFrom<PgNumeric> for Decimal {
+impl TryFrom<PgNumeric> for DieselDecimal {
     type Error = Box<dyn error::Error + Send + Sync>;
 
     fn try_from(numeric: PgNumeric) -> deserialize::Result<Self> {
@@ -57,14 +58,14 @@ impl TryFrom<PgNumeric> for Decimal {
     }
 }
 
-impl<'a> From<&'a Decimal> for PgNumeric {
-    fn from(decimal: &'a Decimal) -> Self {
+impl<'a> From<&'a DieselDecimal> for PgNumeric {
+    fn from(decimal: &'a DieselDecimal) -> Self {
         let PostgresDecimal {
             neg,
             weight,
             scale,
             digits,
-        } = decimal.to_postgres();
+        } = to_postgres(decimal.0);
 
         if neg {
             PgNumeric::Negative { digits, scale, weight }
@@ -74,22 +75,20 @@ impl<'a> From<&'a Decimal> for PgNumeric {
     }
 }
 
-impl From<Decimal> for PgNumeric {
-    fn from(decimal: Decimal) -> Self {
+impl From<DieselDecimal> for PgNumeric {
+    fn from(decimal: DieselDecimal) -> Self {
         (&decimal).into()
     }
 }
 
-#[cfg(feature = "diesel")]
-impl ToSql<Numeric, Pg> for Decimal {
+impl ToSql<Numeric, Pg> for DieselDecimal {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         let numeric = PgNumeric::from(self);
         ToSql::<Numeric, Pg>::to_sql(&numeric, &mut out.reborrow())
     }
 }
 
-#[cfg(feature = "diesel")]
-impl FromSql<Numeric, Pg> for Decimal {
+impl FromSql<Numeric, Pg> for DieselDecimal {
     fn from_sql(numeric: diesel::pg::PgValue) -> deserialize::Result<Self> {
         PgNumeric::from_sql(numeric)?.try_into()
     }
@@ -99,6 +98,7 @@ impl FromSql<Numeric, Pg> for Decimal {
 mod tests {
     use super::*;
     use core::str::FromStr;
+    use rust_decimal::Decimal;
 
     #[test]
     fn decimal_to_pg_numeric_zero_retains_scale() {
@@ -107,7 +107,7 @@ mod tests {
                 let mut input = Decimal::from_parts(0, 0, 0, false, scale);
                 input.set_sign_negative(negative);
                 assert_eq!(input.is_sign_negative(), negative);
-                let numeric = PgNumeric::from(input);
+                let numeric = PgNumeric::from(DieselDecimal(input));
                 assert_eq!(
                     numeric,
                     PgNumeric::Positive {
@@ -116,7 +116,7 @@ mod tests {
                         digits: vec![],
                     }
                 );
-                let output = Decimal::try_from(numeric).unwrap();
+                let output = DieselDecimal::try_from(numeric).unwrap().0;
                 assert!(output.is_zero());
                 assert!(output.is_sign_positive());
                 assert_eq!(output.scale(), scale);
@@ -132,7 +132,7 @@ mod tests {
             scale: 0,
             digits: vec![-1i16],
         };
-        let result = Decimal::try_from(pg);
+        let result = DieselDecimal::try_from(pg);
         assert!(result.is_err(), "expected Err for negative digit, got {result:?}");
     }
 
@@ -156,8 +156,8 @@ mod tests {
 
         for &value in tests {
             let value = extract(value);
-            let pg = PgNumeric::from(value);
-            let dec = Decimal::try_from(pg).unwrap();
+            let pg = PgNumeric::from(DieselDecimal(value));
+            let dec = DieselDecimal::try_from(pg).unwrap().0;
             assert_eq!(dec, value);
         }
     }
@@ -170,7 +170,7 @@ mod tests {
             scale: 0,
             digits: vec![1],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("10").unwrap();
         let expected = PgNumeric::Positive {
@@ -178,7 +178,7 @@ mod tests {
             scale: 0,
             digits: vec![10],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("10000").unwrap();
         let expected = PgNumeric::Positive {
@@ -186,7 +186,7 @@ mod tests {
             scale: 0,
             digits: vec![1, 0],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("10001").unwrap();
         let expected = PgNumeric::Positive {
@@ -194,7 +194,7 @@ mod tests {
             scale: 0,
             digits: vec![1, 1],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("100000000").unwrap();
         let expected = PgNumeric::Positive {
@@ -202,7 +202,7 @@ mod tests {
             scale: 0,
             digits: vec![1, 0, 0],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
     }
 
     #[test]
@@ -213,7 +213,7 @@ mod tests {
             scale: 0,
             digits: vec![1],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("1.0").unwrap();
         let expected = PgNumeric::Positive {
@@ -221,7 +221,7 @@ mod tests {
             scale: 1,
             digits: vec![1],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("1.1").unwrap();
         let expected = PgNumeric::Positive {
@@ -229,7 +229,7 @@ mod tests {
             scale: 1,
             digits: vec![1, 1000],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("1.10").unwrap();
         let expected = PgNumeric::Positive {
@@ -237,7 +237,7 @@ mod tests {
             scale: 2,
             digits: vec![1, 1000],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("100000000.0001").unwrap();
         let expected = PgNumeric::Positive {
@@ -245,7 +245,7 @@ mod tests {
             scale: 4,
             digits: vec![1, 0, 0, 1],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("0.1").unwrap();
         let expected = PgNumeric::Positive {
@@ -253,7 +253,7 @@ mod tests {
             scale: 1,
             digits: vec![1000],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
     }
 
     #[test]
@@ -264,7 +264,7 @@ mod tests {
             scale: 3,
             digits: vec![123, 4560],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
 
         let decimal = Decimal::from_str("-123.456").unwrap();
         let expected = PgNumeric::Negative {
@@ -272,7 +272,7 @@ mod tests {
             scale: 3,
             digits: vec![123, 4560],
         };
-        assert_eq!(expected, decimal.into());
+        assert_eq!(expected, DieselDecimal(decimal).into());
     }
 
     #[test]
@@ -283,7 +283,7 @@ mod tests {
             scale: 0,
             digits: vec![50],
         };
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res, expected);
         let expected = Decimal::from_str("123.456").unwrap();
         let pg_numeric = PgNumeric::Positive {
@@ -291,7 +291,7 @@ mod tests {
             scale: 3,
             digits: vec![123, 4560],
         };
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res, expected);
 
         let expected = Decimal::from_str("-56.78").unwrap();
@@ -300,7 +300,7 @@ mod tests {
             scale: 2,
             digits: vec![56, 7800],
         };
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res, expected);
 
         // Verify no trailing zeroes are lost.
@@ -311,7 +311,7 @@ mod tests {
             scale: 3,
             digits: vec![1, 1000],
         };
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res.to_string(), expected.to_string());
 
         // To represent 5.00, Postgres can return either [5, 0] as the list of digits.
@@ -322,7 +322,7 @@ mod tests {
 
             digits: vec![5, 0],
         };
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res.to_string(), expected.to_string());
 
         // To represent 5.00, Postgres can return [5] as the list of digits.
@@ -332,7 +332,7 @@ mod tests {
             scale: 2,
             digits: vec![5],
         };
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res.to_string(), expected.to_string());
 
         let expected = Decimal::from_str("3.1415926535897932384626433833").unwrap();
@@ -341,7 +341,7 @@ mod tests {
             scale: 30,
             digits: vec![3, 1415, 9265, 3589, 7932, 3846, 2643, 3832, 7950, 2800],
         };
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res.to_string(), expected.to_string());
 
         let expected = Decimal::from_str("3.1415926535897932384626433833").unwrap();
@@ -351,17 +351,17 @@ mod tests {
             digits: vec![3, 1415, 9265, 3589, 7932, 3846, 2643, 3832, 7950, 2800],
         };
 
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res.to_string(), expected.to_string());
 
         let expected = Decimal::from_str("1.2345678901234567890123456790").unwrap();
         let pg_numeric = PgNumeric::Positive {
             weight: 0,
             scale: 34,
-            digits: vec![1, 2345, 6789, 0123, 4567, 8901, 2345, 6789, 5000, 0],
+            digits: vec![1, 2345, 6789, 123, 4567, 8901, 2345, 6789, 5000, 0],
         };
 
-        let res: Decimal = pg_numeric.try_into().unwrap();
+        let res = DieselDecimal::try_from(pg_numeric).unwrap().0;
         assert_eq!(res.to_string(), expected.to_string());
     }
 
@@ -372,7 +372,7 @@ mod tests {
             scale: 16,
             digits: vec![9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 1],
         };
-        let actual = Decimal::try_from(numeric).unwrap();
+        let actual = DieselDecimal::try_from(numeric).unwrap().0;
         assert_eq!(actual.mantissa(), 9999999999999999999900000001);
         assert_eq!(actual.scale(), 8);
     }
@@ -384,7 +384,7 @@ mod tests {
             scale: 16,
             digits: vec![9999, 9999, 9999, 9999, 9999, 0, 0, 5000, 1],
         };
-        let actual = Decimal::try_from(numeric).unwrap();
+        let actual = DieselDecimal::try_from(numeric).unwrap().0;
         assert_eq!(actual.mantissa(), -9999999999999999999900000001);
         assert_eq!(actual.scale(), 8);
     }
@@ -447,7 +447,7 @@ mod tests {
             } else {
                 PgNumeric::Positive { weight, scale, digits }
             };
-            let actual = Decimal::try_from(numeric).unwrap();
+            let actual = DieselDecimal::try_from(numeric).unwrap().0;
             assert_eq!(actual.to_string(), expected);
         }
     }

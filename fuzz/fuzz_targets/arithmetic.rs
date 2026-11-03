@@ -4,7 +4,9 @@ use rust_decimal::{Decimal, MathematicalOps};
 
 #[derive(Debug, arbitrary::Arbitrary)]
 struct Data {
+    #[arbitrary(with = rust_decimal_arbitrary::arbitrary_decimal)]
     a: Decimal,
+    #[arbitrary(with = rust_decimal_arbitrary::arbitrary_decimal)]
     b: Decimal,
     exp_f64: f64,
     exp_i64: i64,
