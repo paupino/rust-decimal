@@ -2447,41 +2447,44 @@ impl Decimal {
             // without SSE2 would round the division twice, so those targets take the exact path.
             (mantissa as i64 as f64) / POWERS_10_F64[scale as usize]
         } else {
-            scaled_mantissa_to_f64(mantissa, scale)
+            scaled_mantissa_to_f64(mantissa, scale, f64::MANTISSA_DIGITS)
         };
         if self.is_sign_negative() { -magnitude } else { magnitude }
     }
 }
 
-/// The `f64` nearest to `mantissa / 10^scale`, ties to even, for `mantissa != 0` and
-/// `scale` in `1..=28`.
+/// `mantissa / 10^scale` rounded to `precision` significant bits, to nearest, ties to even, for
+/// `mantissa != 0`, `scale` in `1..=28` and `precision` in `1..=53`.
 ///
 /// `10^scale` is `5^scale * 2^scale`, so the division by `5^scale` is done exactly in integers
 /// and the power of two becomes an exponent adjustment. The mantissa is first shifted to the top
 /// of a `u128`; with `5^28 < 2^66` the quotient then has at least 62 bits, enough to round to a
 /// 53-bit significand with the remainder acting as the sticky bit.
+///
+/// The result lies between `1e-28` and `2^96`, well inside the normal range of both `f64` and
+/// `f32`, so it is exact in an `f64` and, for a `precision` of at most 24, also in an `f32`.
 #[inline]
-fn scaled_mantissa_to_f64(mantissa: u128, scale: u32) -> f64 {
+fn scaled_mantissa_to_f64(mantissa: u128, scale: u32, precision: u32) -> f64 {
     let shift = mantissa.leading_zeros();
     let numerator = mantissa << shift;
     let divisor = POWERS_5_U128[scale as usize];
     let quotient = numerator / divisor;
     let remainder = numerator % divisor;
 
-    // Round the quotient to 53 significant bits, to nearest, ties to even. The exact value is
-    // `quotient + remainder / divisor`, so the discarded part is the dropped low bits of the
-    // quotient plus a fraction that is nonzero exactly when the remainder is.
+    // Round the quotient to `precision` significant bits, to nearest, ties to even. The exact
+    // value is `quotient + remainder / divisor`, so the discarded part is the dropped low bits of
+    // the quotient plus a fraction that is nonzero exactly when the remainder is.
     let bits = 128 - quotient.leading_zeros();
-    let excess = bits - 53;
+    let excess = bits - precision;
     let mut significand = quotient >> excess;
     let dropped = quotient & ((1u128 << excess) - 1);
     let half = 1u128 << (excess - 1);
     if dropped > half || (dropped == half && (remainder != 0 || significand & 1 == 1)) {
-        // May carry to 2^53, which is still exactly representable.
+        // May carry to 2^precision, which is still exactly representable.
         significand += 1;
     }
 
-    // value = significand * 2^exponent. The exponent lies within -146..=40, so the power of two
+    // value = significand * 2^exponent. The exponent lies within -146..=69, so the power of two
     // is a normal f64 and the product is exact.
     let exponent = excess as i32 - shift as i32 - scale as i32;
     let power_of_two = f64::from_bits(((exponent + 1023) as u64) << 52);
@@ -2543,6 +2546,32 @@ impl ToPrimitive for Decimal {
 
     fn to_f64(&self) -> Option<f64> {
         Some(self.as_f64())
+    }
+
+    /// Returns the `f32` nearest to the decimal value, with ties resolved to the even significand.
+    ///
+    /// Rounding to `f64` first and then to `f32` could round twice, so the value is rounded to an
+    /// `f32` significand directly.
+    fn to_f32(&self) -> Option<f32> {
+        let mantissa = (u128::from(self.hi) << 64) | (u128::from(self.mid) << 32) | u128::from(self.lo);
+        let scale = self.scale();
+        let magnitude = if mantissa == 0 {
+            0.0
+        } else if scale == 0 {
+            if self.hi == 0 {
+                (mantissa as u64) as f32
+            } else {
+                mantissa as f32
+            }
+        } else if self.hi == 0 && self.mid == 0 && self.lo < (1 << 24) && scale <= 10 {
+            // Both operands are exact in f32, so a single division yields the nearest f32. On x87
+            // the division is done at a wider precision first, but one of at least 50 bits is
+            // enough for that second rounding to be harmless.
+            (self.lo as f32) / (POWERS_10_F64[scale as usize] as f32)
+        } else {
+            scaled_mantissa_to_f64(mantissa, scale, f32::MANTISSA_DIGITS) as f32
+        };
+        Some(if self.is_sign_negative() { -magnitude } else { magnitude })
     }
 }
 
