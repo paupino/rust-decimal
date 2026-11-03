@@ -142,8 +142,6 @@ fn test_powd() {
             "0.9999999999999999999999999998",
         ),
         ("1234.5678", "0.9012", "611.04510432242565327379383059"),
-        ("-2", "0.5", "-1.4142135623730950488016887244"),
-        ("-2.5", "0.123", "-1.1193003023312942509616251298"),
         (
             "0.0000000000000000000000000001",
             "0.1234567890123456789012345678",
@@ -156,6 +154,28 @@ fn test_powd() {
         let y = Decimal::from_str(y).unwrap();
         let pow = x.powd(y);
         assert_eq!(pow.to_string(), expected, "{} ^ {}", x, y);
+    }
+}
+
+#[test]
+fn test_checked_powd_domains_and_integer_exponents() {
+    let cases = [
+        ("-4", "0.5", None),
+        ("-32", "0.4", None),
+        ("0", "-1", None),
+        ("0", "-0.5", None),
+        ("-1", "4294967296", Some("1")),
+        ("-1", "4294967297", Some("-1")),
+        ("-1", "-4294967296", Some("1")),
+        ("-1", "-4294967297", Some("-1")),
+        ("-1", "18446744073709551615", Some("-1")),
+        ("-1", "-9223372036854775808", Some("1")),
+    ];
+    for (base, exponent, expected) in cases {
+        let base = Decimal::from_str(base).unwrap();
+        let exponent = Decimal::from_str(exponent).unwrap();
+        let expected = expected.map(|value| Decimal::from_str(value).unwrap());
+        assert_eq!(base.checked_powd(exponent), expected, "{base} ^ {exponent}");
     }
 }
 
