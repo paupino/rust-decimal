@@ -33,7 +33,7 @@ pub mod arbitrary_precision {
     where
         D: serde::de::Deserializer<'de>,
     {
-        deserializer.deserialize_any(DecimalVisitor)
+        deserializer.deserialize_any(ArbitraryPrecisionVisitor)
     }
 
     pub fn serialize<S>(value: &Decimal, serializer: S) -> Result<S::Ok, S::Error>
@@ -79,7 +79,7 @@ pub mod arbitrary_precision_option {
     where
         D: serde::de::Deserializer<'de>,
     {
-        deserializer.deserialize_option(OptionDecimalVisitor)
+        deserializer.deserialize_option(OptionArbitraryPrecisionVisitor)
     }
 
     pub fn serialize<S>(value: &Option<Decimal>, serializer: S) -> Result<S::Ok, S::Error>
@@ -276,13 +276,30 @@ pub mod str_option {
     }
 }
 
-#[cfg(not(feature = "serde-str"))]
+#[cfg(all(
+    not(feature = "serde-str"),
+    not(all(feature = "serde-float", feature = "serde-with-arbitrary-precision"))
+))]
 impl<'de> serde::Deserialize<'de> for Decimal {
     fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
         deserializer.deserialize_any(DecimalVisitor)
+    }
+}
+
+#[cfg(all(
+    not(feature = "serde-str"),
+    feature = "serde-float",
+    feature = "serde-with-arbitrary-precision"
+))]
+impl<'de> serde::Deserialize<'de> for Decimal {
+    fn deserialize<D>(deserializer: D) -> Result<Decimal, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(ArbitraryPrecisionVisitor)
     }
 }
 
@@ -365,24 +382,11 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
         }
     }
 
-    #[cfg(not(feature = "serde-with-arbitrary-precision"))]
     fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
     where
         E: serde::de::Error,
     {
         Decimal::from_str(&value.to_string()).map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
-    }
-
-    #[cfg(feature = "serde-with-arbitrary-precision")]
-    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
-    where
-        E: serde::de::Error,
-    {
-        let mut buf = zmij::Buffer::new();
-        let formatted = buf.format_finite(value);
-        Decimal::from_str(formatted)
-            .or_else(|_| Decimal::from_scientific_exact(formatted))
-            .map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Decimal, E>
@@ -409,10 +413,76 @@ impl<'de> serde::de::Visitor<'de> for DecimalVisitor {
     }
 }
 
-#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
+/// Like `DecimalVisitor`, but keeps the shortest representation of a float (so `1.0` stays `1.0`).
+#[cfg(feature = "serde-with-arbitrary-precision")]
+struct ArbitraryPrecisionVisitor;
+
+#[cfg(feature = "serde-with-arbitrary-precision")]
+impl<'de> serde::de::Visitor<'de> for ArbitraryPrecisionVisitor {
+    type Value = Decimal;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        serde::de::Visitor::expecting(&DecimalVisitor, formatter)
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        serde::de::Visitor::visit_i64(DecimalVisitor, value)
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        serde::de::Visitor::visit_u64(DecimalVisitor, value)
+    }
+
+    fn visit_i128<E>(self, value: i128) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        serde::de::Visitor::visit_i128(DecimalVisitor, value)
+    }
+
+    fn visit_u128<E>(self, value: u128) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        serde::de::Visitor::visit_u128(DecimalVisitor, value)
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        let mut buf = zmij::Buffer::new();
+        let formatted = buf.format_finite(value);
+        Decimal::from_str(formatted)
+            .or_else(|_| Decimal::from_scientific_exact(formatted))
+            .map_err(|_| E::invalid_value(Unexpected::Float(value), &self))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Decimal, E>
+    where
+        E: serde::de::Error,
+    {
+        serde::de::Visitor::visit_str(DecimalVisitor, value)
+    }
+
+    fn visit_map<A>(self, map: A) -> Result<Decimal, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        serde::de::Visitor::visit_map(DecimalVisitor, map)
+    }
+}
+
+#[cfg(feature = "serde-with-float")]
 struct OptionDecimalVisitor;
 
-#[cfg(any(feature = "serde-with-float", feature = "serde-with-arbitrary-precision"))]
+#[cfg(feature = "serde-with-float")]
 impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
     type Value = Option<Decimal>;
 
@@ -441,6 +511,39 @@ impl<'de> serde::de::Visitor<'de> for OptionDecimalVisitor {
         // We've got multiple types that we may see so we need to use any. `Decimal::deserialize`
         // isn't suitable here since it expects a string when `serde-str` is enabled.
         d.deserialize_any(DecimalVisitor).map(Some)
+    }
+}
+
+#[cfg(feature = "serde-with-arbitrary-precision")]
+struct OptionArbitraryPrecisionVisitor;
+
+#[cfg(feature = "serde-with-arbitrary-precision")]
+impl<'de> serde::de::Visitor<'de> for OptionArbitraryPrecisionVisitor {
+    type Value = Option<Decimal>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a Decimal type representing a fixed-point number")
+    }
+
+    fn visit_none<E>(self) -> Result<Option<Decimal>, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(None)
+    }
+
+    fn visit_unit<E>(self) -> Result<Option<Decimal>, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(None)
+    }
+
+    fn visit_some<D>(self, d: D) -> Result<Option<Decimal>, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        d.deserialize_any(ArbitraryPrecisionVisitor).map(Some)
     }
 }
 

@@ -60,6 +60,25 @@ fn deserialize_f64_scientific_notation_from_value() {
 }
 
 #[test]
+#[cfg(all(feature = "serde-with-arbitrary-precision", not(feature = "serde-float")))]
+fn deserialize_f64_unchanged_by_arbitrary_precision_feature() {
+    use serde::de::IntoDeserializer;
+    use serde::de::value::Error;
+
+    // Non JSON formats hand floats straight to visit_f64. A plain Decimal must read them the same
+    // way it does without the feature; only the arbitrary_precision helpers keep the float's text.
+    let data = [
+        (0.0, "0"),
+        (16777216.0, "16777216"),
+        (5e-29, "0.0000000000000000000000000001"),
+    ];
+    for &(value, expected) in data.iter() {
+        let d = <Decimal as Deserialize>::deserialize(IntoDeserializer::<Error>::into_deserializer(value)).unwrap();
+        assert_eq!(d.to_string(), expected);
+    }
+}
+
+#[test]
 #[should_panic]
 fn deserialize_invalid_decimal() {
     let serialized = "{\"amount\":\"foo\"}";
