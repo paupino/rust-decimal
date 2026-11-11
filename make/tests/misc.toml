@@ -4,6 +4,7 @@ dependencies = [
     "test-proptest",
     "test-rust-fuzz",
     "test-borsh",
+    "test-bytemuck",
     "test-rand"
 ]
 
@@ -27,6 +28,10 @@ args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", 
 [tasks.test-borsh]
 command = "cargo"
 args = ["test", "--workspace", "--features=borsh", "--test", "borsh_tests"]
+
+[tasks.test-bytemuck]
+command = "cargo"
+args = ["test", "--workspace", "--features=bytemuck", "--test", "bytemuck_tests"]
 
 [tasks.test-ndarray]
 command = "cargo"
