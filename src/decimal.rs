@@ -2382,47 +2382,59 @@ fn finish_base2_to_decimal(
 /// exactly representable. The only rounding is a single round-half-up at the end, so the result
 /// is the nearest representable value. A value that rounds to zero gets a scale of zero.
 fn scale_fraction(mantissa: u64, shift: u32) -> ([u32; 3], u32) {
-    // mantissa < 2^53 and 10^28 < 2^94, so the scaled numerator needs at most 147 bits.
+    if mantissa == 0 {
+        // trailing_zeros() of zero is 64, which would give a nonzero scale below.
+        return ([0; 3], 0);
+    }
+    let trailing = mantissa.trailing_zeros().min(shift);
+    let (m, k) = (mantissa >> trailing, shift - trailing);
+    // m / 2^k == m * 5^k / 10^k: exact at scale k (minimal, since m is odd).
+    if k <= Decimal::MAX_SCALE {
+        let p = u128::from(m) * 5_u128.pow(k);
+        if p >> 96 == 0 {
+            return ([p as u32, (p >> 32) as u32, (p >> 64) as u32], k);
+        }
+    }
+    // value < 2^int_bits, so 10^s <= 2^(96 - int_bits) always fits; s + 1 might.
+    let int_bits = 64 - m.leading_zeros() as i32 - k as i32;
+    let est = ((((96 - int_bits) * 1233) >> 12) as u32).min(Decimal::MAX_SCALE);
+    for s in (est.saturating_sub(1)..=(est + 1).min(Decimal::MAX_SCALE)).rev() {
+        if let Some(q) = round_shift(m, s, k) {
+            return if q == [0; 3] { ([0; 3], 0) } else { (q, s) };
+        }
+    }
+    unreachable!("a scale within one of the estimate always fits in 96 bits")
+}
+
+/// Computes `round_half_up(mantissa * 10^scale / 2^shift)`, or `None` if it needs more than 96 bits.
+/// `shift` must be at least 1.
+fn round_shift(mantissa: u64, scale: u32, shift: u32) -> Option<[u32; 3]> {
+    // mantissa < 2^64 and 10^28 < 2^94, so the scaled numerator needs at most 158 bits.
     let mut numerator = [mantissa as u32, (mantissa >> 32) as u32, 0, 0, 0];
+    let mut remaining = scale as usize;
+    while remaining > 0 {
+        let step = remaining.min(9);
+        ops::array::mul_by_u32(&mut numerator, POWERS_10[step]);
+        remaining -= step;
+    }
+
+    let limb = |i: usize| numerator.get(i).copied().unwrap_or(0);
     let word = (shift / 32) as usize;
     let bit = shift % 32;
-    let limb = |n: &[u32; 5], i: usize| n.get(i).copied().unwrap_or(0);
-    let mut best = ([0u32; 3], 0u32);
-
-    for scale in 0..=Decimal::MAX_SCALE {
-        let mut quotient = [0u32; 5];
-        for (i, q) in quotient.iter_mut().enumerate() {
-            let high = if bit == 0 {
-                0
-            } else {
-                limb(&numerator, i + word + 1) << (32 - bit)
-            };
-            *q = (limb(&numerator, i + word) >> bit) | high;
-        }
-        let exact = numerator.iter().enumerate().all(|(i, &w)| match i.cmp(&word) {
-            core::cmp::Ordering::Less => w == 0,
-            core::cmp::Ordering::Equal => w & ((1u32 << bit) - 1) == 0,
-            core::cmp::Ordering::Greater => true,
-        });
-        // The bit just below the quotient decides the rounding.
-        let half_bit = shift - 1;
-        if (limb(&numerator, (half_bit / 32) as usize) >> (half_bit % 32)) & 1 == 1 {
-            ops::array::manage_add_by_internal(1, &mut quotient);
-        }
-        if quotient[3] != 0 || quotient[4] != 0 {
-            break;
-        }
-        best = ([quotient[0], quotient[1], quotient[2]], scale);
-        if exact {
-            break;
-        }
-        ops::array::mul_by_u32(&mut numerator, 10);
+    let mut quotient = [0u32; 5];
+    for (i, q) in quotient.iter_mut().enumerate() {
+        let high = if bit == 0 { 0 } else { limb(i + word + 1) << (32 - bit) };
+        *q = (limb(i + word) >> bit) | high;
     }
-
-    if ops::array::is_all_zero(&best.0) {
-        best.1 = 0;
+    // The bit just below the quotient decides the rounding.
+    let half_bit = shift - 1;
+    if (limb((half_bit / 32) as usize) >> (half_bit % 32)) & 1 == 1 {
+        ops::array::manage_add_by_internal(1, &mut quotient);
     }
-    best
+    if quotient[3] != 0 || quotient[4] != 0 {
+        return None;
+    }
+    Some([quotient[0], quotient[1], quotient[2]])
 }
 
 impl Decimal {
@@ -2881,5 +2893,11 @@ mod tests {
     fn from_scientific_0e0() {
         let dec = Decimal::from_scientific_exact("0e0").unwrap();
         assert_eq!(dec, Decimal::ZERO);
+    }
+
+    #[test]
+    fn scale_fraction_zero_mantissa_has_zero_scale() {
+        // 0 / 2^70 would otherwise take the exact fast path with a nonzero scale.
+        assert_eq!(scale_fraction(0, 70), ([0; 3], 0));
     }
 }
