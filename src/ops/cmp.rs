@@ -1,4 +1,4 @@
-use crate::constants::{MAX_I32_SCALE, POWERS_10, U32_MASK, U32_MAX};
+use crate::constants::{MAX_I32_SCALE, POWERS_10, POWERS_10_U128, U32_MASK, U32_MAX};
 use crate::decimal::Decimal;
 use crate::ops::common::Dec64;
 
@@ -31,14 +31,43 @@ pub(crate) fn cmp_impl(d1: &Decimal, d2: &Decimal) -> Ordering {
     }
 
     // Otherwise, do a deep comparison
-    let d1 = Dec64::new(d1);
-    let d2 = Dec64::new(d2);
     // We know both signs are the same here so flip it here.
     // Negative is handled differently. i.e. 0.5 > 0.01 however -0.5 < -0.01
-    if d1.negative {
-        cmp_internal(&d2, &d1)
+    if d1.is_sign_negative() {
+        cmp_magnitude(d2, d1)
     } else {
-        cmp_internal(&d1, &d2)
+        cmp_magnitude(d1, d2)
+    }
+}
+
+// Compares the mantissas of two non-zero decimals and ignores the sign.
+#[inline(always)]
+fn cmp_magnitude(d1: &Decimal, d2: &Decimal) -> Ordering {
+    let s1 = d1.scale();
+    let s2 = d2.scale();
+    if s1 == s2 {
+        let hi_order = d1.hi().cmp(&d2.hi());
+        if hi_order != Ordering::Equal {
+            return hi_order;
+        }
+        let lo1 = (d1.lo() as u64) | ((d1.mid() as u64) << 32);
+        let lo2 = (d2.lo() as u64) | ((d2.mid() as u64) << 32);
+        return lo1.cmp(&lo2);
+    }
+    let m1 = (d1.lo() as u128) | ((d1.mid() as u128) << 32) | ((d1.hi() as u128) << 64);
+    let m2 = (d2.lo() as u128) | ((d2.mid() as u128) << 32) | ((d2.hi() as u128) << 64);
+    // A non-zero mantissa times 10^29 or more does not fit in 96 bits, so a larger
+    // scale difference gives the same result. If the product overflows, it is the larger value.
+    if s1 < s2 {
+        match m1.checked_mul(POWERS_10_U128[(s2 - s1).min(31) as usize]) {
+            Some(v) => v.cmp(&m2),
+            None => Ordering::Greater,
+        }
+    } else {
+        match m2.checked_mul(POWERS_10_U128[(s1 - s2).min(31) as usize]) {
+            Some(v) => m1.cmp(&v),
+            None => Ordering::Less,
+        }
     }
 }
 
