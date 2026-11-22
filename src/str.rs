@@ -665,14 +665,8 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
                 offset += 1;
                 len -= 1;
             }
-            b'.' => {
-                if digits_before_dot >= 0 {
-                    return Err(crate::Error::DuplicatedDecimalPoint);
-                }
-                digits_before_dot = coeff.len() as i32;
-                offset += 1;
-                len -= 1;
-            }
+            // Fractional digits would need a power-of-radix scale, which Decimal can't hold.
+            b'.' => return Err(crate::Error::InvalidCharacter),
             b'_' => {
                 // Must start with a number...
                 if coeff.is_empty() {
@@ -683,6 +677,11 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
             }
             _ => return Err(crate::Error::InvalidCharacter),
         }
+    }
+
+    // The loop stops at the digit budget, so a point further on hasn't been seen yet.
+    if maybe_round && bytes[offset..].contains(&b'.') {
+        return Err(crate::Error::InvalidCharacter);
     }
 
     // If we exited before the end of the string then do some rounding if necessary
@@ -708,13 +707,6 @@ pub(crate) fn parse_str_radix_n(str: &str, radix: u32) -> Result<Decimal, Error>
                 u32::from(next_byte - b'A') + 10
             }
             b'_' => 0,
-            b'.' => {
-                // Still an error if we have a second dp
-                if digits_before_dot >= 0 {
-                    return Err(Error::DuplicatedDecimalPoint);
-                }
-                0
-            }
             _ => return Err(crate::Error::InvalidCharacter),
         };
 
@@ -1099,7 +1091,8 @@ mod test {
     fn from_str_radix_36_does_not_panic_on_rounding_carry() {
         let result = Decimal::from_str_radix("zzzzzzzzzzzzzzzzzzz.zzzzzzzzzzzzzzzzzzz", 36);
 
-        assert_eq!(result, Err(Error::ExceedsMaximumPossibleValue));
+        // A decimal point is not accepted outside radix 10.
+        assert_eq!(result, Err(Error::InvalidCharacter));
     }
 
     #[test]
