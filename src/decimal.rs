@@ -117,7 +117,10 @@ impl From<UnpackedDecimal> for Decimal {
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(feature = "align16", repr(align(16)))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable))]
+// Not `Pod`: that would let safe code cast any 16 bytes into a `Decimal`, including a scale above 28
+// or set bits in the unused flag positions, which the rest of the crate assumes can't happen. A
+// `Decimal` can still be viewed as bytes; use `Decimal::deserialize` to build one from bytes.
+#[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::NoUninit, bytemuck_derive::Zeroable))]
 // [`borsh::BorshDeserialize`] is implemented manually so that the result can be checked to be a
 // valid instance of [`Self`].
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshSchema))]

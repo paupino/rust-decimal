@@ -116,6 +116,11 @@ path = "tests/borsh_tests.rs"
 required-features = ["borsh"]
 
 [[test]]
+name = "bytemuck_tests"
+path = "tests/bytemuck_tests.rs"
+required-features = ["bytemuck"]
+
+[[test]]
 name = "generated"
 path = "tests/generated.rs"
 test = false
