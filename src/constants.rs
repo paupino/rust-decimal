@@ -74,9 +74,9 @@ pub const POWERS_5_U128: [u128; 29] = {
     table
 };
 
-/// `10^n` for `n` in `0..=31`.
-pub const POWERS_10_U128: [u128; 32] = {
-    let mut table = [1u128; 32];
+/// `10^n` for `n` in `0..=MAX_SCALE`, the range of scale differences.
+pub const POWERS_10_U128: [u128; MAX_SCALE as usize + 1] = {
+    let mut table = [1u128; MAX_SCALE as usize + 1];
     let mut i = 1;
     while i < table.len() {
         table[i] = table[i - 1] * 10;

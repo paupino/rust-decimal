@@ -1,4 +1,4 @@
-use crate::constants::{MAX_I32_SCALE, POWERS_10, POWERS_10_U128, U32_MASK, U32_MAX};
+use crate::constants::{BIG_POWERS_10, MAX_I32_SCALE, MAX_SCALE_U32, POWERS_10, POWERS_10_U128, U32_MASK, U32_MAX};
 use crate::decimal::Decimal;
 use crate::ops::common::Dec64;
 
@@ -54,21 +54,47 @@ fn cmp_magnitude(d1: &Decimal, d2: &Decimal) -> Ordering {
         let lo2 = (d2.lo() as u64) | ((d2.mid() as u64) << 32);
         return lo1.cmp(&lo2);
     }
-    let m1 = (d1.lo() as u128) | ((d1.mid() as u128) << 32) | ((d1.hi() as u128) << 64);
-    let m2 = (d2.lo() as u128) | ((d2.mid() as u128) << 32) | ((d2.hi() as u128) << 64);
-    // A non-zero mantissa times 10^29 or more does not fit in 96 bits, so a larger
-    // scale difference gives the same result. If the product overflows, it is the larger value.
+    let m1 = d1.mantissa_u128();
+    let m2 = d2.mantissa_u128();
+    // Both mantissas fit in 64 bits: one u64 multiply, also on 32-bit targets. If it
+    // overflows, the product is more than 2^64 and so more than the other mantissa.
+    if (m1 | m2) >> 64 == 0 && s1.abs_diff(s2) <= 19 {
+        let (a, b) = (m1 as u64, m2 as u64);
+        return if s1 < s2 {
+            a.checked_mul(BIG_POWERS_10[(s2 - s1) as usize - 1])
+                .map_or(Ordering::Greater, |v| v.cmp(&b))
+        } else {
+            b.checked_mul(BIG_POWERS_10[(s1 - s2) as usize - 1])
+                .map_or(Ordering::Less, |v| a.cmp(&v))
+        };
+    }
     if s1 < s2 {
-        match m1.checked_mul(POWERS_10_U128[(s2 - s1).min(31) as usize]) {
+        let diff = s2 - s1;
+        if diff >= 10 && exceeds_96_bits(m1, diff) {
+            return Ordering::Greater;
+        }
+        match m1.checked_mul(POWERS_10_U128[diff as usize]) {
             Some(v) => v.cmp(&m2),
             None => Ordering::Greater,
         }
     } else {
-        match m2.checked_mul(POWERS_10_U128[(s1 - s2).min(31) as usize]) {
+        let diff = s1 - s2;
+        if diff >= 10 && exceeds_96_bits(m2, diff) {
+            return Ordering::Less;
+        }
+        match m2.checked_mul(POWERS_10_U128[diff as usize]) {
             Some(v) => m1.cmp(&v),
             None => Ordering::Less,
         }
     }
+}
+
+// Whether a non-zero `mantissa * 10^scale_diff` is surely 2^96 or more, so it is
+// larger than any other mantissa: 10^29, 2^64 * 10^10 and 2^32 * 10^20 are all
+// more than 2^96. The caller checks `scale_diff >= 10` first.
+#[inline(always)]
+fn exceeds_96_bits(mantissa: u128, scale_diff: u32) -> bool {
+    scale_diff > MAX_SCALE_U32 || mantissa >> 64 != 0 || (scale_diff >= 20 && mantissa >> 32 != 0)
 }
 
 pub(in crate::ops) fn cmp_internal(d1: &Dec64, d2: &Dec64) -> Ordering {
