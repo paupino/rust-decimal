@@ -159,6 +159,25 @@ impl Buf16 {
             return 0;
         }
 
+        // The top word of the dividend can equal the top word of the divisor, though it can't be
+        // larger since the dividend's top 96 bits are less than the divisor. The estimate below
+        // would then be 2^32 or more and get truncated. As in `partial_divide_64`, start from
+        // u32::MAX instead. Since the divisor is normalized, it needs at most one correction.
+        if self.data[3] >= divisor_hi {
+            let num = ((dividend as u128) << 64) | self.low64() as u128;
+            let den = ((divisor_hi as u128) << 64) | divisor.low64() as u128;
+            let mut quo = u32::MAX;
+            let mut product = quo as u128 * den;
+            while product > num {
+                quo -= 1;
+                product -= den;
+            }
+            let remainder = num - product;
+            self.set_low64(remainder as u64);
+            self.data[2] = (remainder >> 64) as u32;
+            return quo;
+        }
+
         let mut quo = (dividend / divisor_hi as u64) as u32;
         let mut remainder = (dividend as u32).wrapping_sub(quo.wrapping_mul(divisor_hi));
 
