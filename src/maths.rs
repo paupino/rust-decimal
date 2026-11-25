@@ -60,15 +60,29 @@ pub trait MathematicalOps {
     /// `self` is so negative that the result underflows.
     fn checked_exp(&self) -> Option<Decimal>;
 
-    /// The estimated exponential function, e<sup>x</sup> using the `tolerance` provided as a hint
-    /// as to when to stop calculating. A larger tolerance will cause the number to stop calculating
-    /// sooner at the potential cost of a slightly less accurate result.
+    /// Estimates e<sup>x</sup> using the stopping rule described in
+    /// [`checked_exp_with_tolerance`](MathematicalOps::checked_exp_with_tolerance).
     fn exp_with_tolerance(&self, tolerance: Decimal) -> Decimal;
 
-    /// The estimated exponential function, e<sup>x</sup> using the `tolerance` provided as a hint
-    /// as to when to stop calculating. A larger tolerance will cause the number to stop calculating
-    /// sooner at the potential cost of a slightly less accurate result.
-    /// Returns `None` on overflow.
+    /// Estimates e<sup>x</sup>, returning `None` if the calculation for exp(|x|) overflows.
+    ///
+    /// For positive `x`, the series starts at `1 + x`. After adding each subsequent term,
+    /// the calculation stops if that term is at most `tolerance` or the iteration limit is
+    /// reached. A smaller tolerance can include more terms, but the absolute error can
+    /// exceed the tolerance. For negative `x`, the method takes the reciprocal of the
+    /// positive estimate obtained with the same tolerance.
+    ///
+    /// ```
+    /// use rust_decimal::{Decimal, MathematicalOps};
+    ///
+    /// let tolerance = Decimal::from(8);
+    /// // The quadratic term equals the tolerance, so the sum stops at 1 + 4 + 8.
+    /// // Since exp(4) is about 54.6, the absolute error is about 41.6.
+    /// let estimate = Decimal::from(4).checked_exp_with_tolerance(tolerance);
+    /// assert_eq!(estimate, Some(Decimal::from(13)));
+    /// let reciprocal = Decimal::from(-4).checked_exp_with_tolerance(tolerance);
+    /// assert_eq!(reciprocal, Decimal::ONE.checked_div(Decimal::from(13)));
+    /// ```
     fn checked_exp_with_tolerance(&self, tolerance: Decimal) -> Option<Decimal>;
 
     /// Raise self to the given integer exponent: x<sup>y</sup>
