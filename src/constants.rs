@@ -16,9 +16,10 @@ pub const SCALE_SHIFT: u32 = 16;
 // Number of bits sign is shifted by.
 pub const SIGN_SHIFT: u32 = 31;
 
-// The maximum string buffer size used for serialization purposes. 31 is optimal, however we align
-// to the byte boundary for simplicity.
-pub const MAX_STR_BUFFER_SIZE: usize = 32;
+// The maximum string buffer size used for serialization and formatting. With a precision, the
+// representation can have a sign, 29 integer digits, a decimal point and 28 fractional digits, which
+// is 59 bytes. We round up to 64 for simplicity.
+pub const MAX_STR_BUFFER_SIZE: usize = 64;
 
 // The maximum supported [`Decimal::scale`] value
 pub const MAX_SCALE: u8 = 28;

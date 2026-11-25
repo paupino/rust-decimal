@@ -76,6 +76,63 @@ pub(crate) fn to_str_internal(
     (rep, additional)
 }
 
+/// Writes `digits` followed by `zeros` more zeros, padded the same way as
+/// [`core::fmt::Formatter::pad_integral`] with an empty prefix, so the `#` flag has no effect. The
+/// precision has no upper bound, so the zeros are written directly rather than collected into a
+/// buffer first.
+pub(crate) fn pad_integral_with_trailing_zeros(
+    f: &mut core::fmt::Formatter<'_>,
+    is_nonnegative: bool,
+    digits: &str,
+    zeros: usize,
+) -> core::fmt::Result {
+    use core::fmt::{Alignment, Write};
+
+    fn write_zeros(f: &mut core::fmt::Formatter<'_>, mut n: usize) -> core::fmt::Result {
+        const ZEROS: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+        while n > 0 {
+            let chunk = n.min(ZEROS.len());
+            f.write_str(&ZEROS[..chunk])?;
+            n -= chunk;
+        }
+        Ok(())
+    }
+
+    fn write_fill(f: &mut core::fmt::Formatter<'_>, fill: char, n: usize) -> core::fmt::Result {
+        (0..n).try_for_each(|_| f.write_char(fill))
+    }
+
+    let sign = if !is_nonnegative {
+        "-"
+    } else if f.sign_plus() {
+        "+"
+    } else {
+        ""
+    };
+    let len = sign.len().saturating_add(digits.len()).saturating_add(zeros);
+    let padding = f.width().map_or(0, |width| width.saturating_sub(len));
+
+    // As with `pad_integral`, zero padding goes between the sign and the digits and ignores the
+    // alignment. Other padding is aligned to the right unless the formatter says otherwise.
+    if f.sign_aware_zero_pad() {
+        f.write_str(sign)?;
+        write_zeros(f, padding)?;
+        f.write_str(digits)?;
+        return write_zeros(f, zeros);
+    }
+    let (pre, post) = match f.align() {
+        Some(Alignment::Left) => (0, padding),
+        Some(Alignment::Center) => (padding / 2, padding.div_ceil(2)),
+        Some(Alignment::Right) | None => (padding, 0),
+    };
+    let fill = f.fill();
+    write_fill(f, fill, pre)?;
+    f.write_str(sign)?;
+    f.write_str(digits)?;
+    write_zeros(f, zeros)?;
+    write_fill(f, fill, post)
+}
+
 #[cfg(feature = "alloc")]
 pub(crate) fn fmt_scientific_notation(
     value: &Decimal,

@@ -74,6 +74,84 @@ fn it_formats_int() {
     assert_eq!(format!("{a:0<10.2}"), "5.00000000");
 }
 
+#[test]
+fn it_formats_large_values_with_precision() {
+    assert_eq!(
+        format!("{:.28}", Decimal::from(1000)),
+        "1000.0000000000000000000000000000"
+    );
+    assert_eq!(format!("{:.3}", Decimal::MAX), "79228162514264337593543950335.000");
+    assert_eq!(
+        format!("{:.28}", Decimal::MIN),
+        "-79228162514264337593543950335.0000000000000000000000000000"
+    );
+    assert_eq!(
+        format!("{:061.28?}", Decimal::MIN),
+        "-0079228162514264337593543950335.0000000000000000000000000000"
+    );
+}
+
+#[test]
+fn it_formats_precision_above_max_scale() {
+    assert_eq!(format!("{:.70}", Decimal::ONE), format!("1.{}", "0".repeat(70)));
+    assert_eq!(
+        format!("{:.40}", Decimal::MAX),
+        format!("79228162514264337593543950335.{}", "0".repeat(40))
+    );
+    assert_eq!(format!("{:.1000}", Decimal::NEGATIVE_ONE).len(), 1003);
+}
+
+#[test]
+fn it_formats_with_precision_and_padding_like_f64() {
+    // f64 holds these values exactly. It rounds where Decimal truncates, so every precision here is at
+    // least the value's scale, and both types give the same output. That includes precisions above 28,
+    // where the extra zeros are written separately.
+    macro_rules! assert_formats_like_f64 {
+        ($d:expr, $x:expr, $($fmt:literal),*) => {
+            $(assert_eq!(format!($fmt, $d), format!($fmt, $x), "{} formatted with {}", $d, $fmt);)*
+        };
+    }
+    let values = [
+        ("0", 0.0),
+        ("1", 1.0),
+        ("-1", -1.0),
+        ("1.5", 1.5),
+        ("-2.25", -2.25),
+        ("0.0625", 0.0625),
+        ("-0.000000007450580596923828125", -0.000000007450580596923828125),
+        ("12345", 12345.0),
+        ("-18446744073709551616", -18446744073709551616.0),
+        ("39614081257132168796771975168", 39614081257132168796771975168.0),
+    ];
+    for (s, x) in values {
+        let d = Decimal::from_str(s).unwrap();
+        assert_formats_like_f64!(
+            d,
+            x,
+            "{:.28}",
+            "{:.29}",
+            "{:.70}",
+            "{:+.40}",
+            "{:#.40}",
+            "{:5.40}",
+            "{:100.40}",
+            "{:<100.40}",
+            "{:^101.40}",
+            "{:>100.40}",
+            "{:*^101.40}",
+            "{:é<100.40}",
+            "{:0<100.40}",
+            "{:0100.40}",
+            "{:+0100.40}",
+            "{:<0100.40}",
+            "{:+^100.40}"
+        );
+    }
+    let mut negative_zero = Decimal::ZERO;
+    negative_zero.set_sign_negative(true);
+    assert_formats_like_f64!(negative_zero, -0.0, "{:.40}", "{:^101.40}", "{:+0100.40}");
+}
+
 #[cfg(any(feature = "alloc", feature = "std"))]
 #[test]
 fn it_formats_lower_exp() {
