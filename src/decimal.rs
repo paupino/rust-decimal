@@ -1833,6 +1833,11 @@ impl Decimal {
     }
 
     #[inline(always)]
+    pub(crate) const fn mantissa_u128(&self) -> u128 {
+        (self.lo as u128) | ((self.mid as u128) << 32) | ((self.hi as u128) << 64)
+    }
+
+    #[inline(always)]
     pub(crate) const fn mantissa_array4(&self) -> [u32; 4] {
         [self.lo, self.mid, self.hi, 0]
     }

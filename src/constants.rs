@@ -74,6 +74,17 @@ pub const POWERS_5_U128: [u128; 29] = {
     table
 };
 
+/// `10^n` for `n` in `0..=MAX_SCALE`, the range of scale differences.
+pub const POWERS_10_U128: [u128; MAX_SCALE as usize + 1] = {
+    let mut table = [1u128; MAX_SCALE as usize + 1];
+    let mut i = 1;
+    while i < table.len() {
+        table[i] = table[i - 1] * 10;
+        i += 1;
+    }
+    table
+};
+
 pub const MAX_I32_SCALE: i32 = 9;
 // The maximum power of 10 that a 64 bit integer can store
 pub const MAX_I64_SCALE: u32 = 19;
