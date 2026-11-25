@@ -171,8 +171,8 @@ fn it_converts_to_f64_at_the_edges() {
 
 #[test]
 fn it_converts_negative_zero_to_negative_zero() {
-    for value in [-Decimal::ZERO, Decimal::from_str("-0.4").unwrap().trunc()] {
-        assert_eq!(value.to_string(), "-0");
+    for (value, display) in [(-Decimal::ZERO, "-0"), (-Decimal::from_str("0.0").unwrap(), "-0.0")] {
+        assert_eq!(value.to_string(), display);
         assert_eq!(value.to_f64().map(f64::to_bits), Some((-0.0f64).to_bits()), "{value:?}");
     }
 }
@@ -269,6 +269,13 @@ fn it_converts_to_u64() {
         Decimal::from_str("18446744073709551615").unwrap().to_u64().unwrap()
     );
     assert_eq!(None, Decimal::from_str("18446744073709551616").unwrap().to_u64());
+    // Values that truncate to zero fit, as they do for to_i64 (#860)
+    assert_eq!(Some(0), Decimal::from_str("-0.5").unwrap().to_u64());
+    assert_eq!(Some(0), Decimal::from_str("-0.9999").unwrap().to_u64());
+    assert_eq!(Some(0), (-Decimal::ZERO).to_u64());
+    assert_eq!(None, Decimal::from_str("-1").unwrap().to_u64());
+    assert_eq!(Ok(0u8), u8::try_from(Decimal::from_str("-0.5").unwrap()));
+    assert!(u8::try_from(Decimal::from_str("-1.5").unwrap()).is_err());
 }
 
 #[test]
@@ -298,6 +305,8 @@ fn it_converts_to_u128() {
         ("-5", None),
         ("5.12345", Some(5u128)),
         ("-5.12345", None),
+        ("-0.5", Some(0u128)),
+        ("-0", Some(0u128)),
         ("18446744073709551615", Some(0xFFFF_FFFF_FFFF_FFFF)),
         ("18446744073709551616", Some(18446744073709551616u128)),
     ];
