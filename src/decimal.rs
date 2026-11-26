@@ -759,6 +759,8 @@ impl Decimal {
     /// * a-z
     /// * A-Z
     ///
+    /// A decimal point is only accepted when `radix` is 10.
+    ///
     /// # Examples
     ///
     /// Basic usage:

@@ -571,6 +571,25 @@ fn from_str_radix_base2_30_fractional_digits_returns_error_not_panic() {
 }
 
 #[test]
+fn from_str_radix_rejects_decimal_point_outside_radix_10() {
+    // Issue #837: the fractional digits were scaled by powers of 10, so "0.8" in base 16
+    // parsed as 0.8 instead of 0.5 and "1.1" in base 2 parsed as 0.3.
+    for (input, radix) in [("0.8", 16), ("1.1", 2), ("ff.0", 16), ("7.", 8), (".1", 3)] {
+        assert_eq!(
+            Decimal::from_str_radix(input, radix),
+            Err(Error::InvalidCharacter),
+            "{input} radix {radix}"
+        );
+    }
+    // The point is also rejected at or past the last digit that fits.
+    for s in [format!("{}.0", "f".repeat(24)), format!("{}.8", "f".repeat(25))] {
+        assert_eq!(Decimal::from_str_radix(&s, 16), Err(Error::InvalidCharacter), "{s}");
+    }
+    // Radix 10 still accepts a decimal point.
+    assert_eq!(Decimal::from_str_radix("0.8", 10), Ok(Decimal::new(8, 1)));
+}
+
+#[test]
 fn from_str_radix_base16_leading_zeros_do_not_corrupt_magnitude() {
     // 24 leading zeros fill the 24-digit hex precision budget; "98" then gets mangled
     // 0x98 = 152 decimal; previously returned Ok(16) due to dropped significant digits
