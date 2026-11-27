@@ -135,8 +135,7 @@ impl DecWide {
                 let mut u = upper_word_6(&data);
                 while excess > 0 {
                     let power_idx = (excess).min(MAX_I32_SCALE) as usize;
-                    let power = POWERS_10[power_idx];
-                    div_buf_by_power(&mut data, &mut u, power);
+                    div_buf_by_power(&mut data, &mut u, power_idx);
                     excess -= power_idx as i32;
                     scale -= power_idx as i32;
                 }
@@ -470,15 +469,54 @@ const fn upper_word_6(data: &[u32; 6]) -> usize {
     0
 }
 
-fn div_buf_by_power<const N: usize>(data: &mut [u32; N], upper: &mut usize, power: u32) {
+/// Divides the words up to `upper` by `DIVISOR`, and returns the remainder.
+///
+/// As the divisor is a constant, the compiler replaces the division by a multiplication, which
+/// takes a fraction of the time of a division by a divisor that is only known at runtime.
+#[inline(always)]
+fn div_words_by<const N: usize, const DIVISOR: u32>(data: &mut [u32; N], upper: usize) -> u32 {
     let mut remainder = 0u32;
-    let u = *upper;
-
-    for i in (0..=u).rev() {
-        let num = (data[i] as u64) + ((remainder as u64) << 32);
-        data[i] = (num / power as u64) as u32;
-        remainder = (num as u32).wrapping_sub(data[i].wrapping_mul(power));
+    for i in (0..=upper).rev() {
+        let num = u64::from(data[i]) | (u64::from(remainder) << 32);
+        data[i] = (num / u64::from(DIVISOR)) as u32;
+        remainder = (num % u64::from(DIVISOR)) as u32;
     }
+    remainder
+}
+
+/// Divides the words up to `upper` by `10^exponent`, and returns the remainder.
+///
+/// The rescaling of products divides by powers of 10 many times, so each of them is a constant
+/// divisor of its own (see `div_words_by`).
+fn div_words_by_power_of_10<const N: usize>(data: &mut [u32; N], upper: usize, exponent: usize) -> u32 {
+    match exponent {
+        1 => div_words_by::<N, 10>(data, upper),
+        2 => div_words_by::<N, 100>(data, upper),
+        3 => div_words_by::<N, 1_000>(data, upper),
+        4 => div_words_by::<N, 10_000>(data, upper),
+        5 => div_words_by::<N, 100_000>(data, upper),
+        6 => div_words_by::<N, 1_000_000>(data, upper),
+        7 => div_words_by::<N, 10_000_000>(data, upper),
+        8 => div_words_by::<N, 100_000_000>(data, upper),
+        9 => div_words_by::<N, 1_000_000_000>(data, upper),
+        // not used by the callers, which divide by 10^1 to 10^9, but correct all the same
+        _ => {
+            let power = u64::from(POWERS_10[exponent]);
+            let mut remainder = 0u32;
+            for i in (0..=upper).rev() {
+                let num = u64::from(data[i]) | (u64::from(remainder) << 32);
+                data[i] = (num / power) as u32;
+                remainder = (num % power) as u32;
+            }
+            remainder
+        }
+    }
+}
+
+fn div_buf_by_power<const N: usize>(data: &mut [u32; N], upper: &mut usize, exponent: usize) {
+    let power = POWERS_10[exponent];
+    let u = *upper;
+    let remainder = div_words_by_power_of_10(data, u, exponent);
 
     if data[u] == 0 && u > 0 {
         *upper = u - 1;
@@ -524,14 +562,7 @@ fn rescale_buf<const N: usize, const TARGET: usize>(
     while rescale_target > 0 || *upper > TARGET {
         sticky |= remainder;
         let power_idx = rescale_target.clamp(1, MAX_I32_SCALE) as usize;
-        let power = POWERS_10[power_idx];
-
-        remainder = 0;
-        for i in (0..=*upper).rev() {
-            let num = (data[i] as u64) + ((remainder as u64) << 32);
-            data[i] = (num / power as u64) as u32;
-            remainder = (num as u32).wrapping_sub(data[i].wrapping_mul(power));
-        }
+        remainder = div_words_by_power_of_10(data, *upper, power_idx);
 
         while *upper > 0 && data[*upper] == 0 {
             *upper -= 1;
@@ -925,4 +956,78 @@ pub(crate) fn cos_wide(value: &Decimal) -> Option<Decimal> {
     let mut out = result.to_decimal()?;
     out.normalize_assign();
     Some(out)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// The words divided by `10^exponent` with a divisor which is only known at runtime, as the
+    /// division was done before, to check `div_words_by_power_of_10` against.
+    fn div_words_reference<const N: usize>(data: &mut [u32; N], upper: usize, exponent: usize) -> u32 {
+        let power = POWERS_10[exponent];
+        let mut remainder = 0u32;
+        for i in (0..=upper).rev() {
+            let num = (data[i] as u64) + ((remainder as u64) << 32);
+            data[i] = (num / power as u64) as u32;
+            remainder = (num as u32).wrapping_sub(data[i].wrapping_mul(power));
+        }
+        remainder
+    }
+
+    fn assert_same_as_reference<const N: usize>(words: [u32; N], upper: usize) {
+        for exponent in 0..=9 {
+            let (mut expected, mut actual) = (words, words);
+            let expected_remainder = div_words_reference(&mut expected, upper, exponent);
+            let actual_remainder = div_words_by_power_of_10(&mut actual, upper, exponent);
+            assert_eq!(
+                (expected, expected_remainder),
+                (actual, actual_remainder),
+                "{words:?} up to {upper} / 10^{exponent}"
+            );
+        }
+    }
+
+    #[test]
+    fn division_by_powers_of_10_is_the_reference_at_the_edges() {
+        let max = u32::MAX;
+        for word in [0, 1, 9, 10, 999_999_999, 1_000_000_000, 1_000_000_001, max - 1, max] {
+            for upper in 0..12 {
+                let mut words = [0u32; 12];
+                words[..=upper].fill(word);
+                assert_same_as_reference(words, upper);
+                // only the top word set, or only the lowest
+                let mut top = [0u32; 12];
+                top[upper] = word;
+                assert_same_as_reference(top, upper);
+                let mut low = [0u32; 12];
+                low[0] = word;
+                assert_same_as_reference(low, upper);
+            }
+            assert_same_as_reference([word; 6], 5);
+        }
+    }
+
+    #[test]
+    fn division_by_powers_of_10_is_the_reference_for_random_words() {
+        // xorshift, seeded so that a failure can be reproduced
+        let mut state = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for _ in 0..20_000 {
+            let mut words = [0u32; 12];
+            for word in words.iter_mut() {
+                *word = next() as u32;
+            }
+            let upper = (next() % 12) as usize;
+            assert_same_as_reference(words, upper);
+            let mut short = [0u32; 6];
+            short.copy_from_slice(&words[..6]);
+            assert_same_as_reference(short, upper.min(5));
+        }
+    }
 }
