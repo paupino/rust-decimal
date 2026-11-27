@@ -95,32 +95,9 @@ impl DecWide {
         let scale = self.scale + other.scale;
         let negative = self.negative ^ other.negative;
 
-        let mut product = Buf48 { data: [0u32; 12] };
-        let a = &self.data;
-        let b = &other.data;
-
-        let a_upper = upper_word_6(a);
-        let b_upper = upper_word_6(b);
-
-        for (i, &a_word) in a.iter().enumerate().take(a_upper + 1) {
-            if a_word == 0 {
-                continue;
-            }
-            let mut carry: u64 = 0;
-            for (j, &b_word) in b.iter().enumerate().take(b_upper + 1) {
-                let pos = i + j;
-                carry += (a_word as u64) * (b_word as u64) + (product.data[pos] as u64);
-                product.data[pos] = carry as u32;
-                carry >>= 32;
-            }
-            let mut pos = i + b_upper + 1;
-            while carry > 0 && pos < 12 {
-                carry += product.data[pos] as u64;
-                product.data[pos] = carry as u32;
-                carry >>= 32;
-                pos += 1;
-            }
-        }
+        let mut product = Buf48 {
+            data: mul_192(&self.data, &other.data),
+        };
 
         let mut upper = product.upper_word();
         let mut scale = scale as i32;
@@ -457,6 +434,38 @@ impl Buf48 {
         }
         0
     }
+}
+
+/// The full 384 bit product of two 192 bit mantissas, as 32 bit words (little-endian).
+///
+/// The words are multiplied in pairs, as three 64 bit limbs with 128 bit products: 9 multiplications
+/// instead of the 36 that 32 bit limbs need. Leading zero limbs are skipped.
+fn mul_192(a: &[u32; 6], b: &[u32; 6]) -> [u32; 12] {
+    let limbs = |words: &[u32; 6]| [0, 1, 2].map(|i| u64::from(words[2 * i]) | (u64::from(words[2 * i + 1]) << 32));
+    let a = limbs(a);
+    let b = limbs(b);
+    let a_len = a.iter().rposition(|it| *it != 0).map_or(0, |it| it + 1);
+    let b_len = b.iter().rposition(|it| *it != 0).map_or(0, |it| it + 1);
+
+    let mut product = [0u64; 6];
+    for (i, &a_limb) in a.iter().enumerate().take(a_len) {
+        let mut carry = 0u64;
+        for (j, &b_limb) in b.iter().enumerate().take(b_len) {
+            // At most (2^64 - 1)^2 + 2 * (2^64 - 1) = 2^128 - 1, so this cannot overflow.
+            let sum = u128::from(a_limb) * u128::from(b_limb) + u128::from(product[i + j]) + u128::from(carry);
+            product[i + j] = sum as u64;
+            carry = (sum >> 64) as u64;
+        }
+        // The rows before this one end below this limb, so it is still zero.
+        product[i + b_len] = carry;
+    }
+
+    let mut words = [0u32; 12];
+    for (i, limb) in product.iter().enumerate() {
+        words[2 * i] = *limb as u32;
+        words[2 * i + 1] = (*limb >> 32) as u32;
+    }
+    words
 }
 
 const fn upper_word_6(data: &[u32; 6]) -> usize {
@@ -925,4 +934,124 @@ pub(crate) fn cos_wide(value: &Decimal) -> Option<Decimal> {
     let mut out = result.to_decimal()?;
     out.normalize_assign();
     Some(out)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// The product as `checked_mul` computed it before, with 32 bit limbs, to check `mul_192`
+    /// against.
+    fn mul_192_reference(a: &[u32; 6], b: &[u32; 6]) -> [u32; 12] {
+        let mut product = [0u32; 12];
+        let a_upper = upper_word_6(a);
+        let b_upper = upper_word_6(b);
+        for (i, &a_word) in a.iter().enumerate().take(a_upper + 1) {
+            if a_word == 0 {
+                continue;
+            }
+            let mut carry: u64 = 0;
+            for (j, &b_word) in b.iter().enumerate().take(b_upper + 1) {
+                let pos = i + j;
+                carry += (a_word as u64) * (b_word as u64) + (product[pos] as u64);
+                product[pos] = carry as u32;
+                carry >>= 32;
+            }
+            let mut pos = i + b_upper + 1;
+            while carry > 0 && pos < 12 {
+                carry += product[pos] as u64;
+                product[pos] = carry as u32;
+                carry >>= 32;
+                pos += 1;
+            }
+        }
+        product
+    }
+
+    /// Words at the edges: zero and all ones in each limb and half limb, so that every carry is
+    /// taken and leading zero limbs are skipped.
+    fn edge_words() -> impl Iterator<Item = [u32; 6]> {
+        let max = u32::MAX;
+        let mut values = alloc::vec![
+            [0; 6],
+            [1, 0, 0, 0, 0, 0],
+            [max; 6],
+            [0, 0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, max]
+        ];
+        for i in 0..6 {
+            let mut single = [0; 6];
+            single[i] = max;
+            values.push(single);
+            let mut up_to = [0; 6];
+            up_to[..=i].fill(max);
+            values.push(up_to);
+            let mut low_zero = [max; 6];
+            low_zero[..=i].fill(0);
+            values.push(low_zero);
+        }
+        values.into_iter()
+    }
+
+    #[test]
+    fn mul_192_is_the_reference_at_the_edges() {
+        for a in edge_words() {
+            for b in edge_words() {
+                assert_eq!(mul_192_reference(&a, &b), mul_192(&a, &b), "{a:?} * {b:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn mul_192_is_the_reference_for_random_words() {
+        // xorshift, seeded so that a failure can be reproduced
+        let mut state = 0x2545_F491_4F6C_DD1Du64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut words = move || {
+            // as many words as the random length, so that each number of leading zeros is taken
+            let len = (next() % 7) as usize;
+            let mut words = [0u32; 6];
+            for word in words.iter_mut().take(len) {
+                *word = next() as u32;
+            }
+            words
+        };
+        for _ in 0..200_000 {
+            let (a, b) = (words(), words());
+            assert_eq!(mul_192_reference(&a, &b), mul_192(&a, &b), "{a:?} * {b:?}");
+        }
+    }
+
+    #[test]
+    fn mul_192_is_the_product_of_u64() {
+        for (a, b) in [
+            (0u64, 0u64),
+            (1, u64::MAX),
+            (u64::MAX, u64::MAX),
+            (0x1234_5678_9ABC_DEF0, 0xFEDC_BA98),
+        ] {
+            let product = u128::from(a) * u128::from(b);
+            let words = |value: u64| [value as u32, (value >> 32) as u32, 0, 0, 0, 0];
+            let expected = [
+                product as u32,
+                (product >> 32) as u32,
+                (product >> 64) as u32,
+                (product >> 96) as u32,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ];
+            assert_eq!(expected, mul_192(&words(a), &words(b)), "{a} * {b}");
+        }
+    }
 }

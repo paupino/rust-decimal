@@ -105,6 +105,26 @@ fn benches(c: &mut Criterion) {
     c.bench_function("normalize_nostrip", |b| b.iter(|| black_box(NORM_NOSTRIP).normalize()));
     // Normalize on an odd mantissa (hits the odd fast path).
     c.bench_function("normalize_odd", |b| b.iter(|| black_box(NORM_ODD).normalize()));
+
+    #[cfg(feature = "maths")]
+    maths(c);
+}
+
+/// The functions which compute with 192 bit intermediates (`DecWide`).
+#[cfg(feature = "maths")]
+fn maths(c: &mut Criterion) {
+    use rust_decimal::MathematicalOps;
+
+    // Exponents from 1024 on take the 192 bit path of powu.
+    let base = Decimal::from_parts(10_001, 0, 0, false, 4);
+    c.bench_function("powu_192", |b| b.iter(|| black_box(base).checked_powu(black_box(5000))));
+    let exp_arg = Decimal::from_parts(25, 0, 0, false, 1);
+    c.bench_function("exp", |b| b.iter(|| black_box(exp_arg).checked_exp()));
+    let ln_arg = Decimal::from_parts(73, 0, 0, false, 1);
+    c.bench_function("ln", |b| b.iter(|| black_box(ln_arg).checked_ln()));
+    let trig_arg = Decimal::from_parts(12, 0, 0, false, 1);
+    c.bench_function("sin", |b| b.iter(|| black_box(trig_arg).checked_sin()));
+    c.bench_function("cos", |b| b.iter(|| black_box(trig_arg).checked_cos()));
 }
 
 criterion_group!(g, benches);
