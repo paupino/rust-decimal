@@ -1,6 +1,7 @@
 //! Micro-benchmarks targeting the operations affected by the performance work.
 //! Inputs are passed through `black_box` so the compiler cannot const-fold them.
 
+use core::fmt::Write;
 use core::hash::{Hash, Hasher};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use rust_decimal::Decimal;
@@ -36,6 +37,10 @@ const D_64_INT: Decimal = Decimal::from_parts(0x1234_5678, 0x9ABC_DEF0, 0, false
 const NORM_NOSTRIP: Decimal = Decimal::from_parts(12, 0, 0, false, 5);
 // Odd mantissa (19.99): cannot have trailing zeros, exercises the odd fast path.
 const NORM_ODD: Decimal = Decimal::from_parts(1999, 0, 0, false, 2);
+// A sample as a device sends it (25.16): a few digits in the low limb.
+const FMT_SHORT: Decimal = Decimal::from_parts(2516, 0, 0, false, 2);
+// What converting an f64 gives (25.15707859913897): 16 digits within 64 bits.
+const FMT_64: Decimal = Decimal::from_parts(0xE159_4CA9, 0x8_F005, 0, false, 14);
 
 struct NopHasher(u64);
 impl Hasher for NopHasher {
@@ -105,6 +110,31 @@ fn benches(c: &mut Criterion) {
     c.bench_function("normalize_nostrip", |b| b.iter(|| black_box(NORM_NOSTRIP).normalize()));
     // Normalize on an odd mantissa (hits the odd fast path).
     c.bench_function("normalize_odd", |b| b.iter(|| black_box(NORM_ODD).normalize()));
+
+    // Display into a buffer which is reused, so that only the formatting is measured.
+    let mut buffer = String::with_capacity(64);
+    let mut display = |name: &str, value: Decimal| {
+        c.bench_function(name, |b| {
+            b.iter(|| {
+                buffer.clear();
+                write!(buffer, "{}", black_box(value)).unwrap();
+                buffer.len()
+            })
+        });
+    };
+    display("display_zero", Decimal::ZERO);
+    display("display_short", FMT_SHORT);
+    display("display_64", FMT_64);
+    display("display_96", C_96);
+    display("display_max", Decimal::MAX);
+    c.bench_function("display_64_precision", |b| {
+        b.iter(|| {
+            buffer.clear();
+            write!(buffer, "{:.4}", black_box(FMT_64)).unwrap();
+            buffer.len()
+        })
+    });
+    c.bench_function("to_string_64", |b| b.iter(|| black_box(FMT_64).to_string()));
 }
 
 criterion_group!(g, benches);

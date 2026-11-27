@@ -10,6 +10,60 @@ use arrayvec::{ArrayString, ArrayVec};
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
+/// The two digits of each number from 0 to 99, so that digits can be written two at a time.
+const DIGIT_PAIRS: &[u8; 200] = b"\
+    0001020304050607080910111213141516171819\
+    2021222324252627282930313233343536373839\
+    4041424344454647484950515253545556575859\
+    6061626364656667686970717273747576777879\
+    8081828384858687888990919293949596979899";
+
+/// As many zeros as the largest precision which is written as digits.
+const ZEROS: &str = "0000000000000000000000000000";
+const _: () = assert!(ZEROS.len() == MAX_SCALE as usize);
+
+/// Writes `value`, which is below 100, as two digits ending at `end`.
+#[inline]
+fn write_digit_pair(buffer: &mut [u8], end: usize, value: usize) {
+    buffer[end - 2..end].copy_from_slice(&DIGIT_PAIRS[value * 2..value * 2 + 2]);
+}
+
+/// Writes the decimal digits of a 96 bit mantissa to the end of `buffer`, and returns the index of
+/// the first digit. Zero has no digits.
+///
+/// Above 64 bits, the 96 bit division gives nine digits at a time instead of one. The rest is done
+/// with native 64 bit division, two digits at a time.
+#[inline]
+fn write_mantissa_digits(mut working: [u32; 3], buffer: &mut [u8; MAX_STR_BUFFER_SIZE]) -> usize {
+    let mut start = buffer.len();
+    while working[2] != 0 {
+        // The quotient is at least 2^64 / 10^9, so there are digits before these nine: their
+        // leading zeros are digits too.
+        let mut chunk = div_by_u32(&mut working, 1_000_000_000) as usize;
+        for _ in 0..4 {
+            write_digit_pair(buffer, start, chunk % 100);
+            chunk /= 100;
+            start -= 2;
+        }
+        start -= 1;
+        buffer[start] = b'0' + chunk as u8;
+    }
+    let mut low = (u64::from(working[1]) << 32) | u64::from(working[0]);
+    while low >= 100 {
+        write_digit_pair(buffer, start, (low % 100) as usize);
+        low /= 100;
+        start -= 2;
+    }
+    if low >= 10 {
+        write_digit_pair(buffer, start, low as usize);
+        start -= 2;
+    } else if low > 0 {
+        start -= 1;
+        buffer[start] = b'0' + low as u8;
+    }
+    start
+}
+
 // impl that doesn't allocate for serialization purposes.
 pub(crate) fn to_str_internal(
     value: &Decimal,
@@ -19,16 +73,13 @@ pub(crate) fn to_str_internal(
     // Get the scale - where we need to put the decimal point
     let scale = value.scale() as usize;
 
-    // Convert to a string and manipulate that (neg at front, inject decimal)
-    let mut chars = ArrayVec::<_, MAX_STR_BUFFER_SIZE>::new();
-    let mut working = value.mantissa_array3();
-    while !is_all_zero(&working) {
-        let remainder = div_by_u32(&mut working, 10u32);
-        chars.push(char::from(b'0' + remainder as u8));
-    }
-    while scale > chars.len() {
-        chars.push('0');
-    }
+    // The digits of the mantissa as ASCII, with leading zeros so that there is a digit for each
+    // place of the scale. A mantissa has at most 29 digits and the scale is at most 28. They are
+    // pushed one by one rather than as a `str`, as checking that they are UTF-8 costs more than
+    // that for the short numbers which are the most common.
+    let mut buffer = [b'0'; MAX_STR_BUFFER_SIZE];
+    let start = write_mantissa_digits(value.mantissa_array3(), &mut buffer).min(buffer.len() - scale);
+    let digits = &buffer[start..];
 
     let (prec, additional) = match precision {
         Some(prec) => {
@@ -42,8 +93,7 @@ pub(crate) fn to_str_internal(
         None => (scale, None),
     };
 
-    let len = chars.len();
-    let whole_len = len - scale;
+    let (whole, fraction) = digits.split_at(digits.len() - scale);
     let mut rep = ArrayString::new();
     // Append the negative sign if necessary while also keeping track of the length of an "empty" string representation
     let empty_len = if append_sign && value.is_sign_negative() {
@@ -52,20 +102,20 @@ pub(crate) fn to_str_internal(
     } else {
         0
     };
-    for i in 0..whole_len + prec {
-        if i == len - scale {
-            if i == 0 {
-                rep.push('0');
-            }
-            rep.push('.');
-        }
-
-        if i >= len {
+    for &b in whole {
+        rep.push(char::from(b));
+    }
+    if prec > 0 {
+        if whole.is_empty() {
             rep.push('0');
-        } else {
-            let c = chars[len - i - 1];
-            rep.push(c);
         }
+        rep.push('.');
+        // A precision below the scale truncates, one above it pads with zeros.
+        let shown = prec.min(fraction.len());
+        for &b in &fraction[..shown] {
+            rep.push(char::from(b));
+        }
+        rep.push_str(&ZEROS[..prec - shown]);
     }
 
     // corner case for when we truncated everything in a low fractional
@@ -817,6 +867,151 @@ mod test {
     use crate::Decimal;
     use arrayvec::ArrayString;
     use core::{fmt::Write, str::FromStr};
+
+    /// `to_str_internal` as it was before digits were written more than one per 96 bit division,
+    /// with room for every output, to check the new implementation against.
+    fn to_str_reference(
+        value: &Decimal,
+        append_sign: bool,
+        precision: Option<usize>,
+    ) -> (ArrayString<64>, Option<usize>) {
+        let scale = value.scale() as usize;
+        let mut chars = ArrayVec::<_, MAX_STR_BUFFER_SIZE>::new();
+        let mut working = value.mantissa_array3();
+        while !is_all_zero(&working) {
+            let remainder = div_by_u32(&mut working, 10u32);
+            chars.push(char::from(b'0' + remainder as u8));
+        }
+        while scale > chars.len() {
+            chars.push('0');
+        }
+        let (prec, additional) = match precision {
+            Some(prec) => {
+                let max: usize = MAX_SCALE.into();
+                if prec > max {
+                    (max, Some(prec - max))
+                } else {
+                    (prec, None)
+                }
+            }
+            None => (scale, None),
+        };
+        let len = chars.len();
+        let whole_len = len - scale;
+        let mut rep = ArrayString::new();
+        let empty_len = if append_sign && value.is_sign_negative() {
+            rep.push('-');
+            1
+        } else {
+            0
+        };
+        for i in 0..whole_len + prec {
+            if i == len - scale {
+                if i == 0 {
+                    rep.push('0');
+                }
+                rep.push('.');
+            }
+            if i >= len {
+                rep.push('0');
+            } else {
+                rep.push(chars[len - i - 1]);
+            }
+        }
+        if rep.len() == empty_len {
+            rep.push('0');
+        }
+        (rep, additional)
+    }
+
+    fn decimal(mantissa: u128, negative: bool, scale: u32) -> Decimal {
+        Decimal::from_parts(
+            mantissa as u32,
+            (mantissa >> 32) as u32,
+            (mantissa >> 64) as u32,
+            negative,
+            scale,
+        )
+    }
+
+    /// Checks that both implementations write the same, unless the output does not fit the
+    /// buffer, which panics in both.
+    fn assert_same_as_reference(value: Decimal, append_sign: bool, precision: Option<usize>) {
+        let expected = to_str_reference(&value, append_sign, precision);
+        if expected.0.len() > MAX_STR_BUFFER_SIZE {
+            return;
+        }
+        let actual = to_str_internal(&value, append_sign, precision);
+        assert_eq!(
+            (expected.0.as_str(), expected.1),
+            (actual.0.as_str(), actual.1),
+            "{:?} {append_sign} {precision:?}",
+            value.unpack()
+        );
+    }
+
+    /// Mantissas at the edges of the paths of `write_mantissa_digits`: the number of digits, the
+    /// limbs, and the 64 bit boundary below which the 96 bit division is no longer used.
+    fn edge_mantissas() -> impl Iterator<Item = u128> {
+        let max = (1u128 << 96) - 1;
+        let powers_of_10 = (0..=28).map(|n| 10u128.pow(n));
+        let powers_of_2 = (0..96).map(|n| 1u128 << n);
+        let chunks = [
+            // a chunk of nine digits which is all zeros, or has leading zeros
+            (1u128 << 64) * 1_000_000_000,
+            (1u128 << 64) * 1_000_000_000 + 5,
+            (1u128 << 64) * 1_000_000_000 + 99_999_999,
+            (1u128 << 64) * 1_000_000_000_000_000_000,
+            u128::from(u64::MAX) * 1_000_000_000 + 1,
+        ];
+        powers_of_10
+            .chain(powers_of_2)
+            .flat_map(|it| [it - 1, it, it + 1])
+            .chain(chunks)
+            .chain([0, 99, 100, 101, u128::from(u64::MAX), max - 1, max])
+            .filter(move |it| *it <= max)
+    }
+
+    #[test]
+    fn digits_are_those_of_the_reference_at_the_edges() {
+        let precisions = core::iter::once(None).chain((0..=31).map(Some));
+        for mantissa in edge_mantissas() {
+            for scale in 0..=u32::from(MAX_SCALE) {
+                for negative in [false, true] {
+                    let value = decimal(mantissa, negative, scale);
+                    for precision in precisions.clone() {
+                        for append_sign in [false, true] {
+                            assert_same_as_reference(value, append_sign, precision);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn digits_are_those_of_the_reference_for_random_values() {
+        // xorshift, seeded so that a failure can be reproduced
+        let mut state = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for _ in 0..200_000 {
+            let bits = next() % 96 + 1;
+            let mantissa = ((u128::from(next()) << 64) | u128::from(next())) & ((1u128 << bits) - 1);
+            let random = next();
+            let scale = (random % 29) as u32;
+            let precision = match (random >> 8) % 33 {
+                32 => None,
+                it => Some(it as usize),
+            };
+            let value = decimal(mantissa, random & (1 << 16) != 0, scale);
+            assert_same_as_reference(value, random & (1 << 17) != 0, precision);
+        }
+    }
 
     #[test]
     fn display_does_not_overflow_max_capacity() {
