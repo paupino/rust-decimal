@@ -1,0 +1,16 @@
+[package]
+authors = ["Paul Mason <paul@form1.co.nz>"]
+categories = ["science", "mathematics", "data-structures"]
+description = "proptest strategies for rust_decimal."
+documentation = "https://docs.rs/rust_decimal_proptest/"
+edition = "2024"
+keywords = ["decimal", "proptest", "testing"]
+license = "MIT"
+name = "rust_decimal_proptest"
+repository = "https://github.com/paupino/rust-decimal"
+rust-version = "1.85.0"
+version = "2.0.0-alpha.0"
+
+[dependencies]
+proptest = { default-features = false, features = ["std"], version = "1.0" }
+rust_decimal = { default-features = false, path = "../..", version = "=2.0.0-alpha.0" }

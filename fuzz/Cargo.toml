@@ -13,7 +13,8 @@ test = false
 [dependencies]
 arbitrary = { features = ["derive"], version = "1.0" }
 libfuzzer-sys = "0.4"
-rust_decimal = { features = ["maths", "rust-fuzz"], path = ".." }
+rust_decimal = { features = ["maths"], path = ".." }
+rust_decimal_arbitrary = { path = "../integrations/arbitrary" }
 serde_json = { default-features = false, features = ["alloc"], version = "1.0" }
 
 [package]

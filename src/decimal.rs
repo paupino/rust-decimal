@@ -13,10 +13,6 @@ use core::{
     str::FromStr,
 };
 
-// Diesel configuration
-#[cfg(feature = "diesel")]
-use diesel::{deserialize::FromSqlRow, expression::AsExpression, sql_types::Numeric};
-
 #[allow(unused_imports)] // It's not actually dead code below, but the compiler thinks it is.
 #[cfg(not(feature = "std"))]
 use num_traits::float::FloatCore;
@@ -114,13 +110,8 @@ impl From<UnpackedDecimal> for Decimal {
 /// where m is an integer such that -2<sup>96</sup> < m < 2<sup>96</sup>, and e is an integer
 /// between 0 and 28 inclusive.
 #[derive(Clone, Copy)]
-#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression), diesel(sql_type = Numeric))]
 #[cfg_attr(feature = "c-repr", repr(C))]
 #[cfg_attr(feature = "align16", repr(align(16)))]
-#[cfg_attr(feature = "bytemuck", derive(bytemuck_derive::Pod, bytemuck_derive::Zeroable))]
-// [`borsh::BorshDeserialize`] is implemented manually so that the result can be checked to be a
-// valid instance of [`Self`].
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshSchema))]
 #[cfg_attr(all(target_arch = "wasm32", feature = "wasm"), wasm_bindgen)]
 pub struct Decimal {
     // Bits 0-15: unused
@@ -134,9 +125,6 @@ pub struct Decimal {
     lo: u32,
     mid: u32,
 }
-
-#[cfg(feature = "ndarray-0_16")]
-impl ndarray_0_16::ScalarOperand for Decimal {}
 
 /// `RoundingStrategy` represents the different rounding strategies that can be used by
 /// `round_dp_with_strategy`.

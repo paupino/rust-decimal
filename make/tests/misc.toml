@@ -2,8 +2,9 @@
 dependencies = [
     "test-no-alloc",
     "test-proptest",
-    "test-rust-fuzz",
+    "test-arbitrary",
     "test-borsh",
+    "test-bytemuck",
     "test-rand"
 ]
 
@@ -18,25 +19,20 @@ args = ["target", "add", "x86_64-unknown-none"]
 
 [tasks.test-proptest]
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=proptest", "--test", "proptest_tests"]
+args = ["test", "-p", "rust_decimal_proptest"]
 
-[tasks.test-rust-fuzz]
+[tasks.test-arbitrary]
 command = "cargo"
-args = ["test", "--workspace", "--no-default-features", "--features=rust-fuzz", "--test", "rust_fuzz_tests"]
+args = ["test", "-p", "rust_decimal_arbitrary"]
 
 [tasks.test-borsh]
 command = "cargo"
-args = ["test", "--workspace", "--features=borsh", "--test", "borsh_tests"]
+args = ["test", "-p", "rust_decimal_borsh"]
 
-[tasks.test-ndarray]
+[tasks.test-bytemuck]
 command = "cargo"
-args = ["test", "--workspace", "--features=ndarray-0_16", "--test", "ndarray_tests"]
+args = ["test", "-p", "rust_decimal_bytemuck"]
 
 [tasks.test-rand]
-dependencies = [
-    "test-rand-0_9"
-]
-
-[tasks.test-rand-0_9]
 command = "cargo"
-args = ["test", "--workspace", "--features=rand-0_9", "rand_tests"]
+args = ["test", "-p", "rust_decimal_rand", "--all-features"]

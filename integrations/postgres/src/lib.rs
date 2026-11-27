@@ -1,9 +1,43 @@
-use crate::Decimal;
-use crate::error::Error;
-use crate::postgres::common::*;
+//! PostgreSQL `NUMERIC` support for [`rust_decimal::Decimal`], for use with the
+//! [`postgres`](https://docs.rs/postgres) and [`tokio-postgres`](https://docs.rs/tokio-postgres)
+//! crates.
+//!
+//! Wrap values in [`PgDecimal`] when binding parameters or reading rows:
+//!
+//! ```no_run
+//! # fn main() -> Result<(), postgres::Error> {
+//! use rust_decimal::Decimal;
+//! use rust_decimal_postgres::PgDecimal;
+//!
+//! let mut client = postgres::Client::connect("postgres://postgres@localhost", postgres::NoTls)?;
+//! let row = client.query_one("SELECT $1::NUMERIC", &[&PgDecimal(Decimal::new(314, 2))])?;
+//! let value: Decimal = row.get::<_, PgDecimal>(0).into();
+//! # Ok(())
+//! # }
+//! ```
+#![forbid(unsafe_code)]
+
 use bytes::{BufMut, BytesMut};
 use postgres_types::{FromSql, IsNull, ToSql, Type, to_sql_checked};
+use rust_decimal::{Decimal, Error};
+use rust_decimal_pg_numeric::{PostgresDecimal, from_postgres, to_postgres};
 use std::io::{Cursor, Read};
+
+/// A [`Decimal`] that implements [`ToSql`] and [`FromSql`] for the PostgreSQL `NUMERIC` type.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PgDecimal(pub Decimal);
+
+impl From<Decimal> for PgDecimal {
+    fn from(value: Decimal) -> Self {
+        Self(value)
+    }
+}
+
+impl From<PgDecimal> for Decimal {
+    fn from(value: PgDecimal) -> Self {
+        value.0
+    }
+}
 
 // These are from numeric.c in the PostgreSQL source code
 const NUMERIC_NAN: u16 = 0xC000;
@@ -17,7 +51,7 @@ fn read_two_bytes(cursor: &mut Cursor<&[u8]>) -> std::io::Result<[u8; 2]> {
     Ok(result)
 }
 
-impl<'a> FromSql<'a> for Decimal {
+impl<'a> FromSql<'a> for PgDecimal {
     // Decimals are represented as follows:
     // Header:
     //  u16 numGroups
@@ -71,7 +105,7 @@ impl<'a> FromSql<'a> for Decimal {
     //   result = result + 5600 * 0.00000001;
     //
 
-    fn from_sql(_: &Type, raw: &[u8]) -> Result<Decimal, Box<dyn std::error::Error + 'static + Sync + Send>> {
+    fn from_sql(_: &Type, raw: &[u8]) -> Result<Self, Box<dyn std::error::Error + 'static + Sync + Send>> {
         let mut raw = Cursor::new(raw);
         let num_groups = u16::from_be_bytes(read_two_bytes(&mut raw)?);
         let weight = i16::from_be_bytes(read_two_bytes(&mut raw)?); // 10000^weight
@@ -103,15 +137,15 @@ impl<'a> FromSql<'a> for Decimal {
             return Err(Box::new(Error::ConversionTo("valid PostgreSQL NUMERIC digit group")));
         }
 
-        let Some(result) = Self::checked_from_postgres(PostgresDecimal {
+        let Some(result) = from_postgres(PostgresDecimal {
             neg: sign == 0x4000,
             weight,
             scale,
             digits: groups.into_iter(),
         }) else {
-            return Err(Box::new(crate::error::Error::ExceedsMaximumPossibleValue));
+            return Err(Box::new(Error::ExceedsMaximumPossibleValue));
         };
-        Ok(result)
+        Ok(Self(result))
     }
 
     fn accepts(ty: &Type) -> bool {
@@ -119,7 +153,7 @@ impl<'a> FromSql<'a> for Decimal {
     }
 }
 
-impl ToSql for Decimal {
+impl ToSql for PgDecimal {
     fn to_sql(
         &self,
         _: &Type,
@@ -130,7 +164,7 @@ impl ToSql for Decimal {
             weight,
             scale,
             digits,
-        } = self.to_postgres();
+        } = to_postgres(self.0);
 
         let num_digits = digits.len();
 
@@ -163,8 +197,8 @@ impl ToSql for Decimal {
 #[cfg(test)]
 mod test {
     use super::*;
-    use ::postgres::{Client, NoTls};
     use core::str::FromStr;
+    use postgres::{Client, NoTls};
 
     /// Gets the URL for connecting to PostgreSQL for testing. Set the POSTGRES_URL
     /// environment variable to change from the default of "postgres://postgres@localhost".
@@ -244,7 +278,7 @@ mod test {
         };
 
         // Test NULL
-        let result: Option<Decimal> = match client.query("SELECT NULL::numeric", &[]) {
+        let result: Option<PgDecimal> = match client.query("SELECT NULL::numeric", &[]) {
             Ok(x) => x.first().unwrap().get(0),
             Err(err) => panic!("{:#?}", err),
         };
@@ -252,7 +286,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[cfg(feature = "tokio-pg")]
     async fn async_test_null() {
         use futures::future::FutureExt;
         use tokio_postgres::connect;
@@ -263,7 +296,7 @@ mod test {
 
         let statement = client.prepare("SELECT NULL::numeric").await.unwrap();
         let rows = client.query(&statement, &[]).await.unwrap();
-        let result: Option<Decimal> = rows.first().unwrap().get(0);
+        let result: Option<PgDecimal> = rows.first().unwrap().get(0);
 
         assert_eq!(None, result);
     }
@@ -275,7 +308,7 @@ mod test {
             Err(err) => panic!("{:#?}", err),
         };
         let result: Decimal = match client.query("SELECT 1e-130::NUMERIC(130, 0)", &[]) {
-            Ok(x) => x.first().unwrap().get(0),
+            Ok(x) => x.first().unwrap().get::<_, PgDecimal>(0).0,
             Err(err) => panic!("error - {:#?}", err),
         };
         // We compare this to zero since it is so small that it is effectively zero
@@ -289,7 +322,7 @@ mod test {
             Err(err) => panic!("{:#?}", err),
         };
         let result: Decimal = match client.query("SELECT 0.100000000000000000000000000001::NUMERIC", &[]) {
-            Ok(x) => x.first().unwrap().get(0),
+            Ok(x) => x.first().unwrap().get::<_, PgDecimal>(0).0,
             Err(err) => panic!("error - {:#?}", err),
         };
 
@@ -305,7 +338,7 @@ mod test {
             Ok(x) => x,
             Err(err) => panic!("{:#?}", err),
         };
-        let (a, b): (Decimal, Decimal) = match client.query(
+        let (a, b): (PgDecimal, PgDecimal) = match client.query(
             "SELECT 0.100000000000000000000000000001::NUMERIC, 0.00000000000014780214::NUMERIC",
             &[],
         ) {
@@ -316,7 +349,7 @@ mod test {
             Err(err) => panic!("error - {:#?}", err),
         };
 
-        assert_eq!(a + b, Decimal::from_str("0.1000000000001478021400000000").unwrap());
+        assert_eq!(a.0 + b.0, Decimal::from_str("0.1000000000001478021400000000").unwrap());
     }
 
     #[test]
@@ -328,7 +361,7 @@ mod test {
         for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
             let result: Decimal =
                 match client.query(&*format!("SELECT {}::NUMERIC({}, {})", sent, precision, scale), &[]) {
-                    Ok(x) => x.first().unwrap().get(0),
+                    Ok(x) => x.first().unwrap().get::<_, PgDecimal>(0).0,
                     Err(err) => panic!("SELECT {}::NUMERIC({}, {}), error - {:#?}", sent, precision, scale, err),
                 };
             assert_eq!(
@@ -343,7 +376,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[cfg(feature = "tokio-pg")]
     async fn async_read_numeric_type() {
         use futures::future::FutureExt;
         use tokio_postgres::connect;
@@ -357,7 +389,7 @@ mod test {
                 .await
                 .unwrap();
             let rows = client.query(&statement, &[]).await.unwrap();
-            let result: Decimal = rows.first().unwrap().get(0);
+            let result: Decimal = rows.first().unwrap().get::<_, PgDecimal>(0).0;
 
             assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
         }
@@ -371,17 +403,18 @@ mod test {
         };
         for &(precision, scale, sent, expected) in TEST_DECIMALS.iter() {
             let number = Decimal::from_str(sent).unwrap();
-            let result: Decimal =
-                match client.query(&*format!("SELECT $1::NUMERIC({}, {})", precision, scale), &[&number]) {
-                    Ok(x) => x.first().unwrap().get(0),
-                    Err(err) => panic!("{:#?}", err),
-                };
+            let result: Decimal = match client.query(
+                &*format!("SELECT $1::NUMERIC({}, {})", precision, scale),
+                &[&PgDecimal(number)],
+            ) {
+                Ok(x) => x.first().unwrap().get::<_, PgDecimal>(0).0,
+                Err(err) => panic!("{:#?}", err),
+            };
             assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
         }
     }
 
     #[tokio::test]
-    #[cfg(feature = "tokio-pg")]
     async fn async_write_numeric_type() {
         use futures::future::FutureExt;
         use tokio_postgres::connect;
@@ -396,8 +429,8 @@ mod test {
                 .await
                 .unwrap();
             let number = Decimal::from_str(sent).unwrap();
-            let rows = client.query(&statement, &[&number]).await.unwrap();
-            let result: Decimal = rows.first().unwrap().get(0);
+            let rows = client.query(&statement, &[&PgDecimal(number)]).await.unwrap();
+            let result: Decimal = rows.first().unwrap().get::<_, PgDecimal>(0).0;
 
             assert_eq!(expected, result.to_string(), "NUMERIC({}, {})", precision, scale);
         }
@@ -424,7 +457,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[cfg(feature = "tokio-pg")]
     async fn async_numeric_overflow() {
         use futures::future::FutureExt;
         use tokio_postgres::connect;
@@ -452,23 +484,26 @@ mod test {
 
     #[test]
     fn numeric_overflow_from_sql() {
-        let close_to_overflow = Decimal::from_sql(
+        let close_to_overflow = PgDecimal::from_sql(
             &Type::NUMERIC,
             &[0x00, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01],
         );
         assert!(close_to_overflow.is_ok());
-        assert_eq!(close_to_overflow.unwrap().to_string(), "10000000000000000000000000000");
-        let overflow = Decimal::from_sql(
+        assert_eq!(
+            close_to_overflow.unwrap().0.to_string(),
+            "10000000000000000000000000000"
+        );
+        let overflow = PgDecimal::from_sql(
             &Type::NUMERIC,
             &[0x00, 0x01, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a],
         );
         assert!(overflow.is_err());
         assert_eq!(
             overflow.unwrap_err().to_string(),
-            crate::error::Error::ExceedsMaximumPossibleValue.to_string()
+            Error::ExceedsMaximumPossibleValue.to_string()
         );
         // weight=11 (start_integers=11) causes 10i128.pow(44) to overflow i128 — must be Err not panic
-        let large_weight = Decimal::from_sql(
+        let large_weight = PgDecimal::from_sql(
             &Type::NUMERIC,
             &[0x00, 0x01, 0x00, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01],
         );

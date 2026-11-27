@@ -240,28 +240,6 @@ fn decimal_to_string(b: &mut test::Bencher) {
     })
 }
 
-#[cfg(feature = "db-postgres")]
-#[bench]
-fn to_from_sql(b: &mut ::test::Bencher) {
-    use bytes::BytesMut;
-    use postgres::types::{FromSql, Kind, ToSql, Type};
-
-    let samples: Vec<Decimal> = test::black_box(SAMPLE_STRS.iter().map(|x| Decimal::from_str(x).unwrap()).collect());
-    let t = Type::new("".into(), 0, Kind::Simple, "".into());
-    let mut bytes: BytesMut = BytesMut::with_capacity(100).into();
-
-    b.iter(|| {
-        for _ in 0..100 {
-            for sample in &samples {
-                bytes.clear();
-                sample.to_sql(&t, &mut bytes).unwrap();
-                let result = Decimal::from_sql(&t, &bytes).unwrap();
-                ::test::black_box(result);
-            }
-        }
-    });
-}
-
 #[cfg(feature = "maths")]
 mod maths {
     use rust_decimal::prelude::*;
