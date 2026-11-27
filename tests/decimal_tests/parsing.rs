@@ -550,6 +550,69 @@ fn it_can_parse_different_radix() {
 }
 
 #[test]
+fn from_str_radix_integer_boundaries() {
+    fn encode_integer(mut value: u128, radix: u32) -> String {
+        let mut digits = Vec::new();
+        loop {
+            let digit = (value % u128::from(radix)) as u32;
+            digits.push(char::from_digit(digit, radix).unwrap());
+            value /= u128::from(radix);
+            if value == 0 {
+                break;
+            }
+        }
+        digits.into_iter().rev().collect()
+    }
+
+    let max = (1_u128 << 96) - 1;
+    for radix in (2..=36).filter(|&radix| radix != 10) {
+        for value in [0, 1, max - 1, max] {
+            let digits = encode_integer(value, radix);
+            let expected = Decimal::from_i128_with_scale(value as i128, 0);
+            for input in [
+                digits.clone(),
+                digits.to_uppercase(),
+                format!("+{digits}"),
+                format!("00{digits}"),
+            ] {
+                assert_eq!(
+                    Decimal::from_str_radix(&input, radix),
+                    Ok(expected),
+                    "{input} radix {radix}"
+                );
+            }
+            assert_eq!(
+                Decimal::from_str_radix(&format!("-{digits}"), radix),
+                Ok(-expected),
+                "negative {digits} radix {radix}"
+            );
+        }
+    }
+
+    for radix in (2..=36).filter(|&radix| radix != 10) {
+        for value in [max + 1, max * u128::from(radix)] {
+            let digits = encode_integer(value, radix);
+            let separated = digits
+                .chars()
+                .map(|digit| digit.to_string())
+                .collect::<Vec<_>>()
+                .join("_");
+            for input in [
+                digits.clone(),
+                digits.to_uppercase(),
+                format!("+{digits}"),
+                format!("-{digits}"),
+                format!("00{digits}"),
+                separated,
+                format!("{digits} hello"),
+            ] {
+                assert!(Decimal::from_str_radix(&input, radix).is_err(), "{input} radix {radix}");
+            }
+        }
+    }
+}
+
+#[test]
 fn from_str_radix_base2_97_ones_returns_error_not_panic() {
     // 97 binary ones → value exceeds Decimal::MAX; overflow check was after push so panicked
     let result = Decimal::from_str_radix(&"1".repeat(97), 2);
